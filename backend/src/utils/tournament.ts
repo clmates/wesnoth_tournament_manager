@@ -185,7 +185,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
 
     const tournament = tournamentResult.rows[0];
 
-    // Get accepted participants for first round, or winners from previous round
+    // Get accepted participants for first round, or non-eliminated participants from previous rounds
     let participants;
     if (roundNumber === 1) {
       const participantsResult = await query(
@@ -195,15 +195,14 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       );
       participants = participantsResult.rows;
     } else {
-      const winnersResult = await query(
-        `SELECT DISTINCT winner_id as user_id FROM tournament_matches 
-         WHERE tournament_id = $1 AND round_id = (
-           SELECT id FROM tournament_rounds 
-           WHERE tournament_id = $1 AND round_number = $2
-         )`,
-        [tournamentId, roundNumber - 1]
+      // For subsequent rounds, only get non-eliminated participants who haven't lost yet
+      // Must have been accepted and not eliminated
+      const participantsResult = await query(
+        `SELECT id, user_id FROM tournament_participants 
+         WHERE tournament_id = $1 AND participation_status = 'accepted' AND status = 'active'`,
+        [tournamentId]
       );
-      participants = winnersResult.rows.map((r: any) => ({ id: r.user_id, user_id: r.user_id }));
+      participants = participantsResult.rows;
     }
 
     if (participants.length === 0) {
@@ -470,8 +469,8 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
         if (rankingResult.rows.length > 0) {
           const winnerId = rankingResult.rows[0].user_id;
           await query(
-            `UPDATE tournaments SET status = 'finished', finished_at = NOW(), winner_id = $1 WHERE id = $2`,
-            [winnerId, tournamentId]
+            `UPDATE tournaments SET status = 'finished', finished_at = NOW() WHERE id = $1`,
+            [tournamentId]
           );
           console.log(`🏆 Tournament ${tournamentId} finished - Winner: ${winnerId}`);
         }

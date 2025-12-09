@@ -99,6 +99,7 @@ export async function updateBestOfSeriesDB(
     // Check if series is complete
     const seriesComplete = newPlayer1Wins >= series.wins_required || newPlayer2Wins >= series.wins_required;
     const seriesWinnerId = newPlayer1Wins >= series.wins_required ? series.player1_id : (newPlayer2Wins >= series.wins_required ? series.player2_id : null);
+    const seriesLoserId = seriesComplete ? (seriesWinnerId === series.player1_id ? series.player2_id : series.player1_id) : null;
 
     // Determine if we should create the next match (only if series not complete and we haven't reached max matches)
     let createNextMatch = false;
@@ -117,6 +118,30 @@ export async function updateBestOfSeriesDB(
        WHERE id = $5`,
       [newPlayer1Wins, newPlayer2Wins, seriesComplete ? 'completed' : 'in_progress', seriesWinnerId, tournamentRoundMatchId]
     );
+
+    // If series is now complete, mark the loser as eliminated
+    if (seriesComplete && seriesLoserId) {
+      // Get tournament_id from the round
+      const roundResult = await query(
+        `SELECT tr.tournament_id FROM tournament_round_matches trm
+         JOIN tournament_rounds tr ON trm.round_id = tr.id
+         WHERE trm.id = $1`,
+        [tournamentRoundMatchId]
+      );
+
+      if (roundResult.rows.length > 0) {
+        const { tournament_id } = roundResult.rows[0];
+
+        // Mark loser as eliminated in tournament_participants
+        await query(
+          `UPDATE tournament_participants
+           SET status = 'eliminated'
+           WHERE tournament_id = $1 AND user_id = $2`,
+          [tournament_id, seriesLoserId]
+        );
+        console.log(`[bestOf] 🚫 Player ${seriesLoserId} eliminated from tournament ${tournament_id}`);
+      }
+    }
 
     // If series is now complete, check if the entire round is complete
     if (seriesComplete) {
