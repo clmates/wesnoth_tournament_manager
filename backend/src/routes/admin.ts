@@ -1,0 +1,554 @@
+import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { query } from '../config/database.js';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { hashPassword } from '../utils/auth.js';
+import { translateToAllLanguages } from '../utils/translation.js';
+import { calculateNewRating, calculateTrend } from '../utils/elo.js';
+
+const router = Router();
+
+// Get all users
+router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Check if user is admin
+    const userResult = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Only admins can access this resource' });
+    }
+
+    const result = await query(
+      `SELECT id, nickname, email, language, discord_id, is_admin, is_active, is_blocked, is_rated, elo_rating, matches_played, total_wins, total_losses, created_at, updated_at 
+       FROM users 
+       WHERE id != '00000000-0000-0000-0000-000000000000'
+       ORDER BY created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get registration requests
+router.get('/registration-requests', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const result = await query(
+      `SELECT * FROM registration_requests 
+       WHERE status = 'pending'
+       ORDER BY created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch registration requests' });
+  }
+});
+
+// Approve registration
+router.post('/registration-requests/:id/approve', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    const regResult = await query('SELECT * FROM registration_requests WHERE id = $1', [id]);
+    if (regResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Registration request not found' });
+    }
+
+    const regRequest = regResult.rows[0];
+    const passwordHash = await hashPassword(password);
+
+    // New players start as unrated (is_rated = false, elo_rating = NULL)
+    const userResult = await query(
+      `INSERT INTO users (nickname, email, language, discord_id, password_hash, is_active, is_rated, elo_rating, matches_played)
+       VALUES ($1, $2, $3, $4, $5, true, false, NULL, 0)
+       RETURNING id`,
+      [regRequest.nickname, regRequest.email, regRequest.language, regRequest.discord_id, passwordHash]
+    );
+
+    await query(
+      `UPDATE registration_requests SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = $1 WHERE id = $2`,
+      [req.userId, id]
+    );
+
+    console.log(`New user created: ${regRequest.nickname} (unrated)`);
+    res.json({ message: 'Registration approved', userId: userResult.rows[0].id });
+  } catch (error) {
+    console.error('Error approving registration:', error);
+    res.status(500).json({ error: 'Failed to approve registration' });
+  }
+});
+
+// Reject registration
+router.post('/registration-requests/:id/reject', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    await query(
+      `UPDATE registration_requests SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = $1 WHERE id = $2`,
+      [req.userId, id]
+    );
+    res.json({ message: 'Registration rejected' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reject registration' });
+  }
+});
+
+// Block user
+router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    await query('UPDATE users SET is_blocked = true WHERE id = $1', [id]);
+    res.json({ message: 'User blocked' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to block user' });
+  }
+});
+
+// Unblock user
+router.post('/users/:id/unblock', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    await query('UPDATE users SET is_blocked = false WHERE id = $1', [id]);
+    res.json({ message: 'User unblocked' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to unblock user' });
+  }
+});
+
+// Update password policy
+router.put('/password-policy', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { min_length, require_uppercase, require_lowercase, require_numbers, require_symbols, previous_passwords_count } = req.body;
+
+    await query(
+      `UPDATE password_policy 
+       SET min_length = $1, require_uppercase = $2, require_lowercase = $3, 
+           require_numbers = $4, require_symbols = $5, previous_passwords_count = $6
+       WHERE id = (SELECT id FROM password_policy LIMIT 1)`,
+      [min_length, require_uppercase, require_lowercase, require_numbers, require_symbols, previous_passwords_count]
+    );
+
+    res.json({ message: 'Password policy updated' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update password policy' });
+  }
+});
+
+// Create news (multi-language)
+// Body: { en: {title, content}, es: {title, content}, zh: {title, content}, de: {title, content}, ru: {title, content} }
+router.post('/news', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const languages = ['en', 'es', 'zh', 'de', 'ru'];
+    const createdNewsId = await (async () => {
+      let newsId: string | null = null;
+      
+      for (const lang of languages) {
+        const langData = req.body[lang];
+        if (!langData || !langData.title || !langData.content) {
+          throw new Error(`Missing title or content for language: ${lang}`);
+        }
+
+        const result = await query(
+          `INSERT INTO news (title, content, language_code, author_id, published_at)
+           VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+           RETURNING id`,
+          [langData.title, langData.content, lang, req.userId]
+        );
+
+        if (!newsId) {
+          newsId = result.rows[0].id;
+        }
+      }
+
+      return newsId;
+    })();
+
+    res.status(201).json({ id: createdNewsId });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to create news', details: error.message });
+  }
+});
+
+// Update news (multi-language)
+// Body: { en: {title, content}, es: {title, content}, ... }
+router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const languages = ['en', 'es', 'zh', 'de', 'ru'];
+
+    // Delete existing news for this id in all languages
+    await query('DELETE FROM news WHERE id = $1', [id]);
+
+    // Re-insert with new data for each language
+    for (const lang of languages) {
+      const langData = req.body[lang];
+      if (!langData || !langData.title || !langData.content) {
+        throw new Error(`Missing title or content for language: ${lang}`);
+      }
+
+      await query(
+        `INSERT INTO news (id, title, content, language_code, author_id, published_at)
+         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+        [id, langData.title, langData.content, lang, req.userId]
+      );
+    }
+
+    res.json({ message: 'News updated' });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to update news', details: error.message });
+  }
+});
+
+// Delete news (deletes all language versions)
+router.delete('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    await query('DELETE FROM news WHERE id = $1', [id]);
+    res.json({ message: 'News deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete news' });
+  }
+});
+
+// Get all news/announcements
+router.get('/news', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const result = await query(
+      `SELECT n.id, n.title, n.content, n.published_at, n.language_code, u.nickname as author 
+       FROM news n
+       LEFT JOIN users u ON n.author_id = u.id
+       ORDER BY n.published_at DESC, n.language_code ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch news' });
+  }
+});
+
+// Get FAQ
+router.get('/faq', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const result = await query(
+      `SELECT id, question, answer, language_code, created_at FROM faq ORDER BY created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch FAQ' });
+  }
+});
+
+// Create FAQ entry - accepts all 5 languages in single request
+router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { en, es, zh, de, ru } = req.body;
+
+    // Validate that all required languages are provided
+    if (!en || !en.question || !en.answer ||
+        !es || !es.question || !es.answer ||
+        !zh || !zh.question || !zh.answer ||
+        !de || !de.question || !de.answer ||
+        !ru || !ru.question || !ru.answer) {
+      return res.status(400).json({ error: 'All 5 languages with question and answer are required' });
+    }
+
+    // Generate a single ID for all language versions
+    const faqId = uuidv4();
+    
+    const languages = [
+      { code: 'en', data: en },
+      { code: 'es', data: es },
+      { code: 'zh', data: zh },
+      { code: 'de', data: de },
+      { code: 'ru', data: ru }
+    ];
+
+    // Create all 5 language records
+    for (const lang of languages) {
+      await query(
+        `INSERT INTO faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
+        [faqId, lang.data.question, lang.data.answer, lang.code]
+      );
+    }
+
+    // Return the created FAQ ID
+    res.status(201).json({ id: faqId, message: 'FAQ created in all languages' });
+  } catch (error) {
+    console.error('FAQ creation error:', error);
+    res.status(500).json({ error: 'Failed to create FAQ entry' });
+  }
+});
+
+// Update FAQ entry - accepts all 5 languages and replaces all records
+router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { en, es, zh, de, ru } = req.body;
+
+    // Validate that all required languages are provided
+    if (!en || !en.question || !en.answer ||
+        !es || !es.question || !es.answer ||
+        !zh || !zh.question || !zh.answer ||
+        !de || !de.question || !de.answer ||
+        !ru || !ru.question || !ru.answer) {
+      return res.status(400).json({ error: 'All 5 languages with question and answer are required' });
+    }
+
+    // Delete all existing records for this FAQ ID
+    await query(`DELETE FROM faq WHERE id = $1`, [id]);
+
+    const languages = [
+      { code: 'en', data: en },
+      { code: 'es', data: es },
+      { code: 'zh', data: zh },
+      { code: 'de', data: de },
+      { code: 'ru', data: ru }
+    ];
+
+    // Re-create all 5 language records with updated content
+    for (const lang of languages) {
+      await query(
+        `INSERT INTO faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
+        [id, lang.data.question, lang.data.answer, lang.code]
+      );
+    }
+
+    res.json({ id, message: 'FAQ updated in all languages' });
+  } catch (error) {
+    console.error('FAQ update error:', error);
+    res.status(500).json({ error: 'Failed to update FAQ entry' });
+  }
+});
+
+// Delete FAQ entry
+router.delete('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    await query('DELETE FROM faq WHERE id = $1', [id]);
+    res.json({ message: 'FAQ entry deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete FAQ entry' });
+  }
+});
+
+// Block user
+router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      `UPDATE users SET is_blocked = true WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to block user' });
+  }
+});
+
+// Unblock user
+router.post('/users/:id/unblock', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      `UPDATE users SET is_blocked = false WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to unblock user' });
+  }
+});
+
+// Make user admin
+router.post('/users/:id/make-admin', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      `UPDATE users SET is_admin = true WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to make user admin' });
+  }
+});
+
+// Remove admin
+router.post('/users/:id/remove-admin', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      `UPDATE users SET is_admin = false WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove admin' });
+  }
+});
+
+// Delete user
+router.delete('/users/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    await query('DELETE FROM users WHERE id = $1', [id]);
+    res.json({ message: 'User deleted' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Force password reset
+router.post('/users/:id/force-reset-password', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const tempPassword = Math.random().toString(36).slice(-8);
+    const passwordHash = await hashPassword(tempPassword);
+
+    const result = await query(
+      `UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id, nickname, email`,
+      [passwordHash, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'Password reset', tempPassword, user: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// Recalculate all stats from scratch (global replay of all non-cancelled matches)
+router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Verify admin status
+    const adminResult = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    console.log(`Starting global stats recalculation by admin ${req.userId}`);
+
+    const defaultElo = 1600; // Standard baseline for new users
+
+    // Get ALL non-cancelled matches in chronological order
+    const allNonCancelledMatches = await query(
+      `SELECT m.id, m.winner_id, m.loser_id, m.created_at
+       FROM matches m
+       WHERE m.status IN ('confirmed', 'unconfirmed', 'pending', 'disputed')
+       ORDER BY m.created_at ASC, m.id ASC`
+    );
+
+    // Initialize all users with baseline ELO and zero stats
+    const userStates = new Map<string, {
+      elo_rating: number;
+      matches_played: number;
+      total_wins: number;
+      total_losses: number;
+      trend: string;
+    }>();
+
+    const allUsersResult = await query('SELECT id FROM users');
+    for (const userRow of allUsersResult.rows) {
+      userStates.set(userRow.id, {
+        elo_rating: defaultElo,
+        matches_played: 0,
+        total_wins: 0,
+        total_losses: 0,
+        trend: '-'
+      });
+    }
+
+    // Replay ALL non-cancelled matches chronologically to rebuild correct stats
+    for (const matchRow of allNonCancelledMatches.rows) {
+      const winnerId = matchRow.winner_id;
+      const loserId = matchRow.loser_id;
+
+      // Ensure both users exist in state map
+      if (!userStates.has(winnerId)) {
+        userStates.set(winnerId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+      }
+      if (!userStates.has(loserId)) {
+        userStates.set(loserId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+      }
+
+      const winner = userStates.get(winnerId)!;
+      const loser = userStates.get(loserId)!;
+
+      // Store before values
+      const winnerEloBefore = winner.elo_rating;
+      const loserEloBefore = loser.elo_rating;
+
+      // Calculate new ratings
+      const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
+      const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+
+      // Update stats
+      winner.elo_rating = winnerNewRating;
+      loser.elo_rating = loserNewRating;
+      winner.matches_played++;
+      loser.matches_played++;
+      winner.total_wins++;
+      loser.total_losses++;
+      winner.trend = calculateTrend(winner.trend, true);
+      loser.trend = calculateTrend(loser.trend, false);
+
+      // Update the match record with correct before/after ELO values
+      await query(
+        `UPDATE matches 
+         SET winner_elo_before = $1, winner_elo_after = $2, 
+             loser_elo_before = $3, loser_elo_after = $4
+         WHERE id = $5`,
+        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, matchRow.id]
+      );
+    }
+
+    // Update all users in the database with their recalculated stats
+    for (const [userId, stats] of userStates.entries()) {
+      await query(
+        `UPDATE users 
+         SET elo_rating = $1, 
+             matches_played = $2,
+             total_wins = $3,
+             total_losses = $4,
+             trend = $5,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $6`,
+        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, userId]
+      );
+    }
+
+    console.log(`Global stats recalculation completed: ${allNonCancelledMatches.rows.length} matches replayed, ${userStates.size} users updated`);
+
+    res.json({
+      message: 'Global stats recalculation completed successfully',
+      matchesProcessed: allNonCancelledMatches.rows.length,
+      usersUpdated: userStates.size
+    });
+  } catch (error) {
+    console.error('Global stats recalculation error:', error);
+    res.status(500).json({ error: 'Failed to recalculate stats' });
+  }
+});
+
+export default router;

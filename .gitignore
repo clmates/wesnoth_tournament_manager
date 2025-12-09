@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.env.local
+uploads/
+replays/
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing artifacts
+/testing/results/
+/testing/scripts/test_credentials.csv
+/backend/test_credentials.csv

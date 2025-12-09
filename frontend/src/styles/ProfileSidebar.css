@@ -1,0 +1,260 @@
+.profile-sidebar {
+  position: relative;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  background: white;
+  border-right: 1px solid #e9ecef;
+  z-index: 999;
+  overflow-y: auto;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 2px solid #e0e0e0;
+  background: linear-gradient(135deg, #f8f9fa 0%, #f0f4f8 100%);
+}
+
+.close-sidebar-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.close-sidebar-btn:hover {
+  color: #00d4ff;
+  background-color: rgba(0, 212, 255, 0.1);
+}
+
+.user-profile-card {
+  text-align: center;
+  padding: 12px 0;
+}
+
+.user-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  font-size: 24px;
+  margin: 0 auto 12px;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+}
+
+.user-nickname {
+  color: #2c3e50;
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0 0 4px 0;
+}
+
+.user-elo {
+  color: #f39c12;
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0;
+}
+
+.sidebar-nav {
+  list-style: none;
+  padding: 16px 0;
+  margin: 0;
+}
+
+.nav-item {
+  margin: 0;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  color: #555;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border-left: 3px solid transparent;
+  background: none;
+  border: none;
+.nav-link:hover {
+  background-color: #f0f4f8;
+  color: #3498db;
+  border-left-color: #3498db;
+  padding-left: 24px;
+}
+
+.nav-link.active {
+  background-color: #f0f4f8;
+  color: #3498db;
+  border-left-color: #3498db;
+  padding-left: 24px;
+} color: #00d4ff;
+  border-left-color: #00d4ff;
+  padding-left: 24px;
+}
+
+.nav-icon {
+  font-size: 18px;
+.sidebar-section {
+  padding: 16px 0;
+  border-top: 1px solid #e9ecef;
+}
+
+.sidebar-section-title {
+  padding: 10px 20px;
+  color: #999;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+} text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.sidebar-footer {
+  position: relative;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  border-top: 2px solid #e0e0e0;
+  background: linear-gradient(180deg, rgba(248, 249, 250, 0) 0%, rgba(248, 249, 250, 0.6) 100%);
+  margin-top: auto;
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.logout-btn:hover {
+  background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(192, 57, 43, 0.3);
+}
+
+.logout-btn:active {
+  transform: translateY(0);
+}
+
+/* Overlay cuando sidebar es popup (no usado en layout permanente) */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  display: none;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Scrollbar styling */
+.profile-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.profile-sidebar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.profile-sidebar::-webkit-scrollbar-thumb {
+  background: #0a5a7a;
+  border-radius: 3px;
+}
+
+.profile-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #00d4ff;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .profile-sidebar {
+    width: 240px;
+  }
+
+  .sidebar-header {
+    padding: 16px;
+  }
+
+  .user-avatar {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+
+  .user-nickname {
+    font-size: 14px;
+  }
+
+  .user-elo {
+    font-size: 12px;
+  }
+
+  .nav-link {
+    padding: 12px 16px;
+  }
+
+  .nav-link:hover,
+  .nav-link.active {
+    padding-left: 20px;
+  }
+
+  .sidebar-section-title {
+    padding: 8px 16px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-sidebar {
+    width: 100%;
+  }
+
+  .sidebar-footer {
+    position: relative;
+    margin-top: 16px;
+  }
+}

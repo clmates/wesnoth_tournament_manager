@@ -1,0 +1,298 @@
+.recent-games-container {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.recent-games-container h2 {
+  color: #2c3e50;
+  margin-bottom: 16px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.games-table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.games-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 14px;
+}
+
+.games-table thead {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 2px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.games-table th {
+  padding: 14px 12px;
+  text-align: left;
+  color: #2c3e50;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.games-table tbody tr {
+  border-bottom: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.games-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.game-row.winner-row {
+  background-color: rgba(39, 174, 96, 0.02);
+}
+
+.game-row.loser-row {
+  background-color: rgba(231, 76, 60, 0.02);
+}
+
+.games-table td {
+  padding: 12px;
+  color: #555;
+}
+
+.date-col {
+  font-weight: 500;
+  color: #2c3e50;
+  min-width: 100px;
+}
+
+.winner-col,
+.loser-col {
+  min-width: 150px;
+}
+
+.player-name {
+  font-weight: 600;
+  color: #2c3e50;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.faction {
+  font-size: 12px;
+  color: #999;
+  display: block;
+}
+
+.rating-col {
+  min-width: 140px;
+}
+
+.rating-value {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rating-change {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rating-change.positive {
+  color: #27ae60;
+}
+
+.rating-change.negative {
+  color: #e74c3c;
+}
+
+.ranking-col {
+  min-width: 180px;
+}
+
+.ranking-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.ranking-info:last-child {
+  margin-bottom: 0;
+}
+
+.winner-rank,
+.loser-rank {
+  font-weight: 600;
+  color: #3498db;
+  min-width: 45px;
+}
+
+.arrow {
+  color: #bdc3c7;
+  font-size: 11px;
+}
+
+.ranking-delta {
+  color: #27ae60;
+  font-weight: 600;
+  min-width: 35px;
+}
+
+.replay-col {
+  min-width: 160px;
+}
+
+.download-btn {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.download-btn:hover {
+  background: linear-gradient(135deg, #2980b9 0%, #1a5a96 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.download-btn:active {
+  transform: translateY(0);
+}
+
+.no-replay {
+  color: #bdc3c7;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.action-col {
+  min-width: 120px;
+}
+
+.report-btn {
+  background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.report-btn:hover {
+  background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.3);
+}
+
+.report-btn:active {
+  transform: translateY(0);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-badge.confirmed {
+  background: linear-gradient(135deg, #d4edda 0%, #c8e6c9 100%);
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-badge.pending {
+  background: linear-gradient(135deg, #fff3cd 0%, #ffecb5 100%);
+  color: #664d03;
+  border: 1px solid #ffc107;
+}
+
+.no-games-message {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  font-size: 16px;
+  margin-top: 24px;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .games-table {
+    font-size: 12px;
+  }
+
+  .games-table th,
+  .games-table td {
+    padding: 10px 8px;
+  }
+
+  .ranking-info {
+    font-size: 11px;
+  }
+
+  .download-btn,
+  .report-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 768px) {
+  .recent-games-container {
+    padding: 16px;
+  }
+
+  .recent-games-container h2 {
+    font-size: 1.1rem;
+  }
+
+  .games-table {
+    font-size: 11px;
+  }
+
+  .games-table th,
+  .games-table td {
+    padding: 8px 6px;
+  }
+
+  .player-name {
+    font-size: 13px;
+  }
+
+  .faction {
+    font-size: 10px;
+  }
+
+  .winner-col,
+  .loser-col,
+  .rating-col {
+    min-width: 120px;
+  }
+}

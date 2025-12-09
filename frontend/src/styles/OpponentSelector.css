@@ -1,0 +1,144 @@
+.opponent-selector {
+  position: relative;
+  width: 100%;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.opponent-input {
+  width: 100%;
+  padding: 10px 32px 10px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.opponent-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.clear-button {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.clear-button:hover {
+  color: #666;
+}
+
+.opponent-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #d0d0d0;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.opponent-item {
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.15s;
+}
+
+.opponent-item:last-child {
+  border-bottom: none;
+}
+
+.opponent-item:hover,
+.opponent-item.selected {
+  background-color: #f0f7ff;
+}
+
+.opponent-item.selected {
+  background-color: #e0f2fe;
+  border-left: 3px solid #3b82f6;
+  padding-left: 9px;
+}
+
+.opponent-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.opponent-nickname {
+  font-weight: 500;
+  color: #333;
+  flex: 1;
+}
+
+.opponent-elo {
+  font-size: 12px;
+  color: #666;
+  background-color: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.opponent-item-info {
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  background-color: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.opponent-item-empty {
+  padding: 16px 12px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.loading-text {
+  font-size: 12px;
+  color: #999;
+  padding: 8px 0;
+}
+
+/* Scrollbar styling */
+.opponent-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.opponent-dropdown::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.opponent-dropdown::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.opponent-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
