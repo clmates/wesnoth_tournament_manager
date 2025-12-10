@@ -351,6 +351,18 @@
   width: fit-content;
 }
 
+.recent-matches-table .player-comment {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  font-style: italic;
+  margin-top: 0.25rem;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .recent-matches-table .rating-block {
   display: flex;
   flex-direction: column;

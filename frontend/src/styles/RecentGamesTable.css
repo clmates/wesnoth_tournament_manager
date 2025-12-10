@@ -115,6 +115,18 @@
   border: 1px solid rgba(231, 76, 60, 0.3);
 }
 
+.player-comment {
+  display: block;
+  font-size: 0.8rem;
+  color: #666;
+  font-style: italic;
+  margin-top: 0.25rem;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .rating-col {
   min-width: 140px;
 }

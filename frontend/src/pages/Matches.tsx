@@ -293,6 +293,9 @@ const Matches: React.FC = () => {
                   <td className="player-col">
                     <div className="player-name">{match.winner_nickname}</div>
                     <div className="faction-badge">{match.winner_faction}</div>
+                    {match.winner_comments && (
+                      <div className="player-comment">{match.winner_comments}</div>
+                    )}
                   </td>
 
                   <td className="rating-col">
@@ -316,6 +319,9 @@ const Matches: React.FC = () => {
                   <td className="player-col">
                     <div className="player-name">{match.loser_nickname}</div>
                     <div className="faction-badge">{match.loser_faction}</div>
+                    {match.loser_comments && (
+                      <div className="player-comment">{match.loser_comments}</div>
+                    )}
                   </td>
 
                   <td className="rating-col">

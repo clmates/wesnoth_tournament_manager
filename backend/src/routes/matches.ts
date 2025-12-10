@@ -351,6 +351,32 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     const winner = winnerResult.rows[0];
     const loser = loserResult.rows[0];
 
+    // Get current ranking positions for both players
+    const winnerRankResult = await query(
+      `SELECT COUNT(*) as rank 
+       FROM users u2 
+       WHERE u2.is_active = true 
+         AND u2.is_blocked = false
+         AND u2.is_rated = true
+         AND u2.elo_rating >= 1400
+         AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+      [winner.elo_rating, req.userId]
+    );
+
+    const loserRankResult = await query(
+      `SELECT COUNT(*) as rank 
+       FROM users u2 
+       WHERE u2.is_active = true 
+         AND u2.is_blocked = false
+         AND u2.is_rated = true
+         AND u2.elo_rating >= 1400
+         AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+      [loser.elo_rating, opponent_id]
+    );
+
+    const winnerCurrentRank = parseInt(winnerRankResult.rows[0].rank) + 1;
+    const loserCurrentRank = parseInt(loserRankResult.rows[0].rank) + 1;
+
     // Use legacy calculateELO for now, store both old and new calculations
     const legacyEloChange = calculateELO(winner.elo_rating, loser.elo_rating, true);
 
@@ -358,10 +384,10 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
     const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
 
-    // Insert match with legacy elo_change for now
+    // Insert match with ranking positions
     const matchResult = await query(
-      `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, winner_rating, replay_file_path, tournament_id, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, loser_comments, winner_rating, replay_file_path, tournament_id, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, winner_ranking_pos, loser_ranking_pos)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING id`,
       [
         req.userId,
@@ -370,6 +396,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         winner_faction,
         loser_faction,
         comments,
+        null, // loser_comments will be added when loser confirms/disputes
         rating,
         req.file?.path || null,
         tournament_id || null,
@@ -378,6 +405,8 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         loser.elo_rating,
         winner.level || 'novato',
         loser.level || 'novato',
+        winnerCurrentRank,
+        loserCurrentRank,
       ]
     );
 
@@ -435,16 +464,46 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       [finalLoserRating, loserIsNowRated, newLoserMatches, opponent_id, getUserLevel(finalLoserRating), loserTrend]
     );
 
-    // Update match with after-match ELO and level ratings
+    // Calculate new ranking positions after ELO update
+    const winnerNewRankResult = await query(
+      `SELECT COUNT(*) as rank 
+       FROM users u2 
+       WHERE u2.is_active = true 
+         AND u2.is_blocked = false
+         AND u2.is_rated = true
+         AND u2.elo_rating >= 1400
+         AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+      [finalWinnerRating, req.userId]
+    );
+
+    const loserNewRankResult = await query(
+      `SELECT COUNT(*) as rank 
+       FROM users u2 
+       WHERE u2.is_active = true 
+         AND u2.is_blocked = false
+         AND u2.is_rated = true
+         AND u2.elo_rating >= 1400
+         AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+      [finalLoserRating, opponent_id]
+    );
+
+    const winnerNewRank = parseInt(winnerNewRankResult.rows[0].rank) + 1;
+    const loserNewRank = parseInt(loserNewRankResult.rows[0].rank) + 1;
+    const winnerRankingChange = winnerCurrentRank - winnerNewRank;
+    const loserRankingChange = loserCurrentRank - loserNewRank;
+
+    // Update match with after-match ELO, level ratings, and ranking changes
     await query(
       `UPDATE matches 
        SET winner_elo_after = $1,
            winner_level_after = $2,
            loser_elo_after = $3,
            loser_level_after = $4,
+           winner_ranking_change = $5,
+           loser_ranking_change = $6,
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5`,
-      [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), matchId]
+       WHERE id = $7`,
+      [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), winnerRankingChange, loserRankingChange, matchId]
     );
 
     console.log(
