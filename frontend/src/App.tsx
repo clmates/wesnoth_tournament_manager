@@ -9,6 +9,7 @@ import Register from './pages/Register';
 import User from './pages/User';
 import Profile from './pages/Profile';
 import Matches from './pages/Matches';
+import MyMatches from './pages/MyMatches';
 import Admin from './pages/Admin';
 import MyStats from './pages/MyStats';
 import MyTournaments from './pages/MyTournaments';
@@ -37,6 +38,7 @@ const App: React.FC = () => {
             <Route path="/user" element={<User />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/matches" element={<Matches />} />
+            <Route path="/my-matches" element={<MyMatches />} />
             <Route path="/players" element={<Players />} />
             <Route path="/rankings" element={<Rankings />} />
             <Route path="/faq" element={<FAQ />} />

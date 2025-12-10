@@ -1,5 +1,5 @@
 import React from 'react';
-import ProfileSidebar from './ProfileSidebar';
+import UserProfileNav from './UserProfileNav';
 import '../styles/MainLayout.css';
 
 interface MainLayoutProps {
@@ -9,9 +9,7 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   return (
     <div className="main-layout">
-      <aside className="sidebar-container">
-        <ProfileSidebar isOpen={true} onClose={() => {}} />
-      </aside>
+      <UserProfileNav />
       <main className="main-content">
         {children}
       </main>
