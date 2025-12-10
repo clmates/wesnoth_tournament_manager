@@ -301,6 +301,30 @@
   background: #2980b9;
 }
 
+.file-info {
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.file-info span {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-info span.no-file {
+  color: #999;
+  font-style: italic;
+}
+
+.file-info span:not(.no-file) {
+  color: #27ae60;
+  font-weight: 500;
+}
+
 .form-actions {
   display: flex;
   gap: 1rem;

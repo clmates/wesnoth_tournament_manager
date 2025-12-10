@@ -191,7 +191,7 @@ const ReportMatch: React.FC = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="loser_faction">Opponent Faction *</label>
+              <label htmlFor="loser_faction">{t('report.opponent_faction')} *</label>
               <select
                 id="loser_faction"
                 name="loser_faction"
@@ -199,13 +199,13 @@ const ReportMatch: React.FC = () => {
                 onChange={handleInputChange}
                 required
               >
-                <option value="">Select faction...</option>
-                <option value="Elves">Elves</option>
-                <option value="Humans">Humans</option>
-                <option value="Orcs">Orcs</option>
-                <option value="Undead">Undead</option>
-                <option value="Dwarves">Dwarves</option>
-                <option value="Drakes">Drakes</option>
+                <option value="">{t('report.select_faction')}</option>
+                <option value="Elves">{t('faction.elves')}</option>
+                <option value="Humans">{t('faction.humans')}</option>
+                <option value="Orcs">{t('faction.orcs')}</option>
+                <option value="Undead">{t('faction.undead')}</option>
+                <option value="Dwarves">{t('faction.dwarves')}</option>
+                <option value="Drakes">{t('faction.drakes')}</option>
               </select>
             </div>
           </div>
@@ -248,6 +248,13 @@ const ReportMatch: React.FC = () => {
               onChange={handleFileChange}
               accept=".gz"
             />
+            <div className="file-info">
+              {formData.replay ? (
+                <span>{formData.replay.name}</span>
+              ) : (
+                <span className="no-file">{t('report.no_file_selected')}</span>
+              )}
+            </div>
           </div>
 
           <div className="form-actions">
