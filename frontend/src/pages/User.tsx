@@ -5,6 +5,8 @@ import { userService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import MainLayout from '../components/MainLayout';
 import ProfileStats from '../components/ProfileStats';
+import EloChart from '../components/EloChart';
+import OpponentStats from '../components/OpponentStats';
 import RecentGamesTable from '../components/RecentGamesTable';
 import '../styles/UserProfile.css';
 
@@ -78,8 +80,18 @@ const User: React.FC = () => {
           <>
             <ProfileStats player={profile} />
 
-            <RecentGamesTable 
+            <EloChart 
               matches={matches}
+              currentPlayerId={userId || ''}
+            />
+
+            <OpponentStats 
+              matches={matches}
+              currentPlayerId={userId || ''}
+            />
+
+            <RecentGamesTable 
+              matches={matches.slice(0, 30)}
               currentPlayerId={userId || ''}
               onMatchConfirmed={refetchMatches}
             />

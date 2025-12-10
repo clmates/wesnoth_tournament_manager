@@ -1,0 +1,188 @@
+.opponent-stats-container {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.opponent-stats-container h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.no-data-message {
+  text-align: center;
+  color: #999;
+  padding: 2rem;
+  font-style: italic;
+}
+
+.opponent-stats-wrapper {
+  overflow-x: auto;
+  border-radius: 6px;
+}
+
+.opponent-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.opponent-stats-table thead {
+  background: #2c3e50;
+  color: white;
+  font-weight: 600;
+}
+
+.opponent-stats-table th {
+  padding: 1rem 0.75rem;
+  text-align: left;
+  border-bottom: 2px solid #34495e;
+  white-space: nowrap;
+}
+
+.opponent-stats-table th.numeric {
+  text-align: center;
+}
+
+.opponent-stats-table tbody tr {
+  border-bottom: 1px solid #ecf0f1;
+  transition: background-color 0.2s;
+}
+
+.opponent-stats-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.opponent-stats-table td {
+  padding: 0.75rem;
+  vertical-align: center;
+}
+
+.opponent-stats-table td.numeric {
+  text-align: center;
+  font-weight: 500;
+}
+
+.opponent-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.opponent-name .name {
+  display: block;
+  word-break: break-word;
+}
+
+.elo-badge {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  background: #e3f2fd;
+  color: #1976d2;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.elo-value {
+  color: #555;
+  font-weight: 500;
+}
+
+.wins-badge {
+  display: inline-block;
+  padding: 0.3rem 0.6rem;
+  background: #d4edda;
+  color: #155724;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.losses-badge {
+  display: inline-block;
+  padding: 0.3rem 0.6rem;
+  background: #f8d7da;
+  color: #721c24;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.percentage-badge {
+  display: inline-block;
+  padding: 0.3rem 0.6rem;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.percentage-badge.positive {
+  background: #c8e6c9;
+  color: #2e7d32;
+}
+
+.percentage-badge.negative {
+  background: #ffcdd2;
+  color: #c62828;
+}
+
+.elo-positive {
+  color: #27ae60;
+  font-weight: 700;
+}
+
+.elo-negative {
+  color: #e74c3c;
+  font-weight: 700;
+}
+
+.date {
+  color: #7f8c8d;
+  font-size: 0.85rem;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .opponent-stats-table th,
+  .opponent-stats-table td {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .opponent-stats-table th.numeric {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .opponent-stats-container {
+    padding: 1rem;
+  }
+
+  .opponent-stats-table {
+    font-size: 0.75rem;
+  }
+
+  .opponent-stats-table th {
+    padding: 0.5rem 0.3rem;
+  }
+
+  .opponent-stats-table td {
+    padding: 0.5rem 0.3rem;
+  }
+
+  .elo-badge,
+  .wins-badge,
+  .losses-badge,
+  .percentage-badge {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  .opponent-name .name {
+    max-width: 80px;
+    word-break: break-word;
+  }
+}
