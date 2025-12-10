@@ -31,8 +31,8 @@ const OpponentSelector: React.FC<OpponentSelectorProps> = ({ value, onChange }) 
       try {
         setLoading(true);
         const response = await userService.getAllUsers();
-        const users = response.data || [];
-        setAllUsers(users);
+        const users = response.data?.data || response.data || [];
+        setAllUsers(Array.isArray(users) ? users : []);
       } catch (error) {
         console.error('Error fetching users:', error);
       } finally {
