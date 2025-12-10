@@ -115,11 +115,9 @@
   "details_btn": "Detalles",
   "no_replay": "Sin replay",
   "download": "Descargar",
-  "downloads": "Descargas"
-  ,
+  "downloads": "Descargas",
   "recent_games": "Partidas Recientes",
   "recent_games_no_data": "No hay partidas recientes",
-  "label_ranking_change": "Cambio en la Clasificación",
   "my_opponents": "Mis Oponentes",
   "no_opponent_data": "Sin datos de oponentes disponibles",
   "opponent_name": "Oponente",
@@ -329,6 +327,7 @@
   "label_total_matches": "Partidas Totales",
   "label_record": "W-L",
   "label_rank": "Posición",
+  "label_ranking_position": "Posición en la Clasificación",
   "tournaments": {
     "view_details": "Ver detalles",
     "back_to_tournaments": "Volver a Torneos",
@@ -341,7 +340,6 @@
   "tournaments.max_participants_required": "⚠️ El número máximo de participantes es obligatorio para configurar las rondas. Establécelo primero en la sección Información básica.",
   "error_name_description_required": "Nombre, descripción y tipo de torneo son obligatorios",
   "error_max_participants_required": "El número máximo de participantes es obligatorio y debe ser mayor que 0",
-  "label_ranking_position": "Posición en la Clasificación",
   "label_ranking_change": "Cambio de Posición",
   "option_type_swiss_elimination": "Mezcla Suizo-Eliminación",
   "profile": {
