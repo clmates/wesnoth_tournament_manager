@@ -76,8 +76,6 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
                 <th>{t('label_winner_rating')}</th>
                 <th>{t('label_loser')}</th>
                 <th>{t('label_loser_rating')}</th>
-                <th>{t('label_ranking_change') || 'Ranking Change'}</th>
-                <th>{t('label_replay') || 'Replay'}</th>
                 <th>{t('label_actions')}</th>
               </tr>
             </thead>
@@ -94,76 +92,64 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
                     </td>
                     
                     <td className="winner-col">
-                      <span className="player-name">{match.winner_nickname}</span>
-                      <span className="faction">{match.winner_faction}</span>
+                      <div className="player-info">
+                        <span className="player-name">{match.winner_nickname}</span>
+                        <span className="faction-badge winner-faction">{match.winner_faction}</span>
+                      </div>
                     </td>
                     
                     <td className="rating-col">
-                      <span className="rating-value">
-                        {match.winner_elo_before || 'N/A'}
-                        <span className={`rating-change ${winnerEloChange >= 0 ? 'positive' : 'negative'}`}>
+                      <div className="rating-block">
+                        <div className="rating-value">{match.winner_elo_before || 'N/A'}</div>
+                        <div className={`rating-change ${winnerEloChange >= 0 ? 'positive' : 'negative'}`}>
                           ({winnerEloChange >= 0 ? '+' : ''}{winnerEloChange})
-                        </span>
-                      </span>
+                        </div>
+                      </div>
                     </td>
                     
                     <td className="loser-col">
-                      <span className="player-name">{match.loser_nickname}</span>
-                      <span className="faction">{match.loser_faction}</span>
+                      <div className="player-info">
+                        <span className="player-name">{match.loser_nickname}</span>
+                        <span className="faction-badge loser-faction">{match.loser_faction}</span>
+                      </div>
                     </td>
                     
                     <td className="rating-col">
-                      <span className="rating-value">
-                        {match.loser_elo_before || 'N/A'}
-                        <span className={`rating-change ${loserEloChange >= 0 ? 'positive' : 'negative'}`}>
+                      <div className="rating-block">
+                        <div className="rating-value">{match.loser_elo_before || 'N/A'}</div>
+                        <div className={`rating-change ${loserEloChange >= 0 ? 'positive' : 'negative'}`}>
                           ({loserEloChange >= 0 ? '+' : ''}{loserEloChange})
-                        </span>
-                      </span>
-                    </td>
-                    
-                    <td className="ranking-col">
-                      <div className="ranking-info">
-                        <span className="winner-rank">#{match.winner_ranking_pos || 'N/A'}</span>
-                        <span className="arrow">→</span>
-                        <span className="ranking-delta">{match.winner_ranking_change || 0}</span>
+                        </div>
                       </div>
-                      <div className="ranking-info">
-                        <span className="loser-rank">#{match.loser_ranking_pos || 'N/A'}</span>
-                        <span className="arrow">→</span>
-                        <span className="ranking-delta">{match.loser_ranking_change || 0}</span>
-                      </div>
-                    </td>
-                    
-                    <td className="replay-col">
-                      {match.replay_file_path ? (
-                        <button 
-                          className="download-btn"
-                          onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
-                          title={`Downloads: ${match.replay_downloads || 0}`}
-                        >
-                          ⬇️ {t('download')} ({match.replay_downloads || 0})
-                        </button>
-                      ) : (
-                        <span className="no-replay">{t('no_replay')}</span>
-                      )}
                     </td>
                     
                     <td className="action-col">
-                      {!isCurrentPlayerWinner && match.status === 'unconfirmed' ? (
-                        <button 
-                          className="report-btn"
-                          onClick={() => handleReportClick(match)}
-                        >
-                          {t('report')}
-                        </button>
-                      ) : (
-                        <span className={`status-badge badge-${match.status || 'unconfirmed'}`}>
-                          {match.status === 'confirmed' && t('match_status_confirmed')}
-                          {match.status === 'disputed' && t('match_status_disputed')}
-                          {match.status === 'unconfirmed' && t('match_status_unconfirmed')}
-                          {match.status === 'cancelled' && t('match_status_cancelled')}
-                        </span>
-                      )}
+                      <div className="action-buttons">
+                        {match.replay_file_path && (
+                          <button 
+                            className="download-btn"
+                            onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
+                            title={`${t('downloads')}: ${match.replay_downloads || 0}`}
+                          >
+                            ⬇️
+                          </button>
+                        )}
+                        {!isCurrentPlayerWinner && match.status === 'unconfirmed' ? (
+                          <button 
+                            className="report-btn"
+                            onClick={() => handleReportClick(match)}
+                          >
+                            {t('report')}
+                          </button>
+                        ) : (
+                          <span className={`status-badge badge-${match.status || 'unconfirmed'}`}>
+                            {match.status === 'confirmed' && '✓'}
+                            {match.status === 'disputed' && '⚠'}
+                            {match.status === 'unconfirmed' && '⏳'}
+                            {match.status === 'cancelled' && '✗'}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

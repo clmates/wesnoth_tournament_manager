@@ -282,13 +282,14 @@
   align-items: center;
   gap: 0.5rem;
   justify-content: center;
+  flex-wrap: nowrap;
 }
 
 .rating-value {
   font-weight: 600;
   font-size: 1.1rem;
   color: #333;
-  display: inline;
+  white-space: nowrap;
 }
 
 .rating-change {
@@ -296,7 +297,6 @@
   font-weight: 600;
   padding: 0.2rem 0.4rem;
   border-radius: 3px;
-  display: inline;
   white-space: nowrap;
 }
 
