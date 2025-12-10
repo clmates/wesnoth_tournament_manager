@@ -5,7 +5,7 @@ import { processMultiLanguageItems } from '../utils/languageFallback';
 import '../styles/Home.css';
 
 const Home: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [topPlayers, setTopPlayers] = useState<any[]>([]);
   const [recentMatches, setRecentMatches] = useState<any[]>([]);
   const [recentPlayers, setRecentPlayers] = useState<any[]>([]);
@@ -108,7 +108,7 @@ const Home: React.FC = () => {
   }, []);
 
   if (loading) {
-    return <div className="home"><p>Loading...</p></div>;
+    return <div className="home"><p>{t('loading')}</p></div>;
   }
 
   return (
@@ -132,9 +132,9 @@ const Home: React.FC = () => {
                 {recentMatches.map((match) => (
                   <div key={match.id} className="match-card">
                     <div className="match-header">
-                      <span className="winner-name">{match.winner_nickname || 'Unknown'}</span>
-                      <span className="vs-text">vs</span>
-                      <span className="loser-name">{match.loser_nickname || 'Unknown'}</span>
+                      <span className="winner-name">{match.winner_nickname || t('unknown')}</span>
+                      <span className="vs-text">{t('vs')}</span>
+                      <span className="loser-name">{match.loser_nickname || t('unknown')}</span>
                       {match.replay_file_path && (
                         <button 
                           className="download-btn" 
@@ -189,7 +189,7 @@ const Home: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <p>No announcements</p>
+              <p>{t('home.no_announcements')}</p>
             )}
           </section>
         </div>
@@ -198,48 +198,48 @@ const Home: React.FC = () => {
         <div className="home-right">
           {/* Player of Month */}
           <section className="home-widget">
-            <h3>Player of Month</h3>
+            <h3>{t('home.player_of_month')}</h3>
             {playerOfMonth ? (
-              <div className="widget-card player-of-month">
-                <div className="player-name">{playerOfMonth.nickname}</div>
-                <div className="player-stat">
-                  <span className="label">ELO:</span>
-                  <span className="value">
-                    {playerOfMonth.is_rated ? playerOfMonth.elo_rating : 'Unrated'}
-                  </span>
+                <div className="widget-card player-of-month">
+                  <div className="player-name">{playerOfMonth.nickname}</div>
+                  <div className="player-stat">
+                    <span className="label">{t('label_elo')}:</span>
+                    <span className="value">
+                      {playerOfMonth.is_rated ? playerOfMonth.elo_rating : t('unrated')}
+                    </span>
+                  </div>
+                  <div className="player-stat">
+                    <span className="label">{t('label_level')}:</span>
+                    <span className="value">{playerOfMonth.level}</span>
+                  </div>
                 </div>
-                <div className="player-stat">
-                  <span className="label">Level:</span>
-                  <span className="value">{playerOfMonth.level}</span>
-                </div>
-              </div>
             ) : (
-              <p>No data</p>
+              <p>{t('no_data')}</p>
             )}
           </section>
 
           {/* Recent Players */}
           <section className="home-widget">
-            <h3>Recent Players</h3>
+            <h3>{t('home.recent_players')}</h3>
             {recentPlayers.length > 0 ? (
               <div className="widget-list">
                 {recentPlayers.map((player) => (
                   <div key={player.id} className="widget-item">
                     <span className="player-nick">{player.nickname}</span>
                     <span className="player-elo">
-                      {player.is_rated ? `${player.elo_rating} ELO` : 'Unrated'}
+                      {player.is_rated ? `${player.elo_rating} ${t('label_elo')}` : t('unrated')}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p>No data</p>
+              <p>{t('no_data')}</p>
             )}
           </section>
 
           {/* Top 10 */}
           <section className="home-widget">
-            <h3>Top 10 Players</h3>
+            <h3>{t('home.top_10_players')}</h3>
             {topPlayers.length > 0 ? (
               <div className="widget-list top-10">
                 {topPlayers.map((player, index) => (
@@ -247,13 +247,13 @@ const Home: React.FC = () => {
                     <span className="rank">#{index + 1}</span>
                     <span className="player-nick">{player.nickname}</span>
                     <span className="player-elo">
-                      {player.is_rated ? player.elo_rating : 'Unrated'}
+                      {player.is_rated ? player.elo_rating : t('unrated')}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p>No data</p>
+              <p>{t('no_data')}</p>
             )}
           </section>
         </div>

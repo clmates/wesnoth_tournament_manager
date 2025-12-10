@@ -335,7 +335,7 @@ async function main() {
 
     // Play available matches until tournament finished or no progress
     let noProgressCount = 0;
-    const maxNoProgress = 8;
+    const maxNoProgress = 20;
     const maxLoops = 200;
     let loops = 0;
     let lastActivatedRound = -1; // Track last activated round to avoid duplicates
@@ -465,6 +465,7 @@ async function main() {
             if (nextRoundRes.statusCode === 200) {
               log.append(`${nowTag()} RESULT: next_round activated status=200`);
               lastActivatedRound = completedRound.round_number; // Mark this round as processed
+              didWork = true; // Mark round activation as progress
             } else {
               log.append(`${nowTag()} WARN: next_round activation failed status=${nextRoundRes.statusCode}`);
             }

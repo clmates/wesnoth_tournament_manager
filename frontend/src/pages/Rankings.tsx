@@ -145,7 +145,7 @@ const Rankings: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="rankings-container"><p>{t('loading') || 'Loading...'}</p></div>;
+    return <div className="rankings-container"><p>{t('loading')}</p></div>;
   }
 
   return (
@@ -162,18 +162,18 @@ const Rankings: React.FC = () => {
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
-            First
+            {t('pagination_first')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            ← Prev
+            {t('pagination_prev')}
           </button>
           
           <div className="page-info">
-            Page <span className="current-page">{currentPage}</span> of <span className="total-pages">{totalPages}</span>
+            {t('pagination_page_info', { page: currentPage, totalPages })}
           </div>
           
           <button 
@@ -181,14 +181,14 @@ const Rankings: React.FC = () => {
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            Next →
+            {t('pagination_next')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
-            Last
+            {t('pagination_last')}
           </button>
         </div>
       )}
@@ -196,48 +196,48 @@ const Rankings: React.FC = () => {
       {/* Filters */}
       <div className="filters-section">
         <div className="filter-group">
-          <label htmlFor="nickname">Nickname</label>
+          <label htmlFor="nickname">{t('filter_nickname')}</label>
           <input
             type="text"
             id="nickname"
             name="nickname"
-            placeholder="Search by nickname..."
+            placeholder={t('filter_by_nickname')}
             value={inputFilters.nickname}
             onChange={handleFilterInputChange}
           />
         </div>
 
         <div className="filter-group">
-          <label htmlFor="min_elo">Min ELO</label>
+          <label htmlFor="min_elo">{t('filter_min_elo')}</label>
           <input
             type="number"
             id="min_elo"
             name="min_elo"
-            placeholder="Min ELO..."
+            placeholder={t('filter_min_elo_placeholder')}
             value={inputFilters.min_elo}
             onChange={handleFilterInputChange}
           />
         </div>
 
         <div className="filter-group">
-          <label htmlFor="max_elo">Max ELO</label>
+          <label htmlFor="max_elo">{t('filter_max_elo')}</label>
           <input
             type="number"
             id="max_elo"
             name="max_elo"
-            placeholder="Max ELO..."
+            placeholder={t('filter_max_elo_placeholder')}
             value={inputFilters.max_elo}
             onChange={handleFilterInputChange}
           />
         </div>
 
         <button className="reset-btn" onClick={handleResetFilters}>
-          Reset Filters
+          {t('reset_filters')}
         </button>
       </div>
 
       <div className="rankings-info">
-        <p>Showing {players.length} of {total} total players (Page {currentPage} of {totalPages})</p>
+        <p>{t('showing_count', { count: players.length, total, page: currentPage, totalPages })}</p>
       </div>
 
       {players.length > 0 ? (
@@ -246,13 +246,13 @@ const Rankings: React.FC = () => {
             <thead>
               <tr>
                 <th className="rank-col">#</th>
-                <th className="nickname-col">Nickname</th>
-                <th className="elo-col">ELO</th>
-                <th className="matches-col">Total</th>
-                <th className="wins-col">Wins</th>
-                <th className="losses-col">Losses</th>
-                <th className="ratio-col">%</th>
-                <th className="trend-col">Trend</th>
+                <th className="nickname-col">{t('label_nickname')}</th>
+                <th className="elo-col">{t('label_elo')}</th>
+                <th className="matches-col">{t('label_total')}</th>
+                <th className="wins-col">{t('label_wins')}</th>
+                <th className="losses-col">{t('label_losses')}</th>
+                <th className="ratio-col">{t('label_win_pct')}</th>
+                <th className="trend-col">{t('label_trend')}</th>
               </tr>
             </thead>
             <tbody>
@@ -297,18 +297,18 @@ const Rankings: React.FC = () => {
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
-            First
+            {t('pagination_first')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            ← Prev
+            {t('pagination_prev')}
           </button>
           
           <div className="page-info">
-            Page <span className="current-page">{currentPage}</span> of <span className="total-pages">{totalPages}</span>
+            {t('pagination_page_info', { page: currentPage, totalPages })}
           </div>
           
           <button 
@@ -316,14 +316,14 @@ const Rankings: React.FC = () => {
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            Next →
+            {t('pagination_next')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
-            Last
+            {t('pagination_last')}
           </button>
         </div>
       )}

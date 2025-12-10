@@ -58,6 +58,46 @@ async function checkAndUpdateRoundCompletion(roundId: string, tournamentId: stri
   }
 }
 
+// Helper function to handle series completion and check round completion
+async function handleSeriesAndRoundCompletion(seriesUpdate: any, tournamentRoundMatchId: string, roundId: string, tournamentId: string, tournament_match_id: string) {
+  try {
+    // If series not complete and we need another match, create it
+    if (seriesUpdate.shouldCreateNextMatch) {
+      try {
+        const nextMatchId = await createNextMatchInSeries(tournamentRoundMatchId, tournamentId, roundId);
+        if (nextMatchId) {
+          console.log(`Created next match in series: ${nextMatchId}`);
+        }
+      } catch (nextMatchError) {
+        console.error('Error creating next match in series:', nextMatchError);
+        // Don't fail if next match creation fails
+      }
+    } else {
+      // Series is complete, check if round is complete
+      try {
+        const roundNumberResult = await query(
+          `SELECT round_number FROM tournament_rounds WHERE id = $1`,
+          [roundId]
+        );
+        const roundNumber = roundNumberResult.rows[0]?.round_number;
+        
+        if (roundNumber) {
+          const isRoundComplete = await checkAndCompleteRound(tournamentId, roundNumber);
+          if (isRoundComplete) {
+            console.log(`✅ Round ${roundNumber} for tournament ${tournamentId} is now complete`);
+          }
+        }
+      } catch (roundCompleteError) {
+        console.error('Error checking round completion:', roundCompleteError);
+        // Don't fail if round check fails
+      }
+    }
+  } catch (error) {
+    console.error('Error handling series and round completion:', error);
+    // Don't throw - this is a background operation
+  }
+}
+
 // Report match (JSON only, no file upload required)
 router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -243,6 +283,25 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
             } catch (nextMatchError) {
               console.error('Error creating next match in series:', nextMatchError);
               // Don't fail the response if next match creation fails
+            }
+          } else {
+            // Series is complete, check if round is complete
+            try {
+              const roundNumberResult = await query(
+                `SELECT round_number FROM tournament_rounds WHERE id = $1`,
+                [roundId]
+              );
+              const roundNumber = roundNumberResult.rows[0]?.round_number;
+              
+              if (roundNumber) {
+                const isRoundComplete = await checkAndCompleteRound(tournament_id, roundNumber);
+                if (isRoundComplete) {
+                  console.log(`✅ Round ${roundNumber} for tournament ${tournament_id} is now complete`);
+                }
+              }
+            } catch (roundCompleteError) {
+              console.error('Error checking round completion:', roundCompleteError);
+              // Don't fail the response if round check fails
             }
           }
         } catch (seriesError) {
@@ -451,6 +510,25 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
             } catch (nextMatchError) {
               console.error('Error creating next match in series:', nextMatchError);
               // Don't fail the response if next match creation fails
+            }
+          } else {
+            // Series is complete, check if round is complete
+            try {
+              const roundNumberResult = await query(
+                `SELECT round_number FROM tournament_rounds WHERE id = $1`,
+                [roundId]
+              );
+              const roundNumber = roundNumberResult.rows[0]?.round_number;
+              
+              if (roundNumber) {
+                const isRoundComplete = await checkAndCompleteRound(tournament_id, roundNumber);
+                if (isRoundComplete) {
+                  console.log(`✅ Round ${roundNumber} for tournament ${tournament_id} is now complete`);
+                }
+              }
+            } catch (roundCompleteError) {
+              console.error('Error checking round completion:', roundCompleteError);
+              // Don't fail the response if round check fails
             }
           }
         } catch (seriesError) {
