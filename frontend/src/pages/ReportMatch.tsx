@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { matchService, userService } from '../services/api';
 import MainLayout from '../components/MainLayout';
 import OpponentSelector from '../components/OpponentSelector';
+import FileUploadInput from '../components/FileUploadInput';
 import '../styles/ReportMatch.css';
 
 const ReportMatch: React.FC = () => {
@@ -62,15 +63,6 @@ const ReportMatch: React.FC = () => {
       ...prev,
       [name]: value,
     }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFormData((prev) => ({
-        ...prev,
-        replay: e.target.files![0],
-      }));
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -241,20 +233,16 @@ const ReportMatch: React.FC = () => {
 
           <div className="form-group">
             <label htmlFor="replay">{t('report_replay')}</label>
-            <input
-              type="file"
-              id="replay"
-              name="replay"
-              onChange={handleFileChange}
+            <FileUploadInput
+              value={formData.replay}
+              onChange={(file) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  replay: file,
+                }));
+              }}
               accept=".gz"
             />
-            <div className="file-info">
-              {formData.replay ? (
-                <span>{formData.replay.name}</span>
-              ) : (
-                <span className="no-file">{t('report.no_file_selected')}</span>
-              )}
-            </div>
           </div>
 
           <div className="form-actions">

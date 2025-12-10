@@ -212,6 +212,8 @@
   "opponent_selector.showing": "Показано {{current}} из {{total}}",
   "opponent_selector.no_players": "Игроки не найдены",
   "opponent_selector.loading": "Загрузка игроков...",
+  "file_upload.select_file": "Выбрать Файл",
+  "file_upload.clear_file": "Удалить файл",
   "faction.elves": "Эльфы",
   "faction.humans": "Люди",
   "faction.orcs": "Орки",

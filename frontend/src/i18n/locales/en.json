@@ -209,6 +209,8 @@
   "opponent_selector.showing": "Showing {{current}} of {{total}}",
   "opponent_selector.no_players": "No players found",
   "opponent_selector.loading": "Loading players...",
+  "file_upload.select_file": "Select File",
+  "file_upload.clear_file": "Remove file",
   "faction.elves": "Elves",
   "faction.humans": "Humans",
   "faction.orcs": "Orcs",

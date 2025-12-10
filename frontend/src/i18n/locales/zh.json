@@ -212,6 +212,8 @@
   "opponent_selector.showing": "显示 {{current}} / {{total}}",
   "opponent_selector.no_players": "未找到玩家",
   "opponent_selector.loading": "正在加载玩家...",
+  "file_upload.select_file": "选择文件",
+  "file_upload.clear_file": "删除文件",
   "faction.elves": "精灵",
   "faction.humans": "人类",
   "faction.orcs": "兽人",
