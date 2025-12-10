@@ -121,6 +121,17 @@
   "recent_games_no_data": "No hay partidas recientes",
   "label_ranking_change": "Cambio en la Clasificación",
   "label_replay": "Replay",
+  "home": {
+    "player_of_month": "Jugador del Mes",
+    "recent_players": "Jugadores Recientes",
+    "top_10_players": "Top 10 Jugadores",
+    "no_announcements": "No hay anuncios"
+  },
+  "vs": "vs",
+  "unknown": "Desconocido",
+  "unrated": "Sin clasificar",
+  "label_elo": "ELO",
+  "label_level": "Nivel",
   "report": "Reportar"
   ,
   "determine_winner": "Determinar Ganador",

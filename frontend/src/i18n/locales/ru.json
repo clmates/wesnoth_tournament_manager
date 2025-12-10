@@ -121,6 +121,17 @@
   "recent_games_no_data": "Нет последних игр",
   "label_ranking_change": "Изменение рейтинга",
   "label_replay": "Повтор",
+  "home": {
+    "player_of_month": "Player of the Month",
+    "recent_players": "Recent Players",
+    "top_10_players": "Top 10 Players",
+    "no_announcements": "No announcements"
+  },
+  "vs": "vs",
+  "unknown": "Unknown",
+  "unrated": "Unrated",
+  "label_elo": "ELO",
+  "label_level": "Level",
   "report": "Пожаловаться"
   ,
   "determine_winner": "Определить победителя",

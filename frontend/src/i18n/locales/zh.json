@@ -121,6 +121,17 @@
   "recent_games_no_data": "没有最近的比赛",
   "label_ranking_change": "排名变化",
   "label_replay": "回放",
+  "home": {
+    "player_of_month": "Player of the Month",
+    "recent_players": "Recent Players",
+    "top_10_players": "Top 10 Players",
+    "no_announcements": "No announcements"
+  },
+  "vs": "vs",
+  "unknown": "Unknown",
+  "unrated": "Unrated",
+  "label_elo": "ELO",
+  "label_level": "Level",
   "report": "报告"
   ,
   "determine_winner": "确定获胜者",

@@ -129,5 +129,16 @@
   "report_match_link": "Spiel melden"
   ,
   "view_all": "Alle anzeigen →",
-  "announcements": "Ankündigungen"
+  "announcements": "Ankündigungen",
+  "home": {
+    "player_of_month": "Player of the Month",
+    "recent_players": "Recent Players",
+    "top_10_players": "Top 10 Players",
+    "no_announcements": "No announcements"
+  },
+  "vs": "vs",
+  "unknown": "Unknown",
+  "unrated": "Unrated",
+  "label_elo": "ELO",
+  "label_level": "Level"
 }
