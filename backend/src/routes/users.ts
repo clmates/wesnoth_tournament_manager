@@ -245,4 +245,96 @@ router.get('/all', async (req, res) => {
   }
 });
 
+// Get monthly statistics for a user
+router.get('/:id/stats/month', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const now = new Date();
+    const monthAgo = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Get ELO change this month
+    const eloChangeResult = await query(
+      `SELECT 
+        COALESCE(SUM(CASE WHEN winner_id = $1 THEN elo_change ELSE -elo_change END), 0) as elo_gained
+       FROM matches 
+       WHERE (winner_id = $1 OR loser_id = $1) 
+         AND status = 'confirmed'
+         AND created_at >= $2`,
+      [id, monthAgo]
+    );
+
+    // Get previous month ELO to calculate ranking positions change
+    const prevMonthEloResult = await query(
+      `SELECT COALESCE(MIN(elo_rating), 0) as min_elo_month
+       FROM (
+         SELECT CASE 
+           WHEN winner_id = $1 THEN winner_elo_before
+           ELSE loser_elo_before
+         END as elo_rating
+         FROM matches 
+         WHERE (winner_id = $1 OR loser_id = $1)
+           AND status = 'confirmed'
+           AND created_at >= $2
+         ORDER BY created_at ASC
+         LIMIT 1
+       ) as first_month
+      `,
+      [id, monthAgo]
+    );
+
+    // Get current ELO
+    const currentEloResult = await query(
+      'SELECT elo_rating FROM users WHERE id = $1',
+      [id]
+    );
+
+    const eloGained = eloChangeResult.rows[0].elo_gained;
+    const currentElo = currentEloResult.rows[0]?.elo_rating || 0;
+    const prevMonthElo = prevMonthEloResult.rows[0]?.min_elo_month || currentElo;
+
+    // Get ranking at start of month and current ranking
+    const startRankingResult = await query(
+      `SELECT COUNT(*) as rank_at_start 
+       FROM users u2 
+       WHERE u2.is_active = true 
+         AND u2.is_blocked = false
+         AND u2.is_rated = true
+         AND u2.elo_rating >= 1400
+         AND (
+           u2.elo_rating > $1 
+           OR (u2.elo_rating = $1 AND u2.id < $2)
+         )`,
+      [prevMonthElo, id]
+    );
+
+    const currentRankingResult = await query(
+      `SELECT COUNT(*) as current_rank 
+       FROM users u2 
+       WHERE u2.is_active = true 
+         AND u2.is_blocked = false
+         AND u2.is_rated = true
+         AND u2.elo_rating >= 1400
+         AND (
+           u2.elo_rating > $1 
+           OR (u2.elo_rating = $1 AND u2.id < $2)
+         )`,
+      [currentElo, id]
+    );
+
+    const rankAtStart = parseInt(startRankingResult.rows[0].rank_at_start) + 1;
+    const currentRank = parseInt(currentRankingResult.rows[0].current_rank) + 1;
+    const positionsGained = rankAtStart - currentRank;
+
+    res.json({
+      elo_gained: Math.round(eloGained),
+      positions_gained: positionsGained,
+      rank_start: rankAtStart,
+      current_rank: currentRank
+    });
+  } catch (error) {
+    console.error('Monthly stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch monthly stats', details: (error as any).message });
+  }
+});
+
 export default router;

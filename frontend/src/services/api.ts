@@ -36,6 +36,7 @@ export const userService = {
   getProfile: () => api.get('/users/profile'),
   updateDiscordId: (discordId: string) => api.put('/users/profile/discord', { discord_id: discordId }),
   getUserStats: (id: string) => api.get(`/users/${id}/stats`),
+  getUserMonthlyStats: (id: string) => api.get(`/users/${id}/stats/month`),
   getRecentMatches: (id: string) => api.get(`/users/${id}/matches`),
   getMatches: () => api.get('/matches'),
   searchUsers: (query: string) => api.get(`/users/search/${query}`),

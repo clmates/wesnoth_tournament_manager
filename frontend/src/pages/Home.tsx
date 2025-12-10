@@ -10,6 +10,7 @@ const Home: React.FC = () => {
   const [recentMatches, setRecentMatches] = useState<any[]>([]);
   const [recentPlayers, setRecentPlayers] = useState<any[]>([]);
   const [playerOfMonth, setPlayerOfMonth] = useState<any>(null);
+  const [playerMonthlyStats, setPlayerMonthlyStats] = useState<any>(null);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -58,11 +59,20 @@ const Home: React.FC = () => {
         // Fetch top 10 players
         try {
           const rankingRes = await userService.getGlobalRanking();
-          const players = rankingRes.data || [];
-          setTopPlayers(players.slice(0, 10));
+          const players = rankingRes.data?.data || rankingRes.data || [];
+          setTopPlayers(Array.isArray(players) ? players.slice(0, 10) : []);
           // Player of month - top player this month
-          if (players.length > 0) {
-            setPlayerOfMonth(players[0]);
+          if (Array.isArray(players) && players.length > 0) {
+            const topPlayer = players[0];
+            setPlayerOfMonth(topPlayer);
+            
+            // Fetch monthly stats for player of month
+            try {
+              const statsRes = await userService.getUserMonthlyStats(topPlayer.id);
+              setPlayerMonthlyStats(statsRes.data || statsRes);
+            } catch (statsErr) {
+              console.error('Error fetching monthly stats:', statsErr);
+            }
           }
         } catch (err) {
           console.error('Error fetching ranking:', err);
@@ -79,14 +89,16 @@ const Home: React.FC = () => {
         // Fetch recent players (latest registrations)
         try {
           const usersRes = await userService.getAllUsers();
-          const allUsers = usersRes.data || [];
-          // Get newest players by sorting by creation date (reverse order for newest first)
-          const sortedByDate = [...allUsers].sort((a, b) => {
-            const dateA = new Date(a.created_at || 0).getTime();
-            const dateB = new Date(b.created_at || 0).getTime();
-            return dateB - dateA;
-          });
-          setRecentPlayers(sortedByDate.slice(0, 5));
+          const allUsers = usersRes.data?.data || usersRes.data || [];
+          if (Array.isArray(allUsers)) {
+            // Get newest players by sorting by creation date (reverse order for newest first)
+            const sortedByDate = [...allUsers].sort((a, b) => {
+              const dateA = new Date(a.created_at || 0).getTime();
+              const dateB = new Date(b.created_at || 0).getTime();
+              return dateB - dateA;
+            });
+            setRecentPlayers(sortedByDate.slice(0, 3));
+          }
         } catch (err) {
           console.error('Error fetching recent players:', err);
         }
@@ -133,47 +145,82 @@ const Home: React.FC = () => {
               <a href="/matches" className="view-all-link">{t('view_all') || 'View All →'}</a>
             </div>
             {recentMatches.length > 0 ? (
-              <div className="matches-list">
-                {recentMatches.map((match) => (
-                  <div key={match.id} className="match-card">
-                    <div className="match-header">
-                      <span className="winner-name">{match.winner_nickname || t('unknown')}</span>
-                      <span className="vs-text">{t('vs')}</span>
-                      <span className="loser-name">{match.loser_nickname || t('unknown')}</span>
-                      {match.replay_file_path && (
-                        <button 
-                          className="download-btn" 
-                          onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
-                          title={`${t('downloads')}: ${match.replay_downloads || 0}`}
-                          type="button"
-                        >
-                          ⬇️ {t('download')} ({match.replay_downloads || 0})
-                        </button>
-                      )}
-                    </div>
-                    <div className="match-details">
-                      <span className="map-name">{match.map}</span>
-                      <span className="match-date">{new Date(match.created_at).toLocaleDateString()}</span>
-                      <span className={`confirmation-badge ${match.confirmation_status === 'confirmed' ? 'confirmed' : 'unconfirmed'}`}>
-                        {match.confirmation_status === 'confirmed' ? t('match_status_confirmed') : t('match_status_unconfirmed')}
-                      </span>
-                    </div>
-                    <div className="match-comments-section">
-                      {match.winner_comments && (
-                        <div className="match-comment">
-                          <span className="comment-author winner">{match.winner_nickname}:</span>
-                          <p>{match.winner_comments}</p>
-                        </div>
-                      )}
-                      {match.loser_comments && (
-                        <div className="match-comment">
-                          <span className="comment-author loser">{match.loser_nickname}:</span>
-                          <p>{match.loser_comments}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="recent-matches-table-wrapper">
+                <table className="recent-matches-table">
+                  <thead>
+                    <tr>
+                      <th>{t('label_date')}</th>
+                      <th>{t('label_winner')}</th>
+                      <th>{t('label_winner_rating')}</th>
+                      <th>{t('label_loser')}</th>
+                      <th>{t('label_loser_rating')}</th>
+                      <th>{t('label_actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentMatches.map((match) => {
+                      const winnerEloChange = (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
+                      const loserEloChange = (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
+
+                      return (
+                        <tr key={match.id} className="match-row">
+                          <td className="date-col">
+                            {new Date(match.created_at).toLocaleDateString()}
+                          </td>
+                          
+                          <td className="winner-col">
+                            <div className="player-info">
+                              <span className="player-name">{match.winner_nickname}</span>
+                              {match.winner_faction && (
+                                <span className="faction-badge">{match.winner_faction}</span>
+                              )}
+                            </div>
+                          </td>
+                          
+                          <td className="rating-col">
+                            <div className="rating-block">
+                              <div className="rating-value">{match.winner_elo_before || 'N/A'}</div>
+                              <div className={`rating-change ${winnerEloChange >= 0 ? 'positive' : 'negative'}`}>
+                                ({winnerEloChange >= 0 ? '+' : ''}{winnerEloChange})
+                              </div>
+                            </div>
+                          </td>
+                          
+                          <td className="loser-col">
+                            <div className="player-info">
+                              <span className="player-name">{match.loser_nickname}</span>
+                              {match.loser_faction && (
+                                <span className="faction-badge">{match.loser_faction}</span>
+                              )}
+                            </div>
+                          </td>
+                          
+                          <td className="rating-col">
+                            <div className="rating-block">
+                              <div className="rating-value">{match.loser_elo_before || 'N/A'}</div>
+                              <div className={`rating-change ${loserEloChange >= 0 ? 'positive' : 'negative'}`}>
+                                ({loserEloChange >= 0 ? '+' : ''}{loserEloChange})
+                              </div>
+                            </div>
+                          </td>
+                          
+                          <td className="action-col">
+                            {match.replay_file_path && (
+                              <button 
+                                className="download-btn"
+                                onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
+                                title={`${t('downloads')}: ${match.replay_downloads || 0}`}
+                                type="button"
+                              >
+                                ⬇️
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             ) : (
               <p>{t('recent_games_no_data')}</p>
@@ -217,6 +264,22 @@ const Home: React.FC = () => {
                     <span className="label">{t('label_level')}:</span>
                     <span className="value">{playerOfMonth.level}</span>
                   </div>
+                  {playerMonthlyStats && (
+                    <>
+                      <div className="player-stat">
+                        <span className="label">ELO {t('month')}:</span>
+                        <span className="value" style={{ color: playerMonthlyStats.elo_gained >= 0 ? '#4caf50' : '#f44336' }}>
+                          {playerMonthlyStats.elo_gained >= 0 ? '+' : ''}{playerMonthlyStats.elo_gained}
+                        </span>
+                      </div>
+                      <div className="player-stat">
+                        <span className="label">{t('label_ranking_position')}:</span>
+                        <span className="value" style={{ color: playerMonthlyStats.positions_gained >= 0 ? '#4caf50' : '#f44336' }}>
+                          {playerMonthlyStats.positions_gained >= 0 ? '+' : ''}{playerMonthlyStats.positions_gained}
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
             ) : (
               <p>{t('no_data')}</p>
