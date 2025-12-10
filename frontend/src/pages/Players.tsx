@@ -145,7 +145,7 @@ const Players: React.FC = () => {
   if (loading) {
     return (
       <div className="players-container">
-        <p>{t('loading') || 'Loading...'}</p>
+        <p>{t('loading')}</p>
       </div>
     );
   }
@@ -164,18 +164,18 @@ const Players: React.FC = () => {
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
-            First
+            {t('pagination_first')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            ← Prev
+            {t('pagination_prev')}
           </button>
           
           <div className="page-info">
-            Page <span className="current-page">{currentPage}</span> of <span className="total-pages">{totalPages}</span>
+            {t('pagination_page_info', { page: currentPage, totalPages })}
           </div>
           
           <button 
@@ -183,14 +183,14 @@ const Players: React.FC = () => {
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            Next →
+            {t('pagination_next')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
-            Last
+            {t('pagination_last')}
           </button>
         </div>
       )}
@@ -198,48 +198,48 @@ const Players: React.FC = () => {
       {/* Filters */}
       <div className="filters-section">
         <div className="filter-group">
-          <label htmlFor="nickname">Nickname</label>
+          <label htmlFor="nickname">{t('filter_nickname')}</label>
           <input
             type="text"
             id="nickname"
             name="nickname"
-            placeholder="Search by nickname..."
+            placeholder={t('filter_by_nickname')}
             value={inputFilters.nickname}
             onChange={handleFilterInputChange}
           />
         </div>
 
         <div className="filter-group">
-          <label htmlFor="min_elo">Min ELO</label>
+          <label htmlFor="min_elo">{t('filter_min_elo')}</label>
           <input
             type="number"
             id="min_elo"
             name="min_elo"
-            placeholder="Min ELO..."
+            placeholder={t('filter_min_elo_placeholder')}
             value={inputFilters.min_elo}
             onChange={handleFilterInputChange}
           />
         </div>
 
         <div className="filter-group">
-          <label htmlFor="max_elo">Max ELO</label>
+          <label htmlFor="max_elo">{t('filter_max_elo')}</label>
           <input
             type="number"
             id="max_elo"
             name="max_elo"
-            placeholder="Max ELO..."
+            placeholder={t('filter_max_elo_placeholder')}
             value={inputFilters.max_elo}
             onChange={handleFilterInputChange}
           />
         </div>
 
         <div className="filter-group">
-          <label htmlFor="min_matches">Min Matches</label>
+          <label htmlFor="min_matches">{t('filter_min_matches')}</label>
           <input
             type="number"
             id="min_matches"
             name="min_matches"
-            placeholder="Min matches..."
+            placeholder={t('filter_min_matches_placeholder')}
             value={inputFilters.min_matches}
             onChange={handleFilterInputChange}
           />
@@ -254,12 +254,12 @@ const Players: React.FC = () => {
               checked={inputFilters.rated_only}
               onChange={handleFilterInputChange}
             />
-            Rated Only
+            {t('filter_rated_only')}
           </label>
         </div>
 
         <button className="reset-btn" onClick={handleResetFilters}>
-          Reset Filters
+          {t('reset_filters')}
         </button>
       </div>
 
@@ -270,15 +270,15 @@ const Players: React.FC = () => {
       <div className="players-table-wrapper">
         <table className="players-table">
           <thead>
-            <tr>
+              <tr>
               <th className="rank-col">#</th>
-              <th className="nickname-col">Nickname</th>
-              <th className="elo-col">ELO</th>
-              <th className="status-col">Status</th>
-              <th className="matches-col">Total</th>
-              <th className="wins-col">Wins</th>
-              <th className="losses-col">Losses</th>
-              <th className="ratio-col">Win %</th>
+              <th className="nickname-col">{t('label_nickname')}</th>
+              <th className="elo-col">{t('label_elo')}</th>
+              <th className="status-col">{t('label_status')}</th>
+              <th className="matches-col">{t('label_total')}</th>
+              <th className="wins-col">{t('label_wins')}</th>
+              <th className="losses-col">{t('label_losses')}</th>
+              <th className="ratio-col">{t('label_win_pct')}</th>
             </tr>
           </thead>
           <tbody>
@@ -320,18 +320,18 @@ const Players: React.FC = () => {
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
-            First
+            {t('pagination_first')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            ← Prev
+            {t('pagination_prev')}
           </button>
           
           <div className="page-info">
-            Page <span className="current-page">{currentPage}</span> of <span className="total-pages">{totalPages}</span>
+            {t('pagination_page_info', { page: currentPage, totalPages })}
           </div>
           
           <button 
@@ -339,14 +339,14 @@ const Players: React.FC = () => {
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            Next →
+            {t('pagination_next')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
-            Last
+            {t('pagination_last')}
           </button>
         </div>
       )}

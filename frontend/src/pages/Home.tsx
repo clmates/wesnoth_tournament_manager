@@ -189,7 +189,7 @@ const Home: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <p>No announcements</p>
+              <p>{t('home.no_announcements')}</p>
             )}
           </section>
         </div>
@@ -198,7 +198,7 @@ const Home: React.FC = () => {
         <div className="home-right">
           {/* Player of Month */}
           <section className="home-widget">
-            <h3>Player of Month</h3>
+            <h3>{t('home.player_of_month')}</h3>
             {playerOfMonth ? (
                 <div className="widget-card player-of-month">
                   <div className="player-name">{playerOfMonth.nickname}</div>
@@ -214,7 +214,7 @@ const Home: React.FC = () => {
                   </div>
                 </div>
             ) : (
-              <p>No data</p>
+              <p>{t('no_data')}</p>
             )}
           </section>
 
@@ -233,7 +233,7 @@ const Home: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <p>No data</p>
+              <p>{t('no_data')}</p>
             )}
           </section>
 
@@ -253,7 +253,7 @@ const Home: React.FC = () => {
                 ))}
               </div>
             ) : (
-              <p>No data</p>
+              <p>{t('no_data')}</p>
             )}
           </section>
         </div>

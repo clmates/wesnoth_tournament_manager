@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import '../styles/ProfileStats.css';
 
 interface ProfileStatsProps {
@@ -15,6 +16,7 @@ interface ProfileStatsProps {
 }
 
 const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
+  const { t } = useTranslation();
   const totalMatches = player.matches_played || 0;
   const decidedMatches = (player.total_wins || 0) + (player.total_losses || 0);
   const winPercentage = decidedMatches > 0 ? Math.round(((player.total_wins || 0) / decidedMatches) * 100) : 0;
@@ -27,13 +29,13 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
       <div className="profile-header">
         <h1>{player.nickname}</h1>
         <span className={`rating-status ${player.is_rated ? 'rated' : 'unrated'}`}>
-          {player.is_rated ? '★ Rated' : '☆ Unrated'}
+          {player.is_rated ? `★ ${t('rated')}` : `☆ ${t('unrated')}`}
         </span>
       </div>
 
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-label">ELO Rating</div>
+          <div className="stat-label">{t('label_elo')}</div>
           <div className="stat-value elo-badge">
             {player.elo_rating}
           </div>
@@ -41,34 +43,34 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-label">Trend</div>
+          <div className="stat-label">{t('label_trend')}</div>
           <div className={`stat-value trend-badge ${player.trend?.startsWith('+') ? 'positive' : player.trend?.startsWith('-') && player.trend !== '-' ? 'negative' : 'neutral'}`}>
             {player.trend || '-'}
           </div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-label">Total Matches</div>
+          <div className="stat-label">{t('label_total_matches')}</div>
           <div className="stat-value">{totalMatches}</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-label">Wins</div>
+          <div className="stat-label">{t('label_wins')}</div>
           <div className="stat-value wins-color">{player.total_wins || 0}</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-label">Losses</div>
+          <div className="stat-label">{t('label_losses')}</div>
           <div className="stat-value losses-color">{player.total_losses || 0}</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-label">Win %</div>
+          <div className="stat-label">{t('label_win_pct')}</div>
           <div className="stat-value">{winPercentage}%</div>
         </div>
 
         <div className="stat-card">
-          <div className="stat-label">W-L</div>
+          <div className="stat-label">{t('label_record')}</div>
           <div className="stat-value record">
             {player.total_wins || 0}-{player.total_losses || 0}
           </div>

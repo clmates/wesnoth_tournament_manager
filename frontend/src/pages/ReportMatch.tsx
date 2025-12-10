@@ -38,7 +38,13 @@ const ReportMatch: React.FC = () => {
       try {
         setLoading(true);
         // For now, we'll have predefined maps - in a real app, fetch from API
-        setMaps(['Map 1', 'Map 2', 'Map 3', 'Siege', 'Dueling Grounds']);
+        setMaps([
+          t('maps.map_1'),
+          t('maps.map_2'),
+          t('maps.map_3'),
+          t('maps.siege'),
+          t('maps.dueling_grounds'),
+        ]);
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Error loading data');
@@ -116,25 +122,25 @@ const ReportMatch: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="report-match-container"><p>Loading...</p></div></MainLayout>;
+    return <MainLayout><div className="report-match-container"><p>{t('loading')}</p></div></MainLayout>;
   }
 
   if (!isAuthenticated) {
-    return <MainLayout><div className="report-match-container"><p>Please log in to report matches</p></div></MainLayout>;
+    return <MainLayout><div className="report-match-container"><p>{t('report.please_login')}</p></div></MainLayout>;
   }
 
   return (
     <MainLayout>
       <div className="report-match-container">
       <div className="report-match-form-wrapper">
-        <h1>Report Match Result</h1>
+        <h1>{t('report_match_title')}</h1>
         
         {error && <p className="error-message">{error}</p>}
         {message && <p className="success-message">{message}</p>}
 
         <form onSubmit={handleSubmit} className="report-match-form">
           <div className="form-group">
-            <label htmlFor="opponent_id">Opponent *</label>
+            <label htmlFor="opponent_id">{t('report_opponent')} *</label>
             <OpponentSelector
               value={formData.opponent_id}
               onChange={(userId) => {
@@ -147,7 +153,7 @@ const ReportMatch: React.FC = () => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="map">Map *</label>
+            <label htmlFor="map">{t('report_map')} *</label>
             <select
               id="map"
               name="map"
@@ -155,7 +161,7 @@ const ReportMatch: React.FC = () => {
               onChange={handleInputChange}
               required
             >
-              <option value="">Select map...</option>
+              <option value="">{t('report.select_map')}</option>
               {maps.map((map) => (
                 <option key={map} value={map}>
                   {map}
@@ -166,7 +172,7 @@ const ReportMatch: React.FC = () => {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="winner_faction">Your Faction *</label>
+              <label htmlFor="winner_faction">{t('report.your_faction')} *</label>
               <select
                 id="winner_faction"
                 name="winner_faction"
@@ -174,13 +180,13 @@ const ReportMatch: React.FC = () => {
                 onChange={handleInputChange}
                 required
               >
-                <option value="">Select faction...</option>
-                <option value="Elves">Elves</option>
-                <option value="Humans">Humans</option>
-                <option value="Orcs">Orcs</option>
-                <option value="Undead">Undead</option>
-                <option value="Dwarves">Dwarves</option>
-                <option value="Drakes">Drakes</option>
+                <option value="">{t('report.select_faction')}</option>
+                <option value="Elves">{t('faction.elves')}</option>
+                <option value="Humans">{t('faction.humans')}</option>
+                <option value="Orcs">{t('faction.orcs')}</option>
+                <option value="Undead">{t('faction.undead')}</option>
+                <option value="Dwarves">{t('faction.dwarves')}</option>
+                <option value="Drakes">{t('faction.drakes')}</option>
               </select>
             </div>
 
@@ -205,36 +211,36 @@ const ReportMatch: React.FC = () => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="comments">Comments</label>
+            <label htmlFor="comments">{t('report_comments')}</label>
             <textarea
               id="comments"
               name="comments"
               value={formData.comments}
               onChange={handleInputChange}
-              placeholder="Any additional comments about the match..."
+              placeholder={t('report.comments_placeholder')}
               rows={4}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="rating">Rate Your Opponent (1-5)</label>
+            <label htmlFor="rating">{t('report.rate_opponent')}</label>
             <select
               id="rating"
               name="rating"
               value={formData.rating}
               onChange={handleInputChange}
             >
-              <option value="">No rating</option>
-              <option value="1">1 - Poor</option>
-              <option value="2">2 - Fair</option>
-              <option value="3">3 - Good</option>
-              <option value="4">4 - Very Good</option>
-              <option value="5">5 - Excellent</option>
+              <option value="">{t('report.rating_no')}</option>
+              <option value="1">1 - {t('report.rating_1')}</option>
+              <option value="2">2 - {t('report.rating_2')}</option>
+              <option value="3">3 - {t('report.rating_3')}</option>
+              <option value="4">4 - {t('report.rating_4')}</option>
+              <option value="5">5 - {t('report.rating_5')}</option>
             </select>
           </div>
 
           <div className="form-group">
-            <label htmlFor="replay">Replay File</label>
+            <label htmlFor="replay">{t('report_replay')}</label>
             <input
               type="file"
               id="replay"
@@ -251,14 +257,14 @@ const ReportMatch: React.FC = () => {
               onClick={() => navigate('/')}
               disabled={submitting}
             >
-              Cancel
+              {t('btn_cancel')}
             </button>
             <button
               type="submit"
               className="btn-submit"
               disabled={submitting}
             >
-              {submitting ? 'Reporting...' : 'Report Match'}
+              {submitting ? t('report.submitting') : t('report_button')}
             </button>
           </div>
         </form>

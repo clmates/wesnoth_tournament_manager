@@ -82,7 +82,7 @@ const Profile: React.FC = () => {
 
   const handleDiscordUpdate = async () => {
     if (!discordId.trim()) {
-      setDiscordError('Discord ID cannot be empty');
+      setDiscordError(t('profile.error_discord_empty'));
       return;
     }
 
@@ -99,14 +99,14 @@ const Profile: React.FC = () => {
       const res = await userService.updateDiscordId(discordId);
       console.log('Discord update response:', res);
       setProfile(res.data);
-      setDiscordMessage(t('discord_id_updated') || 'Discord ID updated successfully');
+      setDiscordMessage(t('discord_id_updated'));
       setTimeout(() => setDiscordMessage(''), 3000);
     } catch (err: any) {
       console.error('Error updating Discord ID:', err);
       // Prefer server message, then axios message, then generic
       const serverMsg = err?.response?.data?.error;
       const axiosMsg = err?.message;
-      setDiscordError(serverMsg || axiosMsg || 'Failed to update Discord ID');
+      setDiscordError(serverMsg || axiosMsg || t('profile.error_update_discord_failed'));
     } finally {
       setUpdatingDiscord(false);
     }
@@ -116,17 +116,17 @@ const Profile: React.FC = () => {
     e.preventDefault();
     
     if (!oldPassword || !newPassword || !confirmPassword) {
-      setPasswordError('All fields are required');
+      setPasswordError(t('profile.error_all_fields_required'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match');
+      setPasswordError(t('profile.error_passwords_not_match'));
       return;
     }
 
     if (newPassword.length < 8) {
-      setPasswordError('New password must be at least 8 characters');
+      setPasswordError(t('profile.error_password_too_short'));
       return;
     }
 
@@ -136,45 +136,45 @@ const Profile: React.FC = () => {
 
     try {
       await authService.changePassword(oldPassword, newPassword);
-      setPasswordMessage('Password changed successfully');
+      setPasswordMessage(t('profile.password_changed_success'));
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setPasswordMessage(''), 3000);
     } catch (err: any) {
-      setPasswordError(err.response?.data?.error || 'Failed to change password');
+      setPasswordError(err.response?.data?.error || t('profile.error_change_password_failed'));
     } finally {
       setChangingPassword(false);
     }
   };
 
   if (loading) {
-    return <div className="auth-container"><p>Loading...</p></div>;
+    return <div className="auth-container"><p>{t('loading')}</p></div>;
   }
 
   if (!profile) {
-    return <div className="auth-container"><p>Profile not found</p></div>;
+    return <div className="auth-container"><p>{t('profile.not_found')}</p></div>;
   }
 
   return (
     <MainLayout>
       <div className="profile-page-content">
-        <h1>My Profile</h1>
+        <h1>{t('profile.title')}</h1>
 
         {profile && (
           <>
             <section className="profile-info">
-              <h2>Profile Information</h2>
+              <h2>{t('profile.info_title')}</h2>
               <div className="info-group">
-                <label>Nickname:</label>
+                <label>{t('profile.label_nickname')}</label>
                 <p>{profile?.nickname}</p>
               </div>
               <div className="info-group">
-                <label>Email:</label>
+                <label>{t('profile.label_email')}</label>
                 <p>{profile?.email}</p>
               </div>
               <div className="info-group">
-                <label>ELO Rating:</label>
+                <label>{t('profile.label_elo')}</label>
                 <p>
                   {profile?.is_rated ? (
                     <>
@@ -182,10 +182,10 @@ const Profile: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <span style={{ color: '#e67e22', fontWeight: 'bold' }}>Unrated</span>
+                      <span style={{ color: '#e67e22', fontWeight: 'bold' }}>{t('unrated')}</span>
                       {profile?.matches_played > 0 && (
                         <span style={{ marginLeft: '10px', fontSize: '0.9em' }}>
-                          ({profile?.matches_played}/5 matches)
+                          ({profile?.matches_played}/5 {t('matches_label')})
                         </span>
                       )}
                     </>
@@ -193,30 +193,30 @@ const Profile: React.FC = () => {
                 </p>
               </div>
               <div className="info-group">
-                <label>Level:</label>
-                <p>{profile?.level || 'Novato'}</p>
+                <label>{t('profile.label_level')}</label>
+                <p>{profile?.level || t('level_novice')}</p>
               </div>
             </section>
 
             <section className="discord-settings">
-              <h2>Discord ID</h2>
+              <h2>{t('profile.discord_title')}</h2>
               {discordMessage && <p className="success-message">{discordMessage}</p>}
               {discordError && <p className="error">{discordError}</p>}
               <div className="discord-input-group">
                 <input
                   type="text"
-                  placeholder="Enter your Discord ID"
+                  placeholder={t('profile.discord_placeholder')}
                   value={discordId}
                   onChange={(e) => setDiscordId(e.target.value)}
                 />
                 <button onClick={handleDiscordUpdate} disabled={updatingDiscord}>
-                  {updatingDiscord ? 'Updating...' : 'Update Discord ID'}
+                  {updatingDiscord ? t('profile.updating') : t('profile.update_discord_button')}
                 </button>
               </div>
             </section>
 
             <section className="language-settings">
-              <h2>{t('profile_language_settings') || 'Language Settings'}</h2>
+              <h2>{t('profile_language_settings')}</h2>
               <div className="language-dropdown-profile">
                 <button 
                   className="language-btn-profile"
@@ -251,33 +251,33 @@ const Profile: React.FC = () => {
             </section>
 
             <section className="change-password">
-              <h2>Change Password</h2>
+              <h2>{t('password_change_title')}</h2>
               {passwordMessage && <p className="success-message">{passwordMessage}</p>}
               {passwordError && <p className="error">{passwordError}</p>}
               <form onSubmit={handleChangePassword}>
                 <input
                   type="password"
-                  placeholder="Current Password"
+                  placeholder={t('password_current')}
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
                   required
                 />
                 <input
                   type="password"
-                  placeholder="New Password"
+                  placeholder={t('password_new')}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
                 />
                 <input
                   type="password"
-                  placeholder="Confirm New Password"
+                  placeholder={t('password_confirm')}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                 />
                 <button type="submit" disabled={changingPassword}>
-                  {changingPassword ? 'Changing...' : 'Change Password'}
+                  {changingPassword ? t('profile.changing') : t('password_change_button')}
                 </button>
               </form>
             </section>

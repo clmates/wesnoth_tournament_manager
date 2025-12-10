@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useTranslation } from 'react-i18next';
 import '../styles/ProfileSidebar.css';
 
 interface ProfileSidebarProps {
@@ -11,6 +12,7 @@ interface ProfileSidebarProps {
 const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { user, isAdmin, logout } = useAuthStore();
+  const { t } = useTranslation();
 
   const handleLogout = () => {
     logout();
@@ -36,7 +38,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
               {user.nickname.charAt(0).toUpperCase()}
             </div>
             <h3 className="user-nickname">{user.nickname}</h3>
-            <p className="user-elo">ELO Rating</p>
+            <p className="user-elo">{t('label_elo')}</p>
           </div>
         )}
 
@@ -47,7 +49,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
               onClick={() => handleNavigate('/profile')}
             >
               <span className="nav-icon">👤</span>
-              <span>My Profile</span>
+              <span>{t('sidebar.my_profile')}</span>
             </button>
           </li>
           <li className="nav-item">
@@ -56,7 +58,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
               onClick={() => handleNavigate('/my-tournaments')}
             >
               <span className="nav-icon">🏆</span>
-              <span>My Tournaments</span>
+              <span>{t('sidebar.my_tournaments')}</span>
             </button>
           </li>
           <li className="nav-item">
@@ -65,7 +67,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
               onClick={() => handleNavigate('/report-match')}
             >
               <span className="nav-icon">📝</span>
-              <span>Report Match</span>
+              <span>{t('report_match_link')}</span>
             </button>
           </li>
         </ul>
@@ -73,7 +75,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
         {isAdmin && (
           <>
             <div className="sidebar-section">
-              <div className="sidebar-section-title">Admin Options</div>
+              <div className="sidebar-section-title">{t('sidebar.admin_options')}</div>
               <ul className="sidebar-nav">
                 <li className="nav-item">
                   <button 
@@ -81,7 +83,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
                     onClick={() => handleNavigate('/admin')}
                   >
                     <span className="nav-icon">👥</span>
-                    <span>Manage Users</span>
+                    <span>{t('sidebar.manage_users')}</span>
                   </button>
                 </li>
                 <li className="nav-item">
@@ -90,7 +92,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
                     onClick={() => handleNavigate('/admin/announcements')}
                   >
                     <span className="nav-icon">📢</span>
-                    <span>Announcements</span>
+                    <span>{t('announcements')}</span>
                   </button>
                 </li>
                 <li className="nav-item">
@@ -99,7 +101,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
                     onClick={() => handleNavigate('/admin/faq')}
                   >
                     <span className="nav-icon">❓</span>
-                    <span>FAQ</span>
+                    <span>{t('navbar_faq')}</span>
                   </button>
                 </li>
                 <li className="nav-item">
@@ -108,7 +110,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
                     onClick={() => handleNavigate('/admin/tournaments')}
                   >
                     <span className="nav-icon">⚙️</span>
-                    <span>Manage Tournaments</span>
+                    <span>{t('sidebar.manage_tournaments')}</span>
                   </button>
                 </li>
                 <li className="nav-item">
@@ -117,7 +119,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
                     onClick={() => handleNavigate('/admin/disputes')}
                   >
                     <span className="nav-icon">⚖️</span>
-                    <span>Match Disputes</span>
+                    <span>{t('sidebar.match_disputes')}</span>
                   </button>
                 </li>
               </ul>
@@ -130,7 +132,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
             className="logout-btn"
             onClick={handleLogout}
           >
-            🚪 Logout
+            🚪 {t('navbar_logout')}
           </button>
         </div>
       </div>

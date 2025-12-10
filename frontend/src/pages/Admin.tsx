@@ -70,27 +70,27 @@ const AdminUsers: React.FC = () => {
       switch (actionType) {
         case 'block':
           await adminService.blockUser(selectedUser.id);
-          setMessage(`User ${selectedUser.nickname} blocked successfully`);
+          setMessage(t('admin.user_blocked', { nickname: selectedUser.nickname }));
           break;
         case 'unblock':
           await adminService.unblockUser(selectedUser.id);
-          setMessage(`User ${selectedUser.nickname} unblocked successfully`);
+          setMessage(t('admin.user_unblocked', { nickname: selectedUser.nickname }));
           break;
         case 'makeAdmin':
           await adminService.makeAdmin(selectedUser.id);
-          setMessage(`User ${selectedUser.nickname} promoted to admin`);
+          setMessage(t('admin.user_promoted', { nickname: selectedUser.nickname }));
           break;
         case 'removeAdmin':
           await adminService.removeAdmin(selectedUser.id);
-          setMessage(`User ${selectedUser.nickname} removed from admin`);
+          setMessage(t('admin.user_demoted', { nickname: selectedUser.nickname }));
           break;
         case 'delete':
           await adminService.deleteUser(selectedUser.id);
-          setMessage(`User ${selectedUser.nickname} deleted successfully`);
+          setMessage(t('admin.user_deleted', { nickname: selectedUser.nickname }));
           break;
         case 'resetPassword':
           const result = await adminService.forceResetPassword(selectedUser.id);
-          setMessage(`Password reset successful. Temporary password: ${result.data.tempPassword}`);
+          setMessage(t('admin.password_reset_success', { tempPassword: result.data.tempPassword }));
           break;
       }
 
@@ -113,17 +113,13 @@ const AdminUsers: React.FC = () => {
   };
 
   const handleConfirmDelete = (user: any) => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (window.confirm(t('admin.confirm_delete_warning'))) {
       handleAction(user, 'delete');
     }
   };
 
   const handleRecalculateAllStats = async () => {
-    if (
-      !window.confirm(
-        'This will recalculate all player ELO ratings and statistics from scratch by replaying all matches. This may take a moment. Continue?'
-      )
-    ) {
+    if (!window.confirm(t('admin.recalculate_confirm'))) {
       return;
     }
 
@@ -146,13 +142,13 @@ const AdminUsers: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="admin-container"><p>Loading...</p></div></MainLayout>;
+    return <MainLayout><div className="admin-container"><p>{t('loading')}</p></div></MainLayout>;
   }
 
   return (
     <MainLayout>
       <div className="admin-container">
-      <h1>User Management</h1>
+      <h1>{t('admin_users_title')}</h1>
 
       {error && <p className="error-message">{error}</p>}
       {message && <p className="success-message">{message}</p>}
@@ -163,7 +159,7 @@ const AdminUsers: React.FC = () => {
           onClick={handleRecalculateAllStats}
           disabled={recalculatingStats}
         >
-          {recalculatingStats ? 'Recalculating...' : '🔄 Recalculate All Stats'}
+          {recalculatingStats ? t('admin.recalculating') : t('admin.recalculate_all_stats')}
         </button>
       </section>
 
@@ -171,13 +167,13 @@ const AdminUsers: React.FC = () => {
         <div className="search-container">
           <input
             type="text"
-            placeholder="Search by NIC (Nickname)..."
+            placeholder={t('admin.search_by_nic')}
             value={searchNIC}
             onChange={(e) => handleSearchNIC(e.target.value)}
             className="search-input"
           />
           <span className="results-count">
-            Showing {filteredUsers.length} of {users.length} users
+            {t('showing_count', { count: filteredUsers.length, total: users.length, page: 1, totalPages: 1 })}
           </span>
         </div>
 
@@ -185,14 +181,14 @@ const AdminUsers: React.FC = () => {
           <table className="users-table">
             <thead>
               <tr>
-                <th>Nickname</th>
-                <th>Email</th>
-                <th>ELO</th>
-                <th>Level</th>
-                <th>Status</th>
-                <th>Role</th>
-                <th>Actions</th>
-              </tr>
+                  <th>{t('label_nickname')}</th>
+                  <th>{t('label_email')}</th>
+                  <th>{t('label_elo')}</th>
+                  <th>{t('label_level')}</th>
+                  <th>{t('label_status')}</th>
+                  <th>{t('label_role')}</th>
+                  <th>{t('label_actions')}</th>
+                </tr>
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
@@ -200,15 +196,15 @@ const AdminUsers: React.FC = () => {
                   <td>{user.nickname}</td>
                   <td>{user.email}</td>
                   <td>{user.elo_rating || 1200}</td>
-                  <td>{user.level || 'Novato'}</td>
+                  <td>{user.level || t('level_novice')}</td>
                   <td>
                     <span className={`status ${user.is_blocked ? 'blocked' : 'active'}`}>
-                      {user.is_blocked ? 'Blocked' : 'Active'}
+                      {user.is_blocked ? t('status_blocked') : t('status_active')}
                     </span>
                   </td>
                   <td>
                     <span className={`role ${user.is_admin ? 'admin' : 'user'}`}>
-                      {user.is_admin ? 'Admin' : 'User'}
+                      {user.is_admin ? t('role_admin') : t('role_user')}
                     </span>
                   </td>
                   <td className="actions">
@@ -217,14 +213,14 @@ const AdminUsers: React.FC = () => {
                         className="btn-unblock"
                         onClick={() => handleAction(user, 'unblock')}
                       >
-                        Unblock
+                        {t('btn_unblock')}
                       </button>
                     ) : (
                       <button
                         className="btn-block"
                         onClick={() => handleAction(user, 'block')}
                       >
-                        Block
+                        {t('btn_block')}
                       </button>
                     )}
                     {user.is_admin ? (
@@ -232,27 +228,27 @@ const AdminUsers: React.FC = () => {
                         className="btn-remove-admin"
                         onClick={() => handleAction(user, 'removeAdmin')}
                       >
-                        Remove Admin
+                        {t('btn_remove_admin')}
                       </button>
                     ) : (
                       <button
                         className="btn-make-admin"
                         onClick={() => handleAction(user, 'makeAdmin')}
                       >
-                        Make Admin
+                        {t('btn_make_admin')}
                       </button>
                     )}
                     <button
                       className="btn-reset"
                       onClick={() => handleAction(user, 'resetPassword')}
                     >
-                      Reset Password
+                      {t('btn_reset_password')}
                     </button>
                     <button
                       className="btn-delete"
                       onClick={() => handleConfirmDelete(user)}
                     >
-                      Delete
+                      {t('btn_delete')}
                     </button>
                   </td>
                 </tr>
@@ -260,31 +256,31 @@ const AdminUsers: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          <p>No users found</p>
+          <p>{t('no_data')}</p>
         )}
       </section>
 
       {showModal && selectedUser && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Confirm Action</h3>
-            <p>
-              {actionType === 'block' && `Are you sure you want to block ${selectedUser.nickname}?`}
-              {actionType === 'unblock' && `Are you sure you want to unblock ${selectedUser.nickname}?`}
-              {actionType === 'makeAdmin' && `Are you sure you want to make ${selectedUser.nickname} an admin?`}
-              {actionType === 'removeAdmin' && `Are you sure you want to remove ${selectedUser.nickname} from admin?`}
-              {actionType === 'delete' && `Are you sure you want to delete ${selectedUser.nickname}? This cannot be undone.`}
-              {actionType === 'resetPassword' && `Are you sure you want to force password reset for ${selectedUser.nickname}?`}
-            </p>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowModal(false)}>
-                Cancel
-              </button>
-              <button className="btn-confirm" onClick={confirmAction}>
-                Confirm
-              </button>
+              <h3>{t('admin.confirm_action_title')}</h3>
+              <p>
+                {actionType === 'block' && t('admin.confirm_block', { nickname: selectedUser.nickname })}
+                {actionType === 'unblock' && t('admin.confirm_unblock', { nickname: selectedUser.nickname })}
+                {actionType === 'makeAdmin' && t('admin.confirm_make_admin', { nickname: selectedUser.nickname })}
+                {actionType === 'removeAdmin' && t('admin.confirm_remove_admin', { nickname: selectedUser.nickname })}
+                {actionType === 'delete' && t('admin.confirm_delete', { nickname: selectedUser.nickname })}
+                {actionType === 'resetPassword' && t('admin.confirm_reset_password', { nickname: selectedUser.nickname })}
+              </p>
+              <div className="modal-actions">
+                <button className="btn-cancel" onClick={() => setShowModal(false)}>
+                  {t('btn_cancel')}
+                </button>
+                <button className="btn-confirm" onClick={confirmAction}>
+                  {t('btn_confirm')}
+                </button>
+              </div>
             </div>
-          </div>
         </div>
       )}
       </div>

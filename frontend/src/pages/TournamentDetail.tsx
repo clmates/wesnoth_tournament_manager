@@ -154,7 +154,7 @@ const TournamentDetail: React.FC = () => {
       setError('');
     } catch (err: any) {
       console.error('Error fetching tournament:', err);
-      setError('Error loading tournament data');
+      setError(t('error_loading_tournament'));
     } finally {
       setLoading(false);
     }
@@ -163,14 +163,14 @@ const TournamentDetail: React.FC = () => {
   const handleJoinTournament = async () => {
     try {
       await tournamentService.requestJoinTournament(id!);
-      setSuccess('Join request sent! Waiting for organizer approval.');
+      setSuccess(t('success_join_request_sent'));
       setUserParticipationStatus('pending');
       // Refresh the page after 2 seconds
       setTimeout(() => {
         fetchTournamentData();
       }, 2000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to request join');
+      setError(err.response?.data?.error || t('error_failed_join_tournament'));
     }
   };
 
@@ -185,11 +185,11 @@ const TournamentDetail: React.FC = () => {
   const handleCloseRegistration = async () => {
     try {
       await tournamentService.updateTournament(id!, { status: 'registration_closed' });
-      setSuccess('Registration closed successfully!');
+      setSuccess(t('success_registration_closed'));
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to close registration');
+      setError(err.response?.data?.error || t('error_failed_close_registration'));
     }
   };
 
@@ -208,12 +208,12 @@ const TournamentDetail: React.FC = () => {
       
       // Change status to prepared (without starting yet)
       await tournamentService.updateTournament(id!, { status: 'prepared' });
-      setSuccess('Tournament prepared! You can now start it.');
+      setSuccess(t('success_tournament_prepared'));
       setEditMode(false);
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to prepare tournament');
+      setError(err.response?.data?.error || t('error_failed_prepare_tournament'));
     }
   };
 
@@ -221,46 +221,46 @@ const TournamentDetail: React.FC = () => {
     try {
       // Call backend to create rounds and start tournament
       await tournamentService.startTournament(id!);
-      setSuccess('Tournament started! Rounds created.');
+      setSuccess(t('success_tournament_started'));
       setEditMode(false);
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to start tournament');
+      setError(err.response?.data?.error || t('error_failed_start_tournament'));
     }
   };
 
   const handleSaveChanges = async () => {
     try {
       await tournamentService.updateTournament(id!, editData);
-      setSuccess('Tournament configuration updated!');
+      setSuccess(t('success_tournament_configuration_updated'));
       setEditMode(false);
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to save changes');
+      setError(err.response?.data?.error || t('error_failed_save_changes'));
     }
   };
 
   const handleAcceptParticipant = async (participantId: string) => {
     try {
       await tournamentService.acceptParticipant(id!, participantId);
-      setSuccess('Participant accepted!');
+      setSuccess(t('success_participant_accepted'));
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to accept participant');
+      setError(err.response?.data?.error || t('error_failed_accept_participant'));
     }
   };
 
   const handleRejectParticipant = async (participantId: string) => {
     try {
       await tournamentService.rejectParticipant(id!, participantId);
-      setSuccess('Participant rejected!');
+      setSuccess(t('success_participant_rejected'));
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to reject participant');
+      setError(err.response?.data?.error || t('error_failed_reject_participant'));
     }
   };
 
@@ -283,7 +283,7 @@ const TournamentDetail: React.FC = () => {
   };
 
   const handleReportMatchSuccess = () => {
-    setSuccess('Match reported successfully!');
+    setSuccess(t('success_match_reported'));
     fetchTournamentData();
     setTimeout(() => setSuccess(''), 3000);
   };
@@ -299,7 +299,7 @@ const TournamentDetail: React.FC = () => {
   };
 
   const handleConfirmSuccess = () => {
-    setSuccess('Match confirmed!');
+      setSuccess(t('success_match_confirmed'));
     handleCloseConfirmModal(); // Close the modal
     fetchTournamentData();
     setTimeout(() => setSuccess(''), 3000);
@@ -310,13 +310,13 @@ const TournamentDetail: React.FC = () => {
       if (!determineWinnerData) return;
       
       await tournamentService.determineMatchWinner(id!, determineWinnerData.id, { winner_id: winnerId });
-      setSuccess('Match winner determined!');
+      setSuccess(t('success_match_winner_determined'));
       setShowDetermineWinnerModal(false);
       setDetermineWinnerData(null);
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to determine match winner');
+      setError(err.response?.data?.error || t('error_failed_determine_winner'));
     }
   };
 
@@ -335,11 +335,11 @@ const TournamentDetail: React.FC = () => {
         throw new Error(error.error || 'Failed to start next round');
       }
 
-      setSuccess(`Round ${currentRoundNumber + 1} started successfully!`);
+      setSuccess(t('success_round_started', { number: currentRoundNumber + 1 }));
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.message || 'Failed to start next round');
+      setError(err.message || t('error_failed_start_next_round'));
     }
   };
 
@@ -364,8 +364,14 @@ const TournamentDetail: React.FC = () => {
   };
 
   const formatDate = (date: string) => {
-    if (!date) return 'N/A';
+    if (!date) return t('not_available');
     return new Date(date).toLocaleDateString();
+  };
+
+  // Normalize status values to match locale keys like `option_in_progress`
+  const normalizeStatus = (s?: string) => {
+    if (!s) return 'pending';
+    return s.toString().toLowerCase().replace(/\s+/g, '_').replace(/-+/g, '_');
   };
 
   const isCreator = userId === tournament?.creator_id;
@@ -393,7 +399,7 @@ const TournamentDetail: React.FC = () => {
           className="status-badge"
           style={{ backgroundColor: getStatusColor(tournament.status) }}
         >
-          {tournament.status}
+          {t(`option_${normalizeStatus(tournament.status)}`) !== `option_${normalizeStatus(tournament.status)}` ? t(`option_${normalizeStatus(tournament.status)}`) : (tournament.status || t('option_pending'))}
         </span>
       </div>
 
@@ -404,10 +410,10 @@ const TournamentDetail: React.FC = () => {
         <p><strong>{t('tournament.col_organizer')}:</strong> {tournament.creator_nickname}</p>
         <p><strong>{t('tournament.col_type')}:</strong> {tournament.tournament_type}</p>
         <p><strong>{t('label_max_participants')}:</strong> {tournament.max_participants || t('unlimited')}</p>
-        <p><strong>Created:</strong> {formatDate(tournament.created_at)}</p>
-        {tournament.started_at && <p><strong>Started:</strong> {formatDate(tournament.started_at)}</p>}
-        {tournament.finished_at && <p><strong>Finished:</strong> {formatDate(tournament.finished_at)}</p>}
-        <p><strong>Description:</strong> {tournament.description}</p>
+        <p><strong>{t('label_created')}:</strong> {formatDate(tournament.created_at)}</p>
+        {tournament.started_at && <p><strong>{t('label_started')}:</strong> {formatDate(tournament.started_at)}</p>}
+        {tournament.finished_at && <p><strong>{t('label_finished')}:</strong> {formatDate(tournament.finished_at)}</p>}
+        <p><strong>{t('label_description')}:</strong> {tournament.description}</p>
       </div>
 
       {/* Tournament Configuration Section */}
@@ -415,22 +421,22 @@ const TournamentDetail: React.FC = () => {
         <h3>{t('tournament_title')} {t('tournament.basic_info') ? '- ' + t('tournament.basic_info') : ''}</h3>
         <div className="config-grid">
           <div className="config-item">
-            <strong>Round Duration:</strong> {tournament.round_duration_days} days
+            <strong>{t('label_round_duration')}:</strong> {tournament.round_duration_days} {t('label_days')}
           </div>
           <div className="config-item">
-            <strong>Auto-advance Rounds:</strong> {tournament.auto_advance_round ? 'Yes' : 'No'}
+            <strong>{t('label_auto_advance_rounds')}:</strong> {tournament.auto_advance_round ? t('yes') : t('no')}
           </div>
           <div className="config-item">
-            <strong>General Rounds:</strong> {tournament.general_rounds}
+            <strong>{t('label_general_rounds')}:</strong> {tournament.general_rounds}
           </div>
           <div className="config-item">
-            <strong>General Rounds Format:</strong> {tournament.general_rounds_format.toUpperCase()}
+            <strong>{t('label_general_rounds_format')}:</strong> {t('match_format.' + tournament.general_rounds_format)}
           </div>
           <div className="config-item">
-            <strong>Final Rounds:</strong> {tournament.final_rounds}
+            <strong>{t('label_final_rounds')}:</strong> {tournament.final_rounds}
           </div>
           <div className="config-item">
-            <strong>Final Rounds Format:</strong> {tournament.final_rounds_format.toUpperCase()}
+            <strong>{t('label_final_rounds_format')}:</strong> {t('match_format.' + tournament.final_rounds_format)}
           </div>
         </div>
       </div>
@@ -438,12 +444,12 @@ const TournamentDetail: React.FC = () => {
       {/* Organizer Controls Section */}
       {isCreator && (
         <div className="organizer-controls">
-          <h3>Tournament Management</h3>
+          <h3>{t('tournaments.management')}</h3>
           
           {editMode && tournament.status !== 'in_progress' ? (
             <div className="edit-form">
               <div className="form-group">
-                <label>Description</label>
+                <label>{t('label_description')}</label>
                 <textarea
                   value={editData.description}
                   onChange={(e) => setEditData({ ...editData, description: e.target.value })}
@@ -463,7 +469,7 @@ const TournamentDetail: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Tournament Start Date</label>
+                <label>{t('label_tournament_start_date')}</label>
                 <input
                   type="datetime-local"
                   value={editData.started_at ? editData.started_at.substring(0, 16) : ''}
@@ -473,10 +479,10 @@ const TournamentDetail: React.FC = () => {
 
               <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid #ddd' }} />
 
-              <h4 style={{ marginTop: '1rem', marginBottom: '1rem' }}>Round Configuration</h4>
+              <h4 style={{ marginTop: '1rem', marginBottom: '1rem' }}>{t('tournament.round_configuration')}</h4>
 
               <div className="form-group">
-                <label>General Rounds</label>
+                <label>{t('label_general_rounds')}</label>
                 <input
                   type="number"
                   min="0"
@@ -498,7 +504,7 @@ const TournamentDetail: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Final Rounds</label>
+                <label>{t('label_final_rounds')}</label>
                 <input
                   type="number"
                   min="0"
@@ -543,7 +549,7 @@ const TournamentDetail: React.FC = () => {
               )}
 
               {tournament.status === 'in_progress' && (
-                <p className="tournament-started-message">✓ Tournament has started. Configuration is now locked.</p>
+                <p className="tournament-started-message">✓ {t('tournaments.started_locked')}</p>
               )}
             </div>
           )}
@@ -558,11 +564,11 @@ const TournamentDetail: React.FC = () => {
       )}
 
       {userParticipationStatus === 'pending' && (
-        <p className="pending-status">⏳ Your join request is pending approval from the organizer</p>
+        <p className="pending-status">⏳ {t('join_pending_msg')}</p>
       )}
 
       {userParticipationStatus === 'denied' && (
-        <p className="denied-status">❌ Your join request was denied</p>
+        <p className="denied-status">❌ {t('join_denied_msg')}</p>
       )}
 
       <div className="tabs-section">
@@ -570,31 +576,31 @@ const TournamentDetail: React.FC = () => {
           className={`tab-btn ${activeTab === 'participants' ? 'active' : ''}`}
           onClick={() => setActiveTab('participants')}
         >
-          Participants ({participants.length})
+          {t('tabs.participants', { count: participants.length })}
         </button>
         <button 
           className={`tab-btn ${activeTab === 'matches' ? 'active' : ''}`}
           onClick={() => setActiveTab('matches')}
         >
-          Matches ({matches.length})
+          {t('tabs.matches', { count: matches.length })}
         </button>
         <button 
           className={`tab-btn ${activeTab === 'rounds' ? 'active' : ''}`}
           onClick={() => setActiveTab('rounds')}
         >
-          Rounds ({rounds.length})
+          {t('tabs.rounds', { count: rounds.length })}
         </button>
         <button 
           className={`tab-btn ${activeTab === 'roundMatches' ? 'active' : ''}`}
           onClick={() => setActiveTab('roundMatches')}
         >
-          Round Details
+          {t('tabs.round_details')}
         </button>
         <button 
           className={`tab-btn ${activeTab === 'ranking' ? 'active' : ''}`}
           onClick={() => setActiveTab('ranking')}
         >
-          Ranking
+          {t('tabs.ranking')}
         </button>
       </div>
 
@@ -604,14 +610,14 @@ const TournamentDetail: React.FC = () => {
             <table className="participants-table">
               <thead>
                 <tr>
-                  <th>Nickname</th>
-                  <th>Status</th>
-                  <th>ELO Rating</th>
-                  <th>Ranking</th>
-                  <th>Wins</th>
-                  <th>Losses</th>
-                  <th>Points</th>
-                  {isCreator && <th>Actions</th>}
+                  <th>{t('label_nickname')}</th>
+                  <th>{t('label_status')}</th>
+                  <th>{t('label_elo')}</th>
+                  <th>{t('label_ranking')}</th>
+                  <th>{t('label_wins')}</th>
+                  <th>{t('label_losses')}</th>
+                  <th>{t('label_points')}</th>
+                  {isCreator && <th>{t('label_actions')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -623,7 +629,7 @@ const TournamentDetail: React.FC = () => {
                         className="status-badge"
                         style={{ backgroundColor: getParticipationStatusColor(p.participation_status) }}
                       >
-                        {p.participation_status}
+                        {t(`option_${normalizeStatus(p.participation_status)}`) !== `option_${normalizeStatus(p.participation_status)}` ? t(`option_${normalizeStatus(p.participation_status)}`) : (p.participation_status || t('option_pending'))}
                       </span>
                     </td>
                     <td>{p.elo_rating || '-'}</td>
@@ -637,13 +643,13 @@ const TournamentDetail: React.FC = () => {
                           className="btn-accept"
                           onClick={() => handleAcceptParticipant(p.id)}
                         >
-                          Accept
+                          {t('btn_accept')}
                         </button>
                         <button 
                           className="btn-reject"
                           onClick={() => handleRejectParticipant(p.id)}
                         >
-                          Reject
+                          {t('btn_reject')}
                         </button>
                       </td>
                     )}
@@ -652,7 +658,7 @@ const TournamentDetail: React.FC = () => {
               </tbody>
             </table>
           ) : (
-            <p>No participants yet</p>
+            <p>{t('no_participants_yet')}</p>
           )}
         </div>
       )}
@@ -660,12 +666,12 @@ const TournamentDetail: React.FC = () => {
       {activeTab === 'matches' && (
         <div className="tab-content">
           {tournament?.status !== 'in_progress' && tournament?.status !== 'finished' ? (
-            <p className="no-matches-message">Matches will be generated once the tournament starts.</p>
+            <p className="no-matches-message">{t('matches_will_be_generated')}</p>
           ) : (
             <>
               {/* Scheduled Matches Section */}
               <div className="matches-section">
-                <h3>Scheduled Matches</h3>
+                <h3>{t('matches.scheduled')}</h3>
                 {rounds.length > 0 ? (
                   <>
                     {rounds.map((round) => {
@@ -677,15 +683,15 @@ const TournamentDetail: React.FC = () => {
                       
                       return (
                         <div key={round.id} className="round-matches">
-                          <h4>Round {round.round_number} ({round.round_type}) - {round.round_status}</h4>
+                          <h4>{t('label_round')} {round.round_number} ({round.round_type}) - {t(`option_${normalizeStatus(round.round_status)}`) !== `option_${normalizeStatus(round.round_status)}` ? t(`option_${normalizeStatus(round.round_status)}`) : (round.round_status || t('option_pending'))}</h4>
                           <table className="matches-table">
                             <thead>
                               <tr>
-                                <th>Player 1</th>
-                                <th>vs</th>
-                                <th>Player 2</th>
-                                <th>Play Before</th>
-                                <th>Status</th>
+                                <th>{t('label_player1')}</th>
+                                <th>{t('vs')}</th>
+                                <th>{t('label_player2')}</th>
+                                <th>{t('label_play_before')}</th>
+                                <th>{t('label_status')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -724,7 +730,7 @@ const TournamentDetail: React.FC = () => {
                                            match.match_status_from_matches === 'disputed' ? t('match_status_disputed') :
                                            match.match_status_from_matches === 'unconfirmed' ? t('match_status_unconfirmed') :
                                            match.match_status_from_matches === 'cancelled' ? t('match_status_cancelled') :
-                                           match.match_status_from_matches || 'pending'}
+                                           (t(`option_${normalizeStatus(match.match_status_from_matches)}`) !== `option_${normalizeStatus(match.match_status_from_matches)}` ? t(`option_${normalizeStatus(match.match_status_from_matches)}`) : (match.match_status_from_matches || t('option_pending')))}
                                         </span>
                                         {isPlayer && (round.status === 'pending' || round.status === 'in_progress' || round.round_status === 'pending' || round.round_status === 'in_progress') && (
                                           <button
@@ -758,27 +764,27 @@ const TournamentDetail: React.FC = () => {
                       );
                     })}
                     {matches.filter((m) => m.match_status === 'pending').length === 0 && (
-                      <p>No scheduled matches at this time.</p>
+                      <p>{t('no_scheduled_matches')}</p>
                     )}
                   </>
                 ) : (
-                  <p>No rounds configured.</p>
+                  <p>{t('no_rounds_configured')}</p>
                 )}
               </div>
 
               {/* Completed Matches Section */}
               <div className="matches-section">
-                <h3>Completed Matches</h3>
+                <h3>{t('matches.completed')}</h3>
                 {matches.filter((m) => m.match_status === 'completed').length > 0 ? (
                   <table className="matches-table completed-matches">
                     <thead>
                       <tr>
-                        <th>Round</th>
-                        <th>Winner</th>
-                        <th>Loser</th>
-                        <th>Played On</th>
-                        <th>Status</th>
-                        <th>Action</th>
+                        <th>{t('label_round')}</th>
+                        <th>{t('label_winner')}</th>
+                        <th>{t('label_loser')}</th>
+                        <th>{t('label_played_on')}</th>
+                        <th>{t('label_status')}</th>
+                        <th>{t('label_actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -804,19 +810,19 @@ const TournamentDetail: React.FC = () => {
 
                           return (
                             <tr key={match.id}>
-                              <td>Round {match.round_number}</td>
+                              <td>{t('label_round')} {match.round_number}</td>
                               <td><strong>{match.winner_nickname || '-'}</strong></td>
                               <td>{loserNickname}</td>
                               <td>{match.played_at ? formatDate(match.played_at) : '-'}</td>
                               <td>
                                 {isAdminDetermined ? (
-                                  <span className="badge-admin">👤 ADMIN</span>
+                                  <span className="badge-admin">{t('admin_tag')}</span>
                                 ) : confirmationStatus === 'confirmed' ? (
-                                  <span className="badge-confirmed">✓ Confirmed</span>
+                                  <span className="badge-confirmed">{t('match_status_confirmed')}</span>
                                 ) : confirmationStatus === 'disputed' ? (
-                                  <span className="badge-disputed">⚠ Disputed</span>
+                                  <span className="badge-disputed">{t('match_status_disputed')}</span>
                                 ) : (
-                                  <span className="badge-unconfirmed">⏳ Unconfirmed</span>
+                                  <span className="badge-unconfirmed">{t('match_status_unconfirmed')}</span>
                                 )}
                               </td>
                               <td>
@@ -847,7 +853,7 @@ const TournamentDetail: React.FC = () => {
                     </tbody>
                   </table>
                 ) : (
-                  <p>No completed matches yet.</p>
+                  <p>{t('no_completed_matches')}</p>
                 )}
               </div>
             </>
@@ -862,13 +868,13 @@ const TournamentDetail: React.FC = () => {
             <table className="rounds-table">
               <thead>
                 <tr>
-                  <th>Round #</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
-                  <th>Format</th>
-                  {isCreator && <th>Action</th>}
+                  <th>{t('label_round_number')}</th>
+                  <th>{t('label_type')}</th>
+                  <th>{t('label_status')}</th>
+                  <th>{t('label_start_date')}</th>
+                  <th>{t('label_end_date')}</th>
+                  <th>{t('label_format')}</th>
+                  {isCreator && <th>{t('label_actions')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -879,13 +885,13 @@ const TournamentDetail: React.FC = () => {
                     </td>
                     <td>{round.round_type || '-'}</td>
                     <td>
-                      <span className={`status-badge status-${round.round_status || 'pending'}`}>
-                        {round.round_status || 'pending'}
+                      <span className={`status-badge status-${normalizeStatus(round.round_status)}`}>
+                        {t(`option_${normalizeStatus(round.round_status)}`) !== `option_${normalizeStatus(round.round_status)}` ? t(`option_${normalizeStatus(round.round_status)}`) : (round.round_status || t('option_pending'))}
                       </span>
                     </td>
                     <td>{round.round_start_date ? formatDate(round.round_start_date) : '-'}</td>
                     <td>{round.round_end_date ? formatDate(round.round_end_date) : '-'}</td>
-                    <td>{(round as any)?.match_format || '-'}</td>
+                    <td>{(round as any)?.match_format ? t('match_format.' + (round as any).match_format) : '-'}</td>
                     {isCreator && (
                       <td>
                         {round.round_status === 'completed' && round.round_number < rounds.length ? (
@@ -895,9 +901,9 @@ const TournamentDetail: React.FC = () => {
                               <button
                                 className="btn-start-round"
                                 onClick={() => handleStartNextRound(round.round_number)}
-                                title="Start next round"
+                                title={t('start_next_round')}
                               >
-                                Start Round {round.round_number + 1}
+                                {t('start_round')} {round.round_number + 1}
                               </button>
                             ) : (
                               <span style={{ color: '#999' }}>-</span>
@@ -913,7 +919,7 @@ const TournamentDetail: React.FC = () => {
               </tbody>
             </table>
           ) : (
-            <p>No rounds configured for this tournament yet.</p>
+            <p>{t('no_rounds_configured_tournament')}</p>
           )}
         </div>
       )}
@@ -930,15 +936,15 @@ const TournamentDetail: React.FC = () => {
                 
                 return (
                   <div key={round.id} className="round-matches-section">
-                    <h3>Round {round.round_number} - {round.round_type}</h3>
+                    <h3>{t('label_round')} {round.round_number} - {round.round_type}</h3>
                     <table className="matches-table">
                       <thead>
                         <tr>
-                          <th>Player 1</th>
-                          <th>vs</th>
-                          <th>Player 2</th>
-                          <th>Winner</th>
-                          <th>Status</th>
+                          <th>{t('label_player1')}</th>
+                          <th>{t('vs')}</th>
+                          <th>{t('label_player2')}</th>
+                          <th>{t('label_winner')}</th>
+                          <th>{t('label_status')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -971,8 +977,8 @@ const TournamentDetail: React.FC = () => {
                               )}
                             </td>
                             <td>
-                              <span className={`status-badge status-${(match as any).series_status || 'pending'}`}>
-                                {(match as any).series_status || 'pending'}
+                              <span className={`status-badge status-${normalizeStatus((match as any).series_status)}`}>
+                                {t(`option_${normalizeStatus((match as any).series_status)}`) !== `option_${normalizeStatus((match as any).series_status)}` ? t(`option_${normalizeStatus((match as any).series_status)}`) : ((match as any).series_status || t('option_pending'))}
                               </span>
                             </td>
                           </tr>
@@ -984,7 +990,7 @@ const TournamentDetail: React.FC = () => {
               })}
             </>
           ) : (
-            <p>No rounds configured for this tournament yet.</p>
+            <p>{t('no_rounds_configured_tournament')}</p>
           )}
         </div>
       )}
@@ -996,12 +1002,12 @@ const TournamentDetail: React.FC = () => {
             <table className="ranking-table">
               <thead>
                 <tr>
-                  <th>Rank</th>
-                  <th>Nickname</th>
-                  <th>Wins</th>
-                  <th>Losses</th>
-                  <th>Points</th>
-                  <th>Status</th>
+                  <th>{t('label_rank')}</th>
+                  <th>{t('label_nickname')}</th>
+                  <th>{t('label_wins')}</th>
+                  <th>{t('label_losses')}</th>
+                  <th>{t('label_points')}</th>
+                  <th>{t('label_status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1021,8 +1027,8 @@ const TournamentDetail: React.FC = () => {
                       <td>{participant.tournament_losses || 0}</td>
                       <td><strong>{participant.tournament_points || 0}</strong></td>
                       <td>
-                        <span className={`status-badge status-${participant.participation_status || 'pending'}`}>
-                          {participant.participation_status || 'pending'}
+                        <span className={`status-badge status-${normalizeStatus(participant.participation_status)}`}>
+                          {t(`option_${normalizeStatus(participant.participation_status)}`) !== `option_${normalizeStatus(participant.participation_status)}` ? t(`option_${normalizeStatus(participant.participation_status)}`) : (participant.participation_status || t('option_pending'))}
                         </span>
                       </td>
                     </tr>
@@ -1030,7 +1036,7 @@ const TournamentDetail: React.FC = () => {
               </tbody>
             </table>
           ) : (
-            <p>No participants in this tournament.</p>
+            <p>{t('no_participants_in_tournament')}</p>
           )}
         </div>
       )}
@@ -1066,7 +1072,7 @@ const TournamentDetail: React.FC = () => {
         <div className="modal-overlay" onClick={() => { setShowDetermineWinnerModal(false); setDetermineWinnerData(null); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Determine Match Winner</h3>
+              <h3>{t('determine_winner_title')}</h3>
               <button
                 className="modal-close"
                 onClick={() => { setShowDetermineWinnerModal(false); setDetermineWinnerData(null); }}
@@ -1076,7 +1082,7 @@ const TournamentDetail: React.FC = () => {
             </div>
             <div className="modal-body">
               <p style={{ marginBottom: '1.5rem', color: '#666' }}>
-                Select the winner for this match between <strong>{determineWinnerData.player1_nickname}</strong> and <strong>{determineWinnerData.player2_nickname}</strong>
+                {t('determine_winner_prompt', { p1: determineWinnerData.player1_nickname, p2: determineWinnerData.player2_nickname })}
               </p>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                 <button
@@ -1084,14 +1090,14 @@ const TournamentDetail: React.FC = () => {
                   onClick={() => handleDetermineWinner(determineWinnerData.player1_id)}
                   style={{ flex: 1 }}
                 >
-                  {determineWinnerData.player1_nickname} Wins
+                  {determineWinnerData.player1_nickname} {t('label_wins')}
                 </button>
                 <button
                   className="btn-winner-select"
                   onClick={() => handleDetermineWinner(determineWinnerData.player2_id)}
                   style={{ flex: 1 }}
                 >
-                  {determineWinnerData.player2_nickname} Wins
+                  {determineWinnerData.player2_nickname} {t('label_wins')}
                 </button>
               </div>
             </div>

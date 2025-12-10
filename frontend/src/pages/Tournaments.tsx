@@ -144,19 +144,19 @@ const Tournaments: React.FC = () => {
   };
 
   const getStatusLabel = (status: string) => {
-    const statusMap: { [key: string]: string } = {
-      'pending': 'En preparación',
-      'active': 'En curso',
-      'completed': 'Completado',
-      'cancelled': 'Cancelado',
-      'registration_open': 'Registration Open',
-      'registration_closed': 'Registration Closed',
-      'prepared': 'Prepared',
-      'approved': 'Approved',
-      'in_progress': 'In Progress',
-      'finished': 'Finished',
+    // Normalize status to lookup i18n keys like `option_pending`, `option_in_progress`, etc.
+    const normalizeStatus = (s: string) => {
+      if (!s) return 'pending';
+      return s.toString().toLowerCase().replace(/\s+/g, '_').replace(/-+/g, '_');
     };
-    return statusMap[status] || status;
+
+    const key = `option_${normalizeStatus(status)}`;
+    // Use translation if available, otherwise fall back to a simple humanized default
+    const translated = t(key);
+    if (translated && translated !== key) return translated;
+    // human-friendly fallback
+    const human = (status || '').toString().replace(/_/g, ' ').replace(/-/g, ' ');
+    return human.charAt(0).toUpperCase() + human.slice(1);
   };
 
   const getStatusColor = (status: string) => {
@@ -181,12 +181,12 @@ const Tournaments: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="admin-container"><p>Loading...</p></div>;
+    return <div className="admin-container"><p>{t('loading')}</p></div>;
   }
 
   return (
     <div className="admin-container">
-      <h1>{t('tournaments', 'Tournaments')}</h1>
+      <h1>{t('tournament_title')}</h1>
 
       {error && <p className="error-message">{error}</p>}
 
@@ -198,18 +198,18 @@ const Tournaments: React.FC = () => {
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
-            First
+            {t('pagination_first')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            ← Prev
+            {t('pagination_prev')}
           </button>
           
           <div className="page-info">
-            Page <span className="current-page">{currentPage}</span> of <span className="total-pages">{totalPages}</span>
+            {t('pagination_page_info', { page: currentPage, totalPages })}
           </div>
           
           <button 
@@ -217,14 +217,14 @@ const Tournaments: React.FC = () => {
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            Next →
+            {t('pagination_next')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
-            Last
+            {t('pagination_last')}
           </button>
         </div>
       )}
@@ -232,58 +232,58 @@ const Tournaments: React.FC = () => {
       {/* Filters */}
       <div className="filters-section">
         <div className="filter-group">
-          <label htmlFor="name">Tournament Name</label>
+          <label htmlFor="name">{t('tournament_name')}</label>
           <input
             type="text"
             id="name"
             name="name"
-            placeholder="Search by name..."
+            placeholder={t('filter_by_tournament_name')}
             value={inputFilters.name}
             onChange={handleFilterInputChange}
           />
         </div>
 
         <div className="filter-group">
-          <label htmlFor="status">Status</label>
+          <label htmlFor="status">{t('filter_status')}</label>
           <select 
             id="status"
             name="status"
             value={inputFilters.status}
             onChange={handleFilterInputChange}
           >
-            <option value="">All Statuses</option>
-            <option value="registration_open">Registration Open</option>
-            <option value="registration_closed">Registration Closed</option>
-            <option value="prepared">Prepared</option>
-            <option value="approved">Approved</option>
-            <option value="in_progress">In Progress</option>
-            <option value="finished">Finished</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="">{t('option_all_statuses')}</option>
+            <option value="registration_open">{t('option_registration_open')}</option>
+            <option value="registration_closed">{t('option_registration_closed')}</option>
+            <option value="prepared">{t('option_prepared')}</option>
+            <option value="approved">{t('option_approved')}</option>
+            <option value="in_progress">{t('option_in_progress')}</option>
+            <option value="finished">{t('option_finished')}</option>
+            <option value="cancelled">{t('option_cancelled')}</option>
           </select>
         </div>
 
         <div className="filter-group">
-          <label htmlFor="type">Tournament Type</label>
+          <label htmlFor="type">{t('filter_type')}</label>
           <select 
             id="type"
             name="type"
             value={inputFilters.type}
             onChange={handleFilterInputChange}
           >
-            <option value="">All Types</option>
-            <option value="elimination">Elimination</option>
-            <option value="league">League</option>
-            <option value="swiss">Swiss</option>
+            <option value="">{t('option_all_types')}</option>
+            <option value="elimination">{t('option_type_elimination')}</option>
+            <option value="league">{t('option_type_league')}</option>
+            <option value="swiss">{t('option_type_swiss')}</option>
           </select>
         </div>
 
         <button className="reset-btn" onClick={handleResetFilters}>
-          Reset Filters
+          {t('reset_filters')}
         </button>
       </div>
 
       <div className="tournaments-info">
-        <p>Showing {tournaments.length} of {total} total tournaments (Page {currentPage} of {totalPages})</p>
+        <p>{t('showing_count', { count: tournaments.length, total, page: currentPage, totalPages })}</p>
       </div>
 
       <section className="tournaments-section">
@@ -291,14 +291,14 @@ const Tournaments: React.FC = () => {
           <table className="tournaments-table">
             <thead>
               <tr>
-                <th>Tournament Name</th>
-                <th>Organizer</th>
-                <th>Status</th>
-                <th>Type</th>
-                <th>Winner</th>
-                <th>Runner Up</th>
-                <th>Last Updated</th>
-                <th>Action</th>
+                <th>{t('tournament.col_name')}</th>
+                <th>{t('tournament.col_organizer')}</th>
+                <th>{t('tournament.col_status')}</th>
+                <th>{t('tournament.col_type')}</th>
+                <th>{t('tournament.col_winner')}</th>
+                <th>{t('tournament.col_runner_up')}</th>
+                <th>{t('tournament.col_last_updated')}</th>
+                <th>{t('tournament.col_action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -323,7 +323,7 @@ const Tournaments: React.FC = () => {
                       onClick={() => navigate(`/tournament/${tournament.id}`, { state: { from: 'tournaments' } })}
                       className="btn-view"
                     >
-                      View Details
+                      {t('tournaments.view_details')}
                     </button>
                   </td>
                 </tr>
@@ -331,7 +331,7 @@ const Tournaments: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          <p>No tournaments available</p>
+          <p>{t('no_data')}</p>
         )}
       </section>
 
@@ -343,18 +343,18 @@ const Tournaments: React.FC = () => {
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
-            First
+            {t('pagination_first')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
-            ← Prev
+            {t('pagination_prev')}
           </button>
           
           <div className="page-info">
-            Page <span className="current-page">{currentPage}</span> of <span className="total-pages">{totalPages}</span>
+            {t('pagination_page_info', { page: currentPage, totalPages })}
           </div>
           
           <button 
@@ -362,14 +362,14 @@ const Tournaments: React.FC = () => {
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
-            Next →
+            {t('pagination_next')}
           </button>
           <button 
             className="page-btn"
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
-            Last
+            {t('pagination_last')}
           </button>
         </div>
       )}
