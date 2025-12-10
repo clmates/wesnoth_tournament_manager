@@ -131,14 +131,14 @@
   "view_all": "Alle anzeigen →",
   "announcements": "Ankündigungen",
   "home": {
-    "player_of_month": "Player of the Month",
-    "recent_players": "Recent Players",
-    "top_10_players": "Top 10 Players",
-    "no_announcements": "No announcements"
+    "player_of_month": "Spieler des Monats",
+    "recent_players": "Neueste Spieler",
+    "top_10_players": "Top 10 Spieler",
+    "no_announcements": "Keine Ankündigungen"
   },
-  "vs": "vs",
-  "unknown": "Unknown",
-  "unrated": "Unrated",
+  "vs": "gegen",
+  "unknown": "Unbekannt",
+  "unrated": "Unbewertet",
   "label_elo": "ELO",
-  "label_level": "Level"
+  "label_level": "Stufe"
 }

@@ -122,16 +122,16 @@
   "label_ranking_change": "Изменение рейтинга",
   "label_replay": "Повтор",
   "home": {
-    "player_of_month": "Player of the Month",
-    "recent_players": "Recent Players",
-    "top_10_players": "Top 10 Players",
-    "no_announcements": "No announcements"
+    "player_of_month": "Игрок месяца",
+    "recent_players": "Недавние игроки",
+    "top_10_players": "Топ-10 игроков",
+    "no_announcements": "Нет объявлений"
   },
-  "vs": "vs",
-  "unknown": "Unknown",
-  "unrated": "Unrated",
+  "vs": "против",
+  "unknown": "Неизвестно",
+  "unrated": "Без рейтинга",
   "label_elo": "ELO",
-  "label_level": "Level",
+  "label_level": "Уровень",
   "report": "Пожаловаться"
   ,
   "determine_winner": "Определить победителя",

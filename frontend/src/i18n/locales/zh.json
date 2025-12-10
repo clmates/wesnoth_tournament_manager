@@ -122,16 +122,16 @@
   "label_ranking_change": "排名变化",
   "label_replay": "回放",
   "home": {
-    "player_of_month": "Player of the Month",
-    "recent_players": "Recent Players",
-    "top_10_players": "Top 10 Players",
-    "no_announcements": "No announcements"
+    "player_of_month": "本月玩家",
+    "recent_players": "近期玩家",
+    "top_10_players": "前10名玩家",
+    "no_announcements": "暂无公告"
   },
-  "vs": "vs",
-  "unknown": "Unknown",
-  "unrated": "Unrated",
+  "vs": "对阵",
+  "unknown": "未知",
+  "unrated": "未评级",
   "label_elo": "ELO",
-  "label_level": "Level",
+  "label_level": "等级",
   "report": "报告"
   ,
   "determine_winner": "确定获胜者",
