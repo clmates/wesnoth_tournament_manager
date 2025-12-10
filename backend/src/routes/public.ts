@@ -252,10 +252,10 @@ router.get('/tournaments/:id/matches', async (req, res) => {
 router.get('/news', async (req, res) => {
   try {
     const result = await query(
-      `SELECT n.id, n.title, n.content, n.published_at, n.language_code, u.nickname as author 
+      `SELECT n.id, n.title, n.content, n.translations, n.published_at, n.created_at, u.nickname as author 
        FROM news n
        LEFT JOIN users u ON n.author_id = u.id
-       ORDER BY n.published_at DESC, n.language_code ASC`
+       ORDER BY n.published_at DESC NULLS FIRST, n.created_at DESC`
     );
     console.log('News query result:', result.rows.length, 'rows found');
     res.json(result.rows);

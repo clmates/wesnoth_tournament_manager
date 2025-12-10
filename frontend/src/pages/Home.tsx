@@ -78,10 +78,15 @@ const Home: React.FC = () => {
 
         // Fetch recent players (latest registrations)
         try {
-          const rankingRes = await userService.getGlobalRanking();
-          const allPlayers = rankingRes.data || [];
-          // Get newest players by sorting by creation date (assuming they come in that order)
-          setRecentPlayers(allPlayers.slice(0, 5));
+          const usersRes = await userService.getAllUsers();
+          const allUsers = usersRes.data || [];
+          // Get newest players by sorting by creation date (reverse order for newest first)
+          const sortedByDate = [...allUsers].sort((a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateB - dateA;
+          });
+          setRecentPlayers(sortedByDate.slice(0, 5));
         } catch (err) {
           console.error('Error fetching recent players:', err);
         }
@@ -105,7 +110,7 @@ const Home: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [i18n.language]);
 
   if (loading) {
     return <div className="home"><p>{t('loading')}</p></div>;

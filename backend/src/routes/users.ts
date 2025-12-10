@@ -231,14 +231,14 @@ router.get('/ranking/active', async (req, res) => {
 router.get('/all', async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, nickname, elo_rating, level FROM users 
+      `SELECT id, nickname, elo_rating, level, is_rated, created_at FROM users 
        WHERE is_active = true 
          AND is_blocked = false
-       ORDER BY nickname ASC
+       ORDER BY created_at DESC
        LIMIT 500`
     );
 
-    res.json(result.rows);
+    res.json({ data: result.rows });
   } catch (error) {
     console.error('All users error:', error);
     res.status(500).json({ error: 'Failed to fetch users', details: (error as any).message });

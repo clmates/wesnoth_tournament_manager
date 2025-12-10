@@ -150,9 +150,11 @@ CREATE TABLE IF NOT EXISTS news (
   content TEXT NOT NULL,
   translations JSONB DEFAULT '{"en":{},"es":{},"zh":{},"de":{}}',
   author_id UUID NOT NULL REFERENCES users(id),
+  language_code VARCHAR(10) DEFAULT 'en',
   published_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (id, language_code)
 );
 
 -- FAQ table
@@ -264,5 +266,6 @@ CREATE INDEX IF NOT EXISTS idx_tournament_round_matches_tournament ON tournament
 CREATE INDEX IF NOT EXISTS idx_tournament_round_matches_round ON tournament_round_matches(round_id);
 CREATE INDEX IF NOT EXISTS idx_tournament_round_matches_status ON tournament_round_matches(series_status);
 CREATE INDEX IF NOT EXISTS idx_news_author ON news(author_id);
+CREATE INDEX IF NOT EXISTS idx_news_language_code ON news(language_code);
 CREATE INDEX IF NOT EXISTS idx_chat_sender ON chat_messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_chat_receiver ON chat_messages(receiver_id);
