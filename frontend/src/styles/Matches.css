@@ -308,6 +308,37 @@
   color: #f44336;
 }
 
+.ranking-block {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.ranking-value {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #333;
+  white-space: nowrap;
+}
+
+.ranking-change {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.ranking-change.positive {
+  color: #4CAF50;
+}
+
+.ranking-change.negative {
+  color: #f44336;
+}
+
 .actions-col {
   display: flex;
   gap: 0.5rem;

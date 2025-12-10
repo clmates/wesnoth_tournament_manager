@@ -74,8 +74,10 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
                 <th>{t('label_date')}</th>
                 <th>{t('label_winner')}</th>
                 <th>{t('label_winner_rating')}</th>
+                <th>{t('label_ranking_position') || 'Ranking'}</th>
                 <th>{t('label_loser')}</th>
                 <th>{t('label_loser_rating')}</th>
+                <th>{t('label_ranking_position') || 'Ranking'}</th>
                 <th>{t('label_actions')}</th>
               </tr>
             </thead>
@@ -106,6 +108,15 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
                         </div>
                       </div>
                     </td>
+
+                    <td className="ranking-col">
+                      <div className="ranking-block">
+                        <div className="ranking-value">{match.winner_ranking_pos || 'N/A'}</div>
+                        <div className={`ranking-change ${(match.winner_ranking_change || 0) > 0 ? 'positive' : (match.winner_ranking_change || 0) < 0 ? 'negative' : ''}`}>
+                          {(match.winner_ranking_change || 0) > 0 ? '↑' : (match.winner_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.winner_ranking_change || 0)}
+                        </div>
+                      </div>
+                    </td>
                     
                     <td className="loser-col">
                       <div className="player-info">
@@ -119,6 +130,15 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
                         <div className="rating-value">{match.loser_elo_before || 'N/A'}</div>
                         <div className={`rating-change ${loserEloChange >= 0 ? 'positive' : 'negative'}`}>
                           ({loserEloChange >= 0 ? '+' : ''}{loserEloChange})
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="ranking-col">
+                      <div className="ranking-block">
+                        <div className="ranking-value">{match.loser_ranking_pos || 'N/A'}</div>
+                        <div className={`ranking-change ${(match.loser_ranking_change || 0) > 0 ? 'positive' : (match.loser_ranking_change || 0) < 0 ? 'negative' : ''}`}>
+                          {(match.loser_ranking_change || 0) > 0 ? '↑' : (match.loser_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.loser_ranking_change || 0)}
                         </div>
                       </div>
                     </td>

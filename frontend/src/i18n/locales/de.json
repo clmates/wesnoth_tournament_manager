@@ -356,6 +356,8 @@
   "error_failed_start_tournament": "Turnier konnte nicht gestartet werden",
   "error_failed_create_tournament": "Turnier konnte nicht erstellt werden",
   "error_failed_join_tournament": "Beitritt zum Turnier fehlgeschlagen",
+  "label_ranking_position": "Ranglistenposition",
+  "label_ranking_change": "Positionsänderung",
   "option_type_swiss_elimination": "Swiss-Elimination Mix",
   "profile": {
     "title": "Mein Profil",

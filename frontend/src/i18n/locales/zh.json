@@ -355,6 +355,8 @@
   "error_failed_start_tournament": "开始锦标赛失败",
   "error_failed_create_tournament": "创建锦标赛失败",
   "error_failed_join_tournament": "加入锦标赛失败",
+  "label_ranking_position": "排名位置",
+  "label_ranking_change": "位置变化",
   "option_type_swiss_elimination": "瑞士-淘汰 混合",
   "profile": {
     "title": "我的个人资料",

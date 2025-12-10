@@ -307,6 +307,15 @@ const MyMatches: React.FC = () => {
                       </div>
                     </td>
 
+                    <td className="ranking-col">
+                      <div className="ranking-block">
+                        <div className="ranking-value">{match.winner_ranking_pos || 'N/A'}</div>
+                        <div className={`ranking-change ${(match.winner_ranking_change || 0) > 0 ? 'positive' : (match.winner_ranking_change || 0) < 0 ? 'negative' : ''}`}>
+                          {(match.winner_ranking_change || 0) > 0 ? '↑' : (match.winner_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.winner_ranking_change || 0)}
+                        </div>
+                      </div>
+                    </td>
+
                     <td className="player-col">
                       <div className="player-name">{match.loser_nickname}</div>
                       <div className="faction-badge">{match.loser_faction}</div>
@@ -317,6 +326,15 @@ const MyMatches: React.FC = () => {
                         <div className="rating-value">{match.loser_elo_before || 'N/A'}</div>
                         <div className={`rating-change ${loserEloChange(match) >= 0 ? 'positive' : 'negative'}`}>
                           ({loserEloChange(match) >= 0 ? '+' : ''}{loserEloChange(match)})
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="ranking-col">
+                      <div className="ranking-block">
+                        <div className="ranking-value">{match.loser_ranking_pos || 'N/A'}</div>
+                        <div className={`ranking-change ${(match.loser_ranking_change || 0) > 0 ? 'positive' : (match.loser_ranking_change || 0) < 0 ? 'negative' : ''}`}>
+                          {(match.loser_ranking_change || 0) > 0 ? '↑' : (match.loser_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.loser_ranking_change || 0)}
                         </div>
                       </div>
                     </td>

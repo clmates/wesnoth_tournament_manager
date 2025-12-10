@@ -351,6 +351,8 @@
   "error_failed_start_tournament": "Failed to start tournament",
   "error_failed_create_tournament": "Failed to create tournament",
   "error_failed_join_tournament": "Failed to join tournament",
+  "label_ranking_position": "Ranking Position",
+  "label_ranking_change": "Position Change",
   "option_type_swiss_elimination": "Swiss-Elimination Mix",
   "profile": {
     "title": "My Profile",

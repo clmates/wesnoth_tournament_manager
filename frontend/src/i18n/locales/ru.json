@@ -354,6 +354,8 @@
   "error_failed_start_tournament": "Не удалось начать турнир",
   "error_failed_create_tournament": "Не удалось создать турнир",
   "error_failed_join_tournament": "Не удалось присоединиться к турниру",
+  "label_ranking_position": "Позиция в Рейтинге",
+  "label_ranking_change": "Изменение Позиции",
   "option_type_swiss_elimination": "Микс Swiss-Elimination",
   "profile": {
     "title": "Мой профиль",
