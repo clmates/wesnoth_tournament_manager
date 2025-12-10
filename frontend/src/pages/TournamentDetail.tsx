@@ -372,14 +372,14 @@ const TournamentDetail: React.FC = () => {
   const isAcceptedParticipant = userParticipationStatus === 'accepted';
 
   if (loading) {
-    return <div className="admin-container"><p>Loading...</p></div>;
+    return <div className="admin-container"><p>{t('loading')}</p></div>;
   }
 
   if (!tournament) {
     return (
       <div className="admin-container">
-        <p>{error || 'Tournament not found'}</p>
-        <button onClick={() => navigate('/tournaments')}>Back to Tournaments</button>
+        <p>{error || t('tournament_title')}</p>
+        <button onClick={() => navigate('/tournaments')}>{t('tournaments.back_to_tournaments')}</button>
       </div>
     );
   }
@@ -387,7 +387,7 @@ const TournamentDetail: React.FC = () => {
   return (
     <div className="admin-container">
       <div className="tournament-header">
-        <button onClick={handleBackButton} className="btn-back">← Back</button>
+        <button onClick={handleBackButton} className="btn-back">← {t('tournaments.back_to_tournaments')}</button>
         <h1>{tournament.name}</h1>
         <span 
           className="status-badge"
@@ -401,9 +401,9 @@ const TournamentDetail: React.FC = () => {
       {success && <p className="success-message">{success}</p>}
 
       <div className="tournament-info">
-        <p><strong>Organizer:</strong> {tournament.creator_nickname}</p>
-        <p><strong>Type:</strong> {tournament.tournament_type}</p>
-        <p><strong>Max Participants:</strong> {tournament.max_participants || 'Unlimited'}</p>
+        <p><strong>{t('tournament.col_organizer')}:</strong> {tournament.creator_nickname}</p>
+        <p><strong>{t('tournament.col_type')}:</strong> {tournament.tournament_type}</p>
+        <p><strong>{t('label_max_participants')}:</strong> {tournament.max_participants || t('unlimited')}</p>
         <p><strong>Created:</strong> {formatDate(tournament.created_at)}</p>
         {tournament.started_at && <p><strong>Started:</strong> {formatDate(tournament.started_at)}</p>}
         {tournament.finished_at && <p><strong>Finished:</strong> {formatDate(tournament.finished_at)}</p>}
@@ -412,7 +412,7 @@ const TournamentDetail: React.FC = () => {
 
       {/* Tournament Configuration Section */}
       <div className="tournament-config">
-        <h3>Tournament Configuration</h3>
+        <h3>{t('tournament_title')} {t('tournament.basic_info') ? '- ' + t('tournament.basic_info') : ''}</h3>
         <div className="config-grid">
           <div className="config-item">
             <strong>Round Duration:</strong> {tournament.round_duration_days} days
@@ -452,7 +452,7 @@ const TournamentDetail: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Max Participants</label>
+                <label>{t('label_max_participants')}</label>
                 <input
                   type="number"
                   min="2"
@@ -486,14 +486,14 @@ const TournamentDetail: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>General Rounds Format</label>
+                <label>{t('tournament.general_rounds_format') || 'General Rounds Format'}</label>
                 <select
                   value={editData.general_rounds_format}
                   onChange={(e) => setEditData({ ...editData, general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5' })}
                 >
-                  <option value="bo1">Best of 1 (Single match)</option>
-                  <option value="bo3">Best of 3 (First to 2 wins)</option>
-                  <option value="bo5">Best of 5 (First to 3 wins)</option>
+                  <option value="bo1">{t('match_format.bo1')}</option>
+                  <option value="bo3">{t('match_format.bo3')}</option>
+                  <option value="bo5">{t('match_format.bo5')}</option>
                 </select>
               </div>
 
@@ -508,38 +508,38 @@ const TournamentDetail: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label>Final Rounds Format</label>
+                <label>{t('tournament.final_rounds_format') || 'Final Rounds Format'}</label>
                 <select
                   value={editData.final_rounds_format}
                   onChange={(e) => setEditData({ ...editData, final_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5' })}
                 >
-                  <option value="bo1">Best of 1 (Single match)</option>
-                  <option value="bo3">Best of 3 (First to 2 wins)</option>
-                  <option value="bo5">Best of 5 (First to 3 wins)</option>
+                  <option value="bo1">{t('match_format.bo1')}</option>
+                  <option value="bo3">{t('match_format.bo3')}</option>
+                  <option value="bo5">{t('match_format.bo5')}</option>
                 </select>
               </div>
 
               <div className="button-group">
-                <button onClick={handleSaveChanges} className="btn-save">Save Changes</button>
-                <button onClick={() => setEditMode(false)} className="btn-cancel">Cancel</button>
+                <button onClick={handleSaveChanges} className="btn-save">{t('btn_confirm')}</button>
+                <button onClick={() => setEditMode(false)} className="btn-cancel">{t('btn_cancel')}</button>
               </div>
             </div>
           ) : (
             <div className="control-buttons">
               {tournament.status !== 'in_progress' && tournament.status !== 'finished' && (
-                <button onClick={() => setEditMode(true)} className="btn-edit">Edit Tournament</button>
+                <button onClick={() => setEditMode(true)} className="btn-edit">{t('tournament_create')}</button>
               )}
 
               {tournament.status === 'registration_open' && (
-                <button onClick={handleCloseRegistration} className="btn-close-reg">Close Registration</button>
+                <button onClick={handleCloseRegistration} className="btn-close-reg">{t('tournaments.btn_close_registration')}</button>
               )}
 
               {tournament.status === 'registration_closed' && (
-                <button onClick={handlePrepareAndStart} className="btn-prepare">Prepare Tournament</button>
+                <button onClick={handlePrepareAndStart} className="btn-prepare">{t('tournaments.btn_prepare')}</button>
               )}
 
               {tournament.status === 'prepared' && (
-                <button onClick={handleStartTournament} className="btn-start">Start Tournament</button>
+                <button onClick={handleStartTournament} className="btn-start">{t('tournaments.btn_start')}</button>
               )}
 
               {tournament.status === 'in_progress' && (
@@ -553,7 +553,7 @@ const TournamentDetail: React.FC = () => {
       {/* Join button for non-creators (only if logged in) */}
       {!isCreator && tournament.status === 'registration_open' && !userParticipationStatus && userId && (
         <button className="btn-join-tournament" onClick={handleJoinTournament}>
-          Request to Join Tournament
+          {t('tournaments.request_join')}
         </button>
       )}
 

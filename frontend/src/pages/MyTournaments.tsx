@@ -130,12 +130,12 @@ const MyTournaments: React.FC = () => {
     e.preventDefault();
     
     if (!formData.name || !formData.description || !formData.tournament_type) {
-      setError('Name, description and tournament type are required');
+      setError(t('error_name_description_required'));
       return;
     }
 
     if (!formData.max_participants || formData.max_participants <= 0) {
-      setError('Max participants is required and must be greater than 0');
+      setError(t('error_max_participants_required'));
       return;
     }
 
@@ -192,40 +192,40 @@ const MyTournaments: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="auth-container"><p>Loading...</p></div></MainLayout>;
+    return <MainLayout><div className="auth-container"><p>{t('loading')}</p></div></MainLayout>;
   }
 
   return (
     <MainLayout>
       <div className="auth-container">
-        <h1>Tournaments</h1>
+        <h1>{t('tournament_title')}</h1>
 
         {error && <p className="error">{error}</p>}
 
         <section className="tournaments-section">
         <div className="tournaments-header">
-          <h2>My Tournaments</h2>
+          <h2>{t('my_tournaments_title')}</h2>
           <button 
             className="btn-create"
             onClick={() => setShowCreateForm(!showCreateForm)}
           >
-            {showCreateForm ? 'Cancel' : 'Create Tournament'}
+            {showCreateForm ? t('btn_cancel') : t('tournament_create')}
           </button>
         </div>
 
         {showCreateForm && (
           <form className="tournament-form expanded-form" onSubmit={handleCreateTournament}>
             <div className="form-section">
-              <h3>Basic Information</h3>
+              <h3>{t('tournament.basic_info')}</h3>
               <input
                 type="text"
-                placeholder="Tournament Name"
+                placeholder={t('tournament_name')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
               <textarea
-                placeholder="Description (e.g., Liga, Eliminación, Suizo, etc.)"
+                placeholder={t('tournament_description')}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={5}
@@ -237,15 +237,15 @@ const MyTournaments: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, tournament_type: e.target.value })}
                   required
                 >
-                  <option value="">Select Tournament Type</option>
-                  <option value="elimination">Elimination</option>
-                  <option value="league">League</option>
-                  <option value="swiss">Swiss</option>
-                  <option value="swiss_elimination">Swiss-Elimination Mix</option>
+                  <option value="">{t('option_all_types')}</option>
+                  <option value="elimination">{t('option_type_elimination')}</option>
+                  <option value="league">{t('option_type_league')}</option>
+                  <option value="swiss">{t('option_type_swiss')}</option>
+                  <option value="swiss_elimination">{t('option_type_swiss_elimination', 'Swiss-Elimination Mix')}</option>
                 </select>
                 <input
                   type="number"
-                  placeholder="Max Participants (optional)"
+                  placeholder={t('label_max_participants')}
                   min="2"
                   max="256"
                   value={formData.max_participants || ''}
@@ -262,7 +262,7 @@ const MyTournaments: React.FC = () => {
               
               {!canConfigureRounds() && (
                 <div className="info-box warning">
-                  <p>⚠️ Max participants is required to configure rounds. Set it first in the Basic Information section.</p>
+                  <p>{t('tournaments.max_participants_required')}</p>
                 </div>
               )}
 
@@ -337,9 +337,9 @@ const MyTournaments: React.FC = () => {
                         generalRoundsFormat: e.target.value as 'bo1' | 'bo3' | 'bo5'
                       })}
                     >
-                      <option value="bo1">Best of 1 (Single match)</option>
-                      <option value="bo3">Best of 3 (First to 2 wins)</option>
-                      <option value="bo5">Best of 5 (First to 3 wins)</option>
+                      <option value="bo1">{t('match_format.bo1')}</option>
+                      <option value="bo3">{t('match_format.bo3')}</option>
+                      <option value="bo5">{t('match_format.bo5')}</option>
                     </select>
                     <small>Number of games in each general round match</small>
                   </div>
@@ -374,9 +374,9 @@ const MyTournaments: React.FC = () => {
                         finalRoundsFormat: e.target.value as 'bo1' | 'bo3' | 'bo5'
                       })}
                     >
-                      <option value="bo1">Best of 1 (Single match)</option>
-                      <option value="bo3">Best of 3 (First to 2 wins)</option>
-                      <option value="bo5">Best of 5 (First to 3 wins)</option>
+                      <option value="bo1">{t('match_format.bo1')}</option>
+                      <option value="bo3">{t('match_format.bo3')}</option>
+                      <option value="bo5">{t('match_format.bo5')}</option>
                     </select>
                     <small>Number of games in each final round match</small>
                   </div>
@@ -414,7 +414,7 @@ const MyTournaments: React.FC = () => {
               )}
             </div>
 
-            <button type="submit" className="btn-submit" disabled={!canConfigureRounds()}>Create Tournament</button>
+            <button type="submit" className="btn-submit" disabled={!canConfigureRounds()}>{t('tournament_create')}</button>
           </form>
         )}
 
@@ -448,7 +448,7 @@ const MyTournaments: React.FC = () => {
                       onClick={() => navigate(`/tournament/${tournament.id}`, { state: { from: 'my-tournaments' } })}
                       className="btn-view"
                     >
-                      View Details
+                      {t('tournaments.view_details')}
                     </button>
                   </td>
                 </tr>
@@ -456,7 +456,7 @@ const MyTournaments: React.FC = () => {
             </tbody>
           </table>
         ) : (
-          <p>No tournaments available</p>
+          <p>{t('no_data')}</p>
         )}
       </section>
     </div>
