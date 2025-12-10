@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { userService } from '../services/api';
 import '../styles/OpponentSelector.css';
 
@@ -14,6 +15,7 @@ interface OpponentSelectorProps {
 }
 
 const OpponentSelector: React.FC<OpponentSelectorProps> = ({ value, onChange }) => {
+  const { t } = useTranslation();
   const [inputValue, setInputValue] = useState('');
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
@@ -93,7 +95,7 @@ const OpponentSelector: React.FC<OpponentSelectorProps> = ({ value, onChange }) 
         <input
           ref={inputRef}
           type="text"
-          placeholder="Type opponent nickname..."
+          placeholder={t('opponent_selector.placeholder')}
           value={inputValue}
           onChange={handleInputChange}
           onFocus={() => inputValue && setIsOpen(true)}
@@ -104,7 +106,7 @@ const OpponentSelector: React.FC<OpponentSelectorProps> = ({ value, onChange }) 
             type="button"
             className="clear-button"
             onClick={handleClear}
-            title="Clear selection"
+            title={t('opponent_selector.clear_title')}
           >
             ✕
           </button>
@@ -127,7 +129,7 @@ const OpponentSelector: React.FC<OpponentSelectorProps> = ({ value, onChange }) 
           ))}
           {filteredUsers.length > 10 && (
             <div className="opponent-item-info">
-              Showing 10 of {filteredUsers.length}
+              {t('opponent_selector.showing', { current: 10, total: filteredUsers.length })}
             </div>
           )}
         </div>
@@ -136,12 +138,12 @@ const OpponentSelector: React.FC<OpponentSelectorProps> = ({ value, onChange }) 
       {isOpen && inputValue && filteredUsers.length === 0 && (
         <div className="opponent-dropdown">
           <div className="opponent-item-empty">
-            No players found
+            {t('opponent_selector.no_players')}
           </div>
         </div>
       )}
 
-      {loading && <div className="loading-text">Loading players...</div>}
+      {loading && <div className="loading-text">{t('opponent_selector.loading')}</div>}
     </div>
   );
 };
