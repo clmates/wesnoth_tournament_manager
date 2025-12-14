@@ -294,16 +294,18 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
-    const userResult = await query('SELECT elo_rating FROM users WHERE id = $1', [req.userId]);
+    // Check if user exists
+    const userResult = await query('SELECT id FROM users WHERE id = $1', [req.userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Insert participant without elo_rating (it's only in users table)
     const result = await query(
-      `INSERT INTO tournament_participants (tournament_id, user_id, elo_rating, participation_status)
-       VALUES ($1, $2, $3, 'accepted')
+      `INSERT INTO tournament_participants (tournament_id, user_id, participation_status)
+       VALUES ($1, $2, 'accepted')
        RETURNING id`,
-      [id, req.userId, userResult.rows[0].elo_rating]
+      [id, req.userId]
     );
 
     res.status(201).json({ id: result.rows[0].id });
