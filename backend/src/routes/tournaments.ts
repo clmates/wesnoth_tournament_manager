@@ -300,8 +300,8 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const result = await query(
-      `INSERT INTO tournament_participants (tournament_id, user_id, elo_rating)
-       VALUES ($1, $2, $3)
+      `INSERT INTO tournament_participants (tournament_id, user_id, elo_rating, participation_status)
+       VALUES ($1, $2, $3, 'accepted')
        RETURNING id`,
       [id, req.userId, userResult.rows[0].elo_rating]
     );
@@ -311,7 +311,8 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res) => {
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Already joined this tournament' });
     }
-    res.status(500).json({ error: 'Failed to join tournament' });
+    console.error('Join tournament error:', error);
+    res.status(500).json({ error: 'Failed to join tournament', details: error.message });
   }
 });
 

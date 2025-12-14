@@ -224,6 +224,15 @@ async function startTournament(token, tournamentId) {
   }
 }
 
+async function closeRegistration(token, tournamentId) {
+  try {
+    const response = await makeRequest('POST', `/api/tournaments/${tournamentId}/close-registration`, {}, token);
+    return response;
+  } catch (error) {
+    throw new Error(`Close registration failed: ${error.message}`);
+  }
+}
+
 async function getTournamentDetails(token, tournamentId) {
   try {
     const response = await makeRequest('GET', `/api/tournaments/${tournamentId}`, null, token);
@@ -470,7 +479,21 @@ async function runTournamentLifecycle(config) {
     }
 
     if (stepByStep) {
-      await pause('⏸️  ENROLLMENT COMPLETE - Ready to prepare tournament');
+      await pause('⏸️  ENROLLMENT COMPLETE - Ready to close registration');
+    }
+
+    // Close registration
+    logPhase('REGISTRATION CLOSURE', 'Closing registration to prepare tournament');
+
+    try {
+      await closeRegistration(creatorToken, tournamentId);
+      logAction('Registration Closed', 'SUCCESS');
+    } catch (error) {
+      logError('Close Registration', error);
+    }
+
+    if (stepByStep) {
+      await pause('⏸️  REGISTRATION CLOSED - Ready to prepare tournament');
     }
 
     // Prepare tournament
