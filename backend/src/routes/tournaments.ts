@@ -25,20 +25,24 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Missing required fields: name, description, tournament_type' });
     }
 
-    if (!max_participants || max_participants <= 0) {
-      return res.status(400).json({ error: 'Max participants is required and must be greater than 0' });
+    // max_participants is now optional - can be set during tournament preparation
+    // If provided, must be greater than 0
+    if (max_participants !== null && max_participants !== undefined && max_participants <= 0) {
+      return res.status(400).json({ error: 'Max participants must be greater than 0 if provided' });
     }
 
-    // Validate round configuration - at least one round must be configured
-    // Note: For elimination tournaments, general_rounds can be 0 if all rounds are finals
-    if ((general_rounds || 0) < 0 || (final_rounds || 0) < 0) {
-      return res.status(400).json({ error: 'Round values cannot be negative' });
-    }
-    if ((general_rounds || 0) + (final_rounds || 0) <= 0) {
-      return res.status(400).json({ error: 'At least one round must be configured (general_rounds or final_rounds)' });
+    // Validate round configuration - only validate if max_participants is set
+    // At least one round must be configured when max_participants is set
+    if (max_participants && max_participants > 0) {
+      if ((general_rounds || 0) < 0 || (final_rounds || 0) < 0) {
+        return res.status(400).json({ error: 'Round values cannot be negative' });
+      }
+      if ((general_rounds || 0) + (final_rounds || 0) <= 0) {
+        return res.status(400).json({ error: 'At least one round must be configured (general_rounds or final_rounds)' });
+      }
     }
 
-    // Validate match formats
+    // Validate match formats only if provided
     const validFormats = ['bo1', 'bo3', 'bo5'];
     if (general_rounds_format && !validFormats.includes(general_rounds_format)) {
       return res.status(400).json({ error: 'Invalid general_rounds_format. Must be: bo1, bo3, or bo5' });

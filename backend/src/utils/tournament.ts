@@ -8,6 +8,7 @@ import { query } from '../config/database.js';
 interface Participant {
   id: string;
   user_id: string;
+  elo_rating?: number;
 }
 
 /**

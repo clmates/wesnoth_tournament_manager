@@ -75,9 +75,10 @@ const MyTournaments: React.FC = () => {
     return ['general'];
   };
 
-  // Valida si se puede configurar rondas (requiere max_participants)
+  // Valida si se puede configurar rondas (ahora es opcional, solo usa defaults si no hay max_participants)
   const canConfigureRounds = (): boolean => {
-    return formData.max_participants !== null && formData.max_participants > 0;
+    // Ahora siempre se puede configurar rondas, solo que sin cálculos automáticos si no hay participantes
+    return true;
   };
 
   // Calcula el número de rondas generales para un torneo de eliminación
@@ -236,7 +237,7 @@ const MyTournaments: React.FC = () => {
             <div className="form-section">
               <div className="section-header">
                 <h3>{t('tournament.round_configuration', 'Round Configuration')}</h3>
-                {!canConfigureRounds() && (
+                {!formData.max_participants && (
                   <span className="info-note">{t('tournaments.round_config_optional', 'Optional - set when preparing the tournament')}</span>
                 )}
               </div>
@@ -253,7 +254,6 @@ const MyTournaments: React.FC = () => {
                       ...formData, 
                       round_duration_days: parseInt(e.target.value) 
                     })}
-                    disabled={!canConfigureRounds()}
                   />
                 </div>
 
@@ -266,7 +266,6 @@ const MyTournaments: React.FC = () => {
                       ...formData, 
                       auto_advance_round: e.target.checked 
                     })}
-                    disabled={!canConfigureRounds()}
                     className="checkbox-large"
                   />
                 </div>
