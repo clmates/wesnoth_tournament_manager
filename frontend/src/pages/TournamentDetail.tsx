@@ -782,9 +782,8 @@ const TournamentDetail: React.FC = () => {
                         <th>{t('label_round')}</th>
                         <th>{t('label_winner')}</th>
                         <th>{t('label_loser')}</th>
-                        <th>{t('label_played_on')}</th>
-                        <th>{t('label_status')}</th>
-                        <th>{t('label_actions')}</th>
+                        <th>{t('label_map')}</th>
+                        <th>Status / Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -808,43 +807,87 @@ const TournamentDetail: React.FC = () => {
                           // Use match_status_from_matches from the matches table (confirmed, disputed, unconfirmed, cancelled)
                           const confirmationStatus = isAdminDetermined ? 'admin' : (match.match_status_from_matches || 'unconfirmed');
 
+                          const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
+                            try {
+                              const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
+                              const downloadUrl = `/api/matches/${matchId}/replay/download`;
+                              const link = document.createElement('a');
+                              link.href = downloadUrl;
+                              link.download = filename;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            } catch (err) {
+                              console.error('Error downloading replay:', err);
+                            }
+                          };
+
                           return (
                             <tr key={match.id}>
                               <td>{t('label_round')} {match.round_number}</td>
-                              <td><strong>{match.winner_nickname || '-'}</strong></td>
-                              <td>{loserNickname}</td>
-                              <td>{match.played_at ? formatDate(match.played_at) : '-'}</td>
                               <td>
-                                {isAdminDetermined ? (
-                                  <span className="badge-admin">{t('admin_tag')}</span>
-                                ) : confirmationStatus === 'confirmed' ? (
-                                  <span className="badge-confirmed">{t('match_status_confirmed')}</span>
-                                ) : confirmationStatus === 'disputed' ? (
-                                  <span className="badge-disputed">{t('match_status_disputed')}</span>
-                                ) : (
-                                  <span className="badge-unconfirmed">{t('match_status_unconfirmed')}</span>
-                                )}
+                                <div className="player-block">
+                                  <div className="first-row">
+                                    <strong>{match.winner_nickname || '-'}</strong>
+                                  </div>
+                                  {match.winner_comments && (
+                                    <div className="player-comment">{match.winner_comments}</div>
+                                  )}
+                                </div>
                               </td>
                               <td>
-                                <div className="action-buttons">
-                                  {!isAdminDetermined && isCurrentUserLoser && confirmationStatus === 'unconfirmed' && (
-                                    <button
-                                        className="btn-confirm-dispute"
-                                        onClick={() => handleOpenConfirmModal(match)}
+                                <div className="player-block">
+                                  <div className="first-row">
+                                    <strong>{loserNickname}</strong>
+                                  </div>
+                                  {match.loser_comments && (
+                                    <div className="player-comment">{match.loser_comments}</div>
+                                  )}
+                                </div>
+                              </td>
+                              <td>{match.map || '-'}</td>
+                              <td>
+                                <div className="status-actions-col">
+                                  <div className="status-item">
+                                    {isAdminDetermined ? (
+                                      <span className="badge-admin">{t('admin_tag')}</span>
+                                    ) : confirmationStatus === 'confirmed' ? (
+                                      <span className="badge-confirmed">{t('match_status_confirmed')}</span>
+                                    ) : confirmationStatus === 'disputed' ? (
+                                      <span className="badge-disputed">{t('match_status_disputed')}</span>
+                                    ) : (
+                                      <span className="badge-unconfirmed">{t('match_status_unconfirmed')}</span>
+                                    )}
+                                  </div>
+                                  <div className="actions-item">
+                                    {!isAdminDetermined && isCurrentUserLoser && confirmationStatus === 'unconfirmed' && (
+                                      <button
+                                          className="btn-confirm-dispute"
+                                          onClick={() => handleOpenConfirmModal(match)}
+                                        >
+                                          {t('confirm_dispute')}
+                                        </button>
+                                    )}
+                                    {match.replay_file_path ? (
+                                      <button
+                                        className="download-btn"
+                                        onClick={() => handleDownloadReplay(match.match_id, match.replay_file_path)}
+                                        title={`${t('downloads')}: ${match.replay_downloads || 0}`}
                                       >
-                                        {t('confirm_dispute')}
+                                        ⬇️
                                       </button>
-                                  )}
-                                  {!isAdminDetermined && match.match_id ? (
-                                    <button
-                                      className="btn-view-match"
-                                      onClick={() => navigate(`/matches/${match.match_id}`)}
-                                    >
-                                      {t('view_match')}
-                                    </button>
-                                  ) : (
-                                    <span className="no-link">-</span>
-                                  )}
+                                    ) : null}
+                                    {!isAdminDetermined && match.match_id ? (
+                                      <button
+                                        className="btn-view-match"
+                                        onClick={() => navigate(`/matches/${match.match_id}`)}
+                                      >
+                                        {t('view_match')}
+                                      </button>
+                                    ) : (
+                                      <span className="no-link">-</span>
+                                    )}
+                                  </div>
                                 </div>
                               </td>
                             </tr>

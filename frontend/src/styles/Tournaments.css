@@ -1061,4 +1061,36 @@
   transform: translateY(0);
 }
 
+/* Create Tournament Button */
+.btn-create {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
 
+.btn-create:hover {
+  background: linear-gradient(135deg, #229954 0%, #1e8449 100%);
+  box-shadow: 0 6px 16px rgba(39, 174, 96, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-create:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+}
+
+.btn-create:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}

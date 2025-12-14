@@ -3,7 +3,10 @@
 .profile-page-content {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: calc(100vh - 70px);
-  padding: 2rem;
+  padding: 0;
+  width: 1500px;
+  margin: 0 auto;
+  min-width: 1500px;
 }
 
 .profile-page-content h1 {

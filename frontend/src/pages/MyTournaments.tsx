@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { tournamentService } from '../services/api';
 import MainLayout from '../components/MainLayout';
+import TournamentList, { Tournament } from '../components/TournamentList';
 import '../styles/Auth.css';
 
 interface RoundTypeConfig {
@@ -18,7 +19,7 @@ const MyTournaments: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   
-  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -60,24 +61,6 @@ const MyTournaments: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getStatusColor = (status: string) => {
-    const colorMap: { [key: string]: string } = {
-      'pending': '#FF9800',
-      'registration_open': '#4CAF50',
-      'registration_closed': '#2196F3',
-      'prepared': '#9C27B0',
-      'in_progress': '#00BCD4',
-      'finished': '#757575',
-      'cancelled': '#f44336',
-    };
-    return colorMap[status] || '#999';
-  };
-
-  const formatDate = (date: string) => {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString();
   };
 
   // Determina qué tipos de rondas son disponibles según el tipo de torneo
@@ -192,19 +175,14 @@ const MyTournaments: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="auth-container"><p>{t('loading')}</p></div></MainLayout>;
+    return <MainLayout><div className="admin-container"><p>{t('loading')}</p></div></MainLayout>;
   }
 
   return (
     <MainLayout>
-      <div className="auth-container">
-        <h1>{t('tournament_title')}</h1>
-
-        {error && <p className="error">{error}</p>}
-
-        <section className="tournaments-section">
-        <div className="tournaments-header">
-          <h2>{t('my_tournaments_title')}</h2>
+      <div className="admin-container">
+        <div className="tournament-header">
+          <h1>{t('my_tournaments_title')}</h1>
           <button 
             className="btn-create"
             onClick={() => setShowCreateForm(!showCreateForm)}
@@ -212,6 +190,8 @@ const MyTournaments: React.FC = () => {
             {showCreateForm ? t('btn_cancel') : t('tournament_create')}
           </button>
         </div>
+
+        {error && <p className="error">{error}</p>}
 
         {showCreateForm && (
           <form className="tournament-form expanded-form" onSubmit={handleCreateTournament}>
@@ -418,48 +398,18 @@ const MyTournaments: React.FC = () => {
           </form>
         )}
 
-        {tournaments.length > 0 ? (
-          <table className="tournaments-table">
-            <thead>
-              <tr>
-                <th>Tournament Name</th>
-                <th>Status</th>
-                <th>Type</th>
-                <th>Created</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tournaments.map((tournament) => (
-                <tr key={tournament.id}>
-                  <td className="tournament-name">{tournament.name}</td>
-                  <td>
-                    <span 
-                      className="status-badge"
-                      style={{ backgroundColor: getStatusColor(tournament.status) }}
-                    >
-                      {tournament.status}
-                    </span>
-                  </td>
-                  <td>{tournament.tournament_type}</td>
-                  <td>{formatDate(tournament.created_at)}</td>
-                  <td>
-                    <button 
-                      onClick={() => navigate(`/tournament/${tournament.id}`, { state: { from: 'my-tournaments' } })}
-                      className="btn-view"
-                    >
-                      {t('tournaments.view_details')}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>{t('no_data')}</p>
-        )}
-      </section>
-    </div>
+        <TournamentList
+          title=""
+          tournaments={tournaments}
+          loading={false}
+          error=""
+          currentPage={1}
+          totalPages={1}
+          total={tournaments.length}
+          showFilters={false}
+          onPageChange={() => {}}
+        />
+      </div>
     </MainLayout>
   );
 };

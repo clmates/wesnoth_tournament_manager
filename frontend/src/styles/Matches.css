@@ -1,8 +1,8 @@
 .matches-page-content {
   padding: 1rem;
-  max-width: 100%;
-  margin: 0;
-  width: 100%;
+  width: 1500px;
+  margin: 0 auto;
+  min-width: 1500px;
 }
 
 .matches-page-content h1 {
@@ -79,9 +79,10 @@
 }
 
 .games-table {
-  width: 100%;
+  width: 1500px;
   border-collapse: collapse;
   background: white;
+  table-layout: auto;
 }
 
 .games-table thead {
@@ -91,7 +92,7 @@
 }
 
 .games-table th {
-  padding: 1rem;
+  padding: 0.5rem;
   text-align: left;
   font-size: 0.95rem;
   border-bottom: 2px solid #34495e;
@@ -107,7 +108,7 @@
 }
 
 .games-table td {
-  padding: 1rem;
+  padding: 0.5rem;
   font-size: 0.95rem;
 }
 
@@ -118,14 +119,90 @@
 .date-col {
   color: #7f8c8d;
   font-size: 0.9rem;
-  min-width: 100px;
+  width: 112px;
+  padding-right: 0.025rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .winner-col,
 .loser-col {
+  width: 480px;
+  min-width: 300px;
+  padding-left: 0.025rem;
+  padding-right: 0.025rem;
+}
+
+.player-block {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.first-row {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.player-name {
+  flex: 1;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.faction-badge {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.elo-info {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  font-size: 0.9rem;
+}
+
+.rating-info {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  font-size: 0.9rem;
+}
+
+.elo-value,
+.rating-value {
+  font-weight: 600;
+  color: #333;
+}
+
+.elo-change,
+.rating-change {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.elo-change.positive {
+  color: #27ae60;
+}
+
+.elo-change.negative {
+  color: #e74c3c;
+}
+
+.rating-change.positive {
+  color: #4CAF50;
+}
+
+.rating-change.negative {
+  color: #f44336;
+}
+
+.comments-row {
+  font-size: 0.85rem;
+  color: #666;
 }
 
 .player-name {
@@ -138,15 +215,11 @@
   color: #7f8c8d;
 }
 
-.rating-col {
-  text-align: center;
-  min-width: 120px;
-}
-
 .rating-value {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.125rem;
+  font-size: 0.9rem;
 }
 
 .rating-change {
@@ -163,12 +236,13 @@
 }
 
 .map-col {
-  min-width: 120px;
+  width: 210px;
   color: #555;
+  padding-left: 0.025rem;
 }
 
 .status-col {
-  min-width: 100px;
+  width: 400px;
 }
 
 .confirmed-col {
@@ -292,9 +366,11 @@
 .rating-block {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.125rem;
   justify-content: center;
   flex-wrap: nowrap;
+  max-width: 110px;
+  overflow: hidden;
 }
 
 .rating-value {
@@ -305,11 +381,8 @@
 }
 
 .rating-change {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  white-space: nowrap;
 }
 
 .rating-change.positive {
@@ -323,20 +396,22 @@
 .ranking-block {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.125rem;
   justify-content: center;
   flex-wrap: nowrap;
+  max-width: 45px;
+  overflow: hidden;
 }
 
 .ranking-value {
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   color: #333;
   white-space: nowrap;
 }
 
 .ranking-change {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
   padding: 0.2rem 0.4rem;
   border-radius: 3px;
@@ -351,11 +426,25 @@
   color: #f44336;
 }
 
-.actions-col {
+.status-actions-col {
+  width: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+  padding-left: 0.025rem;
+}
+
+.status-item {
+  display: flex;
+  justify-content: center;
+}
+
+.actions-item {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-  align-items: center;
+  justify-content: center;
 }
 
 .details-btn,

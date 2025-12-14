@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { publicService, matchService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import MatchesTable from '../components/MatchesTable';
 import '../styles/Matches.css';
 
 interface FilterState {
@@ -265,121 +266,14 @@ const Matches: React.FC = () => {
       </div>
 
       <div className="games-table-wrapper">
-        <table className="games-table">
-          <thead>
-            <tr>
-              <th>{t('label_date')}</th>
-              <th>{t('label_winner')}</th>
-              <th>{t('label_winner_rating')}</th>
-              <th>{t('label_ranking_position') || 'Ranking'}</th>
-              <th>{t('label_loser')}</th>
-              <th>{t('label_loser_rating')}</th>
-              <th>{t('label_ranking_position') || 'Ranking'}</th>
-              <th>{t('label_map')}</th>
-              <th>{t('label_status')}</th>
-              <th>{t('label_actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedMatches.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="no-matches">{t('matches_no_matches_found')}</td>
-              </tr>
-            ) : (
-              paginatedMatches.map((match) => (
-                <tr key={match.id} className={`game-row`}>
-                  <td className="date-col">{new Date(match.created_at).toLocaleDateString()}</td>
-
-                  <td className="player-col">
-                    <div className="player-name">{match.winner_nickname}</div>
-                    <div className="faction-badge">{match.winner_faction}</div>
-                    {match.winner_comments && (
-                      <div className="player-comment">{match.winner_comments}</div>
-                    )}
-                  </td>
-
-                  <td className="rating-col">
-                    <div className="rating-block">
-                      <div className="rating-value">{match.winner_elo_before || 'N/A'}</div>
-                      <div className={`rating-change ${winnerEloChange(match) >= 0 ? 'positive' : 'negative'}`}>
-                        ({winnerEloChange(match) >= 0 ? '+' : ''}{winnerEloChange(match)})
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="ranking-col">
-                    <div className="ranking-block">
-                      <div className="ranking-value">{match.winner_ranking_pos || 'N/A'}</div>
-                      <div className={`ranking-change ${(match.winner_ranking_change || 0) > 0 ? 'positive' : (match.winner_ranking_change || 0) < 0 ? 'negative' : ''}`}>
-                        {(match.winner_ranking_change || 0) > 0 ? '↑' : (match.winner_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.winner_ranking_change || 0)}
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="player-col">
-                    <div className="player-name">{match.loser_nickname}</div>
-                    <div className="faction-badge">{match.loser_faction}</div>
-                    {match.loser_comments && (
-                      <div className="player-comment">{match.loser_comments}</div>
-                    )}
-                  </td>
-
-                  <td className="rating-col">
-                    <div className="rating-block">
-                      <div className="rating-value">{match.loser_elo_before || 'N/A'}</div>
-                      <div className={`rating-change ${loserEloChange(match) >= 0 ? 'positive' : 'negative'}`}>
-                        ({loserEloChange(match) >= 0 ? '+' : ''}{loserEloChange(match)})
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="ranking-col">
-                    <div className="ranking-block">
-                      <div className="ranking-value">{match.loser_ranking_pos || 'N/A'}</div>
-                      <div className={`ranking-change ${(match.loser_ranking_change || 0) > 0 ? 'positive' : (match.loser_ranking_change || 0) < 0 ? 'negative' : ''}`}>
-                        {(match.loser_ranking_change || 0) > 0 ? '↑' : (match.loser_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.loser_ranking_change || 0)}
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="map-col">{match.map}</td>
-
-                  <td className="status-col">
-                    <span className={`status-badge ${match.status || 'unconfirmed'}`}>
-                      {match.status === 'confirmed' && t('match_status_confirmed')}
-                      {match.status === 'unconfirmed' && t('match_status_unconfirmed')}
-                      {match.status === 'disputed' && t('match_status_disputed')}
-                      {match.status === 'cancelled' && t('match_status_cancelled')}
-                      {!match.status && t('match_status_unconfirmed')}
-                    </span>
-                  </td>
-
-                  <td className="actions-col">
-                    <button
-                      className="details-btn"
-                      onClick={() => openMatchDetails(match)}
-                      title={t('view_match_details')}
-                    >
-                      {t('details_btn')}
-                    </button>
-                    {match.replay_file_path ? (
-                      <button
-                        className="download-btn"
-                        onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
-                        title={`${t('downloads')}: ${match.replay_downloads || 0}`}
-                      >
-                        ⬇️ {t('download')} ({match.replay_downloads || 0})
-                      </button>
-                    ) : (
-                      <span className="no-replay">{t('no_replay')}</span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <MatchesTable 
+          matches={paginatedMatches}
+          currentPlayerId={userId || undefined}
+          onViewDetails={openMatchDetails}
+          onDownloadReplay={handleDownloadReplay}
+        />
       </div>
+
       {totalPages > 1 && (
         <div className="pagination-controls">
           <button 

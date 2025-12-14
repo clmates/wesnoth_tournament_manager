@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { matchService } from '../services/api';
+import MatchesTable from './MatchesTable';
 import MatchConfirmationModal from './MatchConfirmationModal';
 import '../styles/RecentGamesTable.css';
 
@@ -66,123 +66,12 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
     <>
       <div className="recent-games-container">
         <h2>{t('recent_games')}</h2>
-        
-        <div className="games-table-wrapper">
-          <table className="games-table">
-            <thead>
-              <tr>
-                <th>{t('label_date')}</th>
-                <th>{t('label_winner')}</th>
-                <th>{t('label_winner_rating')}</th>
-                <th>{t('label_ranking_position') || 'Ranking'}</th>
-                <th>{t('label_loser')}</th>
-                <th>{t('label_loser_rating')}</th>
-                <th>{t('label_ranking_position') || 'Ranking'}</th>
-                <th>{t('label_actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {matches.map((match) => {
-                const isCurrentPlayerWinner = match.winner_id === currentPlayerId;
-                const winnerEloChange = (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
-                const loserEloChange = (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
-
-                return (
-                  <tr key={match.id} className={`game-row ${isCurrentPlayerWinner ? 'winner-row' : 'loser-row'}`}>
-                    <td className="date-col">
-                      {new Date(match.created_at).toLocaleDateString()}
-                    </td>
-                    
-                    <td className="winner-col">
-                      <div className="player-info">
-                        <span className="player-name">{match.winner_nickname}</span>
-                        <span className="faction-badge winner-faction">{match.winner_faction}</span>
-                        {match.winner_comments && (
-                          <span className="player-comment">{match.winner_comments}</span>
-                        )}
-                      </div>
-                    </td>
-                    
-                    <td className="rating-col">
-                      <div className="rating-block">
-                        <div className="rating-value">{match.winner_elo_before || 'N/A'}</div>
-                        <div className={`rating-change ${winnerEloChange >= 0 ? 'positive' : 'negative'}`}>
-                          ({winnerEloChange >= 0 ? '+' : ''}{winnerEloChange})
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="ranking-col">
-                      <div className="ranking-block">
-                        <div className="ranking-value">{match.winner_ranking_pos || 'N/A'}</div>
-                        <div className={`ranking-change ${(match.winner_ranking_change || 0) > 0 ? 'positive' : (match.winner_ranking_change || 0) < 0 ? 'negative' : ''}`}>
-                          {(match.winner_ranking_change || 0) > 0 ? '↑' : (match.winner_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.winner_ranking_change || 0)}
-                        </div>
-                      </div>
-                    </td>
-                    
-                    <td className="loser-col">
-                      <div className="player-info">
-                        <span className="player-name">{match.loser_nickname}</span>
-                        <span className="faction-badge loser-faction">{match.loser_faction}</span>
-                        {match.loser_comments && (
-                          <span className="player-comment">{match.loser_comments}</span>
-                        )}
-                      </div>
-                    </td>
-                    
-                    <td className="rating-col">
-                      <div className="rating-block">
-                        <div className="rating-value">{match.loser_elo_before || 'N/A'}</div>
-                        <div className={`rating-change ${loserEloChange >= 0 ? 'positive' : 'negative'}`}>
-                          ({loserEloChange >= 0 ? '+' : ''}{loserEloChange})
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="ranking-col">
-                      <div className="ranking-block">
-                        <div className="ranking-value">{match.loser_ranking_pos || 'N/A'}</div>
-                        <div className={`ranking-change ${(match.loser_ranking_change || 0) > 0 ? 'positive' : (match.loser_ranking_change || 0) < 0 ? 'negative' : ''}`}>
-                          {(match.loser_ranking_change || 0) > 0 ? '↑' : (match.loser_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.loser_ranking_change || 0)}
-                        </div>
-                      </div>
-                    </td>
-                    
-                    <td className="action-col">
-                      <div className="action-buttons">
-                        {match.replay_file_path && (
-                          <button 
-                            className="download-btn"
-                            onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
-                            title={`${t('downloads')}: ${match.replay_downloads || 0}`}
-                          >
-                            ⬇️
-                          </button>
-                        )}
-                        {!isCurrentPlayerWinner && match.status === 'unconfirmed' ? (
-                          <button 
-                            className="report-btn"
-                            onClick={() => handleReportClick(match)}
-                          >
-                            {t('report')}
-                          </button>
-                        ) : (
-                          <span className={`status-badge badge-${match.status || 'unconfirmed'}`}>
-                            {match.status === 'confirmed' && '✓'}
-                            {match.status === 'disputed' && '⚠'}
-                            {match.status === 'unconfirmed' && '⏳'}
-                            {match.status === 'cancelled' && '✗'}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <MatchesTable 
+          matches={matches}
+          currentPlayerId={currentPlayerId}
+          onViewDetails={handleReportClick}
+          onDownloadReplay={handleDownloadReplay}
+        />
       </div>
 
       {selectedMatch && (

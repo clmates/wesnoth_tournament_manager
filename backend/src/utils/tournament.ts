@@ -69,14 +69,21 @@ export async function generateRoundMatches(
 /**
  * Generates first round matches
  * Shuffles participants and pairs them up
+ * If odd number, the player with highest ELO advances automatically (bye)
  */
 function generateFirstRoundMatches(
   participants: Participant[],
   tournamentId: string,
-  roundId: string
+  roundId: string,
+  tournamentRoundMatches: any[] = []
 ): any[] {
   const matches = [];
-  const shuffled = [...participants].sort(() => Math.random() - 0.5);
+  
+  // Sort by ELO rating (descending) for consistency when handling byes
+  const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
+  
+  // Shuffle while keeping sort for reference
+  const shuffled = sorted.sort(() => Math.random() - 0.5);
 
   // Pair up participants
   for (let i = 0; i < shuffled.length - 1; i += 2) {
@@ -88,11 +95,20 @@ function generateFirstRoundMatches(
     });
   }
 
-  // If odd number of participants, skip the last one (bye) or pair with someone
+  // If odd number of participants, highest ELO gets a bye (automatic advancement)
   if (shuffled.length % 2 === 1) {
-    // For now, we'll pair the last participant with a bye by creating an incomplete match
-    // In a real system, you might handle byes differently
-    console.warn(`Odd number of participants (${shuffled.length}), last participant needs manual handling`);
+    const byePlayer = sorted[0]; // Highest ELO player
+    console.log(`🎯 Odd number of participants (${shuffled.length}). Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    
+    // Mark this player for automatic advancement
+    // This will be handled in the next round generation
+    matches.push({
+      tournament_id: tournamentId,
+      round_id: roundId,
+      player1_id: byePlayer.user_id,
+      player2_id: null, // Null indicates bye/automatic advancement
+      is_bye: true,
+    });
   }
 
   return matches;
@@ -100,6 +116,7 @@ function generateFirstRoundMatches(
 
 /**
  * Generates elimination bracket matches
+ * If odd number of remaining players, highest ELO advances automatically (bye)
  */
 function generateEliminationMatches(
   winners: any[],
@@ -107,7 +124,12 @@ function generateEliminationMatches(
   roundId: string
 ): any[] {
   const matches = [];
-  const shuffled = [...winners].sort(() => Math.random() - 0.5);
+  
+  // Sort by ELO rating (descending) to identify bye candidate
+  const sorted = [...winners].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
+  
+  // Shuffle for bracket arrangement
+  const shuffled = [...sorted].sort(() => Math.random() - 0.5);
 
   for (let i = 0; i < shuffled.length - 1; i += 2) {
     matches.push({
@@ -115,6 +137,20 @@ function generateEliminationMatches(
       round_id: roundId,
       player1_id: shuffled[i].user_id,
       player2_id: shuffled[i + 1].user_id,
+    });
+  }
+
+  // If odd number of players, highest ELO gets bye to next round
+  if (shuffled.length % 2 === 1) {
+    const byePlayer = sorted[0]; // Highest ELO among remaining
+    console.log(`🏆 Elimination round with odd players (${shuffled.length}). Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    
+    matches.push({
+      tournament_id: tournamentId,
+      round_id: roundId,
+      player1_id: byePlayer.user_id,
+      player2_id: null, // Null indicates bye
+      is_bye: true,
     });
   }
 
@@ -189,8 +225,10 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     let participants;
     if (roundNumber === 1) {
       const participantsResult = await query(
-        `SELECT id, user_id FROM tournament_participants 
-         WHERE tournament_id = $1 AND participation_status = 'accepted'`,
+        `SELECT tp.id, tp.user_id, u.elo_rating
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'`,
         [tournamentId]
       );
       participants = participantsResult.rows;
@@ -198,8 +236,10 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       // For subsequent rounds, only get non-eliminated participants who haven't lost yet
       // Must have been accepted and not eliminated
       const participantsResult = await query(
-        `SELECT id, user_id FROM tournament_participants 
-         WHERE tournament_id = $1 AND participation_status = 'accepted' AND status = 'active'`,
+        `SELECT tp.id, tp.user_id, u.elo_rating
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted' AND status = 'active'`,
         [tournamentId]
       );
       participants = participantsResult.rows;
@@ -229,6 +269,14 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     }
 
     for (const pairing of pairings) {
+      // Handle bye (automatic advancement for odd player count)
+      if (pairing.is_bye || pairing.player2_id === null) {
+        console.log(`✅ BYE: Player ${pairing.player1_id} advances automatically to next round`);
+        // No need to create matches for byes
+        // The player will automatically be included in next round
+        continue;
+      }
+
       // Create tournament_round_matches entry
       const tmResult = await query(
         `INSERT INTO tournament_round_matches 

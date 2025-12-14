@@ -1084,6 +1084,196 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
   }
 });
 
+// ============================================================================
+// NEW ENDPOINTS: Tournament Modes Support (Liga, Suizo, Suizo Mixto, Eliminación Mejorada)
+// ============================================================================
+
+/**
+ * GET /api/tournaments/:id/config
+ * Get tournament full configuration including new mode fields
+ */
+router.get('/:id/config', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [rows]: any = await query(
+      `SELECT * FROM tournaments WHERE tournament_id = ?`,
+      [id]
+    );
+    
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error fetching tournament config:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/tournaments/suggestions/by-count
+ * Get tournament type suggestions based on participant count
+ */
+router.get('/suggestions/by-count', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { participant_count } = req.query;
+    
+    if (!participant_count) {
+      return res.status(400).json({ error: 'participant_count query parameter is required' });
+    }
+    
+    const count = Number(participant_count);
+    const suggestions: Record<string, any> = {};
+    
+    // Liga suggestions
+    if (count >= 4 && count <= 32) {
+      suggestions.league = {
+        league_type: count <= 8 ? 'double_round' : 'single_round',
+        series_format: count <= 8 ? 'bo1' : 'bo1',
+        estimated_matches: count <= 8 
+          ? count * (count - 1)  // double round
+          : Math.floor(count * (count - 1) / 2),
+      };
+    }
+    
+    // Suizo suggestions
+    if (count >= 4) {
+      const swissRounds = 
+        count <= 8 ? 3 :
+        count <= 16 ? 4 :
+        count <= 32 ? 5 : 6;
+      
+      suggestions.swiss = {
+        swiss_rounds: swissRounds,
+        series_format: 'bo1',
+        estimated_matches: swissRounds * Math.floor(count / 2),
+      };
+    }
+    
+    // Suizo Mixto suggestions
+    if (count >= 8) {
+      let swissRounds = 0;
+      let finalists = 0;
+      
+      if (count <= 15) {
+        swissRounds = 3;
+        finalists = 4;
+      } else if (count <= 31) {
+        swissRounds = 4;
+        finalists = 8;
+      } else if (count <= 63) {
+        swissRounds = 5;
+        finalists = 16;
+      } else {
+        swissRounds = 5;
+        finalists = 16;
+      }
+      
+      suggestions.swiss_hybrid = {
+        swiss_hybrid_rounds: swissRounds,
+        finalists_count: finalists,
+        estimated_matches: swissRounds * Math.floor(count / 2) + (finalists - 1),
+      };
+    }
+    
+    // Eliminación suggestions
+    if (count >= 2) {
+      const nearestPowerOf2 = 
+        count <= 2 ? 2 :
+        count <= 4 ? 4 :
+        count <= 8 ? 8 :
+        count <= 16 ? 16 :
+        count <= 32 ? 32 :
+        count <= 64 ? 64 : 128;
+      
+      suggestions.elimination = {
+        elimination_type: 'single',
+        finalists_count: nearestPowerOf2,
+        series_format_eliminations: count <= 8 ? 'bo1' : 'bo1',
+        series_format_final: 'bo3',
+        estimated_matches: nearestPowerOf2 - 1,
+      };
+    }
+    
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('Error generating tournament suggestions:', error);
+    res.status(500).json({ error: 'Failed to generate suggestions' });
+  }
+});
+
+/**
+ * GET /api/tournaments/:id/standings
+ * Get tournament standings
+ */
+router.get('/:id/standings', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { round_id } = req.query;
+    
+    let sql = `SELECT * FROM tournament_standings WHERE tournament_id = ?`;
+    const params: any[] = [id];
+    
+    if (round_id) {
+      sql += ` AND tournament_round_id = ?`;
+      params.push(round_id);
+    }
+    
+    sql += ` ORDER BY current_rank ASC`;
+    
+    const [standings]: any = await query(sql, params);
+    
+    res.json({ standings: standings || [] });
+  } catch (error) {
+    console.error('Error fetching standings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/tournaments/:id/league-standings
+ * Get league standings
+ */
+router.get('/:id/league-standings', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [standings]: any = await query(
+      `SELECT * FROM league_standings WHERE tournament_id = ? ORDER BY league_position ASC`,
+      [id]
+    );
+    
+    res.json({ standings: standings || [] });
+  } catch (error) {
+    console.error('Error fetching league standings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/tournaments/:id/swiss-pairings/:round_id
+ * Get Swiss system pairings for a round
+ */
+router.get('/:id/swiss-pairings/:round_id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id, round_id } = req.params;
+    
+    const [pairings]: any = await query(
+      `SELECT * FROM swiss_pairings 
+       WHERE tournament_id = ? AND tournament_round_id = ? 
+       ORDER BY pairing_number ASC`,
+      [id, round_id]
+    );
+    
+    res.json({ pairings: pairings || [] });
+  } catch (error) {
+    console.error('Error fetching swiss pairings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
 
 
