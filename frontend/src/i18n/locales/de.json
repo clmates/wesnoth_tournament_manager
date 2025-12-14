@@ -312,6 +312,7 @@
   "label_final_rounds_format": "Format der Finalrunden",
   "tournaments.management": "Turnierverwaltung",
   "tournament.round_configuration": "Rundenkonfiguration",
+  "tournaments.round_config_optional": "Optional - wird bei der Turnierplanung festgelegt",
   "tournaments.started_locked": "Das Turnier hat begonnen. Konfiguration ist jetzt gesperrt.",
   "join_pending_msg": "Ihre Beitrittsanfrage wird vom Organisator geprüft",
   "join_denied_msg": "Ihre Beitrittsanfrage wurde abgelehnt",

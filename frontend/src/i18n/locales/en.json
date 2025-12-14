@@ -307,6 +307,7 @@
   "label_final_rounds_format": "Final Rounds Format",
   "tournaments.management": "Tournament Management",
   "tournament.round_configuration": "Round Configuration",
+  "tournaments.round_config_optional": "Optional - set when preparing the tournament",
   "tournaments.started_locked": "Tournament has started. Configuration is now locked.",
   "join_pending_msg": "Your join request is pending approval from the organizer",
   "join_denied_msg": "Your join request was denied",

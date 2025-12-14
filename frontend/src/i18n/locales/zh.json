@@ -300,6 +300,7 @@
   "label_final_rounds_format": "决赛回合格式",
   "tournaments.management": "锦标赛管理",
   "tournament.round_configuration": "回合配置",
+  "tournaments.round_config_optional": "可选 - 在准备锦标赛时设置",
   "tournaments.started_locked": "锦标赛已开始，配置已锁定。",
   "join_pending_msg": "您的加入请求正在等待组织者批准",
   "join_denied_msg": "您的加入请求已被拒绝",

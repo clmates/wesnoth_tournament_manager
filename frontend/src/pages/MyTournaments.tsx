@@ -117,19 +117,15 @@ const MyTournaments: React.FC = () => {
       return;
     }
 
-    if (!formData.max_participants || formData.max_participants <= 0) {
-      setError(t('error_max_participants_required'));
-      return;
-    }
-
     // Final rounds are now optional (can be 0) even for elimination tournaments
+    // Max participants is optional - will be set during tournament preparation
 
-    // Calcula rondas generales para eliminación
-    // Para eliminación: usa rondas generales ajustadas (total - finales)
-    // Para otros: usa rondas generales configuradas
-    const generalRounds = (formData.tournament_type === 'elimination' || formData.tournament_type === 'swiss_elimination') 
-      ? getAdjustedGeneralRounds()
-      : getCalculatedGeneralRounds();
+    // Calcula rondas generales solo si max_participants está disponible
+    const generalRounds = formData.max_participants && (formData.max_participants > 0)
+      ? ((formData.tournament_type === 'elimination' || formData.tournament_type === 'swiss_elimination') 
+        ? getAdjustedGeneralRounds()
+        : getCalculatedGeneralRounds())
+      : 0;
 
     try {
       const payload = {
@@ -238,31 +234,31 @@ const MyTournaments: React.FC = () => {
             </div>
 
             <div className="form-section">
-              <h3>Round Configuration</h3>
-              
-              {!canConfigureRounds() && (
-                <div className="info-box warning">
-                  <p>{t('tournaments.max_participants_required')}</p>
-                </div>
-              )}
-
-              <div className="form-group">
-                <label>Round Duration (days)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="365"
-                  value={formData.round_duration_days}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    round_duration_days: parseInt(e.target.value) 
-                  })}
-                  disabled={!canConfigureRounds()}
-                />
+              <div className="section-header">
+                <h3>{t('tournament.round_configuration', 'Round Configuration')}</h3>
+                {!canConfigureRounds() && (
+                  <span className="info-note">{t('tournaments.round_config_optional', 'Optional - set when preparing the tournament')}</span>
+                )}
               </div>
 
-              <div className="form-group checkbox">
-                <label>
+              <div className="form-row-inline-align">
+                <div className="form-group-column">
+                  <label>{t('label_round_duration', 'Round Duration (days)')}</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={formData.round_duration_days}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      round_duration_days: parseInt(e.target.value) 
+                    })}
+                    disabled={!canConfigureRounds()}
+                  />
+                </div>
+
+                <div className="form-group-column">
+                  <label>{t('label_auto_advance_rounds')}</label>
                   <input
                     type="checkbox"
                     checked={formData.auto_advance_round}
@@ -271,9 +267,9 @@ const MyTournaments: React.FC = () => {
                       auto_advance_round: e.target.checked 
                     })}
                     disabled={!canConfigureRounds()}
+                    className="checkbox-large"
                   />
-                  Auto-advance to next round after deadline
-                </label>
+                </div>
               </div>
 
               {canConfigureRounds() && (formData.tournament_type !== 'league' && formData.tournament_type !== 'swiss') && (
@@ -394,7 +390,7 @@ const MyTournaments: React.FC = () => {
               )}
             </div>
 
-            <button type="submit" className="btn-submit" disabled={!canConfigureRounds()}>{t('tournament_create')}</button>
+            <button type="submit" className="btn-submit">{t('tournament_create')}</button>
           </form>
         )}
 

@@ -286,9 +286,10 @@
   "label_general_rounds_format": "Formato de rondas generales",
   "label_final_rounds": "Rondas finales",
   "label_final_rounds_format": "Formato de rondas finales",
-  "tournaments.management": "Gestión del torneo",
-  "tournament.round_configuration": "Configuración de rondas",
-  "tournaments.started_locked": "El torneo ha comenzado. La configuración está bloqueada.",
+  "tournaments.management": "Gestión de Torneos",
+  "tournament.round_configuration": "Configuración de Rondas",
+  "tournaments.round_config_optional": "Opcional - establece al preparar el torneo",
+  "tournaments.started_locked": "El torneo ha comenzado. La configuración está ahora bloqueada.",
   "join_pending_msg": "Tu solicitud de unión está pendiente de aprobación por el organizador",
   "join_denied_msg": "Tu solicitud de unión fue denegada",
   "tabs": {

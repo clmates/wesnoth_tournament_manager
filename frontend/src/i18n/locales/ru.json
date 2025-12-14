@@ -310,6 +310,7 @@
   "label_final_rounds_format": "Формат финальных раундов",
   "tournaments.management": "Управление турниром",
   "tournament.round_configuration": "Настройка раундов",
+  "tournaments.round_config_optional": "Необязательно - устанавливается при подготовке турнира",
   "tournaments.started_locked": "Турнир начался. Настройки заблокированы.",
   "join_pending_msg": "Ваш запрос на участие ожидает подтверждения организатора",
   "join_denied_msg": "Ваш запрос на участие был отклонён",
