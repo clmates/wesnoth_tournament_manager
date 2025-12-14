@@ -38,6 +38,42 @@ const MyTournaments: React.FC = () => {
     finalRoundsFormat: 'bo5',
   });
 
+  // Update round type config defaults when tournament type changes
+  const handleTournamentTypeChange = (newType: string) => {
+    setFormData({ ...formData, tournament_type: newType });
+    
+    // Set sensible defaults based on tournament type
+    if (newType === 'swiss') {
+      setRoundTypeConfig({
+        generalRounds: 5, // Default 5 Swiss rounds
+        generalRoundsFormat: 'bo3',
+        finalRounds: 0,
+        finalRoundsFormat: 'bo5',
+      });
+    } else if (newType === 'league') {
+      setRoundTypeConfig({
+        generalRounds: 2, // Default double round (ida y vuelta)
+        generalRoundsFormat: 'bo3',
+        finalRounds: 0,
+        finalRoundsFormat: 'bo5',
+      });
+    } else if (newType === 'swiss_elimination') {
+      setRoundTypeConfig({
+        generalRounds: 4, // Default 4 Swiss rounds
+        generalRoundsFormat: 'bo3',
+        finalRounds: 2, // Default 2 elimination rounds (Semifinals, Final)
+        finalRoundsFormat: 'bo5',
+      });
+    } else if (newType === 'elimination') {
+      setRoundTypeConfig({
+        generalRounds: 0,
+        generalRoundsFormat: 'bo3',
+        finalRounds: 1, // At least 1 for pure elimination
+        finalRoundsFormat: 'bo5',
+      });
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated) {
       navigate('/login');
@@ -46,6 +82,14 @@ const MyTournaments: React.FC = () => {
 
     fetchTournaments();
   }, [isAuthenticated, navigate]);
+
+  // Initialize roundTypeConfig with sensible defaults when form opens
+  useEffect(() => {
+    if (showCreateForm) {
+      // Always set defaults based on the current tournament_type
+      handleTournamentTypeChange(formData.tournament_type);
+    }
+  }, [showCreateForm, formData.tournament_type]);
 
   const fetchTournaments = async () => {
     try {
@@ -121,12 +165,23 @@ const MyTournaments: React.FC = () => {
     // Final rounds are now optional (can be 0) even for elimination tournaments
     // Max participants is optional - will be set during tournament preparation
 
-    // Calcula rondas generales solo si max_participants está disponible
-    const generalRounds = formData.max_participants && (formData.max_participants > 0)
-      ? ((formData.tournament_type === 'elimination' || formData.tournament_type === 'swiss_elimination') 
+    // Calcula rondas generales según el tipo de torneo
+    let generalRounds = 0;
+    
+    if (formData.tournament_type === 'elimination') {
+      // For pure Elimination, general rounds are auto-calculated from participant count
+      generalRounds = formData.max_participants && (formData.max_participants > 0)
         ? getAdjustedGeneralRounds()
-        : getCalculatedGeneralRounds())
-      : 0;
+        : 0;
+    } else if (formData.tournament_type === 'swiss_elimination') {
+      // For Swiss-Elimination Mix, use the user-configured Swiss rounds
+      generalRounds = roundTypeConfig.generalRounds;
+    } else if (formData.tournament_type === 'swiss' || formData.tournament_type === 'league') {
+      // For Swiss and League, use the user-configured rounds
+      generalRounds = roundTypeConfig.generalRounds;
+    } else {
+      generalRounds = 0;
+    }
 
     try {
       const payload = {
@@ -148,10 +203,11 @@ const MyTournaments: React.FC = () => {
         round_duration_days: 7,
         auto_advance_round: false,
       });
+      // Reset to elimination defaults
       setRoundTypeConfig({
         generalRounds: 0,
         generalRoundsFormat: 'bo3',
-        finalRounds: 0,
+        finalRounds: 1,
         finalRoundsFormat: 'bo5',
       });
       setShowCreateForm(false);
@@ -211,7 +267,7 @@ const MyTournaments: React.FC = () => {
               <div className="form-row">
                 <select
                   value={formData.tournament_type}
-                  onChange={(e) => setFormData({ ...formData, tournament_type: e.target.value })}
+                  onChange={(e) => handleTournamentTypeChange(e.target.value)}
                   required
                 >
                   <option value="">{t('option_all_types')}</option>
@@ -271,16 +327,15 @@ const MyTournaments: React.FC = () => {
                 </div>
               </div>
 
-              {canConfigureRounds() && (formData.tournament_type !== 'league' && formData.tournament_type !== 'swiss') && (
+              {/* ELIMINATION TOURNAMENT - Auto-calculated rounds */}
+              {canConfigureRounds() && formData.tournament_type === 'elimination' && (
                 <div className="round-types-config">
                   <h4>Round Type Configuration</h4>
                   <p className="info-text">Configure which types of rounds your tournament will have</p>
                   
-                  {(formData.tournament_type === 'elimination' || formData.tournament_type === 'swiss_elimination') && (
-                    <div className="info-box info">
-                      <p>ℹ️ For elimination tournaments, general rounds are auto-calculated based on participant count. Currently: <strong>{getCalculatedGeneralRounds()} rounds</strong></p>
-                    </div>
-                  )}
+                  <div className="info-box info">
+                    <p>ℹ️ For elimination tournaments, general rounds are auto-calculated based on participant count. Currently: <strong>{getCalculatedGeneralRounds()} rounds</strong></p>
+                  </div>
 
                   <div className="form-group">
                     <label>General Rounds</label>
@@ -289,18 +344,10 @@ const MyTournaments: React.FC = () => {
                       min="0"
                       max="10"
                       value={getCalculatedGeneralRounds()}
-                      disabled={formData.tournament_type === 'elimination' || formData.tournament_type === 'swiss_elimination'}
-                      onChange={(e) => {
-                        // Solo editable si NO es eliminación
-                        if (formData.tournament_type !== 'elimination' && formData.tournament_type !== 'swiss_elimination') {
-                          setRoundTypeConfig({
-                            ...roundTypeConfig,
-                            generalRounds: parseInt(e.target.value) || 0
-                          });
-                        }
-                      }}
+                      disabled={true}
+                      onChange={() => {}}
                     />
-                    <small>{formData.tournament_type === 'elimination' || formData.tournament_type === 'swiss_elimination' ? 'Auto-calculated for elimination' : 'Regular qualifying rounds'}</small>
+                    <small>Auto-calculated for elimination tournaments</small>
                   </div>
 
                   <div className="form-group">
@@ -320,24 +367,23 @@ const MyTournaments: React.FC = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>Final Rounds Count (optional)</label>
+                    <label>Final Rounds Count</label>
                     <input
                       type="number"
-                      min="0"
-                      max={getCalculatedGeneralRounds()}
+                      min="1"
+                      max="3"
                       value={roundTypeConfig.finalRounds}
                       onChange={(e) => {
-                        const newFinalRounds = parseInt(e.target.value) || 0;
-                        const totalRounds = getCalculatedGeneralRounds();
-                        // No permitir que las rondas finales superen el total
-                        const validFinalRounds = Math.min(newFinalRounds, totalRounds);
+                        const newFinalRounds = parseInt(e.target.value) || 1;
+                        // For pure elimination, final rounds are limited to 1-3
+                        const validFinalRounds = Math.max(1, Math.min(newFinalRounds, 3));
                         setRoundTypeConfig({
                           ...roundTypeConfig,
                           finalRounds: validFinalRounds
                         });
                       }}
                     />
-                    <small>Number of final stages (max: {getCalculatedGeneralRounds()}). For elimination tournaments, this is subtracted from the total rounds.</small>
+                    <small>Number of elimination rounds (1-3). For pure elimination tournaments, this determines the tournament structure.</small>
                   </div>
 
                   <div className="form-group">
@@ -357,34 +403,196 @@ const MyTournaments: React.FC = () => {
                   </div>
 
                   <div className="round-summary">
-                    {(formData.tournament_type === 'elimination' || formData.tournament_type === 'swiss_elimination') ? (
-                      <div>
-                        <p><strong>Total Rounds (Fixed):</strong> {getCalculatedGeneralRounds()}</p>
-                        {roundTypeConfig.finalRounds > 0 && (
-                          <div>
-                            <p className="info-text">General Rounds ({roundTypeConfig.generalRoundsFormat.toUpperCase()}): {getAdjustedGeneralRounds()} rounds</p>
-                            <p className="info-text">Final Rounds ({roundTypeConfig.finalRoundsFormat.toUpperCase()}): {roundTypeConfig.finalRounds} rounds</p>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div>
-                        <p><strong>Total Rounds:</strong> {getCalculatedGeneralRounds() + roundTypeConfig.finalRounds}</p>
-                        {roundTypeConfig.finalRounds > 0 && (
-                          <div>
-                            <p className="info-text">General Rounds ({roundTypeConfig.generalRoundsFormat.toUpperCase()}): {getCalculatedGeneralRounds()} rounds</p>
-                            <p className="info-text">Final Rounds ({roundTypeConfig.finalRoundsFormat.toUpperCase()}): {roundTypeConfig.finalRounds} rounds</p>
-                          </div>
-                        )}
-                      </div>
+                    <div>
+                      <p><strong>Total Rounds (Fixed):</strong> {getCalculatedGeneralRounds()}</p>
+                      {roundTypeConfig.finalRounds > 0 && (
+                        <div>
+                          <p className="info-text">General Rounds ({roundTypeConfig.generalRoundsFormat.toUpperCase()}): {getAdjustedGeneralRounds()} rounds</p>
+                          <p className="info-text">Final Rounds ({roundTypeConfig.finalRoundsFormat.toUpperCase()}): {roundTypeConfig.finalRounds} rounds</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SWISS TOURNAMENT - User chooses number of rounds */}
+              {canConfigureRounds() && formData.tournament_type === 'swiss' && (
+                <div className="round-types-config">
+                  <h4>Swiss Rounds Configuration</h4>
+                  <p className="info-text">Configure the Swiss round tournament</p>
+                  
+                  <div className="form-group">
+                    <label>Number of Swiss Rounds</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={roundTypeConfig.generalRounds}
+                      onChange={(e) => setRoundTypeConfig({
+                        ...roundTypeConfig,
+                        generalRounds: parseInt(e.target.value) || 1
+                      })}
+                    />
+                    <small>Number of Swiss system rounds to run (typically 3-7 rounds for Swiss tournaments)</small>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Match Format</label>
+                    <select
+                      value={roundTypeConfig.generalRoundsFormat}
+                      onChange={(e) => setRoundTypeConfig({
+                        ...roundTypeConfig,
+                        generalRoundsFormat: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                      })}
+                    >
+                      <option value="bo1">{t('match_format.bo1')}</option>
+                      <option value="bo3">{t('match_format.bo3')}</option>
+                      <option value="bo5">{t('match_format.bo5')}</option>
+                    </select>
+                    <small>Number of games in each match</small>
+                  </div>
+
+                  <div className="round-summary">
+                    <p><strong>Total Rounds:</strong> {roundTypeConfig.generalRounds} Swiss rounds ({roundTypeConfig.generalRoundsFormat.toUpperCase()})</p>
+                  </div>
+                </div>
+              )}
+
+              {/* LEAGUE TOURNAMENT - User chooses single or double round */}
+              {canConfigureRounds() && formData.tournament_type === 'league' && (
+                <div className="round-types-config">
+                  <h4>League Format Configuration</h4>
+                  <p className="info-text">Configure the League tournament format</p>
+                  
+                  <div className="form-group">
+                    <label>League Format</label>
+                    <select
+                      value={roundTypeConfig.generalRounds}
+                      onChange={(e) => setRoundTypeConfig({
+                        ...roundTypeConfig,
+                        generalRounds: parseInt(e.target.value) || 1
+                      })}
+                    >
+                      <option value="1">Single Round (Ida) - Each team plays once</option>
+                      <option value="2">Double Round (Ida y Vuelta) - Each team plays twice</option>
+                    </select>
+                    <small>Select whether teams play once or twice against each other</small>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Match Format</label>
+                    <select
+                      value={roundTypeConfig.generalRoundsFormat}
+                      onChange={(e) => setRoundTypeConfig({
+                        ...roundTypeConfig,
+                        generalRoundsFormat: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                      })}
+                    >
+                      <option value="bo1">{t('match_format.bo1')}</option>
+                      <option value="bo3">{t('match_format.bo3')}</option>
+                      <option value="bo5">{t('match_format.bo5')}</option>
+                    </select>
+                    <small>Number of games in each match</small>
+                  </div>
+
+                  <div className="round-summary">
+                    <p><strong>Format:</strong> {roundTypeConfig.generalRounds === 1 ? 'Single Round (Ida)' : 'Double Round (Ida y Vuelta)'} ({roundTypeConfig.generalRoundsFormat.toUpperCase()})</p>
+                    {formData.max_participants && (
+                      <p><strong>Calculated Rounds:</strong> {(() => {
+                        const n = formData.max_participants;
+                        const combinations = (n * (n - 1)) / 2;
+                        const totalRounds = combinations * roundTypeConfig.generalRounds;
+                        return `${combinations} combinations × ${roundTypeConfig.generalRounds} phase(s) = ${totalRounds} rounds`;
+                      })()}</p>
                     )}
                   </div>
                 </div>
               )}
 
-              {canConfigureRounds() && (formData.tournament_type === 'league' || formData.tournament_type === 'swiss') && (
-                <div className="info-box info">
-                  <p>ℹ️ {formData.tournament_type === 'league' ? 'League' : 'Swiss'} tournaments use general rounds only. Rounds will be calculated based on max participants.</p>
+              {/* SWISS-ELIMINATION MIX - User chooses both Swiss and elimination rounds */}
+              {canConfigureRounds() && formData.tournament_type === 'swiss_elimination' && (
+                <div className="round-types-config">
+                  <h4>Swiss-Elimination Mix Configuration</h4>
+                  <p className="info-text">Configure both the Swiss phase and the Elimination phase</p>
+                  
+                  <div className="info-box info">
+                    <p>ℹ️ This tournament combines a Swiss phase for qualification with an elimination phase for final ranking</p>
+                  </div>
+
+                  <div style={{border: '1px solid #ddd', padding: '15px', borderRadius: '4px', marginBottom: '15px'}}>
+                    <h5 style={{marginTop: 0}}>Swiss Phase (Qualifying)</h5>
+                    <div className="form-group">
+                      <label>Number of Swiss Rounds</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={roundTypeConfig.generalRounds}
+                        onChange={(e) => setRoundTypeConfig({
+                          ...roundTypeConfig,
+                          generalRounds: parseInt(e.target.value) || 1
+                        })}
+                      />
+                      <small>Number of Swiss rounds in the qualifying phase</small>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Match Format</label>
+                      <select
+                        value={roundTypeConfig.generalRoundsFormat}
+                        onChange={(e) => setRoundTypeConfig({
+                          ...roundTypeConfig,
+                          generalRoundsFormat: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                        })}
+                      >
+                        <option value="bo1">{t('match_format.bo1')}</option>
+                        <option value="bo3">{t('match_format.bo3')}</option>
+                        <option value="bo5">{t('match_format.bo5')}</option>
+                      </select>
+                      <small>Number of games in each Swiss match</small>
+                    </div>
+                  </div>
+
+                  <div style={{border: '1px solid #ddd', padding: '15px', borderRadius: '4px'}}>
+                    <h5 style={{marginTop: 0}}>Elimination Phase (Finals)</h5>
+                    <div className="form-group">
+                      <label>Number of Elimination Rounds</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={roundTypeConfig.finalRounds}
+                        onChange={(e) => setRoundTypeConfig({
+                          ...roundTypeConfig,
+                          finalRounds: parseInt(e.target.value) || 1
+                        })}
+                      />
+                      <small>Number of elimination rounds (e.g., Quarterfinals, Semifinals, Finals)</small>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Match Format</label>
+                      <select
+                        value={roundTypeConfig.finalRoundsFormat}
+                        onChange={(e) => setRoundTypeConfig({
+                          ...roundTypeConfig,
+                          finalRoundsFormat: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                        })}
+                      >
+                        <option value="bo1">{t('match_format.bo1')}</option>
+                        <option value="bo3">{t('match_format.bo3')}</option>
+                        <option value="bo5">{t('match_format.bo5')}</option>
+                      </select>
+                      <small>Number of games in each elimination match</small>
+                    </div>
+                  </div>
+
+                  <div className="round-summary" style={{marginTop: '15px'}}>
+                    <p><strong>Total Rounds:</strong> {roundTypeConfig.generalRounds + roundTypeConfig.finalRounds}</p>
+                    <p className="info-text">Swiss Phase: {roundTypeConfig.generalRounds} rounds ({roundTypeConfig.generalRoundsFormat.toUpperCase()})</p>
+                    <p className="info-text">Elimination Phase: {roundTypeConfig.finalRounds} rounds ({roundTypeConfig.finalRoundsFormat.toUpperCase()})</p>
+                  </div>
                 </div>
               )}
             </div>

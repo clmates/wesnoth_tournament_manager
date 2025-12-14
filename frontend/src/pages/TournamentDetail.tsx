@@ -683,7 +683,13 @@ const TournamentDetail: React.FC = () => {
                       
                       return (
                         <div key={round.id} className="round-matches">
-                          <h4>{t('label_round')} {round.round_number} ({round.round_type}) - {t(`option_${normalizeStatus(round.round_status)}`) !== `option_${normalizeStatus(round.round_status)}` ? t(`option_${normalizeStatus(round.round_status)}`) : (round.round_status || t('option_pending'))}</h4>
+                          <h4>
+                            {t('label_round')} {round.round_number}
+                            {round.round_phase_label && ` [${round.round_phase_label}]`}
+                            {round.round_classification && ` (${round.round_classification})`}
+                            {' '}-{' '}
+                            {t(`option_${normalizeStatus(round.round_status)}`) !== `option_${normalizeStatus(round.round_status)}` ? t(`option_${normalizeStatus(round.round_status)}`) : (round.round_status || t('option_pending'))}
+                          </h4>
                           <table className="matches-table">
                             <thead>
                               <tr>
@@ -713,7 +719,7 @@ const TournamentDetail: React.FC = () => {
                                   userId: userId,
                                   isPlayer: isPlayer,
                                   match_status: match.match_status,
-                                  round_status: round.status,
+                                  round_status: round.round_status,
                                   round_round_status: round.round_status
                                 });
                                 
@@ -730,9 +736,9 @@ const TournamentDetail: React.FC = () => {
                                            match.match_status_from_matches === 'disputed' ? t('match_status_disputed') :
                                            match.match_status_from_matches === 'unconfirmed' ? t('match_status_unconfirmed') :
                                            match.match_status_from_matches === 'cancelled' ? t('match_status_cancelled') :
-                                           (t(`option_${normalizeStatus(match.match_status_from_matches)}`) !== `option_${normalizeStatus(match.match_status_from_matches)}` ? t(`option_${normalizeStatus(match.match_status_from_matches)}`) : (match.match_status_from_matches || t('option_pending')))}
+                                           t('option_pending')}
                                         </span>
-                                        {isPlayer && (round.status === 'pending' || round.status === 'in_progress' || round.round_status === 'pending' || round.round_status === 'in_progress') && (
+                                        {isPlayer && (round.round_status === 'pending' || round.round_status === 'in_progress') && (
                                           <button
                                             className="btn-report-match"
                                             onClick={() => handleOpenReportMatch(match)}
@@ -741,7 +747,7 @@ const TournamentDetail: React.FC = () => {
                                             {t('report_match_link')}
                                           </button>
                                         )}
-                                        {isCreator && (round.status === 'completed' || round.status === 'closed') && !match.winner_id && (
+                                        {isCreator && (round.round_status === 'completed') && !match.winner_id && (
                                           <button
                                             className="btn-determine-winner"
                                             onClick={() => {
@@ -830,9 +836,6 @@ const TournamentDetail: React.FC = () => {
                                   <div className="first-row">
                                     <strong>{match.winner_nickname || '-'}</strong>
                                   </div>
-                                  {match.winner_comments && (
-                                    <div className="player-comment">{match.winner_comments}</div>
-                                  )}
                                 </div>
                               </td>
                               <td>
@@ -840,9 +843,6 @@ const TournamentDetail: React.FC = () => {
                                   <div className="first-row">
                                     <strong>{loserNickname}</strong>
                                   </div>
-                                  {match.loser_comments && (
-                                    <div className="player-comment">{match.loser_comments}</div>
-                                  )}
                                 </div>
                               </td>
                               <td>{match.map || '-'}</td>
@@ -868,15 +868,6 @@ const TournamentDetail: React.FC = () => {
                                           {t('confirm_dispute')}
                                         </button>
                                     )}
-                                    {match.replay_file_path ? (
-                                      <button
-                                        className="download-btn"
-                                        onClick={() => handleDownloadReplay(match.match_id, match.replay_file_path)}
-                                        title={`${t('downloads')}: ${match.replay_downloads || 0}`}
-                                      >
-                                        ⬇️
-                                      </button>
-                                    ) : null}
                                     {!isAdminDetermined && match.match_id ? (
                                       <button
                                         className="btn-view-match"
@@ -926,7 +917,7 @@ const TournamentDetail: React.FC = () => {
                     <td>
                       <strong>{round.round_number}</strong>
                     </td>
-                    <td>{round.round_type || '-'}</td>
+                    <td>{round.round_phase_label || round.round_type || '-'}</td>
                     <td>
                       <span className={`status-badge status-${normalizeStatus(round.round_status)}`}>
                         {t(`option_${normalizeStatus(round.round_status)}`) !== `option_${normalizeStatus(round.round_status)}` ? t(`option_${normalizeStatus(round.round_status)}`) : (round.round_status || t('option_pending'))}
@@ -979,7 +970,7 @@ const TournamentDetail: React.FC = () => {
                 
                 return (
                   <div key={round.id} className="round-matches-section">
-                    <h3>{t('label_round')} {round.round_number} - {round.round_type}</h3>
+                    <h3>{t('label_round')} {round.round_number} - {round.round_phase_label || round.round_type || 'Round'}</h3>
                     <table className="matches-table">
                       <thead>
                         <tr>

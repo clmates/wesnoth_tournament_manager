@@ -91,6 +91,23 @@ c:\Users\carlo\Documents\Desarrollo\Pruebas\clm_competitive_wesnoth\
 
 ---
 
+### 6. **TOURNAMENT_TYPES_CONFIGURATION.md** 🎮 _TIPOS DE TORNEOS_
+
+**Propósito**: Explicar diferencias entre tipos de torneos  
+**Ideal para**: Entender estructura de cada formato  
+**Contenido**:
+- 4 tipos de torneos: Elimination, League, Swiss, Swiss-Elimination Mix
+- Configuración de rondas para cada tipo
+- Estructura y progresión de cada formato
+- Diferencias visibles en ejecución
+- Tabla comparativa de formatos
+- Estrategia de emparejamiento por tipo
+- Casos de uso recomendados
+
+**Cuando leerlo**: Para entender qué tipo de torneo usar
+
+---
+
 ## 🗺️ Mapa de Lectura
 
 ### Para Entender la Estructura (20 min)
@@ -140,7 +157,8 @@ c:\Users\carlo\Documents\Desarrollo\Pruebas\clm_competitive_wesnoth\
 | ¿Qué consultas hay disponibles? | EXAMPLES | 3. CONSULTAS ÚTILES |
 | ¿Cuáles son los estados válidos? | DIAGRAMS | Estados de Máquina |
 | ¿Cuál es la referencia rápida? | QUICK_REFERENCE | Cualquier sección |
-| ¿Qué formatos se soportan? | DATABASE_STRUCTURE | 4. TIPOS DE TORNEOS |
+| ¿Qué formatos se soportan? | TYPES_CONFIGURATION | Configuraciones |
+| ¿Cuáles son las diferencias entre tipos? | TYPES_CONFIGURATION | Tabla Comparativa |
 | ¿Cómo funcionan las series BO? | DIAGRAMS | Ejemplo Concreto |
 
 ---

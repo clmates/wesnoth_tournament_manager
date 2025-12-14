@@ -82,18 +82,21 @@ export type TournamentConfigUnion =
 
 // Round information
 export interface TournamentRound {
-  tournament_round_id: number;
-  tournament_id: number;
+  id: string;
+  tournament_id: string;
   round_number: number;
-  round_type: RoundType;
-  round_order_in_phase?: number;
-  is_bye_round: boolean;
-  max_points_possible?: number;
-  standings_snapshot?: unknown;
-  promoted_count?: number;
-  round_status: string;
-  created_at: Date;
-  updated_at: Date;
+  round_type: 'general' | 'final';
+  match_format: 'bo1' | 'bo3' | 'bo5';
+  round_status: 'pending' | 'in_progress' | 'completed';
+  round_phase_label?: string;
+  round_phase_description?: string;
+  round_classification?: 'standard' | 'swiss' | 'general' | 'elimination' | 'quarterfinals' | 'semifinals' | 'final';
+  players_remaining?: number;
+  players_advancing_to_next?: number;
+  round_start_date?: Date;
+  round_end_date?: Date;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 // Tournament standings entry

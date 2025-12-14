@@ -51,9 +51,43 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Invalid final_rounds_format. Must be: bo1, bo3, or bo5' });
     }
 
-    // For league/swiss, validate final_rounds is not used
-    if ((tournament_type.toLowerCase() === 'league' || tournament_type.toLowerCase() === 'swiss') && (final_rounds || 0) > 0) {
-      return res.status(400).json({ error: 'League and Swiss tournaments should not have final rounds' });
+    // Validate tournament type-specific configurations
+    const tournamentTypeLower = tournament_type.toLowerCase();
+    
+    if (tournamentTypeLower === 'league') {
+      // League: only general_rounds, must be 1 or 2
+      if ((final_rounds || 0) > 0) {
+        return res.status(400).json({ error: 'League tournaments should not have final rounds' });
+      }
+      if ((general_rounds || 0) < 1 || (general_rounds || 0) > 2) {
+        return res.status(400).json({ error: 'League tournaments must have 1 or 2 general rounds (1=single round-robin, 2=home and away)' });
+      }
+    } else if (tournamentTypeLower === 'swiss') {
+      // Swiss: only general_rounds, can be any number from 1 to 10
+      if ((final_rounds || 0) > 0) {
+        return res.status(400).json({ error: 'Swiss tournaments should not have final rounds' });
+      }
+      if ((general_rounds || 0) < 1 || (general_rounds || 0) > 10) {
+        return res.status(400).json({ error: 'Swiss tournaments must have between 1 and 10 general rounds' });
+      }
+    } else if (tournamentTypeLower === 'swiss_elimination') {
+      // Swiss-Elimination Mix: both general and final rounds
+      // General rounds: 1-10 (Swiss phase)
+      // Final rounds: 1-3 (Elimination phase: Quarterfinals, Semifinals, Final)
+      if ((general_rounds || 0) < 1 || (general_rounds || 0) > 10) {
+        return res.status(400).json({ error: 'Swiss-Elimination Mix must have between 1 and 10 general rounds (Swiss phase)' });
+      }
+      if ((final_rounds || 0) < 1 || (final_rounds || 0) > 3) {
+        return res.status(400).json({ error: 'Swiss-Elimination Mix must have between 1 and 3 final rounds (Elimination phase)' });
+      }
+    } else if (tournamentTypeLower === 'elimination') {
+      // Pure Elimination: only final_rounds, must be 1-3
+      if ((general_rounds || 0) > 0) {
+        return res.status(400).json({ error: 'Elimination tournaments should not have general rounds' });
+      }
+      if ((final_rounds || 0) < 1 || (final_rounds || 0) > 3) {
+        return res.status(400).json({ error: 'Elimination tournaments must have between 1 and 3 final rounds' });
+      }
     }
 
     const totalRounds = (general_rounds || 0) + (final_rounds || 0);
@@ -521,6 +555,8 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     const tournament = tournamentCheck.rows[0];
     console.log(`[PREPARE] Tournament data:`, tournament);
     
+    const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+    
     if (tournament.creator_id !== req.userId) {
       console.log(`[PREPARE] Authorization failed - creator_id: ${tournament.creator_id}, userId: ${req.userId}`);
       return res.status(403).json({ error: 'Only tournament creator can prepare tournament' });
@@ -540,66 +576,201 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     const participantCount = participantsResult.rows[0]?.count || 0;
     console.log(`[PREPARE] Participant count: ${participantCount}`);
 
-    // Calculate maximum rounds needed for elimination tournament
-    // For N participants: log2(N) rounds needed to determine a winner
-    const maxRoundsNeeded = participantCount > 0 ? Math.ceil(Math.log2(participantCount)) : 0;
+    // Calculate maximum rounds needed based on tournament type
+    // Only elimination formats have a mathematical limit
+    let maxRoundsNeeded = 999; // Default: no limit (for Swiss, League)
+    
+    if (tournamentType === 'elimination') {
+      // For pure elimination: N participants need log2(N) rounds
+      maxRoundsNeeded = participantCount > 0 ? Math.ceil(Math.log2(participantCount)) : 0;
+    } else if (tournamentType === 'swiss_elimination') {
+      // For Swiss-Elimination Mix: only final rounds are limited
+      // General (Swiss) rounds can be unlimited
+      // Final (elimination) rounds need log2(N) rounds
+      maxRoundsNeeded = participantCount > 0 ? Math.ceil(Math.log2(participantCount)) : 0;
+    }
+    // For league and swiss: no mathematical limit
     
     // Total rounds requested
     const totalRoundsRequested = (tournament.general_rounds || 0) + (tournament.final_rounds || 0);
-    console.log(`[PREPARE] Max rounds needed: ${maxRoundsNeeded}, Total requested: ${totalRoundsRequested}`);
+    const finalRoundsRequested = tournament.final_rounds || 0;
+    
+    console.log(`[PREPARE] Tournament type: ${tournamentType}, Max rounds allowed: ${maxRoundsNeeded}, Total requested: ${totalRoundsRequested}, Final rounds: ${finalRoundsRequested}`);
 
-    if (totalRoundsRequested > maxRoundsNeeded) {
-      console.log(`[PREPARE] Validation failed: too many rounds`);
+    // Validate based on type
+    if (tournamentType === 'elimination' && totalRoundsRequested > maxRoundsNeeded) {
+      console.log(`[PREPARE] Validation failed: too many rounds for elimination`);
       return res.status(400).json({ 
         error: `Tournament has ${participantCount} participants but requested ${totalRoundsRequested} rounds. Maximum allowed: ${maxRoundsNeeded} rounds for elimination format.`
       });
+    } else if (tournamentType === 'swiss_elimination' && finalRoundsRequested > maxRoundsNeeded) {
+      console.log(`[PREPARE] Validation failed: too many final rounds for swiss-elimination`);
+      return res.status(400).json({ 
+        error: `Tournament has ${participantCount} participants but requested ${finalRoundsRequested} final (elimination) rounds. Maximum allowed: ${maxRoundsNeeded} elimination rounds.`
+      });
     }
 
-    // Generate tournament rounds based on configuration
+    // Generate tournament rounds based on configuration and tournament type
     const roundsToCreate = [];
     let roundNumber = 1;
+    const totalFinalRounds = tournament.final_rounds || 0;
+    let totalGeneralRounds = tournament.general_rounds || 0;
+    
+    // For League tournaments, calculate actual rounds based on format (1=ida, 2=ida y vuelta)
+    if (tournamentType === 'league') {
+      const leagueFormat = totalGeneralRounds; // 1 or 2
+      // Calculate combinations: C(n,2) = n*(n-1)/2
+      const matchCombinations = (participantCount * (participantCount - 1)) / 2;
+      // Each combination is one "round", and if ida y vuelta, multiply by 2
+      totalGeneralRounds = matchCombinations * leagueFormat;
+    }
+
+    // Determine round classification based on tournament type
+    let generalRoundClassification = 'standard';
+    let finalRoundClassification = 'final';
+    let phaseDescription = '';
+
+    if (tournamentType === 'league') {
+      generalRoundClassification = 'standard'; // League rounds
+      phaseDescription = 'League round';
+    } else if (tournamentType === 'swiss') {
+      generalRoundClassification = 'swiss'; // Swiss rounds
+      phaseDescription = 'Swiss round';
+    } else if (tournamentType === 'swiss_elimination') {
+      generalRoundClassification = 'general'; // Swiss phase
+      finalRoundClassification = 'elimination'; // Elimination phase
+      phaseDescription = 'Swiss-Elimination Mix';
+    } else if (tournamentType === 'elimination') {
+      generalRoundClassification = 'general'; // Elimination can have multiple phases
+      finalRoundClassification = 'final';
+      phaseDescription = 'Elimination tournament';
+    }
 
     // Add general rounds
-    for (let i = 0; i < (tournament.general_rounds || 0); i++) {
+    for (let i = 0; i < totalGeneralRounds; i++) {
+      let classification = generalRoundClassification;
+      let label = '';
+
+      if (tournamentType === 'league') {
+        const leagueFormat = tournament.general_rounds || 1;
+        const phase = leagueFormat === 2 && i >= (totalGeneralRounds / 2) ? 'Vuelta' : 'Ida';
+        label = `League Round ${i + 1} (${phase})`;
+      } else if (tournamentType === 'swiss') {
+        label = `Swiss Round ${i + 1}`;
+      } else if (tournamentType === 'swiss_elimination') {
+        label = `Swiss Round ${i + 1}`;
+        classification = 'general';
+      } else if (tournamentType === 'elimination') {
+        label = `General Round ${i + 1}`;
+      }
+
       roundsToCreate.push({
         roundNumber,
         roundType: 'general',
-        matchFormat: tournament.general_rounds_format || 'bo3'
+        matchFormat: tournament.general_rounds_format || 'bo3',
+        classification,
+        label,
+        description: label,
+        playersRemaining: participantCount,
+        playersAdvancing: participantCount
       });
       roundNumber++;
     }
 
-    // Add final rounds
-    // final_rounds value indicates how many rounds to create (1=final only, 2=semis+final, etc.)
-    for (let i = 0; i < (tournament.final_rounds || 0); i++) {
+    // For Swiss-Elimination Mix, determine how many players advance to elimination phase
+    // based on the number of final rounds: 3 rounds = 8 players, 2 rounds = 4 players, 1 round = 2 players
+    let elimiationPhaseParticipants = participantCount;
+    if (tournamentType === 'swiss_elimination') {
+      // Calculate players needed based on final rounds
+      // 1 round (Final only): 2 players
+      // 2 rounds (Semis + Final): 4 players
+      // 3 rounds (Quarters + Semis + Final): 8 players
+      // 4 rounds: 16 players, etc.
+      elimiationPhaseParticipants = Math.pow(2, totalFinalRounds);
+    }
+
+    // Add final rounds with detailed classification
+    for (let i = 0; i < totalFinalRounds; i++) {
+      let classification = finalRoundClassification;
+      let label = 'Final';
+      let playersRemaining = elimiationPhaseParticipants;
+      let playersAdvancing = 1;
+      let roundType = 'final';
+
+      if (tournamentType === 'elimination' || tournamentType === 'swiss_elimination') {
+        // For elimination brackets
+        if (totalFinalRounds === 1) {
+          classification = 'final';
+          label = `Final (${elimiationPhaseParticipants}→1)`;
+          playersRemaining = elimiationPhaseParticipants;
+          playersAdvancing = 1;
+        } else if (totalFinalRounds === 2) {
+          if (i === 0) {
+            classification = 'semifinals';
+            label = `Semifinals (${elimiationPhaseParticipants}→${Math.round(elimiationPhaseParticipants / 2)})`;
+            playersRemaining = elimiationPhaseParticipants;
+            playersAdvancing = Math.round(elimiationPhaseParticipants / 2);
+          } else {
+            classification = 'final';
+            label = `Final (${Math.round(elimiationPhaseParticipants / 2)}→1)`;
+            playersRemaining = Math.round(elimiationPhaseParticipants / 2);
+            playersAdvancing = 1;
+          }
+        } else if (totalFinalRounds === 3) {
+          if (i === 0) {
+            classification = 'quarterfinals';
+            label = `Quarterfinals (${elimiationPhaseParticipants}→${Math.round(elimiationPhaseParticipants / 2)})`;
+            playersRemaining = elimiationPhaseParticipants;
+            playersAdvancing = Math.round(elimiationPhaseParticipants / 2);
+          } else if (i === 1) {
+            classification = 'semifinals';
+            label = `Semifinals (${Math.round(elimiationPhaseParticipants / 2)}→${Math.round(elimiationPhaseParticipants / 4)})`;
+            playersRemaining = Math.round(elimiationPhaseParticipants / 2);
+            playersAdvancing = Math.round(elimiationPhaseParticipants / 4);
+          } else {
+            classification = 'final';
+            label = `Final (${Math.round(elimiationPhaseParticipants / 4)}→1)`;
+            playersRemaining = Math.round(elimiationPhaseParticipants / 4);
+            playersAdvancing = 1;
+          }
+        }
+      }
+
       roundsToCreate.push({
         roundNumber,
-        roundType: 'final',
-        matchFormat: tournament.final_rounds_format || 'bo5'
+        roundType,
+        matchFormat: tournament.final_rounds_format || 'bo5',
+        classification,
+        label,
+        description: label,
+        playersRemaining,
+        playersAdvancing
       });
       roundNumber++;
     }
 
-    console.log(`[PREPARE] Rounds to create:`, roundsToCreate);
+    console.log(`[PREPARE] Tournament type: ${tournamentType}, Rounds to create:`, roundsToCreate);
 
     // Insert generated rounds
     for (const round of roundsToCreate) {
-      console.log(`[PREPARE] Inserting round ${round.roundNumber} (${round.roundType})`);
+      console.log(`[PREPARE] Inserting round ${round.roundNumber}: ${round.label} [${round.classification}]`);
       const insertResult = await query(
-        `INSERT INTO tournament_rounds (tournament_id, round_number, round_type, match_format, round_status)
-         VALUES ($1, $2, $3, $4, 'pending')`,
-        [id, round.roundNumber, round.roundType, round.matchFormat]
+        `INSERT INTO tournament_rounds (tournament_id, round_number, round_type, match_format, round_status, round_phase_label, round_phase_description, round_classification, players_remaining, players_advancing_to_next)
+         VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9)`,
+        [id, round.roundNumber, round.roundType, round.matchFormat, round.label, round.description, round.classification, round.playersRemaining, round.playersAdvancing]
       );
       console.log(`[PREPARE] Round ${round.roundNumber} inserted successfully`);
     }
 
     // Update tournament status
     console.log(`[PREPARE] Updating tournament status to prepared`);
+    const totalCalculatedRounds = totalGeneralRounds + totalFinalRounds;
+    console.log(`[PREPARE] Updating total_rounds to ${totalCalculatedRounds} (${totalGeneralRounds} general + ${totalFinalRounds} final)`);
     await query(
       `UPDATE tournaments 
-       SET status = $1, prepared_at = NOW(), current_round = 1
+       SET status = $1, prepared_at = NOW(), current_round = 1, total_rounds = $3
        WHERE id = $2`,
-      ['prepared', id]
+      ['prepared', id, totalCalculatedRounds]
     );
     console.log(`[PREPARE] Tournament status updated`);
 

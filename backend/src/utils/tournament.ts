@@ -12,6 +12,93 @@ interface Participant {
 }
 
 /**
+ * Select top players for elimination phase in Swiss-Elimination Mix
+ * This function is called before activating the first elimination round
+ * It calculates how many players should advance based on elimination rounds
+ * and marks the rest as eliminated
+ */
+export async function selectPlayersForEliminationPhase(
+  tournamentId: string,
+  finalRounds: number
+): Promise<boolean> {
+  try {
+    // Calculate how many players should advance to elimination
+    // With N final rounds in elimination format:
+    // - 1 final round: 2 players
+    // - 2 final rounds: 4 players
+    // - 3 final rounds: 8 players
+    const playersToAdvance = Math.pow(2, finalRounds);
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`📊 [SELECT_PLAYERS] STARTING PLAYER SELECTION FOR ELIMINATION PHASE`);
+    console.log(`${'='.repeat(80)}`);
+    console.log(`Tournament ID: ${tournamentId}`);
+    console.log(`Final Rounds: ${finalRounds}`);
+    console.log(`Players to Advance: ${playersToAdvance}`);
+    
+    // Get the top N players by tournament points and wins
+    const topPlayersResult = await query(
+      `SELECT user_id FROM tournament_participants 
+       WHERE tournament_id = $1 AND participation_status = 'accepted'
+       ORDER BY tournament_points DESC, tournament_wins DESC, user_id
+       LIMIT $2`,
+      [tournamentId, playersToAdvance]
+    );
+
+    if (topPlayersResult.rows.length === 0) {
+      console.log(`❌ [SELECT_PLAYERS] No players found to advance to elimination phase`);
+      return false;
+    }
+
+    const topPlayerIds = topPlayersResult.rows.map((row: any) => row.user_id);
+    console.log(`✅ [SELECT_PLAYERS] Top ${topPlayerIds.length} players advancing: ${topPlayerIds.join(', ')}`);
+    
+    // First, explicitly mark advancing players as 'active'
+    console.log(`\n[SELECT_PLAYERS] Updating status for advancing players...`);
+    const activateResult = await query(
+      `UPDATE tournament_participants
+       SET status = 'active'
+       WHERE tournament_id = $1 
+       AND participation_status = 'accepted'
+       AND user_id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+      [tournamentId, ...topPlayerIds]
+    );
+    console.log(`✅ [SELECT_PLAYERS] Updated ${activateResult.rowCount} advancing players to ACTIVE`);
+    
+    // Then mark all other players as eliminated - use NOT IN for clarity
+    console.log(`\n[SELECT_PLAYERS] Updating status for eliminated players...`);
+    const result = await query(
+      `UPDATE tournament_participants
+       SET status = 'eliminated'
+       WHERE tournament_id = $1 
+       AND participation_status = 'accepted'
+       AND user_id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+      [tournamentId, ...topPlayerIds]
+    );
+    console.log(`🚫 [SELECT_PLAYERS] Updated ${result.rowCount} eliminated players`);
+    
+    // Verify the update
+    const verifyResult = await query(
+      `SELECT status, COUNT(*) as count FROM tournament_participants
+       WHERE tournament_id = $1
+       GROUP BY status`,
+      [tournamentId]
+    );
+    
+    console.log(`\n[SELECT_PLAYERS] Verification - Final status distribution:`);
+    verifyResult.rows.forEach((row: any) => {
+      console.log(`  ${row.status}: ${row.count} players`);
+    });
+    
+    console.log(`${'='.repeat(80)}\n`);
+    
+    return true;
+  } catch (error) {
+    console.error('[SELECT_PLAYERS] Error selecting players for elimination phase:', error);
+    return false;
+  }
+}
+
+/**
  * Generates all matches for a tournament round
  * For the first round, matches are generated for all accepted participants
  * For subsequent rounds, matches depend on previous round results
@@ -186,6 +273,96 @@ function generateRoundRobinMatches(
 }
 
 /**
+ * Generates Swiss system matches
+ * Pairs players based on their current score/performance
+ */
+function generateSwissMatches(
+  participants: any[],
+  tournamentId: string,
+  roundId: string,
+  roundNumber: number
+): any[] {
+  const matches: any[] = [];
+
+  if (participants.length < 2) {
+    return matches;
+  }
+
+  // Sort by ELO for Swiss pairing
+  const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
+  
+  // Simple Swiss pairing: pair strongest with second strongest, etc.
+  // For more accurate Swiss, would need access to tournament standings
+  for (let i = 0; i < sorted.length - 1; i += 2) {
+    matches.push({
+      tournament_id: tournamentId,
+      round_id: roundId,
+      player1_id: sorted[i].user_id,
+      player2_id: sorted[i + 1].user_id,
+    });
+  }
+
+  // If odd number, highest ELO gets bye
+  if (sorted.length % 2 === 1) {
+    const byePlayer = sorted[0];
+    console.log(`🎯 Swiss Round ${roundNumber}: Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    matches.push({
+      tournament_id: tournamentId,
+      round_id: roundId,
+      player1_id: byePlayer.user_id,
+      player2_id: null,
+      is_bye: true,
+    });
+  }
+
+  return matches;
+}
+
+/**
+ * Generates League matches
+ * All participants play each round, new pairings each time
+ */
+function generateLeagueMatches(
+  participants: any[],
+  tournamentId: string,
+  roundId: string
+): any[] {
+  const matches: any[] = [];
+
+  if (participants.length < 2) {
+    return matches;
+  }
+
+  // Generate new random pairings for each round
+  const shuffled = [...participants].sort(() => Math.random() - 0.5);
+  
+  for (let i = 0; i < shuffled.length - 1; i += 2) {
+    matches.push({
+      tournament_id: tournamentId,
+      round_id: roundId,
+      player1_id: shuffled[i].user_id,
+      player2_id: shuffled[i + 1].user_id,
+    });
+  }
+
+  // If odd number, highest ELO gets bye
+  if (shuffled.length % 2 === 1) {
+    const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
+    const byePlayer = sorted[0];
+    console.log(`🎯 League Round: Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    matches.push({
+      tournament_id: tournamentId,
+      round_id: roundId,
+      player1_id: byePlayer.user_id,
+      player2_id: null,
+      is_bye: true,
+    });
+  }
+
+  return matches;
+}
+
+/**
  * Activates a round and generates its matches (for first time only)
  */
 export async function activateRound(tournamentId: string, roundNumber: number): Promise<boolean> {
@@ -220,9 +397,74 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       [tournamentId]
     );
 
+    if (tournamentResult.rows.length === 0) {
+      throw new Error('Tournament not found');
+    }
+
     const tournament = tournamentResult.rows[0];
 
-    // Get accepted participants for first round, or non-eliminated participants from previous rounds
+    // Check if this is transitioning from Swiss to Elimination phase
+    if (roundNumber > 1) {
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`🔄 [ACTIVATE_ROUND] Checking for Swiss→Elimination transition`);
+      console.log(`${'='.repeat(80)}`);
+      console.log(`Tournament ID: ${tournamentId}`);
+      console.log(`Round Number: ${roundNumber}`);
+      console.log(`Tournament Type: ${tournament.tournament_type}`);
+      
+      const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+      const roundTypeResult = await query(
+        `SELECT round_type FROM tournament_rounds WHERE id = $1`,
+        [round.id]
+      );
+      const roundType = roundTypeResult.rows[0]?.round_type?.toLowerCase() || 'general';
+      
+      console.log(`Round Type from DB: ${roundTypeResult.rows[0]?.round_type}`);
+      console.log(`Round Type (lowercase): ${roundType}`);
+      console.log(`Is elimination phase? ${roundType !== 'general'}`);
+      
+      // If we're activating the first elimination round in a swiss_elimination tournament,
+      // we need to select players if not already done
+      if (tournamentType === 'swiss_elimination' && roundType !== 'general') {
+        console.log(`\n✅ [ACTIVATE_ROUND] Detected Swiss-Elimination Mix entering elimination phase`);
+        
+        const tournamentInfo = await query(
+          `SELECT general_rounds, final_rounds FROM tournaments WHERE id = $1`,
+          [tournamentId]
+        );
+        const { general_rounds, final_rounds } = tournamentInfo.rows[0];
+        
+        console.log(`General Rounds (Swiss phase): ${general_rounds}`);
+        console.log(`Final Rounds (Elimination phase): ${final_rounds}`);
+        console.log(`Players to advance: ${Math.pow(2, final_rounds)}`);
+        
+        // Check if players have already been selected (should have at least some eliminated)
+        const eliminatedCount = await query(
+          `SELECT COUNT(*) as count FROM tournament_participants 
+           WHERE tournament_id = $1 AND status = 'eliminated'`,
+          [tournamentId]
+        );
+        
+        const elimCount = eliminatedCount.rows[0].count;
+        console.log(`Currently eliminated players: ${elimCount}`);
+        
+        // If no players are eliminated yet, run the selection
+        if (elimCount === 0) {
+          console.log(`\n⚠️  [ACTIVATE_ROUND] No eliminated players detected. Running selectPlayersForEliminationPhase()...`);
+          await selectPlayersForEliminationPhase(tournamentId, final_rounds);
+          console.log(`✅ [ACTIVATE_ROUND] selectPlayersForEliminationPhase() completed`);
+        } else {
+          console.log(`\n⏭️  [ACTIVATE_ROUND] Already have ${elimCount} eliminated players, skipping selection`);
+        }
+      } else {
+        console.log(`\n⏭️  [ACTIVATE_ROUND] NOT a Swiss-Elimination transition. Conditions:`, {
+          isSWISSEL: tournamentType === 'swiss_elimination',
+          isELIM: roundType !== 'general'
+        });
+      }
+    }
+
+    // Get accepted participants for first round, or based on tournament type for subsequent rounds
     let participants;
     if (roundNumber === 1) {
       const participantsResult = await query(
@@ -234,16 +476,55 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       );
       participants = participantsResult.rows;
     } else {
-      // For subsequent rounds, only get non-eliminated participants who haven't lost yet
-      // Must have been accepted and not eliminated
-      const participantsResult = await query(
-        `SELECT tp.id, tp.user_id, u.elo_rating
-         FROM tournament_participants tp
-         LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted' AND status = 'active'`,
-        [tournamentId]
+      // For subsequent rounds, behavior depends on tournament type AND round type
+      const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+      
+      // Get the round type - must query it since it wasn't in the initial round fetch
+      const roundTypeResult = await query(
+        `SELECT round_type FROM tournament_rounds WHERE id = $1`,
+        [round.id]
       );
-      participants = participantsResult.rows;
+      const roundType = roundTypeResult.rows[0]?.round_type?.toLowerCase() || 'general';
+      
+      console.log(`\n[GET_PARTICIPANTS] Round Type check: "${roundType}" (not 'general'? ${roundType !== 'general'})`);
+      
+      if (tournamentType === 'elimination') {
+        // Elimination: only get non-eliminated participants (status = 'active')
+        const participantsResult = await query(
+          `SELECT tp.id, tp.user_id, u.elo_rating
+           FROM tournament_participants tp
+           LEFT JOIN users u ON tp.user_id = u.id
+           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted' AND status = 'active'`,
+          [tournamentId]
+        );
+        participants = participantsResult.rows;
+        console.log(`[GET_PARTICIPANTS] Elimination round: ${participants.length} active participants`);
+      } else if (tournamentType === 'swiss_elimination' && roundType !== 'general') {
+        // Swiss-Elimination Mix in elimination rounds (not Swiss): only get non-eliminated participants (status = 'active')
+        console.log(`[GET_PARTICIPANTS] Swiss-Elimination Mix - ELIMINATION PHASE (roundType="${roundType}")`);
+        const participantsResult = await query(
+          `SELECT tp.id, tp.user_id, u.elo_rating
+           FROM tournament_participants tp
+           LEFT JOIN users u ON tp.user_id = u.id
+           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted' AND status = 'active'`,
+          [tournamentId]
+        );
+        participants = participantsResult.rows;
+        console.log(`[GET_PARTICIPANTS] Found ${participants.length} active participants for elimination round`);
+        console.log(`[GET_PARTICIPANTS] Players: ${participants.map(p => p.user_id).join(', ')}`);
+      } else {
+        // Swiss, League, Swiss-Elimination (general rounds): all accepted participants continue
+        console.log(`[GET_PARTICIPANTS] Swiss/League round (tournamentType="${tournamentType}", roundType="${roundType}")`);
+        const participantsResult = await query(
+          `SELECT tp.id, tp.user_id, u.elo_rating
+           FROM tournament_participants tp
+           LEFT JOIN users u ON tp.user_id = u.id
+           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'`,
+          [tournamentId]
+        );
+        participants = participantsResult.rows;
+        console.log(`[GET_PARTICIPANTS] Swiss/League round: ${participants.length} total participants`);
+      }
     }
 
     if (participants.length === 0) {
@@ -259,14 +540,46 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     const bestOf = bestOfMap[round.round_format] || 3;
     const winsRequired = Math.ceil(bestOf / 2);
 
-    // Generate pairings based on round number
+    // Generate pairings based on round number and tournament type
     let pairings;
     if (roundNumber === 1) {
       // First round: pair all participants
       pairings = generateFirstRoundMatches(participants, tournamentId, round.id);
     } else {
-      // Subsequent rounds (elimination): pair winners from previous round
-      pairings = generateEliminationMatches(participants, tournamentId, round.id);
+      // Subsequent rounds: depends on tournament type AND round type
+      const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+      
+      // Get the round type to determine if we're in final phase
+      const roundTypeResult = await query(
+        `SELECT round_type FROM tournament_rounds WHERE id = $1`,
+        [round.id]
+      );
+      const roundType = roundTypeResult.rows[0]?.round_type?.toLowerCase() || 'general';
+      
+      console.log(`\n[GENERATE_PAIRINGS] Round ${roundNumber}:`);
+      console.log(`  Tournament Type: ${tournamentType}`);
+      console.log(`  Round Type: ${roundType}`);
+      console.log(`  Participants: ${participants.length}`);
+      
+      if (tournamentType === 'elimination') {
+        // Elimination: pair winners from previous round
+        console.log(`  → Using ELIMINATION pairings`);
+        pairings = generateEliminationMatches(participants, tournamentId, round.id);
+      } else if (tournamentType === 'swiss_elimination' && roundType !== 'general') {
+        // Swiss-Elimination Mix in final phase (not Swiss): use elimination pairings
+        console.log(`  → Using ELIMINATION pairings (Swiss-Elimination final phase)`);
+        pairings = generateEliminationMatches(participants, tournamentId, round.id);
+      } else if (tournamentType === 'swiss' || tournamentType === 'swiss_elimination') {
+        // Swiss: use Swiss pairing system for all participants still in tournament
+        console.log(`  → Using SWISS pairings`);
+        pairings = generateSwissMatches(participants, tournamentId, round.id, roundNumber);
+      } else {
+        // League: all participants play each other
+        console.log(`  → Using LEAGUE pairings`);
+        pairings = generateLeagueMatches(participants, tournamentId, round.id);
+      }
+      
+      console.log(`  Generated ${pairings.length} pairings`);
     }
 
     for (const pairing of pairings) {
@@ -403,6 +716,11 @@ export async function completeRound(roundId: string, tournamentId: string): Prom
  */
 export async function checkAndCompleteRound(tournamentId: string, roundNumber: number): Promise<boolean> {
   try {
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`🔍 [CHECK_COMPLETE_ROUND] Checking if Round ${roundNumber} is complete`);
+    console.log(`   Tournament: ${tournamentId}`);
+    console.log(`${'='.repeat(80)}`);
+    
     // Get all matches in this round
     const roundInfo = await query(
       `SELECT id FROM tournament_rounds 
@@ -411,6 +729,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
     );
 
     if (roundInfo.rows.length === 0) {
+      console.log(`❌ No round found`);
       return false;
     }
 
@@ -496,6 +815,41 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
         [roundId]
       );
       console.log(`✅ Round ${roundNumber} marked as completed for tournament ${tournamentId}`);
+
+      // Check if this is the last Swiss round in a Swiss-Elimination Mix tournament
+      const currentRoundInfo = await query(
+        `SELECT tr.round_type, t.tournament_type, t.general_rounds, t.final_rounds
+         FROM tournament_rounds tr
+         JOIN tournaments t ON tr.tournament_id = t.id
+         WHERE tr.id = $1`,
+        [roundId]
+      );
+
+      if (currentRoundInfo.rows.length > 0) {
+        const { round_type, tournament_type, general_rounds, final_rounds } = currentRoundInfo.rows[0];
+        
+        console.log(`\n📋 [DEBUG] Round completion check:`);
+        console.log(`   Round Type: ${round_type}`);
+        console.log(`   Tournament Type: ${tournament_type}`);
+        console.log(`   Round Number: ${roundNumber} / ${general_rounds}`);
+        console.log(`   Check 1 - Type is swiss_elimination? ${tournament_type === 'swiss_elimination'}`);
+        console.log(`   Check 2 - Round type is general? ${round_type === 'general'}`);
+        console.log(`   Check 3 - Is last Swiss round? ${roundNumber === general_rounds}`);
+        
+        // Only execute if:
+        // 1. Tournament type is 'swiss_elimination'
+        // 2. Current round type is 'general' (Swiss phase)
+        // 3. This is the last Swiss round (roundNumber === general_rounds)
+        if (tournament_type === 'swiss_elimination' && round_type === 'general' && roundNumber === general_rounds) {
+          console.log(`\n✅ [SWISS_ELIMINATION] Completed last Swiss round (Round ${roundNumber}/${general_rounds})`);
+          console.log(`📊 [SWISS_ELIMINATION] Now selecting top ${Math.pow(2, final_rounds)} players for elimination phase...`);
+          
+          // Execute player selection for elimination phase
+          await selectPlayersForEliminationPhase(tournamentId, final_rounds);
+        } else {
+          console.log(`\n⏭️  [SWISS_ELIMINATION] Not executing selectPlayersForEliminationPhase() - conditions not met`);
+        }
+      }
 
       // Check if this is the last round
       const totalRoundsResult = await query(

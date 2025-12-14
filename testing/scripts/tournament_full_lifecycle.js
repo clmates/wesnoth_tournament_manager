@@ -55,9 +55,22 @@ const timestampNow = () => {
 
 const logFile = path.join(RESULTS_DIR, `tournament_lifecycle_${timestampNow()}.log`);
 
+// Initialize log file
+console.log(`[INIT] Creating log file at: ${logFile}`);
+try {
+  fs.writeFileSync(logFile, `Tournament Lifecycle Test Started at ${new Date().toISOString()}\n`);
+  console.log(`[INIT] Log file created successfully`);
+} catch (err) {
+  console.error(`[INIT ERROR] Failed to create log file:`, err.message);
+}
+
 function appendLog(line) {
   const timestamp = new Date().toISOString();
-  fs.appendFileSync(logFile, `[${timestamp}] ${line}\n`);
+  try {
+    fs.appendFileSync(logFile, `[${timestamp}] ${line}\n`);
+  } catch (err) {
+    console.error(`[LOG ERROR] Failed to write to ${logFile}:`, err.message);
+  }
 }
 
 function logPhase(phase, details) {
@@ -182,7 +195,7 @@ function makeRequest(method, endpoint, body = null, token = null) {
 async function loginUser(nickname, password) {
   try {
     const response = await makeRequest('POST', '/api/auth/login', { nickname, password });
-    return response.token;
+    return response; // Return both token and userId
   } catch (error) {
     throw new Error(`Login failed for ${nickname}: ${error.message}`);
   }
@@ -260,60 +273,47 @@ async function getRoundMatches(token, tournamentId, roundId) {
   }
 }
 
-async function reportMatch(token, matchId, winnerId) {
+async function reportMatch(token, tournamentId, matchId, winnerId, loserId) {
   try {
+    // Step 1: Report the match using the general match reporting endpoint
     const reportData = {
-      winner_id: winnerId,
+      opponent_id: loserId,
+      map: 'AutoMap',
+      winner_faction: 'Human',
+      loser_faction: 'Orc',
       comments: getRandomComment(),
+      rating: 3,
+      tournament_id: tournamentId,
+      tournament_match_id: matchId
     };
 
-    // Try to attach a random replay file
-    const replayFile = getRandomReplayFile();
-    if (replayFile && fs.existsSync(replayFile)) {
-      // If replay file exists, use multipart form data
-      return new Promise((resolve, reject) => {
-        const form = new FormData();
-        form.append('winner_id', winnerId);
-        form.append('comments', reportData.comments);
-        form.append('replay', fs.createReadStream(replayFile));
+    const reportResponse = await makeRequest(
+      'POST',
+      '/api/matches/report-json',
+      reportData,
+      token
+    );
 
-        const url = new URL(`${BASE_URL}/api/matches/${matchId}/report`);
-        const options = {
-          hostname: url.hostname,
-          port: url.port || 3000,
-          path: url.pathname + url.search,
-          method: 'POST',
-          headers: {
-            ...form.getHeaders(),
-            'Authorization': `Bearer ${token}`,
-          },
-        };
-
-        const req = http.request(options, (res) => {
-          let data = '';
-          res.on('data', (chunk) => (data += chunk));
-          res.on('end', () => {
-            try {
-              const parsed = data ? JSON.parse(data) : {};
-              if (res.statusCode >= 200 && res.statusCode < 300) {
-                resolve(parsed);
-              } else {
-                reject({ status: res.statusCode, message: parsed.error || 'API Error' });
-              }
-            } catch (e) {
-              reject({ status: res.statusCode, message: 'Invalid JSON response' });
-            }
-          });
-        });
-
-        req.on('error', reject);
-        form.pipe(req);
-      });
-    } else {
-      // No replay file, use regular JSON request
-      const response = await makeRequest('POST', `/api/matches/${matchId}/report`, reportData, token);
-      return response;
+    if (!reportResponse || !reportResponse.id) {
+      throw new Error('Failed to report match - no match ID returned');
     }
+
+    const reportedMatchId = reportResponse.id;
+
+    // Step 2: Link the reported match to the tournament match
+    const linkData = {
+      winner_id: winnerId,
+      reported_match_id: reportedMatchId
+    };
+
+    const linkResponse = await makeRequest(
+      'POST',
+      `/api/tournaments/${tournamentId}/matches/${matchId}/result`,
+      linkData,
+      token
+    );
+
+    return { reportedMatchId, linkResponse };
   } catch (error) {
     throw new Error(`Match report failed: ${error.message}`);
   }
@@ -321,7 +321,11 @@ async function reportMatch(token, matchId, winnerId) {
 
 async function completeRound(token, tournamentId, roundId) {
   try {
-    const response = await makeRequest('POST', `/api/tournaments/${tournamentId}/rounds/${roundId}/complete`, {}, token);
+    // Add a small delay to ensure database state is updated
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Move to next round using the correct endpoint
+    const response = await makeRequest('POST', `/api/tournaments/${tournamentId}/next-round`, {}, token);
     return response;
   } catch (error) {
     throw new Error(`Round completion failed: ${error.message}`);
@@ -407,9 +411,11 @@ async function pause(message) {
 async function runTournamentLifecycle(config) {
   const { tournamentType, stepByStep } = config;
   let users = [];
-  let tokens = {};
+  let tokens = {}; // nickname -> token
+  let userIdToToken = {}; // userId -> token
   let tournamentId = null;
   let creatorToken = null;
+  let enrolledPlayers = []; // Array of {userId, token, nickname}
 
   try {
     logPhase('INITIALIZATION', `Tournament Type: ${tournamentType}, Mode: ${stepByStep ? 'Step-by-Step' : 'Automatic'}`);
@@ -422,7 +428,9 @@ async function runTournamentLifecycle(config) {
 
     for (const user of users) {
       try {
-        tokens[user.nickname] = await loginUser(user.nickname, user.password);
+        const loginResult = await loginUser(user.nickname, user.password);
+        tokens[user.nickname] = loginResult.token;
+        userIdToToken[loginResult.userId] = loginResult.token;
         logAction(`Login ${user.nickname}`, 'SUCCESS');
       } catch (error) {
         logError(`Login ${user.nickname}`, error);
@@ -434,32 +442,54 @@ async function runTournamentLifecycle(config) {
       throw new Error('Need at least 2 logged-in users for tournament');
     }
 
-    creatorToken = tokens[availableUsers[0]];
+    const creatorNickname = availableUsers[0];
+    creatorToken = tokens[creatorNickname];
 
     if (stepByStep) {
       await pause('⏸️  SETUP PHASE COMPLETE');
     }
 
     // Create tournament
-    logPhase('TOURNAMENT CREATION', `Creating ${tournamentType} tournament with ${Math.min(8, availableUsers.length)} players`);
+    logPhase('TOURNAMENT CREATION', `Creating ${tournamentType} tournament with ${tournamentType === 'league' ? 4 : 8} players`);
 
-    const maxParticipants = Math.min(8, availableUsers.length);
-    const tournamentData = {
-      name: `Test ${tournamentType.toUpperCase()} Tournament ${new Date().toISOString().slice(0, 10)}`,
+    // League tournaments are faster with fewer participants
+    const maxParticipants = tournamentType === 'league' ? Math.min(4, availableUsers.length) : Math.min(8, availableUsers.length);
+    const tournamentName = process.env.TOURNAMENT_NAME || `Test ${tournamentType.toUpperCase()} Tournament ${new Date().toISOString().slice(0, 10)}`;
+    
+    // Configure tournament based on type
+    let tournamentData = {
+      name: tournamentName,
       description: `Automated test tournament - ${tournamentType} format`,
       tournament_type: tournamentType,
       max_participants: maxParticipants,
       round_duration_days: 1,
       auto_advance_round: true,
-      general_rounds: tournamentType === 'elimination' ? 0 : 3,
-      final_rounds: tournamentType === 'elimination' ? 3 : 0,
       general_rounds_format: 'bo1',
       final_rounds_format: 'bo1',
     };
 
+    // Set rounds based on tournament type
+    if (tournamentType === 'elimination') {
+      // Pure elimination: 3 final rounds (Quarterfinals, Semifinals, Final)
+      tournamentData.general_rounds = 0;
+      tournamentData.final_rounds = 3;
+    } else if (tournamentType === 'league') {
+      // League: 2 general rounds (ida y vuelta - home and away)
+      tournamentData.general_rounds = 2;
+      tournamentData.final_rounds = 0;
+    } else if (tournamentType === 'swiss') {
+      // Swiss: 3 general rounds
+      tournamentData.general_rounds = 3;
+      tournamentData.final_rounds = 0;
+    } else if (tournamentType === 'swiss_elimination') {
+      // Swiss-Elimination Mix: 3 Swiss rounds + 2 Elimination rounds (Semifinals, Final)
+      tournamentData.general_rounds = 3;
+      tournamentData.final_rounds = 2;
+    }
+
     const createResult = await createTournament(creatorToken, tournamentData);
     tournamentId = createResult.id;
-    logAction('Tournament Created', 'SUCCESS', `ID: ${tournamentId}`);
+    logAction('Tournament Created', 'SUCCESS', `ID: ${tournamentId}, Type: ${tournamentType}, General Rounds: ${tournamentData.general_rounds}, Final Rounds: ${tournamentData.final_rounds}`);
 
     if (stepByStep) {
       await pause('⏸️  TOURNAMENT CREATED - Ready to enroll players');
@@ -468,10 +498,22 @@ async function runTournamentLifecycle(config) {
     // Enroll players
     logPhase('PLAYER ENROLLMENT', `Enrolling ${Math.min(maxParticipants, availableUsers.length - 1)} players`);
 
+    enrolledPlayers = []; // Reset enrolled players array
     for (let i = 1; i < Math.min(maxParticipants + 1, availableUsers.length); i++) {
       const nickname = availableUsers[i];
       try {
         await enrollPlayer(tokens[nickname], tournamentId);
+        // Find the userId for this nickname token
+        let userId = null;
+        for (const [uid, token] of Object.entries(userIdToToken)) {
+          if (token === tokens[nickname]) {
+            userId = uid;
+            break;
+          }
+        }
+        if (userId) {
+          enrolledPlayers.push({ userId, token: tokens[nickname], nickname });
+        }
         logAction(`Enroll ${nickname}`, 'SUCCESS');
       } catch (error) {
         logError(`Enroll ${nickname}`, error);
@@ -529,14 +571,28 @@ async function runTournamentLifecycle(config) {
 
     let roundNumber = 1;
     let tournamentActive = true;
+    let maxRounds = 100; // Will be updated with actual tournament data
+    const maxRoundsLimit = process.env.MAX_ROUNDS ? parseInt(process.env.MAX_ROUNDS) : null;
 
-    while (tournamentActive && roundNumber <= 10) {
-      const roundPrefix = `Round ${roundNumber}`;
-
+    while (tournamentActive && roundNumber <= maxRounds) {
       try {
+        // Check if we should stop at Swiss rounds only
+        if (maxRoundsLimit && roundNumber > maxRoundsLimit) {
+          logAction(`Round ${roundNumber}`, 'INFO', `Stopping at round ${roundNumber} (MAX_ROUNDS=${maxRoundsLimit})`);
+          tournamentActive = false;
+          break;
+        }
+
         const tournament = await getTournamentDetails(creatorToken, tournamentId);
+        
+        // Update maxRounds on first iteration (or if not set)
+        if (roundNumber === 1) {
+          maxRounds = tournament.total_rounds || 100;
+          logAction(`Round Execution Setup`, 'SUCCESS', `Max rounds for this tournament: ${maxRounds}`);
+        }
+        
         if (tournament.status !== 'in_progress') {
-          logAction(`${roundPrefix} - Status Check`, 'SUCCESS', `Tournament status: ${tournament.status}`);
+          logAction(`Round ${roundNumber}`, 'SUCCESS', `Tournament status: ${tournament.status}`);
           tournamentActive = tournament.status === 'in_progress';
           if (!tournamentActive) break;
         }
@@ -545,12 +601,29 @@ async function runTournamentLifecycle(config) {
         const currentRound = roundsResult.find((r) => r.round_number === roundNumber);
 
         if (!currentRound) {
-          logAction(`${roundPrefix} - Round Check`, 'INFO', 'No more rounds available');
+          logAction(`Round ${roundNumber}`, 'INFO', 'No more rounds available');
           tournamentActive = false;
           break;
         }
 
-        logPhase(`ROUND ${roundNumber}`, `Getting matches for round ${roundNumber}`);
+        // Determine round type label using new classification system
+        let roundTypeLabel = currentRound.round_phase_label || 'Round';
+        
+        // Fallback to old logic if new fields not available
+        if (!currentRound.round_phase_label) {
+          roundTypeLabel = currentRound.round_type === 'general' ? 'SWISS' : 'ELIMINATION';
+          if (currentRound.round_type === 'final') {
+            // For final rounds, determine the stage (Quarterfinals, Semifinals, Final)
+            const remainingFinalRounds = roundsResult.filter(r => r.round_type === 'final' && r.round_number >= roundNumber).length;
+            if (remainingFinalRounds === 3) roundTypeLabel = 'QUARTERFINALS (8→4)';
+            else if (remainingFinalRounds === 2) roundTypeLabel = 'SEMIFINALS (4→2)';
+            else if (remainingFinalRounds === 1) roundTypeLabel = 'FINAL (2→1)';
+          }
+        }
+        
+        const roundPrefix = `Round ${roundNumber} [${roundTypeLabel}]${currentRound.round_classification ? ` (${currentRound.round_classification})` : ''}`;
+
+        logPhase(`ROUND ${roundNumber}`, `Getting matches for round ${roundNumber} - ${roundTypeLabel}`);
 
         const matches = await getRoundMatches(creatorToken, tournamentId, currentRound.id);
         logAction(`${roundPrefix} - Fetch Matches`, 'SUCCESS', `Found ${matches.length} matches`);
@@ -571,11 +644,19 @@ async function runTournamentLifecycle(config) {
 
           // Randomly select winner (prefer player with lower ID to simulate varied outcomes)
           const winner = Math.random() > 0.5 ? match.player1_id : match.player2_id;
+          const loser = winner === match.player1_id ? match.player2_id : match.player1_id;
           const comment = getRandomComment();
           const replayFile = getRandomReplayFile();
 
+          // Get the winner's token (player must report their own match)
+          const winnerToken = userIdToToken[winner];
+          if (!winnerToken) {
+            logError(`${roundPrefix} - Report Match ${match.id}`, new Error(`Winner token not found for ${winner}`));
+            continue;
+          }
+
           try {
-            await reportMatch(creatorToken, match.id, winner);
+            await reportMatch(winnerToken, tournamentId, match.id, winner, loser);
             const replayInfo = replayFile ? ` [Replay: ${path.basename(replayFile)}]` : '';
             logAction(
               `${roundPrefix} - Report Match ${match.id}`, 
@@ -592,12 +673,29 @@ async function runTournamentLifecycle(config) {
           await pause(`⏸️  ROUND ${roundNumber} COMPLETE - ${matchCount} matches reported`);
         }
 
-        // Complete round
-        try {
-          await completeRound(creatorToken, tournamentId, currentRound.id);
-          logAction(`${roundPrefix} - Round Completed`, 'SUCCESS');
-        } catch (error) {
-          logError(`${roundPrefix} - Round Completion`, error);
+        // Note: Round completion happens automatically when all matches are reported.
+        // We don't need to manually trigger it. Just log the completion.
+        if (matchCount > 0) {
+          logAction(`${roundPrefix} - All Matches Reported`, 'SUCCESS', `${matchCount} matches completed`);
+
+          // Check if we should activate next round
+          const shouldActivateNext = !maxRoundsLimit || roundNumber < maxRoundsLimit;
+          
+          if (shouldActivateNext) {
+            // Activate next round if there are matches reported
+            if (stepByStep) {
+              await pause(`⏸️  Preparing to activate next round`);
+            }
+
+            try {
+              const nextRoundResponse = await completeRound(creatorToken, tournamentId, currentRound.id);
+              logAction(`${roundPrefix} - Next Round Activated`, 'SUCCESS', `Moving to round ${roundNumber + 1}`);
+            } catch (error) {
+              logError(`${roundPrefix} - Next Round Activation`, error);
+            }
+          } else {
+            logAction(`${roundPrefix} - Next Round Not Activated`, 'INFO', `Stopping at round ${roundNumber} (MAX_ROUNDS=${maxRoundsLimit})`);
+          }
         }
 
         roundNumber++;
@@ -636,11 +734,31 @@ async function runTournamentLifecycle(config) {
 
 (async () => {
   try {
-    const config = await showMenu();
-    if (config) {
+    console.log('[DEBUG] Entry point started');
+    
+    // Check if running in automated mode via environment variables
+    if (process.env.TOURNAMENT_TYPE && process.env.TOURNAMENT_MODE) {
+      console.log('[DEBUG] Using environment-based configuration');
+      const typeMap = { '1': 'elimination', '2': 'league', '3': 'swiss', '4': 'swiss_elimination' };
+      const typeKey = typeMap[process.env.TOURNAMENT_TYPE];
+      const config = {
+        tournamentType: typeKey,
+        stepByStep: process.env.TOURNAMENT_MODE === 'S'
+      };
+      console.log('[DEBUG] Config from env:', config);
       await runTournamentLifecycle(config);
+      console.log('[DEBUG] Tournament lifecycle completed');
     } else {
-      console.log('Exiting...');
+      console.log('[DEBUG] Using interactive menu');
+      const config = await showMenu();
+      console.log('[DEBUG] Config returned:', config);
+      if (config) {
+        console.log('[DEBUG] Starting tournament lifecycle with config:', config);
+        await runTournamentLifecycle(config);
+        console.log('[DEBUG] Tournament lifecycle completed');
+      } else {
+        console.log('Exiting...');
+      }
     }
     process.exit(0);
   } catch (error) {
