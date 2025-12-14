@@ -26,6 +26,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const FormData = require('form-data');
 
 const BASE_HOST = process.env.TEST_BASE_HOST || 'localhost';
 const BASE_PORT = process.env.TEST_BASE_PORT || 3000;
@@ -33,6 +34,8 @@ const BASE_URL = `http://${BASE_HOST}:${BASE_PORT}`;
 
 const CREDENTIALS_PATH = path.join(__dirname, 'test_credentials.csv');
 const RESULTS_DIR = path.join(__dirname, '..', 'results');
+const WESNOTH_SAVES_DIR = 'C:\\Users\\carlo\\Documents\\My Games\\Wesnoth1.18\\saves';
+
 if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
 
 // =====================
@@ -86,6 +89,47 @@ function logError(action, error) {
   appendLog(`    ${error.message || error}`);
   console.log(`[✗] ERROR in ${action}`);
   console.log(`    ${error.message || error}`);
+}
+
+// =====================
+// Match Comments & Files
+// =====================
+
+const MATCH_COMMENTS = [
+  'Great game! Very competitive match.',
+  'Nice tactics, well played opponent.',
+  'That was intense! Great use of units.',
+  'Well executed strategy, impressive moves.',
+  'Solid gameplay, enjoyed this match.',
+  'Amazing defense, good balance of units.',
+  'Creative strategy, fun to play against.',
+  'Excellent performance from both sides.',
+  'Very interesting unit placement.',
+  'Good micro management throughout.',
+  'Impressive tactical decisions.',
+  'Great match, looking forward to rematch!',
+  'Well deserved victory, gg.',
+  'Strong opening, kept pressure on.',
+  'Good resource management.',
+];
+
+function getRandomComment() {
+  return MATCH_COMMENTS[Math.floor(Math.random() * MATCH_COMMENTS.length)];
+}
+
+function getRandomReplayFile() {
+  try {
+    if (!fs.existsSync(WESNOTH_SAVES_DIR)) {
+      return null;
+    }
+    const files = fs.readdirSync(WESNOTH_SAVES_DIR).filter(
+      f => f.endsWith('.sgf') || f.endsWith('.wsm') || f.endsWith('.zip')
+    );
+    if (files.length === 0) return null;
+    return path.join(WESNOTH_SAVES_DIR, files[Math.floor(Math.random() * files.length)]);
+  } catch (error) {
+    return null;
+  }
 }
 
 // =====================
@@ -209,8 +253,58 @@ async function getRoundMatches(token, tournamentId, roundId) {
 
 async function reportMatch(token, matchId, winnerId) {
   try {
-    const response = await makeRequest('POST', `/api/matches/${matchId}/report`, { winner_id: winnerId }, token);
-    return response;
+    const reportData = {
+      winner_id: winnerId,
+      comments: getRandomComment(),
+    };
+
+    // Try to attach a random replay file
+    const replayFile = getRandomReplayFile();
+    if (replayFile && fs.existsSync(replayFile)) {
+      // If replay file exists, use multipart form data
+      return new Promise((resolve, reject) => {
+        const form = new FormData();
+        form.append('winner_id', winnerId);
+        form.append('comments', reportData.comments);
+        form.append('replay', fs.createReadStream(replayFile));
+
+        const url = new URL(`${BASE_URL}/api/matches/${matchId}/report`);
+        const options = {
+          hostname: url.hostname,
+          port: url.port || 3000,
+          path: url.pathname + url.search,
+          method: 'POST',
+          headers: {
+            ...form.getHeaders(),
+            'Authorization': `Bearer ${token}`,
+          },
+        };
+
+        const req = http.request(options, (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => {
+            try {
+              const parsed = data ? JSON.parse(data) : {};
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                resolve(parsed);
+              } else {
+                reject({ status: res.statusCode, message: parsed.error || 'API Error' });
+              }
+            } catch (e) {
+              reject({ status: res.statusCode, message: 'Invalid JSON response' });
+            }
+          });
+        });
+
+        req.on('error', reject);
+        form.pipe(req);
+      });
+    } else {
+      // No replay file, use regular JSON request
+      const response = await makeRequest('POST', `/api/matches/${matchId}/report`, reportData, token);
+      return response;
+    }
   } catch (error) {
     throw new Error(`Match report failed: ${error.message}`);
   }
@@ -454,10 +548,17 @@ async function runTournamentLifecycle(config) {
 
           // Randomly select winner (prefer player with lower ID to simulate varied outcomes)
           const winner = Math.random() > 0.5 ? match.player1_id : match.player2_id;
+          const comment = getRandomComment();
+          const replayFile = getRandomReplayFile();
 
           try {
             await reportMatch(creatorToken, match.id, winner);
-            logAction(`${roundPrefix} - Report Match ${match.id}`, 'SUCCESS', `Winner: ${winner}`);
+            const replayInfo = replayFile ? ` [Replay: ${path.basename(replayFile)}]` : '';
+            logAction(
+              `${roundPrefix} - Report Match ${match.id}`, 
+              'SUCCESS', 
+              `Winner: ${winner}, Comment: "${comment}"${replayInfo}`
+            );
             matchCount++;
           } catch (error) {
             logError(`${roundPrefix} - Report Match ${match.id}`, error);
