@@ -19,6 +19,12 @@ const Login: React.FC = () => {
     setLoading(true);
     try {
       const response = await authService.login(nickname, password);
+      
+      // Validate token before storing
+      if (!response.data.token || !response.data.userId) {
+        throw new Error('Invalid response: missing token or userId');
+      }
+      
       setToken(response.data.token);
       setUserId(response.data.userId);
       

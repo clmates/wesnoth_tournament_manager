@@ -48,9 +48,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
+    // Clear all auth-related localStorage items
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
     localStorage.removeItem('isAdmin');
+    localStorage.removeItem('user');
+    // Also clear sessionStorage just in case
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('userId');
+    sessionStorage.removeItem('isAdmin');
     set({ token: null, userId: null, user: null, isAuthenticated: false, isAdmin: false });
   },
 }));

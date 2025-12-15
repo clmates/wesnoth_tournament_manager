@@ -1029,7 +1029,11 @@ router.get('/:tournamentId/matches', async (req, res) => {
         m.status as match_status_from_matches,
         m.winner_faction,
         m.loser_faction,
-        m.map
+        m.map,
+        m.winner_comments,
+        m.loser_comments,
+        m.replay_file_path,
+        m.replay_downloads
        FROM tournament_matches tm
        JOIN tournament_rounds tr ON tm.round_id = tr.id
        LEFT JOIN users u1 ON tm.player1_id = u1.id

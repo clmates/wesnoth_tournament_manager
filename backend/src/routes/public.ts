@@ -193,6 +193,7 @@ router.get('/tournaments/:id/participants', async (req, res) => {
         u.nickname,
         u.elo_rating,
         tp.participation_status,
+        tp.status,
         tp.tournament_ranking,
         tp.tournament_wins,
         tp.tournament_losses,

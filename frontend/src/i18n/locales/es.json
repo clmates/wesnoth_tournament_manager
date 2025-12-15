@@ -116,6 +116,7 @@
   "no_replay": "Sin replay",
   "download": "Descargar",
   "downloads": "Descargas",
+  "close_btn": "Cerrar",
   "recent_games": "Partidas Recientes",
   "recent_games_no_data": "No hay partidas recientes",
   "my_opponents": "Mis Oponentes",
@@ -300,6 +301,9 @@
     "ranking": "Clasificación"
   },
   "label_ranking": "Clasificación",
+  "label_classification": "Estado",
+  "label_active": "Activo",
+  "label_eliminated": "Eliminado",
   "label_points": "Puntos",
   "label_player1": "Jugador 1",
   "label_player2": "Jugador 2",
@@ -313,7 +317,8 @@
   "label_format": "Formato",
   "matches": {
     "scheduled": "Partidas Programadas",
-    "completed": "Partidas Completadas"
+    "completed": "Partidas Completadas",
+    "details": "Detalles de la Partida"
   },
   "no_scheduled_matches": "No hay partidas programadas en este momento.",
   "no_rounds_configured": "No hay rondas configuradas.",

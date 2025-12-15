@@ -32,6 +32,7 @@ interface TournamentParticipant {
   user_id: string;
   nickname: string;
   participation_status: string;
+  status: string | null;
   tournament_ranking: number;
   tournament_wins: number;
   tournament_losses: number;
@@ -58,6 +59,10 @@ interface TournamentMatch {
   winner_faction?: string;
   loser_faction?: string;
   map?: string;
+  winner_comments?: string;
+  loser_comments?: string;
+  replay_file_path?: string;
+  replay_downloads?: number;
 }
 
 const TournamentDetail: React.FC = () => {
@@ -83,6 +88,7 @@ const TournamentDetail: React.FC = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [confirmMatchData, setConfirmMatchData] = useState<any>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [matchDetailsModal, setMatchDetailsModal] = useState<{ isOpen: boolean; match: TournamentMatch | null }>({ isOpen: false, match: null });
   const [determineWinnerData, setDetermineWinnerData] = useState<any>(null);
   const [showDetermineWinnerModal, setShowDetermineWinnerModal] = useState(false);
   const [editData, setEditData] = useState({
@@ -613,7 +619,7 @@ const TournamentDetail: React.FC = () => {
                   <th>{t('label_nickname')}</th>
                   <th>{t('label_status')}</th>
                   <th>{t('label_elo')}</th>
-                  <th>{t('label_ranking')}</th>
+                  <th>{t('label_classification')}</th>
                   <th>{t('label_wins')}</th>
                   <th>{t('label_losses')}</th>
                   <th>{t('label_points')}</th>
@@ -633,7 +639,11 @@ const TournamentDetail: React.FC = () => {
                       </span>
                     </td>
                     <td>{p.elo_rating || '-'}</td>
-                    <td>{p.tournament_ranking || '-'}</td>
+                    <td>
+                      <span className="classification-badge">
+                        {p.status ? (p.status === 'active' ? '✓ ' + t('label_active') : '✗ ' + t('label_eliminated')) : '-'}
+                      </span>
+                    </td>
                     <td>{p.tournament_wins}</td>
                     <td>{p.tournament_losses}</td>
                     <td>{p.tournament_points}</td>
@@ -836,6 +846,11 @@ const TournamentDetail: React.FC = () => {
                                   <div className="first-row">
                                     <strong>{match.winner_nickname || '-'}</strong>
                                   </div>
+                                  {match.winner_comments && (
+                                    <div className="comments-row winner-comments">
+                                      <small>{match.winner_comments}</small>
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                               <td>
@@ -843,6 +858,11 @@ const TournamentDetail: React.FC = () => {
                                   <div className="first-row">
                                     <strong>{loserNickname}</strong>
                                   </div>
+                                  {match.loser_comments && (
+                                    <div className="comments-row loser-comments">
+                                      <small>{match.loser_comments}</small>
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                               <td>{match.map || '-'}</td>
@@ -860,23 +880,37 @@ const TournamentDetail: React.FC = () => {
                                     )}
                                   </div>
                                   <div className="actions-item">
-                                    {!isAdminDetermined && isCurrentUserLoser && confirmationStatus === 'unconfirmed' && (
-                                      <button
-                                          className="btn-confirm-dispute"
-                                          onClick={() => handleOpenConfirmModal(match)}
-                                        >
-                                          {t('confirm_dispute')}
-                                        </button>
-                                    )}
                                     {!isAdminDetermined && match.match_id ? (
-                                      <button
-                                        className="btn-view-match"
-                                        onClick={() => navigate(`/matches/${match.match_id}`)}
-                                      >
-                                        {t('view_match')}
-                                      </button>
+                                      <>
+                                        <button
+                                          className="details-btn"
+                                          onClick={() => setMatchDetailsModal({ isOpen: true, match })}
+                                          title={t('view_match_details')}
+                                        >
+                                          {t('details_btn')}
+                                        </button>
+                                        {match.replay_file_path ? (
+                                          <button
+                                            className="download-btn"
+                                            onClick={() => handleDownloadReplay(match.match_id, match.replay_file_path)}
+                                            title={`${t('downloads')}: ${match.replay_downloads || 0}`}
+                                          >
+                                            ⬇️
+                                          </button>
+                                        ) : (
+                                          <span className="no-replay">{t('no_replay')}</span>
+                                        )}
+                                      </>
                                     ) : (
                                       <span className="no-link">-</span>
+                                    )}
+                                    {!isAdminDetermined && isCurrentUserLoser && confirmationStatus === 'unconfirmed' && (
+                                      <button
+                                        className="btn-confirm-dispute"
+                                        onClick={() => handleOpenConfirmModal(match)}
+                                      >
+                                        {t('confirm_dispute')}
+                                      </button>
                                     )}
                                   </div>
                                 </div>
@@ -1134,6 +1168,89 @@ const TournamentDetail: React.FC = () => {
                   {determineWinnerData.player2_nickname} {t('label_wins')}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Match Details Modal */}
+      {matchDetailsModal.isOpen && matchDetailsModal.match && (
+        <div className="modal-overlay" onClick={() => setMatchDetailsModal({ isOpen: false, match: null })}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{t('matches.details')}</h2>
+              <button className="close-btn" onClick={() => setMatchDetailsModal({ isOpen: false, match: null })}>✕</button>
+            </div>
+
+            <div className="modal-body">
+              <div className="match-details-container">
+                {/* Row 1: Date, Map, Status */}
+                <div className="detail-header-row">
+                  <div className="detail-item">
+                    <label>Date:</label>
+                    <span>{matchDetailsModal.match.played_at ? new Date(matchDetailsModal.match.played_at).toLocaleString() : '-'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Map:</label>
+                    <span>{matchDetailsModal.match.map || '-'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Status:</label>
+                    <span className={`status-badge ${matchDetailsModal.match.match_status_from_matches || 'unconfirmed'}`}>
+                      {matchDetailsModal.match.match_status_from_matches === 'confirmed' && '✓ Confirmed'}
+                      {matchDetailsModal.match.match_status_from_matches === 'unconfirmed' && '⏳ Unconfirmed'}
+                      {matchDetailsModal.match.match_status_from_matches === 'disputed' && '⚠ Disputed'}
+                      {matchDetailsModal.match.match_status_from_matches === 'cancelled' && '✗ Cancelled'}
+                      {!matchDetailsModal.match.match_status_from_matches && '⏳ Unconfirmed'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="match-stats-grid">
+                  <div className="grid-header label-col">Statistic</div>
+                  <div className="grid-header winner-col">Winner</div>
+                  <div className="grid-header loser-col">Loser</div>
+
+                  <div className="grid-cell label-cell">Player</div>
+                  <div className="grid-cell winner-cell">{matchDetailsModal.match.winner_nickname || '-'}</div>
+                  <div className="grid-cell loser-cell">{matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_nickname : matchDetailsModal.match.player1_nickname}</div>
+
+                  <div className="grid-cell label-cell">Faction</div>
+                  <div className="grid-cell winner-cell"><span className="faction-badge">{matchDetailsModal.match.winner_faction || '-'}</span></div>
+                  <div className="grid-cell loser-cell"><span className="faction-badge">{matchDetailsModal.match.loser_faction || '-'}</span></div>
+
+                  {(matchDetailsModal.match.winner_comments || matchDetailsModal.match.loser_comments) && (
+                    <>
+                      <div className="grid-cell label-cell">Comments</div>
+                      <div className="grid-cell winner-cell" title={matchDetailsModal.match.winner_comments || undefined}>{matchDetailsModal.match.winner_comments || '-'}</div>
+                      <div className="grid-cell loser-cell" title={matchDetailsModal.match.loser_comments || undefined}>{matchDetailsModal.match.loser_comments || '-'}</div>
+                    </>
+                  )}
+
+                  {matchDetailsModal.match.replay_file_path && (
+                    <>
+                      <div className="grid-cell label-cell">Replay</div>
+                      <div className="grid-cell winner-cell" style={{ gridColumn: '2 / 4' }}>
+                        <button 
+                          className="download-btn-compact"
+                          onClick={() => {
+                            handleDownloadReplay(matchDetailsModal.match!.match_id, matchDetailsModal.match!.replay_file_path);
+                            setMatchDetailsModal({ isOpen: false, match: null });
+                          }}
+                          title={`${t('downloads')}: ${matchDetailsModal.match.replay_downloads || 0}`}
+                        >
+                          ⬇️ {t('download')} ({matchDetailsModal.match.replay_downloads || 0})
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="close-modal-btn" onClick={() => setMatchDetailsModal({ isOpen: false, match: null })}>{t('close_btn')}</button>
             </div>
           </div>
         </div>

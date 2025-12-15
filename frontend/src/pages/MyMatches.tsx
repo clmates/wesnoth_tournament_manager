@@ -389,8 +389,8 @@ const MyMatches: React.FC = () => {
                     {(matchDetailsModal.match.winner_comments || matchDetailsModal.match.loser_comments) && (
                       <>
                         <div className="grid-cell label-cell">Comments</div>
-                        <div className="grid-cell winner-cell">{matchDetailsModal.match.winner_comments || '-'}</div>
-                        <div className="grid-cell loser-cell">{matchDetailsModal.match.loser_comments || '-'}</div>
+                        <div className="grid-cell winner-cell" title={matchDetailsModal.match.winner_comments || undefined}>{matchDetailsModal.match.winner_comments || '-'}</div>
+                        <div className="grid-cell loser-cell" title={matchDetailsModal.match.loser_comments || undefined}>{matchDetailsModal.match.loser_comments || '-'}</div>
                       </>
                     )}
 

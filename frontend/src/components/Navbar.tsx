@@ -36,11 +36,15 @@ const Navbar: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  // Debug: Log isAdmin value
+  // Debug: Log auth state on mount and when it changes
   useEffect(() => {
-    console.log('isAdmin value:', isAdmin);
-    console.log('isAuthenticated value:', isAuthenticated);
-  }, [isAdmin, isAuthenticated]);
+    console.log('=== Navbar Auth Debug ===');
+    console.log('isAuthenticated:', isAuthenticated);
+    console.log('isAdmin:', isAdmin);
+    console.log('token in localStorage:', localStorage.getItem('token'));
+    console.log('userId in localStorage:', localStorage.getItem('userId'));
+    console.log('================================');
+  }, [isAuthenticated, isAdmin]);
 
   const changeLanguage = (lang: string) => {
     i18n.changeLanguage(lang);
@@ -76,9 +80,25 @@ const Navbar: React.FC = () => {
 
           {isAuthenticated && (
             <div className="user-menu">
-              <Link to="/user" className="user-btn">
-                {userNickname}
-              </Link>
+              <button 
+                className="user-btn"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+              >
+                {userNickname} ▼
+              </button>
+              {dropdownOpen && (
+                <div className="user-dropdown">
+                  <Link to="/user" className="dropdown-item">
+                    {t('profile') || 'Profile'}
+                  </Link>
+                  <button 
+                    className="dropdown-item logout-item"
+                    onClick={handleLogout}
+                  >
+                    {t('logout') || 'Logout'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

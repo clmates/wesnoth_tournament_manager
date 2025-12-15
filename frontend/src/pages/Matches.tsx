@@ -386,15 +386,15 @@ const Matches: React.FC = () => {
                   {(matchDetailsModal.match.winner_comments || matchDetailsModal.match.loser_comments) && (
                     <>
                       <div className="grid-cell label-cell">Comments</div>
-                      <div className="grid-cell winner-cell">{matchDetailsModal.match.winner_comments || '-'}</div>
-                      <div className="grid-cell loser-cell">{matchDetailsModal.match.loser_comments || '-'}</div>
+                      <div className="grid-cell winner-cell" title={matchDetailsModal.match.winner_comments || undefined}>{matchDetailsModal.match.winner_comments || '-'}</div>
+                      <div className="grid-cell loser-cell" title={matchDetailsModal.match.loser_comments || undefined}>{matchDetailsModal.match.loser_comments || '-'}</div>
                     </>
                   )}
 
                   {matchDetailsModal.match.replay_file_path && (
                     <>
                       <div className="grid-cell label-cell">Replay</div>
-                      <div className="grid-cell winner-cell" style={{ gridColumn: '2 / 4' }}>
+                      <div className="grid-cell" style={{ gridColumn: '2 / 4' }}>
                         <button 
                           className="download-btn-compact"
                           onClick={() => {
