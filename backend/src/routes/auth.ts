@@ -35,10 +35,10 @@ router.post('/register', async (req, res) => {
     // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Create user directly
+    // Create user directly (blocked by default - admin must activate)
     const result = await query(
       `INSERT INTO users (nickname, email, password_hash, language, discord_id, is_active, is_admin, is_blocked, is_rated, matches_played, elo_provisional, total_wins, total_losses, trend)
-       VALUES ($1, $2, $3, $4, $5, true, false, false, false, 0, false, 0, 0, '-')
+       VALUES ($1, $2, $3, $4, $5, true, false, true, false, 0, false, 0, 0, '-')
        RETURNING id`,
       [nickname, email, passwordHash, language || 'en', discord_id || null]
     );

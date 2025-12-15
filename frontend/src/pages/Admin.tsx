@@ -21,6 +21,7 @@ const AdminUsers: React.FC = () => {
   const [actionType, setActionType] = useState('');
   const [searchNIC, setSearchNIC] = useState('');
   const [recalculatingStats, setRecalculatingStats] = useState(false);
+  const [userStatusFilter, setUserStatusFilter] = useState('all'); // 'all', 'active', 'blocked'
 
   useEffect(() => {
     if (!isAuthenticated || !isAdmin) {
@@ -50,14 +51,31 @@ const AdminUsers: React.FC = () => {
 
   const handleSearchNIC = (value: string) => {
     setSearchNIC(value);
-    if (value.trim() === '') {
-      setFilteredUsers(users);
-    } else {
-      const lowerSearch = value.toLowerCase();
-      setFilteredUsers(
-        users.filter((user) => user.nickname.toLowerCase().includes(lowerSearch))
-      );
+    applyFilters(value, userStatusFilter);
+  };
+
+  const handleStatusFilterChange = (status: string) => {
+    setUserStatusFilter(status);
+    applyFilters(searchNIC, status);
+  };
+
+  const applyFilters = (nicValue: string, statusValue: string) => {
+    let filtered = users;
+
+    // Filter by nickname
+    if (nicValue.trim() !== '') {
+      const lowerSearch = nicValue.toLowerCase();
+      filtered = filtered.filter((user) => user.nickname.toLowerCase().includes(lowerSearch));
     }
+
+    // Filter by status
+    if (statusValue === 'blocked') {
+      filtered = filtered.filter((user) => user.is_blocked === true);
+    } else if (statusValue === 'active') {
+      filtered = filtered.filter((user) => user.is_blocked === false);
+    }
+
+    setFilteredUsers(filtered);
   };
 
   const confirmAction = async () => {
@@ -153,6 +171,21 @@ const AdminUsers: React.FC = () => {
       {error && <p className="error-message">{error}</p>}
       {message && <p className="success-message">{message}</p>}
 
+      <section className="admin-stats">
+        <div className="stat-box">
+          <div className="stat-label">{t('admin.total_users', 'Total Users')}</div>
+          <div className="stat-value">{users.length}</div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-label">{t('admin.blocked_users', 'Blocked Users')}</div>
+          <div className="stat-value blocked-count">{users.filter(u => u.is_blocked).length}</div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-label">{t('admin.active_users', 'Active Users')}</div>
+          <div className="stat-value">{users.filter(u => !u.is_blocked).length}</div>
+        </div>
+      </section>
+
       <section className="admin-actions">
         <button
           className="btn-recalculate-stats"
@@ -165,13 +198,24 @@ const AdminUsers: React.FC = () => {
 
       <section className="users-management">
         <div className="search-container">
-          <input
-            type="text"
-            placeholder={t('admin.search_by_nic')}
-            value={searchNIC}
-            onChange={(e) => handleSearchNIC(e.target.value)}
-            className="search-input"
-          />
+          <div className="search-filters">
+            <input
+              type="text"
+              placeholder={t('admin.search_by_nic')}
+              value={searchNIC}
+              onChange={(e) => handleSearchNIC(e.target.value)}
+              className="search-input"
+            />
+            <select 
+              value={userStatusFilter} 
+              onChange={(e) => handleStatusFilterChange(e.target.value)}
+              className="status-filter-select"
+            >
+              <option value="all">{t('admin.filter_all_users', 'All Users')}</option>
+              <option value="active">{t('admin.filter_active', 'Active')}</option>
+              <option value="blocked">{t('admin.filter_blocked', 'Blocked')}</option>
+            </select>
+          </div>
           <span className="results-count">
             {t('showing_count', { count: filteredUsers.length, total: users.length, page: 1, totalPages: 1 })}
           </span>

@@ -46,6 +46,20 @@
   border-radius: 4px;
 }
 
+/* Override navbar-links styles for dropdown items */
+.user-dropdown a,
+.user-dropdown button {
+  color: #333 !important;
+  padding: 12px 16px !important;
+  background: none !important;
+}
+
+.user-dropdown a:hover,
+.user-dropdown button:hover {
+  background-color: #f8f9fa !important;
+  border-radius: 0 !important;
+}
+
 .report-match-link {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 0.6rem 1.2rem !important;

@@ -89,13 +89,13 @@ const Navbar: React.FC = () => {
               {dropdownOpen && (
                 <div className="user-dropdown">
                   <Link to="/user" className="dropdown-item">
-                    {t('profile') || 'Profile'}
+                    {t('navbar_profile') || 'Profile'}
                   </Link>
                   <button 
                     className="dropdown-item logout-item"
                     onClick={handleLogout}
                   >
-                    {t('logout') || 'Logout'}
+                    {t('navbar_logout') || 'Logout'}
                   </button>
                 </div>
               )}
