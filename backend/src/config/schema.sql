@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL,
   language VARCHAR(2) DEFAULT 'en',
   discord_id VARCHAR(255),
-  elo_rating INTEGER DEFAULT 1600,
+  elo_rating INTEGER DEFAULT 1200,
   level VARCHAR(50) DEFAULT 'novato',
   is_active BOOLEAN DEFAULT false,
   is_blocked BOOLEAN DEFAULT false,

@@ -57,10 +57,10 @@ router.post('/registration-requests/:id/approve', authMiddleware, async (req: Au
     const regRequest = regResult.rows[0];
     const passwordHash = await hashPassword(password);
 
-    // New players start as unrated (is_rated = false, elo_rating = NULL)
+    // New players start with elo_rating = 1200 (unrated status)
     const userResult = await query(
       `INSERT INTO users (nickname, email, language, discord_id, password_hash, is_active, is_rated, elo_rating, matches_played)
-       VALUES ($1, $2, $3, $4, $5, true, false, NULL, 0)
+       VALUES ($1, $2, $3, $4, $5, true, false, 1200, 0)
        RETURNING id`,
       [regRequest.nickname, regRequest.email, regRequest.language, regRequest.discord_id, passwordHash]
     );

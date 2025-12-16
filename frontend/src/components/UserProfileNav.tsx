@@ -80,6 +80,24 @@ const UserProfileNav: React.FC = () => {
 
               <button 
                 className="nav-link admin-link"
+                onClick={() => handleNavigate('/admin/announcements')}
+                title={t('admin_announcements')}
+              >
+                <span className="nav-icon">📢</span>
+                <span className="nav-text">{t('admin_announcements') || 'News'}</span>
+              </button>
+
+              <button 
+                className="nav-link admin-link"
+                onClick={() => handleNavigate('/admin/faq')}
+                title={t('navbar_faq')}
+              >
+                <span className="nav-icon">❓</span>
+                <span className="nav-text">{t('navbar_faq') || 'FAQ'}</span>
+              </button>
+
+              <button 
+                className="nav-link admin-link"
                 onClick={() => handleNavigate('/admin/disputes')}
                 title={t('sidebar.match_disputes')}
               >
