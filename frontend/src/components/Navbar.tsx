@@ -11,7 +11,6 @@ const Navbar: React.FC = () => {
   const [userNickname, setUserNickname] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
-  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
 
   const languages = [
     { code: 'en', name: 'English', countryCode: 'us' },
@@ -80,33 +79,14 @@ const Navbar: React.FC = () => {
           )}
 
           {isAdmin && (
-            <div className="admin-menu">
-              <button 
-                className="admin-btn"
-                onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
-              >
-                ⚙️ Admin ▼
-              </button>
-              {adminDropdownOpen && (
-                <div className="admin-dropdown">
-                  <Link to="/admin" className="dropdown-item" onClick={() => setAdminDropdownOpen(false)}>
-                    {t('admin_users') || 'Users'}
-                  </Link>
-                  <Link to="/admin/announcements" className="dropdown-item" onClick={() => setAdminDropdownOpen(false)}>
-                    {t('admin_announcements') || 'Announcements'}
-                  </Link>
-                  <Link to="/admin/faq" className="dropdown-item" onClick={() => setAdminDropdownOpen(false)}>
-                    {t('admin_faq') || 'FAQ'}
-                  </Link>
-                  <Link to="/admin/tournaments" className="dropdown-item" onClick={() => setAdminDropdownOpen(false)}>
-                    {t('admin_tournaments') || 'Tournaments'}
-                  </Link>
-                  <Link to="/admin/disputes" className="dropdown-item" onClick={() => setAdminDropdownOpen(false)}>
-                    {t('admin_disputes') || 'Disputes'}
-                  </Link>
-                </div>
-              )}
-            </div>
+            <>
+              <Link to="/admin/announcements" className="admin-link">
+                {t('admin_announcements') || 'News'}
+              </Link>
+              <Link to="/admin/faq" className="admin-link">
+                {t('admin_faq') || 'FAQ Admin'}
+              </Link>
+            </>
           )}
 
           {isAuthenticated && (
