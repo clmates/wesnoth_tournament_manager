@@ -82,12 +82,10 @@ const AdminFAQ: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate all languages have content
-    for (const lang of languages) {
-      if (!formData[lang as keyof typeof formData].question || !formData[lang as keyof typeof formData].answer) {
-        setError(`Question and answer required for all languages. Missing in ${languageLabels[lang]}`);
-        return;
-      }
+    // Validate that English is required
+    if (!formData.en.question || !formData.en.answer) {
+      setError('English (question and answer) is required');
+      return;
     }
 
     try {

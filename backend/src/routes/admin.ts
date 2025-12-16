@@ -138,17 +138,25 @@ router.put('/password-policy', authMiddleware, async (req: AuthRequest, res) => 
 router.post('/news', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const languages = ['en', 'es', 'zh', 'de', 'ru'];
+    
+    // English is required
+    const enData = req.body.en;
+    if (!enData || !enData.title || !enData.content) {
+      return res.status(400).json({ error: 'English title and content are required' });
+    }
+
     const createdNewsId = await (async () => {
       let newsId: string | null = null;
       
       for (const lang of languages) {
         const langData = req.body[lang];
+        // Skip languages that are not provided (except English which is required)
         if (!langData || !langData.title || !langData.content) {
-          throw new Error(`Missing title or content for language: ${lang}`);
+          continue;
         }
 
         const result = await query(
-          `INSERT INTO news (title, content, language_code, author_id, published_at)
+          `INSERT INTO public.news (title, content, language_code, author_id, published_at)
            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
            RETURNING id`,
           [langData.title, langData.content, lang, req.userId]
@@ -164,6 +172,7 @@ router.post('/news', authMiddleware, async (req: AuthRequest, res) => {
 
     res.status(201).json({ id: createdNewsId });
   } catch (error: any) {
+    console.error('News creation error:', error);
     res.status(500).json({ error: 'Failed to create news', details: error.message });
   }
 });
@@ -175,18 +184,25 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
     const { id } = req.params;
     const languages = ['en', 'es', 'zh', 'de', 'ru'];
 
+    // English is required
+    const enData = req.body.en;
+    if (!enData || !enData.title || !enData.content) {
+      return res.status(400).json({ error: 'English title and content are required' });
+    }
+
     // Delete existing news for this id in all languages
-    await query('DELETE FROM news WHERE id = $1', [id]);
+    await query('DELETE FROM public.news WHERE id = $1', [id]);
 
     // Re-insert with new data for each language
     for (const lang of languages) {
       const langData = req.body[lang];
+      // Skip languages that are not provided (except English which is required)
       if (!langData || !langData.title || !langData.content) {
-        throw new Error(`Missing title or content for language: ${lang}`);
+        continue;
       }
 
       await query(
-        `INSERT INTO news (id, title, content, language_code, author_id, published_at)
+        `INSERT INTO public.news (id, title, content, language_code, author_id, published_at)
          VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
         [id, langData.title, langData.content, lang, req.userId]
       );
@@ -194,6 +210,7 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
 
     res.json({ message: 'News updated' });
   } catch (error: any) {
+    console.error('News update error:', error);
     res.status(500).json({ error: 'Failed to update news', details: error.message });
   }
 });
@@ -202,9 +219,10 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('DELETE FROM news WHERE id = $1', [id]);
+    await query('DELETE FROM public.news WHERE id = $1', [id]);
     res.json({ message: 'News deleted' });
   } catch (error) {
+    console.error('News delete error:', error);
     res.status(500).json({ error: 'Failed to delete news' });
   }
 });
@@ -241,13 +259,9 @@ router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { en, es, zh, de, ru } = req.body;
 
-    // Validate that all required languages are provided
-    if (!en || !en.question || !en.answer ||
-        !es || !es.question || !es.answer ||
-        !zh || !zh.question || !zh.answer ||
-        !de || !de.question || !de.answer ||
-        !ru || !ru.question || !ru.answer) {
-      return res.status(400).json({ error: 'All 5 languages with question and answer are required' });
+    // Validate that English is required
+    if (!en || !en.question || !en.answer) {
+      return res.status(400).json({ error: 'English question and answer are required' });
     }
 
     // Generate a single ID for all language versions
@@ -261,19 +275,21 @@ router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
       { code: 'ru', data: ru }
     ];
 
-    // Create all 5 language records
+    // Create records for all languages provided (English is guaranteed)
     for (const lang of languages) {
-      await query(
-        `INSERT INTO faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
-        [faqId, lang.data.question, lang.data.answer, lang.code]
-      );
+      if (lang.data && lang.data.question && lang.data.answer) {
+        await query(
+          `INSERT INTO public.faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
+          [faqId, lang.data.question, lang.data.answer, lang.code]
+        );
+      }
     }
 
     // Return the created FAQ ID
-    res.status(201).json({ id: faqId, message: 'FAQ created in all languages' });
+    res.status(201).json({ id: faqId, message: 'FAQ created' });
   } catch (error) {
     console.error('FAQ creation error:', error);
-    res.status(500).json({ error: 'Failed to create FAQ entry' });
+    res.status(500).json({ error: 'Failed to create FAQ entry', details: (error as any).message });
   }
 });
 
@@ -283,17 +299,13 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
     const { id } = req.params;
     const { en, es, zh, de, ru } = req.body;
 
-    // Validate that all required languages are provided
-    if (!en || !en.question || !en.answer ||
-        !es || !es.question || !es.answer ||
-        !zh || !zh.question || !zh.answer ||
-        !de || !de.question || !de.answer ||
-        !ru || !ru.question || !ru.answer) {
-      return res.status(400).json({ error: 'All 5 languages with question and answer are required' });
+    // Validate that English is required
+    if (!en || !en.question || !en.answer) {
+      return res.status(400).json({ error: 'English question and answer are required' });
     }
 
     // Delete all existing records for this FAQ ID
-    await query(`DELETE FROM faq WHERE id = $1`, [id]);
+    await query(`DELETE FROM public.faq WHERE id = $1`, [id]);
 
     const languages = [
       { code: 'en', data: en },
@@ -303,18 +315,20 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
       { code: 'ru', data: ru }
     ];
 
-    // Re-create all 5 language records with updated content
+    // Create records for all languages provided (English is guaranteed)
     for (const lang of languages) {
-      await query(
-        `INSERT INTO faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
-        [id, lang.data.question, lang.data.answer, lang.code]
-      );
+      if (lang.data && lang.data.question && lang.data.answer) {
+        await query(
+          `INSERT INTO public.faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
+          [id, lang.data.question, lang.data.answer, lang.code]
+        );
+      }
     }
 
-    res.json({ id, message: 'FAQ updated in all languages' });
+    res.json({ id, message: 'FAQ updated' });
   } catch (error) {
     console.error('FAQ update error:', error);
-    res.status(500).json({ error: 'Failed to update FAQ entry' });
+    res.status(500).json({ error: 'Failed to update FAQ entry', details: (error as any).message });
   }
 });
 
@@ -322,10 +336,11 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('DELETE FROM faq WHERE id = $1', [id]);
+    await query('DELETE FROM public.faq WHERE id = $1', [id]);
     res.json({ message: 'FAQ entry deleted' });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete FAQ entry' });
+    console.error('FAQ delete error:', error);
+    res.status(500).json({ error: 'Failed to delete FAQ entry', details: (error as any).message });
   }
 });
 

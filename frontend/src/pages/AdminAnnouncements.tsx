@@ -82,12 +82,10 @@ const AdminAnnouncements: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate all languages have content
-    for (const lang of languages) {
-      if (!formData[lang as keyof typeof formData].title || !formData[lang as keyof typeof formData].content) {
-        setError(`Title and content required for all languages. Missing in ${languageLabels[lang]}`);
-        return;
-      }
+    // Validate that English is required
+    if (!formData.en.title || !formData.en.content) {
+      setError('English (title and content) is required');
+      return;
     }
 
     try {
