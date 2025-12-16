@@ -78,17 +78,6 @@ const Navbar: React.FC = () => {
             </Link>
           )}
 
-          {isAdmin && (
-            <>
-              <Link to="/admin/announcements" className="admin-link">
-                {t('admin_announcements') || 'News'}
-              </Link>
-              <Link to="/admin/faq" className="admin-link">
-                {t('admin_faq') || 'FAQ Admin'}
-              </Link>
-            </>
-          )}
-
           {isAuthenticated && (
             <div className="user-menu">
               <button 

@@ -75,21 +75,6 @@
   background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
 }
 
-.admin-link {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
-  padding: 0.6rem 1.2rem !important;
-  border-radius: 6px !important;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3) !important;
-  transition: all 0.3s ease !important;
-}
-
-.admin-link:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.5) !important;
-  background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%) !important;
-}
-
 .logout-btn {
   background-color: #e74c3c;
 }
