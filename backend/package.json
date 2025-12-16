@@ -1,6 +1,7 @@
 {
   "name": "wesnoth-tournament-backend",
   "version": "1.0.0",
+  "license": "MIT",
   "type": "module",
   "description": "Backend for Wesnoth Tournament Management",
   "main": "dist/server.js",
