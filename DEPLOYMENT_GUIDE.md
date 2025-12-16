@@ -34,16 +34,31 @@
 ```
 
 ### Paso 3: Ejecutar Schema en Supabase
+
+**Opción A: Método Simple (Recomendado)**
+
+El archivo `backend/src/config/schema_full_pg_dump.sql` ya está generado. Simplemente:
+
 ```
 1. En Supabase Dashboard → SQL Editor
 2. Click "New Query"
-3. Abre este archivo: backend/src/config/schema_full.sql
+3. Abre este archivo: backend/src/config/schema_full_pg_dump.sql
 4. Ctrl+A (selecciona todo)
 5. Ctrl+C (copia)
 6. En Supabase → Ctrl+V (pega todo)
 7. Click "▶ Run" (botón verde)
 8. Espera a que diga "✓ Success"
 ```
+
+**Opción B: Regenerar desde BD Local (si hay cambios)**
+
+```bash
+# En Windows PowerShell:
+pg_dump -U postgres -d wesnoth_tournament --schema-only `
+  -f backend/src/config/schema_full_pg_dump.sql
+```
+
+Luego sigue los pasos de la **Opción A**.
 
 **✅ Si ves "table already exists":** Es normal, significa que ya existe.
 
