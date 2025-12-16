@@ -4,7 +4,7 @@
 
 Todos los documentos están en la raíz del proyecto:
 ```
-c:\Users\carlo\Documents\Desarrollo\Pruebas\clm_competitive_wesnoth\
+c:\Users\carlo\Documents\Desarrollo\Pruebas\wesnoth_tournament_manager\
 ```
 
 ---
@@ -437,7 +437,7 @@ Si necesitas:
 # 📑 Acceso Directo a Archivos
 
 ```
-Proyecto: clm_competitive_wesnoth
+Proyecto: wesnoth_tournament_manager
 Carpeta: Raíz del proyecto
 
 Archivos creados:

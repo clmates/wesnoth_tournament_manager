@@ -334,7 +334,7 @@ docker ps
 ---## Estructura del Proyecto
 
 ```
-clm_competitive_wesnoth/
+wesnoth_tournament_manager/
 ├── backend/
 │   ├── src/
 │   │   ├── config/          # Configuración de BD

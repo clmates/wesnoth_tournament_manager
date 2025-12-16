@@ -1,4 +1,4 @@
-# 🎯 CLM COMPETITIVE TOURNAMENT SYSTEM - START HERE
+# 🎯 WESNOTH TOURNAMENT MANAGER SYSTEM - START HERE
 
 **Last Updated**: 2025-12-14  
 **Status**: ✅ **PRODUCTION READY**  
@@ -23,7 +23,7 @@
 
 ### Fastest Way (All 4 Types)
 ```bash
-cd c:\Users\carlo\Documents\Desarrollo\Pruebas\clm_competitive_wesnoth
+cd c:\Users\carlo\Documents\Desarrollo\Pruebas\wesnoth_tournament_manager
 node testing/scripts/run_batch_tournament_tests.js
 ```
 

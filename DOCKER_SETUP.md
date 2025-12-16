@@ -176,7 +176,7 @@ scoop install docker
 
 ```powershell
 # Navega a tu proyecto
-cd c:\Users\carlo\Documents\Desarrollo\Pruebas\clm_competitive_wesnoth
+cd c:\Users\carlo\Documents\Desarrollo\Pruebas\wesnoth_tournament_manager
 
 # Inicia los servicios
 docker-compose up

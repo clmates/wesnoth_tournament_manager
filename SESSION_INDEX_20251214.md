@@ -174,7 +174,7 @@ Success Rate: 4/4 (100%)
 
 ### Run All Tests
 ```bash
-cd c:\Users\carlo\Documents\Desarrollo\Pruebas\clm_competitive_wesnoth
+cd c:\Users\carlo\Documents\Desarrollo\Pruebas\wesnoth_tournament_manager
 node testing/scripts/run_batch_tournament_tests.js
 ```
 
