@@ -29,8 +29,8 @@ Una aplicación web completa para gestionar torneos de Wesnoth con sistema de ra
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/clmates/clm_competitive_wesnoth.git
-cd clm_competitive_wesnoth
+git clone https://github.com/clmates/wesnoth_tournament_manager.git
+cd wesnoth_tournament_manager
 
 # Copiar archivo de configuración
 cp backend/.env.example backend/.env
@@ -104,8 +104,8 @@ El frontend estará disponible en: `http://localhost:5173`
 
 ```bash
 # 1. Clonar o descargar el repositorio
-git clone https://github.com/clmates/clm_competitive_wesnoth.git
-cd clm_competitive_wesnoth
+git clone https://github.com/clmates/wesnoth_tournament_manager.git
+cd wesnoth_tournament_manager
 ```
 
 ### Paso 2: Elegir entre Docker o Local
