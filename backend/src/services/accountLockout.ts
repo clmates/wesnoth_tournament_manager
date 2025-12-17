@@ -9,7 +9,7 @@ const LOCKOUT_DURATION_MINUTES = 15;
 export async function isAccountLocked(userId: string): Promise<boolean> {
   try {
     const result = await query(
-      `SELECT locked_until FROM users WHERE id = $1`,
+      `SELECT locked_until FROM public.users WHERE id = $1`,
       [userId]
     );
 
@@ -44,7 +44,7 @@ export async function recordFailedLoginAttempt(userId: string, username: string)
   try {
     // Increment failed attempts
     const result = await query(
-      `UPDATE users SET failed_login_attempts = failed_login_attempts + 1, 
+      `UPDATE public.users SET failed_login_attempts = failed_login_attempts + 1, 
                         last_login_attempt = NOW()
        WHERE id = $1
        RETURNING failed_login_attempts`,
@@ -57,7 +57,7 @@ export async function recordFailedLoginAttempt(userId: string, username: string)
     if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
       const lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
       await query(
-        `UPDATE users SET locked_until = $1 WHERE id = $2`,
+        `UPDATE public.users SET locked_until = $1 WHERE id = $2`,
         [lockUntil, userId]
       );
 
@@ -74,7 +74,7 @@ export async function recordFailedLoginAttempt(userId: string, username: string)
 export async function recordSuccessfulLogin(userId: string): Promise<void> {
   try {
     await query(
-      `UPDATE users SET failed_login_attempts = 0, 
+      `UPDATE public.users SET failed_login_attempts = 0, 
                         locked_until = NULL,
                         last_login_attempt = NOW()
        WHERE id = $1`,

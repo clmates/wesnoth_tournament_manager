@@ -31,7 +31,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     // Check if user already exists
-    const existing = await query('SELECT id FROM users WHERE nickname = $1 OR email = $2', [nickname, email]);
+    const existing = await query('SELECT id FROM public.users WHERE nickname = $1 OR email = $2', [nickname, email]);
     if (existing.rows.length > 0) {
       console.log('User already exists');
       
@@ -85,9 +85,12 @@ router.post('/login', loginLimiter, async (req, res) => {
     const userAgent = getUserAgent(req);
 
     // Get user by nickname
+    // COALESCE handles case where columns don't exist yet (before migration)
     const result = await query(
-      `SELECT id, password_hash, is_blocked, failed_login_attempts, locked_until 
-       FROM users WHERE nickname = $1`,
+      `SELECT id, password_hash, is_blocked, 
+              COALESCE(failed_login_attempts, 0) as failed_login_attempts,
+              locked_until
+       FROM public.users WHERE nickname = $1`,
       [nickname]
     );
 
@@ -148,7 +151,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       await recordFailedLoginAttempt(user.id, nickname);
 
       const updatedUser = await query(
-        `SELECT failed_login_attempts FROM users WHERE id = $1`,
+        `SELECT failed_login_attempts FROM public.users WHERE id = $1`,
         [user.id]
       );
 
@@ -204,7 +207,7 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res) =>
   try {
     const { oldPassword, newPassword } = req.body;
 
-    const userResult = await query('SELECT password_hash FROM users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT password_hash FROM public.users WHERE id = $1', [req.userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }

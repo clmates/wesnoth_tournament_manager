@@ -14,7 +14,7 @@ const router = Router();
 router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -112,12 +112,12 @@ router.post('/users/:id/unblock', authMiddleware, async (req: AuthRequest, res) 
     const ip = getUserIP(req);
 
     // Verify user is admin
-    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can perform this action' });
     }
 
-    await query('UPDATE users SET is_blocked = false WHERE id = $1', [id]);
+    await query('UPDATE public.users SET is_blocked = false WHERE id = $1', [id]);
 
     // Log admin action
     await logAuditEvent({
@@ -141,13 +141,13 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
     const ip = getUserIP(req);
 
     // Verify user is admin
-    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can perform this action' });
     }
 
     // Get user info for logging
-    const userInfo = await query('SELECT nickname FROM users WHERE id = $1', [id]);
+    const userInfo = await query('SELECT nickname FROM public.users WHERE id = $1', [id]);
     if (userInfo.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -481,7 +481,7 @@ router.post('/users/:id/remove-admin', authMiddleware, async (req: AuthRequest, 
 router.delete('/users/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('DELETE FROM users WHERE id = $1', [id]);
+    await query('DELETE FROM public.users WHERE id = $1', [id]);
     res.json({ message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete user' });
@@ -514,7 +514,7 @@ router.post('/users/:id/force-reset-password', authMiddleware, async (req: AuthR
 router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Verify admin status
-    const adminResult = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const adminResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
     if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
