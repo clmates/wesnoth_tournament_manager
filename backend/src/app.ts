@@ -13,7 +13,8 @@ const app = express();
 // CORS configuration - allow both Netlify and Cloudflare URLs
 const allowedOrigins = [
   'https://wesnoth-tournament-manager.netlify.app',    // Netlify (old)
-  'https://wesnoth-tournament-manager.pages.dev',       // Cloudflare Pages (new)
+  'https://wesnoth-tournament-manager.pages.dev',       // Cloudflare Pages (production)
+  'https://main.wesnoth-tournament-manager.pages.dev',  // Cloudflare Pages preview (main branch)
   'http://localhost:3000',                              // Local backend
   'http://localhost:5173'                               // Local frontend (Vite)
 ];
