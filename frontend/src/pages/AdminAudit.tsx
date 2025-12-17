@@ -15,7 +15,7 @@ interface AuditLog {
 }
 
 export default function AdminAudit() {
-  const { user } = useAuthStore();
+  const { isAdmin } = useAuthStore();
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,7 +29,7 @@ export default function AdminAudit() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Check if user is admin
-  if (!user?.isAdmin) {
+  if (!isAdmin) {
     return <div className="audit-container error">Access denied. Admin only.</div>;
   }
 
