@@ -1,7 +1,21 @@
 import axios from 'axios';
 
-// Use VITE_API_URL environment variable, fallback to /api for development
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Determine API URL based on environment
+let API_URL: string;
+
+if (import.meta.env.VITE_API_URL) {
+  // Explicit environment variable takes precedence
+  API_URL = import.meta.env.VITE_API_URL;
+} else if (window.location.hostname.includes('main.')) {
+  // Preview environment (main branch on Cloudflare)
+  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app';
+} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+  // Production environment (production branch on Cloudflare)
+  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app';
+} else {
+  // Development/fallback
+  API_URL = '/api';
+}
 
 const api = axios.create({
   baseURL: API_URL,
