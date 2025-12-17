@@ -10,8 +10,23 @@ import { generalLimiter } from './middleware/rateLimiter.js';
 
 const app = express();
 
+// CORS configuration - allow both Netlify and Cloudflare URLs
+const allowedOrigins = [
+  'https://wesnoth-tournament-manager.netlify.app',    // Netlify (old)
+  'https://wesnoth-tournament-manager.pages.dev',       // Cloudflare Pages (new)
+  'http://localhost:3000',                              // Local backend
+  'http://localhost:5173'                               // Local frontend (Vite)
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
