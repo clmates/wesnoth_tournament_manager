@@ -8,10 +8,10 @@ if (import.meta.env.VITE_API_URL) {
   API_URL = import.meta.env.VITE_API_URL;
 } else if (window.location.hostname.includes('main.')) {
   // Preview environment (main branch on Cloudflare)
-  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app';
+  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
 } else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
   // Production environment (production branch on Cloudflare)
-  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app';
+  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
 } else {
   // Development/fallback
   API_URL = '/api';
