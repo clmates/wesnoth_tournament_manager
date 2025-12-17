@@ -57,7 +57,15 @@ const AdminFAQ: React.FC = () => {
         }
         grouped[item.id][item.language_code || 'en'] = item;
       });
-      setFaqItems(Object.values(grouped));
+      
+      // Sort by question title (English version, or first available language)
+      const sortedItems = Object.values(grouped).sort((a: any, b: any) => {
+        const questionA = (a.en?.question || a[Object.keys(a)[0]]?.question || '').toLowerCase();
+        const questionB = (b.en?.question || b[Object.keys(b)[0]]?.question || '').toLowerCase();
+        return questionA.localeCompare(questionB);
+      });
+      
+      setFaqItems(sortedItems);
       setError('');
     } catch (err: any) {
       console.error('Error fetching FAQ:', err);
