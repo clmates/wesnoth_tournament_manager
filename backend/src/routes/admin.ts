@@ -627,7 +627,7 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
 router.get('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can access audit logs' });
     }
@@ -682,7 +682,7 @@ router.get('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can delete audit logs' });
     }
@@ -720,7 +720,7 @@ router.delete('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/audit-logs/old', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can delete audit logs' });
     }
