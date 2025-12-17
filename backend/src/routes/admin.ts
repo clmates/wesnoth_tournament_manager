@@ -5,6 +5,8 @@ import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { hashPassword } from '../utils/auth.js';
 import { translateToAllLanguages } from '../utils/translation.js';
 import { calculateNewRating, calculateTrend } from '../utils/elo.js';
+import { unlockAccount } from '../services/accountLockout.js';
+import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 
 const router = Router();
 
@@ -107,10 +109,65 @@ router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) =>
 router.post('/users/:id/unblock', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
+    const ip = getUserIP(req);
+
+    // Verify user is admin
+    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Only admins can perform this action' });
+    }
+
     await query('UPDATE users SET is_blocked = false WHERE id = $1', [id]);
+
+    // Log admin action
+    await logAuditEvent({
+      event_type: 'ADMIN_ACTION',
+      user_id: req.userId,
+      ip_address: ip,
+      user_agent: getUserAgent(req),
+      details: { action: 'unblock_user', target_user_id: id }
+    });
+
     res.json({ message: 'User unblocked' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to unblock user' });
+  }
+});
+
+// Unlock user account (remove lockout from failed login attempts)
+router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const ip = getUserIP(req);
+
+    // Verify user is admin
+    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Only admins can perform this action' });
+    }
+
+    // Get user info for logging
+    const userInfo = await query('SELECT nickname FROM users WHERE id = $1', [id]);
+    if (userInfo.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Unlock account
+    await unlockAccount(id);
+
+    // Log admin action
+    await logAuditEvent({
+      event_type: 'ADMIN_ACTION',
+      user_id: req.userId,
+      ip_address: ip,
+      user_agent: getUserAgent(req),
+      details: { action: 'unlock_account', target_user_id: id, target_username: userInfo.rows[0].nickname }
+    });
+
+    res.json({ message: 'Account unlocked successfully' });
+  } catch (error) {
+    console.error('Unlock account error:', error);
+    res.status(500).json({ error: 'Failed to unlock account' });
   }
 });
 

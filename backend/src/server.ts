@@ -1,5 +1,6 @@
 import app from './app.js';
 import { query } from './config/database.js';
+import { runMigrations } from './scripts/migrate.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -26,9 +27,12 @@ const initDatabase = async () => {
       `);
     }
 
-    console.log('Database initialized');
+    console.log('✅ Database initialized');
+
+    // Run pending migrations
+    await runMigrations();
   } catch (error) {
-    console.error('Database initialization error:', error);
+    console.error('❌ Database initialization error:', error);
   }
 };
 
@@ -37,7 +41,7 @@ const startServer = async () => {
     await initDatabase();
 
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

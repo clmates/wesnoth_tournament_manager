@@ -3,6 +3,8 @@ import { query } from '../config/database.js';
 import { hashPassword, comparePasswords, generateToken, validatePassword } from '../utils/auth.js';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 import { registerLimiter, loginLimiter } from '../middleware/rateLimiter.js';
+import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
+import { isAccountLocked, recordFailedLoginAttempt, recordSuccessfulLogin, getRemainingLockoutTime } from '../services/accountLockout.js';
 
 const router = Router();
 
@@ -10,6 +12,8 @@ const router = Router();
 router.post('/register', registerLimiter, async (req, res) => {
   try {
     const { nickname, email, language, discord_id, password } = req.body;
+    const ip = getUserIP(req);
+    const userAgent = getUserAgent(req);
 
     console.log('Register request:', { nickname, email, language, password: '***', discord_id });
 
@@ -30,6 +34,16 @@ router.post('/register', registerLimiter, async (req, res) => {
     const existing = await query('SELECT id FROM users WHERE nickname = $1 OR email = $2', [nickname, email]);
     if (existing.rows.length > 0) {
       console.log('User already exists');
+      
+      // Log failed registration attempt
+      await logAuditEvent({
+        event_type: 'REGISTRATION',
+        username: nickname,
+        ip_address: ip,
+        user_agent: userAgent,
+        details: { reason: 'duplicate_account', email }
+      });
+
       return res.status(400).json({ error: 'User already exists' });
     }
 
@@ -45,6 +59,17 @@ router.post('/register', registerLimiter, async (req, res) => {
     );
 
     console.log('User created successfully:', result.rows[0].id);
+
+    // Log successful registration
+    await logAuditEvent({
+      event_type: 'REGISTRATION',
+      user_id: result.rows[0].id,
+      username: nickname,
+      ip_address: ip,
+      user_agent: userAgent,
+      details: { email, language: language || 'en' }
+    });
+
     res.status(201).json({ id: result.rows[0].id, message: 'Registration successful' });
   } catch (error) {
     console.error('Registration error:', error);
@@ -52,31 +77,124 @@ router.post('/register', registerLimiter, async (req, res) => {
   }
 });
 
-// Login - RATE LIMITED
+// Login - RATE LIMITED with account lockout
 router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { nickname, password } = req.body;
+    const ip = getUserIP(req);
+    const userAgent = getUserAgent(req);
 
-    const result = await query('SELECT id, password_hash, is_blocked FROM users WHERE nickname = $1', [nickname]);
+    // Get user by nickname
+    const result = await query(
+      `SELECT id, password_hash, is_blocked, failed_login_attempts, locked_until 
+       FROM users WHERE nickname = $1`,
+      [nickname]
+    );
 
+    // Check if user exists
     if (result.rows.length === 0) {
+      // Log failed login attempt (user not found)
+      await logAuditEvent({
+        event_type: 'LOGIN_FAILED',
+        username: nickname,
+        ip_address: ip,
+        user_agent: userAgent,
+        details: { reason: 'user_not_found' }
+      });
+
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const user = result.rows[0];
 
-    if (user.is_blocked) {
-      return res.status(403).json({ error: 'Account is blocked' });
+    // Check if account is locked
+    if (await isAccountLocked(user.id)) {
+      const remainingTime = await getRemainingLockoutTime(user.id);
+      const minutes = Math.ceil(remainingTime / 60);
+
+      await logAuditEvent({
+        event_type: 'LOGIN_FAILED',
+        user_id: user.id,
+        username: nickname,
+        ip_address: ip,
+        user_agent: userAgent,
+        details: { reason: 'account_locked', remaining_minutes: minutes }
+      });
+
+      return res.status(423).json({
+        error: 'Account locked due to multiple failed login attempts',
+        message: `Please try again in ${minutes} minute${minutes > 1 ? 's' : ''}`
+      });
     }
 
+    // Check if account is blocked by admin
+    if (user.is_blocked) {
+      await logAuditEvent({
+        event_type: 'LOGIN_FAILED',
+        user_id: user.id,
+        username: nickname,
+        ip_address: ip,
+        user_agent: userAgent,
+        details: { reason: 'account_blocked' }
+      });
+
+      return res.status(403).json({ error: 'Account is blocked by administrator' });
+    }
+
+    // Verify password
     const isValid = await comparePasswords(password, user.password_hash);
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      // Record failed attempt and check for lockout
+      await recordFailedLoginAttempt(user.id, nickname);
+
+      const updatedUser = await query(
+        `SELECT failed_login_attempts FROM users WHERE id = $1`,
+        [user.id]
+      );
+
+      const failedAttempts = updatedUser.rows[0].failed_login_attempts;
+      const attemptsRemaining = Math.max(0, 5 - failedAttempts);
+
+      await logAuditEvent({
+        event_type: 'LOGIN_FAILED',
+        user_id: user.id,
+        username: nickname,
+        ip_address: ip,
+        user_agent: userAgent,
+        details: { reason: 'invalid_password', failed_attempts: failedAttempts }
+      });
+
+      if (attemptsRemaining === 0) {
+        return res.status(429).json({
+          error: 'Too many failed login attempts',
+          message: 'Account locked for 15 minutes'
+        });
+      }
+
+      return res.status(401).json({
+        error: 'Invalid credentials',
+        attemptsRemaining
+      });
     }
 
+    // Login successful - reset failed attempts and generate token
+    await recordSuccessfulLogin(user.id);
+
     const token = generateToken(user.id);
+
+    // Log successful login
+    await logAuditEvent({
+      event_type: 'LOGIN_SUCCESS',
+      user_id: user.id,
+      username: nickname,
+      ip_address: ip,
+      user_agent: userAgent,
+      details: { success: true }
+    });
+
     res.json({ token, userId: user.id });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
 });
