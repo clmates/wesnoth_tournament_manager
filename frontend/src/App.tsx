@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n/config';
+import { useAuthStore } from './store/authStore';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -27,6 +28,16 @@ import TournamentDetail from './pages/TournamentDetail';
 import './App.css';
 
 const App: React.FC = () => {
+  const { isAdmin } = useAuthStore();
+
+  useEffect(() => {
+    // Sync isAdmin from localStorage on app load
+    const storedIsAdmin = localStorage.getItem('isAdmin') === 'true';
+    if (storedIsAdmin !== isAdmin) {
+      // This will trigger a re-render with the correct isAdmin value
+      console.log('Syncing isAdmin from localStorage:', storedIsAdmin);
+    }
+  }, [isAdmin]);
   return (
     <I18nextProvider i18n={i18n}>
       <BrowserRouter>

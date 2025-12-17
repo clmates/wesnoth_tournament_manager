@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './AdminAudit.css';
 
@@ -15,7 +16,8 @@ interface AuditLog {
 }
 
 export default function AdminAudit() {
-  const { isAdmin } = useAuthStore();
+  const navigate = useNavigate();
+  const { isAuthenticated, isAdmin } = useAuthStore();
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,10 +30,16 @@ export default function AdminAudit() {
   const [selectedLogs, setSelectedLogs] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Check if user is admin
-  if (!isAdmin) {
-    return <div className="audit-container error">Access denied. Admin only.</div>;
-  }
+  // Check authentication and admin status
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin) {
+      navigate('/');
+      return;
+    }
+    
+    // Only fetch logs if admin
+    fetchAuditLogs();
+  }, [isAuthenticated, isAdmin, navigate]);
 
   // Fetch audit logs
   const fetchAuditLogs = async () => {
