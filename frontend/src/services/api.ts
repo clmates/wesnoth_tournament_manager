@@ -112,11 +112,17 @@ export const adminService = {
   getAllUsers: () => api.get('/admin/users'),
   blockUser: (id: string) => api.post(`/admin/users/${id}/block`),
   unblockUser: (id: string) => api.post(`/admin/users/${id}/unblock`),
+  unlockAccount: (id: string) => api.post(`/admin/users/${id}/unlock`),
   makeAdmin: (id: string) => api.post(`/admin/users/${id}/make-admin`),
   removeAdmin: (id: string) => api.post(`/admin/users/${id}/remove-admin`),
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
   forceResetPassword: (id: string) => api.post(`/admin/users/${id}/force-reset-password`),
   recalculateAllStats: () => api.post('/admin/recalculate-all-stats'),
+  
+  // Audit logs
+  getAuditLogs: (params?: any) => api.get('/admin/audit-logs', { params }),
+  deleteAuditLogs: (logIds: string[]) => api.delete('/admin/audit-logs', { data: { logIds } }),
+  deleteOldAuditLogs: (daysBack: number) => api.delete('/admin/audit-logs/old', { data: { daysBack } }),
   
   // Password policy
   updatePasswordPolicy: (data: any) => api.put('/admin/password-policy', data),

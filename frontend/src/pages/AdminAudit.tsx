@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { adminService } from '../services/api';
 import './AdminAudit.css';
 
 interface AuditLog {
@@ -48,13 +48,13 @@ export default function AdminAudit() {
       setError('');
 
       // Build query params
-      const params = new URLSearchParams();
-      if (filters.eventType) params.append('eventType', filters.eventType);
-      if (filters.username) params.append('username', filters.username);
-      if (filters.ipAddress) params.append('ipAddress', filters.ipAddress);
-      params.append('daysBack', filters.daysBack.toString());
+      const params: any = {};
+      if (filters.eventType) params.eventType = filters.eventType;
+      if (filters.username) params.username = filters.username;
+      if (filters.ipAddress) params.ipAddress = filters.ipAddress;
+      params.daysBack = filters.daysBack;
 
-      const response = await axios.get(`/api/admin/audit-logs?${params.toString()}`);
+      const response = await adminService.getAuditLogs(params);
       setAuditLogs(response.data);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch audit logs');
@@ -75,9 +75,7 @@ export default function AdminAudit() {
       setError('');
 
       const logIds = Array.from(selectedLogs);
-      await axios.delete('/api/admin/audit-logs', {
-        data: { logIds }
-      });
+      await adminService.deleteAuditLogs(logIds);
 
       setAuditLogs(auditLogs.filter(log => !selectedLogs.has(log.id)));
       setSelectedLogs(new Set());
@@ -99,9 +97,7 @@ export default function AdminAudit() {
       setLoading(true);
       setError('');
 
-      await axios.delete('/api/admin/audit-logs/old', {
-        data: { daysBack: filters.daysBack }
-      });
+      await adminService.deleteOldAuditLogs(filters.daysBack);
 
       fetchAuditLogs();
     } catch (err: any) {
