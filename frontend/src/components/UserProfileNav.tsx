@@ -104,6 +104,15 @@ const UserProfileNav: React.FC = () => {
                 <span className="nav-icon">⚖️</span>
                 <span className="nav-text">{t('sidebar.match_disputes')}</span>
               </button>
+
+              <button 
+                className="nav-link admin-link"
+                onClick={() => handleNavigate('/admin/audit')}
+                title="Audit Logs"
+              >
+                <span className="nav-icon">🔒</span>
+                <span className="nav-text">Audit Logs</span>
+              </button>
             </>
           )}
         </div>

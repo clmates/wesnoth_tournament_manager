@@ -623,4 +623,142 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
   }
 });
 
+// Get audit logs
+router.get('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Check if user is admin
+    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Only admins can access audit logs' });
+    }
+
+    const { eventType, username, ipAddress, daysBack = 7 } = req.query;
+
+    // Build WHERE clause
+    let whereConditions: string[] = [];
+    let params: any[] = [];
+    let paramCount = 1;
+
+    // Filter by date range
+    whereConditions.push(`created_at >= NOW() - INTERVAL '${parseInt(daysBack as string) || 7} days'`);
+
+    if (eventType) {
+      whereConditions.push(`event_type = $${paramCount}`);
+      params.push(eventType);
+      paramCount++;
+    }
+
+    if (username) {
+      whereConditions.push(`username ILIKE $${paramCount}`);
+      params.push(`%${username}%`);
+      paramCount++;
+    }
+
+    if (ipAddress) {
+      whereConditions.push(`ip_address = $${paramCount}`);
+      params.push(ipAddress);
+      paramCount++;
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    const result = await query(
+      `SELECT id, event_type, user_id, username, ip_address, user_agent, details, created_at
+       FROM public.audit_logs
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT 1000`,
+      params
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Audit logs fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
+
+// Delete selected audit logs
+router.delete('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Check if user is admin
+    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Only admins can delete audit logs' });
+    }
+
+    const { logIds } = req.body;
+
+    if (!logIds || !Array.isArray(logIds) || logIds.length === 0) {
+      return res.status(400).json({ error: 'No log IDs provided' });
+    }
+
+    // Delete logs with proper parameterized query
+    const placeholders = logIds.map((_, i) => `$${i + 1}`).join(',');
+    await query(
+      `DELETE FROM public.audit_logs WHERE id IN (${placeholders})`,
+      logIds
+    );
+
+    // Log this admin action
+    await logAuditEvent({
+      event_type: 'ADMIN_ACTION',
+      user_id: req.userId,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: { action: 'delete_audit_logs', count: logIds.length }
+    });
+
+    res.json({ message: `Deleted ${logIds.length} audit log(s)` });
+  } catch (error) {
+    console.error('Audit logs delete error:', error);
+    res.status(500).json({ error: 'Failed to delete audit logs' });
+  }
+});
+
+// Delete old audit logs (older than X days)
+router.delete('/audit-logs/old', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Check if user is admin
+    const adminCheck = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Only admins can delete audit logs' });
+    }
+
+    const { daysBack = 30 } = req.body;
+
+    if (daysBack < 1) {
+      return res.status(400).json({ error: 'daysBack must be at least 1' });
+    }
+
+    // Get count before deletion
+    const countBefore = await query(
+      `SELECT COUNT(*) as count FROM public.audit_logs 
+       WHERE created_at < NOW() - INTERVAL '${daysBack} days'`
+    );
+
+    // Delete old logs
+    await query(
+      `DELETE FROM public.audit_logs 
+       WHERE created_at < NOW() - INTERVAL '${daysBack} days'`
+    );
+
+    const deletedCount = parseInt(countBefore.rows[0].count);
+
+    // Log this admin action
+    await logAuditEvent({
+      event_type: 'ADMIN_ACTION',
+      user_id: req.userId,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: { action: 'delete_old_audit_logs', daysBack, count: deletedCount }
+    });
+
+    res.json({ message: `Deleted ${deletedCount} old audit log(s)` });
+  } catch (error) {
+    console.error('Audit logs cleanup error:', error);
+    res.status(500).json({ error: 'Failed to delete old audit logs' });
+  }
+});
+
 export default router;
