@@ -15,3 +15,18 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Production context - only for production branch
+[context.production]
+  command = "npm run build"
+  publish = "dist"
+  
+# Deploy previews - generated for pull requests and branch deploys
+[context.deploy-preview]
+  command = "npm run build"
+  publish = "dist"
+
+# Branch deploy context - for main branch (generates preview)
+[context.branch-deploy]
+  command = "npm run build"
+  publish = "dist"
