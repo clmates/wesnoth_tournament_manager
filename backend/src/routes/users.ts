@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { searchLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -80,8 +81,8 @@ router.get('/:id/matches', async (req, res) => {
   }
 });
 
-// Search users
-router.get('/search/:searchQuery', async (req, res) => {
+// Search users - RATE LIMITED
+router.get('/search/:searchQuery', searchLimiter, async (req, res) => {
   try {
     const { searchQuery } = req.params;
 

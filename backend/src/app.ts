@@ -6,6 +6,7 @@ import matchRoutes from './routes/matches.js';
 import tournamentRoutes from './routes/tournaments.js';
 import adminRoutes from './routes/admin.js';
 import publicRoutes from './routes/public.js';
+import { generalLimiter } from './middleware/rateLimiter.js';
 
 const app = express();
 
@@ -16,6 +17,9 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Apply general rate limiting to all API routes (except specific endpoints with stricter limits)
+app.use('/api/', generalLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);

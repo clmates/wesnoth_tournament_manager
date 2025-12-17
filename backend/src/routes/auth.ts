@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { query } from '../config/database.js';
 import { hashPassword, comparePasswords, generateToken, validatePassword } from '../utils/auth.js';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
+import { registerLimiter, loginLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
-// Register request
-router.post('/register', async (req, res) => {
+// Register request - RATE LIMITED
+router.post('/register', registerLimiter, async (req, res) => {
   try {
     const { nickname, email, language, discord_id, password } = req.body;
 
@@ -51,8 +52,8 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login
-router.post('/login', async (req, res) => {
+// Login - RATE LIMITED
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { nickname, password } = req.body;
 
