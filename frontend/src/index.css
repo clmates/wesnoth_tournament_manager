@@ -4,10 +4,16 @@
   box-sizing: border-box;
 }
 
-html, body {
+html {
   width: 100%;
   height: 100%;
-  overflow-x: auto;
+  overflow-x: visible;
+}
+
+body {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: visible;
 }
 
 #root {

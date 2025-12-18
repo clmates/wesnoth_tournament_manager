@@ -1,9 +1,10 @@
 .home-container {
-  max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 2rem 1rem;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: calc(100vh - 80px);
+  box-sizing: border-box;
 }
 
 .home-header {

@@ -1,10 +1,12 @@
 .auth-container {
+  width: 100%;
   max-width: 900px;
   margin: 3rem auto;
-  padding: 2rem;
+  padding: 2rem 1rem;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
 }
 
 .auth-container h1 {
