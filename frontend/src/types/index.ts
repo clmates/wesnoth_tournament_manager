@@ -8,7 +8,7 @@ export interface User {
   level: string;
   is_rated?: boolean;
   matches_played?: number;
-  is_admin?: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 

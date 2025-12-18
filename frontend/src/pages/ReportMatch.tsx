@@ -56,24 +56,14 @@ const ReportMatch: React.FC = () => {
         ]);
         setMaps(mapsResponse.data || []);
         setFactions(factionsResponse.data || []);
+        
+        if ((!mapsResponse.data || mapsResponse.data.length === 0) || 
+            (!factionsResponse.data || factionsResponse.data.length === 0)) {
+          setError('No maps or factions available. Please contact an administrator.');
+        }
       } catch (err) {
         console.error('Error fetching data:', err);
-        // Fallback to hardcoded values if API fails
-        setMaps([
-          { id: '1', name: 'Den of Onis' },
-          { id: '2', name: 'Fallenstar Lake' },
-          { id: '3', name: 'Hamlets' },
-          { id: '4', name: 'Silverhead Crossing' },
-          { id: '5', name: 'The Freelands' },
-        ]);
-        setFactions([
-          { id: '1', name: 'Elves' },
-          { id: '2', name: 'Loyals' },
-          { id: '3', name: 'Northerners' },
-          { id: '4', name: 'Knalgan' },
-          { id: '5', name: 'Drakes' },
-          { id: '6', name: 'Undead' },
-        ]);
+        setError('Failed to load maps and factions. Please try again later.');
       } finally {
         setLoading(false);
       }

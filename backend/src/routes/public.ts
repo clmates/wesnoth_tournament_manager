@@ -471,11 +471,11 @@ router.get('/matches', async (req, res) => {
   }
 });
 
-// Get all maps (public endpoint)
+// Get all maps (public endpoint - only active)
 router.get('/maps', async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, name, created_at, usage_count FROM public.game_maps ORDER BY name ASC`
+      `SELECT id, name, created_at, usage_count FROM public.game_maps WHERE is_active = true ORDER BY name ASC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -484,11 +484,11 @@ router.get('/maps', async (req, res) => {
   }
 });
 
-// Get all factions (public endpoint)
+// Get all factions (public endpoint - only active)
 router.get('/factions', async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, name, description, icon_path, created_at FROM public.factions ORDER BY name ASC`
+      `SELECT id, name, description, icon_path, created_at FROM public.factions WHERE is_active = true ORDER BY name ASC`
     );
     res.json(result.rows);
   } catch (error) {

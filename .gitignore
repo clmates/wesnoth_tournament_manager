@@ -15,3 +15,6 @@ replays/
 /testing/results/
 /testing/scripts/test_credentials.csv
 /backend/test_credentials.csv
+
+# Local Netlify folder
+.netlify
