@@ -296,6 +296,7 @@
   width: 80%;
   border-collapse: collapse;
   font-size: 0.85rem;
+  table-layout: fixed;
 }
 
 .recent-matches-table thead {
