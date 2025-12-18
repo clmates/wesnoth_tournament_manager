@@ -197,4 +197,5 @@ export const publicService = {
   getMatch: (id: string) => api.get(`/matches/${id}`),
 };
 
+export { api };
 export default api;
