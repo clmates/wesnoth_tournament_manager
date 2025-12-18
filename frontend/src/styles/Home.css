@@ -312,21 +312,21 @@
 }
 
 .recent-matches-table th:nth-child(1) {
-  width: 12%;
+  min-width: 70px;
 }
 
 .recent-matches-table th:nth-child(2),
 .recent-matches-table th:nth-child(4) {
-  width: 8%;
+  min-width: 90px;
 }
 
 .recent-matches-table th:nth-child(3),
 .recent-matches-table th:nth-child(5) {
-  width: 20%;
+  min-width: 80px;
 }
 
 .recent-matches-table th:nth-child(6) {
-  width: 12%;
+  min-width: 40px;
 }
 
 .recent-matches-table td {
