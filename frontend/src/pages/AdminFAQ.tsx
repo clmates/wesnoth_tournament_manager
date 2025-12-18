@@ -18,7 +18,6 @@ const AdminFAQ: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeLanguageTab, setActiveLanguageTab] = useState('en');
-  const [orderValue, setOrderValue] = useState(0);
   
   const languages = ['en', 'es', 'zh', 'de', 'ru'];
   const languageLabels: Record<string, string> = {
@@ -54,13 +53,17 @@ const AdminFAQ: React.FC = () => {
       const grouped: Record<string, any> = {};
       (res.data || []).forEach((item: any) => {
         if (!grouped[item.id]) {
-          grouped[item.id] = { order: item.order || 0 };
+          grouped[item.id] = {};
         }
         grouped[item.id][item.language_code || 'en'] = item;
       });
       
-      // Items are already sorted by order from backend, just convert to array
-      const sortedItems = Object.values(grouped);
+      // Sort by question title (English version, or first available language)
+      const sortedItems = Object.values(grouped).sort((a: any, b: any) => {
+        const questionA = (a.en?.question || a[Object.keys(a)[0]]?.question || '').toLowerCase();
+        const questionB = (b.en?.question || b[Object.keys(b)[0]]?.question || '').toLowerCase();
+        return questionA.localeCompare(questionB);
+      });
       
       setFaqItems(sortedItems);
       setError('');
@@ -95,16 +98,15 @@ const AdminFAQ: React.FC = () => {
 
     try {
       if (editingId) {
-        await adminService.updateFaq(editingId, { ...formData, order: orderValue });
+        await adminService.updateFaq(editingId, formData);
         setMessage('FAQ item updated successfully');
       } else {
-        await adminService.createFaq({ ...formData, order: orderValue });
+        await adminService.createFaq(formData);
         setMessage('FAQ item created successfully');
       }
 
       resetForm();
       setShowForm(false);
-      setOrderValue(0);
       fetchFAQ();
       setTimeout(() => setMessage(''), 3000);
     } catch (err: any) {
@@ -123,7 +125,6 @@ const AdminFAQ: React.FC = () => {
       }
     });
     setFormData(newFormData);
-    setOrderValue(item.order || 0);
     setEditingId(item.en?.id || item[languages[0]]?.id);
     setActiveLanguageTab('en');
     setShowForm(true);
@@ -207,18 +208,6 @@ const AdminFAQ: React.FC = () => {
               />
             </div>
 
-            {/* Order */}
-            <div className="form-group">
-              <label>Display Order:</label>
-              <input
-                type="number"
-                value={orderValue}
-                onChange={(e) => setOrderValue(parseInt(e.target.value) || 0)}
-                min="0"
-                step="1"
-              />
-            </div>
-
             <button type="submit">
               {editingId ? 'Update FAQ Item (All Languages)' : 'Add FAQ Item (All Languages)'}
             </button>
@@ -235,7 +224,6 @@ const AdminFAQ: React.FC = () => {
               return (
                 <div key={id} className="faq-item">
                   <div className="item-header">
-                    <span className="order-badge">#{itemGroup.order || 0}</span>
                     <h3>{question}</h3>
                     <span className="language-badge">Multi-language</span>
                   </div>

@@ -303,7 +303,7 @@ router.get('/news', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/faq', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const result = await query(
-      `SELECT id, question, answer, language_code, created_at, "order" FROM faq ORDER BY "order" ASC, created_at ASC`
+      `SELECT id, question, answer, language_code, created_at FROM faq ORDER BY created_at DESC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -314,18 +314,11 @@ router.get('/faq', authMiddleware, async (req: AuthRequest, res) => {
 // Create FAQ entry - accepts all 5 languages in single request
 router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { en, es, zh, de, ru, order } = req.body;
+    const { en, es, zh, de, ru } = req.body;
 
     // Validate that English is required
     if (!en || !en.question || !en.answer) {
       return res.status(400).json({ error: 'English question and answer are required' });
-    }
-
-    // Get next order if not provided
-    let faqOrder = order;
-    if (faqOrder === undefined || faqOrder === null) {
-      const result = await query(`SELECT MAX("order") as max_order FROM public.faq`);
-      faqOrder = (result.rows[0]?.max_order || 0) + 1;
     }
 
     // Generate a single ID for all language versions
@@ -343,14 +336,14 @@ router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
     for (const lang of languages) {
       if (lang.data && lang.data.question && lang.data.answer) {
         await query(
-          `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
-          [faqId, lang.data.question, lang.data.answer, lang.code, faqOrder]
+          `INSERT INTO public.faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
+          [faqId, lang.data.question, lang.data.answer, lang.code]
         );
       }
     }
 
     // Return the created FAQ ID
-    res.status(201).json({ id: faqId, message: 'FAQ created', order: faqOrder });
+    res.status(201).json({ id: faqId, message: 'FAQ created' });
   } catch (error) {
     console.error('FAQ creation error:', error);
     res.status(500).json({ error: 'Failed to create FAQ entry', details: (error as any).message });
@@ -361,7 +354,7 @@ router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
 router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { en, es, zh, de, ru, order } = req.body;
+    const { en, es, zh, de, ru } = req.body;
 
     // Validate that English is required
     if (!en || !en.question || !en.answer) {
@@ -383,8 +376,8 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
     for (const lang of languages) {
       if (lang.data && lang.data.question && lang.data.answer) {
         await query(
-          `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
-          [id, lang.data.question, lang.data.answer, lang.code, order || 0]
+          `INSERT INTO public.faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
+          [id, lang.data.question, lang.data.answer, lang.code]
         );
       }
     }
@@ -393,29 +386,6 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('FAQ update error:', error);
     res.status(500).json({ error: 'Failed to update FAQ entry', details: (error as any).message });
-  }
-});
-
-// Update FAQ order
-router.patch('/faq/:id/order', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { order } = req.body;
-
-    if (order === undefined || order === null) {
-      return res.status(400).json({ error: 'Order is required' });
-    }
-
-    // Update order for all language versions of this FAQ
-    await query(
-      `UPDATE public.faq SET "order" = $1 WHERE id = $2`,
-      [order, id]
-    );
-
-    res.json({ message: 'FAQ order updated' });
-  } catch (error) {
-    console.error('FAQ order update error:', error);
-    res.status(500).json({ error: 'Failed to update FAQ order', details: (error as any).message });
   }
 });
 

@@ -69,15 +69,21 @@ const AdminMapsAndFactions: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError('');
       const [mapsRes, factionsRes] = await Promise.all([
         api.get('/admin/maps'),
         api.get('/admin/factions'),
       ]);
+      console.log('Maps response:', mapsRes.data);
+      console.log('Factions response:', factionsRes.data);
       setMaps(mapsRes.data || []);
       setFactions(factionsRes.data || []);
     } catch (err: any) {
       console.error('Error fetching data:', err);
-      setError('Failed to load maps and factions');
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to load maps and factions';
+      setError(errorMsg);
+      setMaps([]);
+      setFactions([]);
     } finally {
       setLoading(false);
     }

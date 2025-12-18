@@ -12,14 +12,14 @@ const router = Router();
 router.get('/maps', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
     const result = await query(`
-      SELECT DISTINCT ON (m.id)
-        m.id,
-        m.name,
-        m.is_active,
-        m.created_at,
-        m.usage_count
-      FROM game_maps m
-      ORDER BY m.id, m.created_at DESC
+      SELECT 
+        id,
+        name,
+        is_active,
+        created_at,
+        usage_count
+      FROM game_maps
+      ORDER BY created_at DESC
     `);
     res.json(result.rows);
   } catch (error) {
@@ -156,13 +156,13 @@ router.delete('/maps/:mapId', authMiddleware, adminMiddleware, async (req: AuthR
 router.get('/factions', authMiddleware, adminMiddleware, async (req: AuthRequest, res) => {
   try {
     const result = await query(`
-      SELECT DISTINCT ON (f.id)
-        f.id,
-        f.name,
-        f.is_active,
-        f.created_at
-      FROM factions f
-      ORDER BY f.id, f.created_at DESC
+      SELECT 
+        id,
+        name,
+        is_active,
+        created_at
+      FROM factions
+      ORDER BY created_at DESC
     `);
     res.json(result.rows);
   } catch (error) {
