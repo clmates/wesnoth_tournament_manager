@@ -5,7 +5,6 @@ import userRoutes from './routes/users.js';
 import matchRoutes from './routes/matches.js';
 import tournamentRoutes from './routes/tournaments.js';
 import adminRoutes from './routes/admin.js';
-import adminMapsAndFactionsRoutes from './routes/adminMapsAndFactions.js';
 import publicRoutes from './routes/public.js';
 import { generalLimiter } from './middleware/rateLimiter.js';
 
@@ -44,7 +43,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/tournaments', tournamentRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/admin', adminMapsAndFactionsRoutes);
 app.use('/api/public', publicRoutes);
 
 app.get('/health', (req, res) => {
