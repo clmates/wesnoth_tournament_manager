@@ -7,6 +7,7 @@
 html {
   width: 100%;
   height: 100%;
+  overflow-x: auto;
 }
 
 body {
@@ -18,7 +19,6 @@ body {
 
 #root {
   width: 100%;
-  min-width: min-content;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
