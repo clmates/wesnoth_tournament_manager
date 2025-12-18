@@ -293,10 +293,10 @@
 }
 
 .recent-matches-table {
-  width: 80%;
+  width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .recent-matches-table thead {
@@ -339,22 +339,22 @@
 }
 
 .recent-matches-table .date-col {
-  width: 12%;
+  min-width: 70px;
   font-size: 0.85rem;
   color: #666;
 }
 
 .recent-matches-table .winner-col,
 .recent-matches-table .loser-col {
-  width: 8%;
+  min-width: 90px;
 }
 
 .recent-matches-table .rating-col {
-  width: 20%;
+  min-width: 80px;
 }
 
 .recent-matches-table .action-col {
-  width: 12%;
+  min-width: 40px;
   text-align: center;
 }
 
