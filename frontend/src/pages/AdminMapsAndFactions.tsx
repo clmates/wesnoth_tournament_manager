@@ -39,7 +39,7 @@ interface FactionTranslation {
 const AdminMapsAndFactions: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, isAdmin } = useAuthStore();
   
   const [activeTab, setActiveTab] = useState<'maps' | 'factions'>('maps');
   const [maps, setMaps] = useState<Map[]>([]);
@@ -58,13 +58,13 @@ const AdminMapsAndFactions: React.FC = () => {
   const languages = ['en', 'es', 'de', 'zh'];
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.is_admin) {
+    if (!isAuthenticated || !isAdmin) {
       navigate('/');
       return;
     }
 
     fetchData();
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, isAdmin, navigate]);
 
   const fetchData = async () => {
     try {
@@ -177,7 +177,7 @@ const AdminMapsAndFactions: React.FC = () => {
     );
   }
 
-  if (!isAuthenticated || !user?.is_admin) {
+  if (!isAuthenticated || !isAdmin) {
     return (
       <MainLayout>
         <div className="admin-container">
