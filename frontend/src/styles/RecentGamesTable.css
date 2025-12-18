@@ -16,13 +16,18 @@
 }
 
 .games-table-wrapper {
+  overflow: hidden;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-radius: 8px;
   border: 1px solid #e9ecef;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .games-table {
-  width: 1500px;
+  width: 100%;
+  min-width: 1100px;
   border-collapse: collapse;
   background: white;
   table-layout: auto;
