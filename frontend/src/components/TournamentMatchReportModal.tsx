@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { matchService } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { matchService, api } from '../services/api';
 import '../styles/MatchConfirmationModal.css';
 
 interface TournamentMatchReportProps {
@@ -13,6 +13,16 @@ interface TournamentMatchReportProps {
   currentUserId: string;
   onClose: () => void;
   onSuccess: () => void;
+}
+
+interface GameMap {
+  id: string;
+  name: string;
+}
+
+interface Faction {
+  id: string;
+  name: string;
 }
 
 const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
@@ -37,6 +47,9 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [maps, setMaps] = useState<GameMap[]>([]);
+  const [factions, setFactions] = useState<Faction[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
 
   // Determine who is winner and who is loser
   const isPlayer1 = currentUserId === player1Id;
@@ -45,8 +58,42 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
   const winnerName = isPlayer1 ? player1Name : player2Name;
   const loserName = isPlayer1 ? player2Name : player1Name;
 
-  const maps = ['Map 1', 'Map 2', 'Map 3', 'Siege', 'Dueling Grounds'];
-  const factions = ['Elves', 'Humans', 'Orcs', 'Undead', 'Dwarves', 'Drakes'];
+  // Load maps and factions from database
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoadingData(true);
+        const [mapsResponse, factionsResponse] = await Promise.all([
+          api.get('/public/maps'),
+          api.get('/public/factions'),
+        ]);
+        setMaps(mapsResponse.data || []);
+        setFactions(factionsResponse.data || []);
+      } catch (err) {
+        console.error('Error loading maps and factions:', err);
+        // Fallback to hardcoded values if API fails
+        setMaps([
+          { id: '1', name: 'Den of Onis' },
+          { id: '2', name: 'Fallenstar Lake' },
+          { id: '3', name: 'Hamlets' },
+          { id: '4', name: 'Silverhead Crossing' },
+          { id: '5', name: 'The Freelands' },
+        ]);
+        setFactions([
+          { id: '1', name: 'Elves' },
+          { id: '2', name: 'Loyals' },
+          { id: '3', name: 'Northerners' },
+          { id: '4', name: 'Knalgan' },
+          { id: '5', name: 'Drakes' },
+          { id: '6', name: 'Undead' },
+        ]);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -118,6 +165,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
 
         <div className="modal-body">
           {error && <div className="error-message">{error}</div>}
+          {loadingData && <div style={{ color: '#666', fontSize: '14px', marginBottom: '10px' }}>Loading maps and factions...</div>}
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
@@ -134,11 +182,12 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 value={formData.map}
                 onChange={handleInputChange}
                 required
+                disabled={loadingData}
               >
                 <option value="">Select map...</option>
                 {maps.map((map) => (
-                  <option key={map} value={map}>
-                    {map}
+                  <option key={map.id} value={map.name}>
+                    {map.name}
                   </option>
                 ))}
               </select>
@@ -153,11 +202,12 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                   value={formData.winner_faction}
                   onChange={handleInputChange}
                   required
+                  disabled={loadingData}
                 >
                   <option value="">Select faction...</option>
                   {factions.map((faction) => (
-                    <option key={faction} value={faction}>
-                      {faction}
+                    <option key={faction.id} value={faction.name}>
+                      {faction.name}
                     </option>
                   ))}
                 </select>
@@ -171,11 +221,12 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                   value={formData.loser_faction}
                   onChange={handleInputChange}
                   required
+                  disabled={loadingData}
                 >
                   <option value="">Select faction...</option>
                   {factions.map((faction) => (
-                    <option key={faction} value={faction}>
-                      {faction}
+                    <option key={faction.id} value={faction.name}>
+                      {faction.name}
                     </option>
                   ))}
                 </select>

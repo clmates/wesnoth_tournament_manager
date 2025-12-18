@@ -8,7 +8,7 @@ const router = Router();
 router.get('/faq', async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, question, answer, language_code, created_at FROM faq ORDER BY created_at DESC, language_code ASC`
+      `SELECT id, question, answer, language_code, created_at FROM public.faq ORDER BY created_at DESC, language_code ASC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -56,7 +56,7 @@ router.get('/tournaments', async (req, res) => {
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Get total count of filtered tournaments
-    const countQuery = `SELECT COUNT(*) as total FROM tournaments t ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as total FROM public.tournaments t ${whereClause}`;
     const countResult = await query(countQuery, params);
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
@@ -468,6 +468,32 @@ router.get('/matches', async (req, res) => {
   } catch (error) {
     console.error('Error fetching matches:', error);
     res.status(500).json({ error: 'Failed to fetch matches', details: (error as any).message });
+  }
+});
+
+// Get all maps (public endpoint)
+router.get('/maps', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, name, created_at, usage_count FROM public.game_maps ORDER BY name ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching maps:', error);
+    res.status(500).json({ error: 'Failed to fetch maps' });
+  }
+});
+
+// Get all factions (public endpoint)
+router.get('/factions', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, name, description, icon_path, created_at FROM public.factions ORDER BY name ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching factions:', error);
+    res.status(500).json({ error: 'Failed to fetch factions' });
   }
 });
 
