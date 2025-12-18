@@ -2,18 +2,29 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { matchService, userService } from '../services/api';
+import { matchService, userService, api } from '../services/api';
 import MainLayout from '../components/MainLayout';
 import OpponentSelector from '../components/OpponentSelector';
 import FileUploadInput from '../components/FileUploadInput';
 import '../styles/ReportMatch.css';
+
+interface GameMap {
+  id: string;
+  name: string;
+}
+
+interface Faction {
+  id: string;
+  name: string;
+}
 
 const ReportMatch: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const [users, setUsers] = useState<any[]>([]);
-  const [maps, setMaps] = useState<string[]>([]);
+  const [maps, setMaps] = useState<GameMap[]>([]);
+  const [factions, setFactions] = useState<Faction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -38,17 +49,31 @@ const ReportMatch: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // For now, we'll have predefined maps - in a real app, fetch from API
-        setMaps([
-          t('maps.map_1'),
-          t('maps.map_2'),
-          t('maps.map_3'),
-          t('maps.siege'),
-          t('maps.dueling_grounds'),
+        // Load maps and factions from API
+        const [mapsResponse, factionsResponse] = await Promise.all([
+          api.get('/public/maps'),
+          api.get('/public/factions'),
         ]);
+        setMaps(mapsResponse.data || []);
+        setFactions(factionsResponse.data || []);
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError('Error loading data');
+        // Fallback to hardcoded values if API fails
+        setMaps([
+          { id: '1', name: 'Den of Onis' },
+          { id: '2', name: 'Fallenstar Lake' },
+          { id: '3', name: 'Hamlets' },
+          { id: '4', name: 'Silverhead Crossing' },
+          { id: '5', name: 'The Freelands' },
+        ]);
+        setFactions([
+          { id: '1', name: 'Elves' },
+          { id: '2', name: 'Loyals' },
+          { id: '3', name: 'Northerners' },
+          { id: '4', name: 'Knalgan' },
+          { id: '5', name: 'Drakes' },
+          { id: '6', name: 'Undead' },
+        ]);
       } finally {
         setLoading(false);
       }
@@ -155,8 +180,8 @@ const ReportMatch: React.FC = () => {
             >
               <option value="">{t('report.select_map')}</option>
               {maps.map((map) => (
-                <option key={map} value={map}>
-                  {map}
+                <option key={map.id} value={map.name}>
+                  {map.name}
                 </option>
               ))}
             </select>
@@ -173,12 +198,11 @@ const ReportMatch: React.FC = () => {
                 required
               >
                 <option value="">{t('report.select_faction')}</option>
-                <option value="Elves">{t('faction.elves')}</option>
-                <option value="Humans">{t('faction.humans')}</option>
-                <option value="Orcs">{t('faction.orcs')}</option>
-                <option value="Undead">{t('faction.undead')}</option>
-                <option value="Dwarves">{t('faction.dwarves')}</option>
-                <option value="Drakes">{t('faction.drakes')}</option>
+                {factions.map((faction) => (
+                  <option key={faction.id} value={faction.name}>
+                    {faction.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -192,12 +216,11 @@ const ReportMatch: React.FC = () => {
                 required
               >
                 <option value="">{t('report.select_faction')}</option>
-                <option value="Elves">{t('faction.elves')}</option>
-                <option value="Humans">{t('faction.humans')}</option>
-                <option value="Orcs">{t('faction.orcs')}</option>
-                <option value="Undead">{t('faction.undead')}</option>
-                <option value="Dwarves">{t('faction.dwarves')}</option>
-                <option value="Drakes">{t('faction.drakes')}</option>
+                {factions.map((faction) => (
+                  <option key={faction.id} value={faction.name}>
+                    {faction.name}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
