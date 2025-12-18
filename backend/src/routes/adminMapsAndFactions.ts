@@ -16,8 +16,7 @@ router.get('/maps', authMiddleware, adminMiddleware, async (req: AuthRequest, re
         id,
         name,
         is_active,
-        created_at,
-        usage_count
+        created_at
       FROM game_maps
       ORDER BY created_at DESC
     `);
