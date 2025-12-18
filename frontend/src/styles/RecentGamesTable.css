@@ -68,7 +68,7 @@
 .date-col {
   color: #7f8c8d;
   font-size: 0.9rem;
-  width: 112px;
+  width: 10%;
   padding-right: 0.025rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -77,20 +77,19 @@
 
 .winner-col,
 .loser-col {
-  width: 480px;
-  min-width: 300px;
+  width: 30%;
   padding-left: 0.025rem;
   padding-right: 0.025rem;
 }
 
 .map-col {
-  width: 210px;
+  width: 15%;
   color: #555;
   padding-left: 0.025rem;
 }
 
 .status-col {
-  width: 400px;
+  width: 15%;
 }
 
 .player-block {

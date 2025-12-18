@@ -40,6 +40,8 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .home-section {
@@ -47,6 +49,8 @@
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   padding: 2rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .home-section h2 {
@@ -281,7 +285,7 @@
 
 /* Recent Matches Table */
 .recent-matches-table-wrapper {
-  overflow-x: auto;
+  width: 100%;
 }
 
 .recent-matches-table {
