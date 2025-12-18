@@ -98,6 +98,15 @@ const UserProfileNav: React.FC = () => {
 
               <button 
                 className="nav-link admin-link"
+                onClick={() => handleNavigate('/admin/maps-and-factions')}
+                title="Manage Maps & Factions"
+              >
+                <span className="nav-icon">🗺️</span>
+                <span className="nav-text">Maps & Factions</span>
+              </button>
+
+              <button 
+                className="nav-link admin-link"
                 onClick={() => handleNavigate('/admin/disputes')}
                 title={t('sidebar.match_disputes')}
               >

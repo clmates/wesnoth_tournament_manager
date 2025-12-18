@@ -107,6 +107,15 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
                 <li className="nav-item">
                   <button 
                     className="nav-link"
+                    onClick={() => handleNavigate('/admin/maps-and-factions')}
+                  >
+                    <span className="nav-icon">🗺️</span>
+                    <span>Maps & Factions</span>
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button 
+                    className="nav-link"
                     onClick={() => handleNavigate('/admin/tournaments')}
                   >
                     <span className="nav-icon">⚙️</span>

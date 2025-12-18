@@ -8,7 +8,7 @@ const router = Router();
 router.get('/faq', async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, question, answer, language_code, created_at FROM public.faq ORDER BY created_at DESC, language_code ASC`
+      `SELECT id, question, answer, language_code, created_at, "order" FROM public.faq ORDER BY "order" ASC, created_at ASC, language_code ASC`
     );
     res.json(result.rows);
   } catch (error) {

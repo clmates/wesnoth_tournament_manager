@@ -292,6 +292,17 @@
   margin-left: 0.5rem;
 }
 
+.order-badge {
+  display: inline-block;
+  background: #4CAF50;
+  color: white;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
 /* Actions */
 .actions {
   display: flex;
