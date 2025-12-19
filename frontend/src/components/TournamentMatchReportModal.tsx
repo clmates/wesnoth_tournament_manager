@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { matchService, api } from '../services/api';
+import { parseReplayFile, getOpponentFromReplay, getMapFromReplay, getPlayerFactionFromReplay } from '../services/replayParser';
 import '../styles/MatchConfirmationModal.css';
 
 interface TournamentMatchReportProps {
@@ -93,12 +94,62 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
     }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setFormData((prev) => ({
-        ...prev,
-        replay: e.target.files![0],
-      }));
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      replay: file,
+    }));
+
+    try {
+      setError('');
+      const replayData = await parseReplayFile(file);
+
+      // Autocomplete map
+      if (replayData.map) {
+        const matchingMap = maps.find((m) =>
+          m.name.toLowerCase() === replayData.map?.toLowerCase()
+        );
+        if (matchingMap) {
+          setFormData((prev) => ({
+            ...prev,
+            map: matchingMap.name,
+          }));
+        }
+      }
+
+      // Autocomplete factions based on current player
+      const playerFaction = getPlayerFactionFromReplay(replayData, winnerName);
+      if (playerFaction) {
+        const matchingFaction = factions.find(
+          (f) => f.name.toLowerCase() === playerFaction.toLowerCase()
+        );
+        if (matchingFaction) {
+          setFormData((prev) => ({
+            ...prev,
+            winner_faction: matchingFaction.name,
+          }));
+        }
+      }
+
+      const opponentFaction = replayData.players.find(
+        (p) => p.name !== winnerName
+      )?.faction;
+      if (opponentFaction) {
+        const matchingFaction = factions.find(
+          (f) => f.name.toLowerCase() === opponentFaction.toLowerCase()
+        );
+        if (matchingFaction) {
+          setFormData((prev) => ({
+            ...prev,
+            loser_faction: matchingFaction.name,
+          }));
+        }
+      }
+    } catch (err: any) {
+      setError(`Replay parsing error: ${err.message}`);
     }
   };
 
@@ -259,8 +310,11 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 id="replay"
                 name="replay"
                 onChange={handleFileChange}
-                accept=".gz,.json,.zip"
+                accept=".gz"
               />
+              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+                Upload your replay file (.gz) or save file to auto-fill map and factions
+              </small>
             </div>
 
             <div className="form-actions">

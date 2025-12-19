@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { matchService, userService, api } from '../services/api';
+import { parseReplayFile, getOpponentFromReplay, getMapFromReplay, getPlayerFactionFromReplay } from '../services/replayParser';
 import MainLayout from '../components/MainLayout';
 import OpponentSelector from '../components/OpponentSelector';
 import FileUploadInput from '../components/FileUploadInput';
@@ -71,6 +72,80 @@ const ReportMatch: React.FC = () => {
 
     fetchData();
   }, [isAuthenticated, navigate]);
+
+  const handleReplayFileChange = async (file: File | null) => {
+    setFormData((prev) => ({
+      ...prev,
+      replay: file,
+    }));
+
+    if (!file) return;
+
+    try {
+      setError('');
+      const replayData = await parseReplayFile(file);
+      const currentPlayer = userService.getProfile ? userService.getProfile() : null;
+
+      // Get profile to know current player name
+      try {
+        const profileRes = await userService.getProfile();
+        const currentPlayerName = profileRes.data?.nickname;
+
+        // Autocomplete map
+        if (replayData.map) {
+          const matchingMap = maps.find((m) =>
+            m.name.toLowerCase() === replayData.map?.toLowerCase()
+          );
+          if (matchingMap) {
+            setFormData((prev) => ({
+              ...prev,
+              map: matchingMap.name,
+            }));
+          }
+        }
+
+        // Autocomplete opponent from replay
+        const opponent = getOpponentFromReplay(replayData, currentPlayerName);
+        if (opponent) {
+          setFormData((prev) => ({
+            ...prev,
+            opponent_id: opponent.name, // Will match against users list
+          }));
+        }
+
+        // Autocomplete factions
+        const playerFaction = getPlayerFactionFromReplay(replayData, currentPlayerName);
+        if (playerFaction) {
+          const matchingFaction = factions.find(
+            (f) => f.name.toLowerCase() === playerFaction.toLowerCase()
+          );
+          if (matchingFaction) {
+            setFormData((prev) => ({
+              ...prev,
+              winner_faction: matchingFaction.name,
+            }));
+          }
+        }
+
+        const opponentFaction = opponent?.faction;
+        if (opponentFaction) {
+          const matchingFaction = factions.find(
+            (f) => f.name.toLowerCase() === opponentFaction.toLowerCase()
+          );
+          if (matchingFaction) {
+            setFormData((prev) => ({
+              ...prev,
+              loser_faction: matchingFaction.name,
+            }));
+          }
+        }
+      } catch (profileErr) {
+        console.error('Error fetching profile:', profileErr);
+      }
+    } catch (err: any) {
+      setError(`Replay parsing error: ${err.message}`);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -248,14 +323,12 @@ const ReportMatch: React.FC = () => {
             <label htmlFor="replay">{t('report_replay')}</label>
             <FileUploadInput
               value={formData.replay}
-              onChange={(file) => {
-                setFormData((prev) => ({
-                  ...prev,
-                  replay: file,
-                }));
-              }}
+              onChange={handleReplayFileChange}
               accept=".gz"
             />
+            <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+              Upload your replay file (.gz) or save file to auto-fill opponent, map, and factions
+            </small>
           </div>
 
           <div className="form-actions">
