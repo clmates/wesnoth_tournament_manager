@@ -245,15 +245,26 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
   const handlePrepareAndStart = async () => {
     try {
-      // Save edit data first if any changes
+      // Save edit data first if any changes (but exclude started_at if empty)
       if (editData.description !== tournament?.description || 
           editData.max_participants !== tournament?.max_participants ||
-          editData.started_at !== tournament?.started_at ||
           editData.general_rounds !== tournament?.general_rounds ||
           editData.final_rounds !== tournament?.final_rounds ||
           editData.general_rounds_format !== tournament?.general_rounds_format ||
           editData.final_rounds_format !== tournament?.final_rounds_format) {
-        await tournamentService.updateTournament(id!, editData);
+        // Build update object, excluding started_at if empty
+        const updateObj: any = {
+          description: editData.description,
+          max_participants: editData.max_participants,
+          general_rounds: editData.general_rounds,
+          final_rounds: editData.final_rounds,
+          general_rounds_format: editData.general_rounds_format,
+          final_rounds_format: editData.final_rounds_format
+        };
+        if (editData.started_at) {
+          updateObj.started_at = editData.started_at;
+        }
+        await tournamentService.updateTournament(id!, updateObj);
       }
       
       // Change status to prepared (without starting yet)
@@ -282,7 +293,19 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
   const handleSaveChanges = async () => {
     try {
-      await tournamentService.updateTournament(id!, editData);
+      // Build update object, excluding started_at if empty
+      const updateObj: any = {
+        description: editData.description,
+        max_participants: editData.max_participants,
+        general_rounds: editData.general_rounds,
+        final_rounds: editData.final_rounds,
+        general_rounds_format: editData.general_rounds_format,
+        final_rounds_format: editData.final_rounds_format
+      };
+      if (editData.started_at) {
+        updateObj.started_at = editData.started_at;
+      }
+      await tournamentService.updateTournament(id!, updateObj);
       setSuccess(t('success_tournament_configuration_updated'));
       setEditMode(false);
       fetchTournamentData();

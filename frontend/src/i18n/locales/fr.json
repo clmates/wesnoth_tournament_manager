@@ -5,5 +5,7 @@
     "tournament_deleted_no_participants": "Tournoi supprimé (aucun participant inscrit)",
     "confirm_delete_title": "Confirmer la Suppression du Tournoi",
     "no_participants_message": "Aucun participant n'est inscrit pour ce tournoi. Êtes-vous sûr de vouloir le supprimer?"
-  }
+  },
+  "btn_accept": "Accepter",
+  "btn_reject": "Rejeter"
 }

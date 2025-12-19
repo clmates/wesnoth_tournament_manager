@@ -396,5 +396,7 @@
     "map_3": "Mapa 3",
     "siege": "Asedio",
     "dueling_grounds": "Campos de Duelos"
-  }
+  },
+  "btn_accept": "Aceptar",
+  "btn_reject": "Rechazar"
 }
