@@ -84,12 +84,13 @@ const ReportMatch: React.FC = () => {
     try {
       setError('');
       const replayData = await parseReplayFile(file);
-      const currentPlayer = userService.getProfile ? userService.getProfile() : null;
+      console.log('Parsed replay data:', replayData);
 
       // Get profile to know current player name
       try {
         const profileRes = await userService.getProfile();
         const currentPlayerName = profileRes.data?.nickname;
+        console.log('Current player:', currentPlayerName);
 
         // Autocomplete map
         if (replayData.map) {
@@ -107,10 +108,19 @@ const ReportMatch: React.FC = () => {
         // Autocomplete opponent from replay
         const opponent = getOpponentFromReplay(replayData, currentPlayerName);
         if (opponent) {
-          setFormData((prev) => ({
-            ...prev,
-            opponent_id: opponent.name, // Will match against users list
-          }));
+          // Find opponent in users list by nickname
+          const opponentUser = users.find(
+            (u) => u.nickname.toLowerCase() === opponent.name.toLowerCase()
+          );
+          if (opponentUser) {
+            setFormData((prev) => ({
+              ...prev,
+              opponent_id: opponentUser.id,
+            }));
+            console.log('Set opponent to:', opponentUser.nickname);
+          } else {
+            console.warn(`Opponent "${opponent.name}" not found in users list`);
+          }
         }
 
         // Autocomplete factions
