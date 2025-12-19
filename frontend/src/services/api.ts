@@ -95,6 +95,7 @@ export const tournamentService = {
   createTournament: (data: any) => api.post('/tournaments', data),
   getTournament: (id: string) => api.get(`/tournaments/${id}`),
   updateTournament: (id: string, data: any) => api.put(`/tournaments/${id}`, data),
+  deleteTournament: (id: string) => api.delete(`/tournaments/${id}`),
   startTournament: (id: string) => api.post(`/tournaments/${id}/start`),
   closeRegistration: (id: string, confirm?: boolean) => 
     api.post(`/tournaments/${id}/close-registration`, confirm ? { confirm: true } : {}),

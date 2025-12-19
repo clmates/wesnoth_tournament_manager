@@ -119,6 +119,7 @@
   "close_btn": "Cerrar",
   "cancel_btn": "Cancelar",
   "delete_btn": "Eliminar",
+  "confirm_delete_tournament": "¿Estás seguro de que quieres eliminar este torneo? Los matches asociados se desvincularcán pero no se eliminarán.",
   "recent_games": "Partidas Recientes",
   "recent_games_no_data": "No hay partidas recientes",
   "my_opponents": "Mis Oponentes",

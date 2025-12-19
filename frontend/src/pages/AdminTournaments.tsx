@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { publicService } from '../services/api';
+import { publicService, tournamentService } from '../services/api';
 import MainLayout from '../components/MainLayout';
 import TournamentList, { Tournament } from '../components/TournamentList';
 import '../styles/Admin.css';
@@ -56,9 +56,28 @@ const AdminTournaments: React.FC = () => {
     navigate(`/tournament/${tournamentId}`, { state: { from: 'admin-tournaments' } });
   };
 
+  const handleDeleteTournament = async (tournamentId: string) => {
+    if (!window.confirm(t('confirm_delete_tournament'))) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await tournamentService.deleteTournament(tournamentId);
+      setError('');
+      fetchTournaments();
+    } catch (err: any) {
+      console.error('Error deleting tournament:', err);
+      setError(err.response?.data?.error || 'Failed to delete tournament');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return <MainLayout><div className="admin-container"><p>{t('loading')}</p></div></MainLayout>;
   }
+
 
   return (
     <MainLayout>
@@ -74,9 +93,11 @@ const AdminTournaments: React.FC = () => {
         showCreateButton={false}
         onPageChange={handlePageChange}
         onViewDetails={handleViewDetails}
+        onDelete={handleDeleteTournament}
       />
     </MainLayout>
   );
 };
 
 export default AdminTournaments;
+

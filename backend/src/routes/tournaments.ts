@@ -290,6 +290,56 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// Delete tournament (admin only) - desvinculates matches from tournament but keeps them
+router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verify tournament exists
+    const tournamentCheck = await query('SELECT id, creator_id FROM tournaments WHERE id = $1', [id]);
+    if (tournamentCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    // Start transaction
+    await query('BEGIN');
+
+    try {
+      // Desvinculate all matches from tournament (set tournament_id to NULL)
+      // Note: matches table has tournament_id column but NO FK constraint, so matches will be preserved
+      const matchesResult = await query('UPDATE matches SET tournament_id = NULL WHERE tournament_id = $1 RETURNING id', [id]);
+      const desvinculatedMatchesCount = matchesResult.rows.length;
+
+      // Delete tournament_rounds (cascade will handle tournament_round_matches)
+      await query('DELETE FROM tournament_rounds WHERE tournament_id = $1', [id]);
+
+      // Delete tournament_participants
+      await query('DELETE FROM tournament_participants WHERE tournament_id = $1', [id]);
+
+      // Delete tournament
+      await query('DELETE FROM tournaments WHERE id = $1', [id]);
+
+      // Commit transaction
+      await query('COMMIT');
+
+      res.json({ 
+        message: 'Tournament deleted successfully',
+        tournament_id: id,
+        details: {
+          matches_desvinculated: desvinculatedMatchesCount,
+          note: 'Associated matches have been preserved and desvinculated from tournament'
+        }
+      });
+    } catch (innerError) {
+      await query('ROLLBACK');
+      throw innerError;
+    }
+  } catch (error: any) {
+    console.error('Delete tournament error:', error.message || error);
+    res.status(500).json({ error: 'Failed to delete tournament', details: error.message });
+  }
+});
+
 // Get tournament rounds
 router.get('/:id/rounds', async (req, res) => {
   try {

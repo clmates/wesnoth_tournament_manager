@@ -120,6 +120,7 @@
   "close_btn": "Close",
   "cancel_btn": "Cancel",
   "delete_btn": "Delete",
+  "confirm_delete_tournament": "Are you sure you want to delete this tournament? Associated matches will be desvinculated but not deleted.",
   "report": "Report",
   "determine_winner": "Determine Winner",
   "confirm_dispute": "Confirm/Dispute",

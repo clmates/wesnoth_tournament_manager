@@ -1,6 +1,7 @@
 {
   "cancel_btn": "Annuler",
   "delete_btn": "Supprimer",
+  "confirm_delete_tournament": "Êtes-vous sûr de vouloir supprimer ce tournoi? Les matchs associés seront dissociés mais ne seront pas supprimés.",
   "tournaments": {
     "tournament_deleted_no_participants": "Tournoi supprimé (aucun participant inscrit)",
     "confirm_delete_title": "Confirmer la Suppression du Tournoi",
