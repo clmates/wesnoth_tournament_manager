@@ -391,5 +391,6 @@
     "map_3": "Mapa 3",
     "siege": "Asedio",
     "dueling_grounds": "Campos de Duelos"
-  }
+  },
+  "tournaments.tournament_deleted_no_participants": "Torneo eliminado (no hay participantes registrados)"
 }

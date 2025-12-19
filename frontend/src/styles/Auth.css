@@ -84,6 +84,76 @@
   }
 }
 
+/* Password validation hints */
+.password-hints {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-left: 4px solid #3498db;
+  border-radius: 4px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.password-hint-label {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.password-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.password-hint.satisfied {
+  color: #27ae60;
+}
+
+.password-hint.unsatisfied {
+  color: #e74c3c;
+}
+
+.hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.hint-text {
+  flex: 1;
+}
+
+/* Input validation state */
+.input-invalid {
+  border-color: #e74c3c !important;
+  background-color: #fef5f5;
+}
+
+.input-invalid:focus {
+  box-shadow: 0 0 5px rgba(231, 76, 60, 0.3) !important;
+  border-color: #e74c3c !important;
+}
+
 .profile-info,
 .discord-settings,
 .language-settings,

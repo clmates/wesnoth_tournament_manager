@@ -18,6 +18,23 @@ const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPasswordHints, setShowPasswordHints] = useState(false);
+
+  const passwordRules = [
+    { regex: /.{8,}/, label: 'At least 8 characters' },
+    { regex: /[0-9]/, label: 'At least one number' },
+    { regex: /[!@#$%^&*(),.?":{}|<>]/, label: 'At least one special character' },
+  ];
+
+  const getPasswordValidation = () => {
+    return passwordRules.map(rule => ({
+      ...rule,
+      satisfied: rule.regex.test(formData.password)
+    }));
+  };
+
+  const passwordValidation = getPasswordValidation();
+  const isPasswordValid = passwordValidation.every(rule => rule.satisfied);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -47,9 +64,11 @@ const Register: React.FC = () => {
       return false;
     }
 
-    // Validate password
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    // Validate password against all rules
+    const validation = getPasswordValidation();
+    const failedRules = validation.filter(rule => !rule.satisfied);
+    if (failedRules.length > 0) {
+      setError(`Password requirements not met: ${failedRules.map(r => r.label).join(', ')}`);
       return false;
     }
 
@@ -139,10 +158,27 @@ const Register: React.FC = () => {
               name="password"
               value={formData.password}
               onChange={handleInputChange}
+              onFocus={() => setShowPasswordHints(true)}
+              onBlur={() => setShowPasswordHints(false)}
               placeholder="••••••"
               disabled={loading}
               required
+              className={formData.password && !isPasswordValid ? 'input-invalid' : ''}
             />
+            {showPasswordHints && (
+              <div className="password-hints">
+                <div className="password-hint-label">Password requirements:</div>
+                {passwordValidation.map((rule, idx) => (
+                  <div
+                    key={idx}
+                    className={`password-hint ${rule.satisfied ? 'satisfied' : 'unsatisfied'}`}
+                  >
+                    <span className="hint-icon">{rule.satisfied ? '✓' : '✗'}</span>
+                    <span className="hint-text">{rule.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -156,6 +192,7 @@ const Register: React.FC = () => {
               placeholder="••••••"
               disabled={loading}
               required
+              className={formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword ? 'input-invalid' : ''}
             />
           </div>
 
