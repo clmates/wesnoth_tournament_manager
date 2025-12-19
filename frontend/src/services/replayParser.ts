@@ -33,23 +33,24 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
         
         if ('DecompressionStream' in window) {
           try {
-            const stream = new ReadableStream({
+            const stream = new ReadableStream<Uint8Array>({
               start(controller) {
                 controller.enqueue(new Uint8Array(arrayBuffer));
                 controller.close();
               },
             });
             
-            const decompressedStream = stream.pipeThrough(
+            const decompressedStream = (stream as ReadableStream<Uint8Array>).pipeThrough(
               new (window as any).DecompressionStream('gzip')
-            );
+            ) as ReadableStream<Uint8Array>;
             
-            const reader = decompressedStream.getReader();
+            const reader = (decompressedStream as ReadableStream<Uint8Array>).getReader();
             const chunks: Uint8Array[] = [];
             
             let result = await reader.read();
             while (!result.done) {
-              chunks.push(result.value);
+              const chunk = result.value as Uint8Array;
+              if (chunk) chunks.push(chunk);
               result = await reader.read();
             }
             
@@ -106,44 +107,34 @@ export function extractReplayInfo(xmlText: string): ReplayData {
     data.map = mapName;
   }
 
-  // Extract side information (players and factions)
-  const sideMatches = xmlText.matchAll(/<side[^>]*>/g);
-  for (const match of sideMatches) {
-    const sideElement = match[0];
-    
-    // Extract player name from side_users attribute or username element
-    let playerName: string | null = null;
-    
-    // Try to get from side_users attribute
-    const sideUsersMatch = sideElement.match(/side_users="([^"]+)"/);
-    if (sideUsersMatch) {
-      const sideUsers = sideUsersMatch[1];
-      // Format: "id1:player1,id2:player2" or just "id1:player1"
-      const players = sideUsers.split(',');
-      if (players.length > 0) {
-        playerName = players[0].split(':')[1] || players[0];
-      }
+  // Extract players from global side_users attribute (e.g., id1:Nick1,id2:Nick2)
+  const sideUsersGlobal = xmlText.match(/side_users="([^"]+)"/);
+  const playerNames: string[] = [];
+  if (sideUsersGlobal && sideUsersGlobal[1]) {
+    const pairs = sideUsersGlobal[1].split(',');
+    for (const pair of pairs) {
+      const parts = pair.split(':');
+      const name = (parts[1] || parts[0]).trim();
+      if (name) playerNames.push(name);
     }
+  }
 
-    // Try to get faction from faction_name attribute
-    let factionName: string | null = null;
-    const factionMatch = sideElement.match(/faction_name="([^"]+)"/);
-    if (factionMatch) {
-      factionName = factionMatch[1];
-      // Clean faction name (remove leading underscores, quotes, etc.)
-      factionName = factionName
-        .replace(/^["']/, '')
-        .replace(/["']$/, '')
-        .replace(/^_/, '');
-    }
+  // Extract factions in order of <side ...> blocks
+  const factionsInOrder: string[] = [];
+  const factionRegex = /faction_name\s*=\s*_?"([^"]+)"/g; // matches faction_name="..." and faction_name=_"..."
+  const factionMatches = xmlText.matchAll(factionRegex);
+  for (const m of factionMatches) {
+    const raw = m[1];
+    const clean = raw.replace(/^_/, '');
+    factionsInOrder.push(clean);
+  }
 
-    if (playerName && factionName) {
-      data.players.push({
-        id: playerName,
-        name: playerName,
-        faction: factionName,
-      });
-    }
+  // Build players array by index mapping
+  const count = Math.min(playerNames.length, factionsInOrder.length);
+  for (let i = 0; i < count; i++) {
+    const name = playerNames[i];
+    const faction = factionsInOrder[i];
+    data.players.push({ id: name, name, faction });
   }
 
   return data;
