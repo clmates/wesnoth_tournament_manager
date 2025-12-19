@@ -129,12 +129,29 @@ export function extractReplayInfo(xmlText: string): ReplayData {
     factionsInOrder.push(clean);
   }
 
+  // Extract factions from [old_side*] blocks mapping current_player -> faction
+  const factionByPlayer: Record<string, string> = {};
+  const oldSideRegex = /\[old_side[^\]]*\][\s\S]*?current_player="([^"]+)"[\s\S]*?faction="([^"]+)"/g;
+  for (const m of xmlText.matchAll(oldSideRegex)) {
+    const player = m[1];
+    const rawFaction = m[2];
+    const cleanFaction = rawFaction.replace(/^_/, '');
+    factionByPlayer[player] = cleanFaction;
+  }
+
   // Build players array by index mapping
   const count = Math.min(playerNames.length, factionsInOrder.length);
   for (let i = 0; i < count; i++) {
     const name = playerNames[i];
-    const faction = factionsInOrder[i];
+    const faction = factionByPlayer[name] ?? factionsInOrder[i] ?? 'Unknown';
     data.players.push({ id: name, name, faction });
+  }
+
+  // If playerNames are empty but old_side mapping exists, use it to populate players
+  if (playerNames.length === 0 && Object.keys(factionByPlayer).length > 0) {
+    for (const [name, faction] of Object.entries(factionByPlayer)) {
+      data.players.push({ id: name, name, faction });
+    }
   }
 
   return data;

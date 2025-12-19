@@ -122,6 +122,7 @@ const ReportMatch: React.FC = () => {
             console.log('Set opponent to:', opponentUser.nickname);
           } else {
             console.warn(`Opponent "${opponent.name}" not found in users list`);
+            setError(`Opponent "${opponent.name}" is not registered. Please select manually.`);
           }
         }
 
