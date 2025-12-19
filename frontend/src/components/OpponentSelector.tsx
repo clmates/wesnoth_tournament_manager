@@ -57,6 +57,19 @@ const OpponentSelector: React.FC<OpponentSelectorProps> = ({ value, onChange }) 
     }
   }, [inputValue, allUsers]);
 
+  // Keep UI in sync when parent-controlled value (userId) changes
+  useEffect(() => {
+    if (!allUsers.length) return;
+    if (value) {
+      const u = allUsers.find(u => u.id === value) || null;
+      setSelectedUser(u);
+      setInputValue(u?.nickname || '');
+    } else {
+      setSelectedUser(null);
+      setInputValue('');
+    }
+  }, [value, allUsers]);
+
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

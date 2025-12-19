@@ -50,13 +50,15 @@ const ReportMatch: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Load maps and factions from API
-        const [mapsResponse, factionsResponse] = await Promise.all([
+        // Load maps, factions and users from API
+        const [mapsResponse, factionsResponse, usersResponse] = await Promise.all([
           api.get('/public/maps'),
           api.get('/public/factions'),
+          userService.getAllUsers(),
         ]);
         setMaps(mapsResponse.data || []);
         setFactions(factionsResponse.data || []);
+        setUsers((usersResponse as any)?.data?.data || (usersResponse as any)?.data || []);
         
         if ((!mapsResponse.data || mapsResponse.data.length === 0) || 
             (!factionsResponse.data || factionsResponse.data.length === 0)) {
@@ -334,7 +336,7 @@ const ReportMatch: React.FC = () => {
             <FileUploadInput
               value={formData.replay}
               onChange={handleReplayFileChange}
-              accept=".gz"
+              accept=".gz,.cfg,.txt,.save"
             />
             <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
               Upload your replay file (.gz) or save file to auto-fill opponent, map, and factions
