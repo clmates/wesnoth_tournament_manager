@@ -118,6 +118,8 @@
   "download": "Download",
   "downloads": "Downloads",
   "close_btn": "Close",
+  "cancel_btn": "Cancel",
+  "delete_btn": "Delete",
   "report": "Report",
   "determine_winner": "Determine Winner",
   "confirm_dispute": "Confirm/Dispute",
@@ -235,7 +237,6 @@
   "report.rating_5": "Excellent",
   "report.submitting": "Reporting...",
   "btn_cancel": "Cancel",
-  "matches": "matches",
   "filter_by_tournament_name": "Search by tournament name...",
   "filter_status": "Status",
   "filter_type": "Tournament Type",
@@ -270,7 +271,9 @@
     "btn_prepare": "Prepare Tournament",
     "btn_start": "Start Tournament",
     "request_join": "Request to Join Tournament",
-    "tournament_deleted_no_participants": "Tournament deleted (no participants registered)"
+    "tournament_deleted_no_participants": "Tournament deleted (no participants registered)",
+    "confirm_delete_title": "Confirm Tournament Deletion",
+    "no_participants_message": "No participants have registered for this tournament. Are you sure you want to delete it?"
   },
   "my_tournaments_title": "My Tournaments",
   "tournaments.max_participants_required": "⚠️ Max participants is required to configure rounds. Set it first in the Basic Information section.",
@@ -375,7 +378,6 @@
   "error_failed_create_tournament": "Failed to create tournament",
   "error_failed_join_tournament": "Failed to join tournament",
   "label_ranking_position": "Ranking Position",
-  "label_ranking_change": "Position Change",
   "option_type_swiss_elimination": "Swiss-Elimination Mix",
   "profile": {
     "title": "My Profile",

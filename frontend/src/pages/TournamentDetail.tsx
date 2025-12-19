@@ -91,6 +91,7 @@ const TournamentDetail: React.FC = () => {
   const [matchDetailsModal, setMatchDetailsModal] = useState<{ isOpen: boolean; match: TournamentMatch | null }>({ isOpen: false, match: null });
   const [determineWinnerData, setDetermineWinnerData] = useState<any>(null);
   const [showDetermineWinnerModal, setShowDetermineWinnerModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [editData, setEditData] = useState({
     description: '',
     max_participants: 0,
@@ -188,16 +189,59 @@ const TournamentDetail: React.FC = () => {
     }
   };
 
-  const handleCloseRegistration = async () => {
-    try {
-      await tournamentService.updateTournament(id!, { status: 'registration_closed' });
+const handleCloseRegistration = async () => {
+  try {
+    // First call without confirmation
+    const response = await tournamentService.closeRegistration(id!);
+    
+    if (response.data?.requiresConfirmation) {
+      // Show confirmation modal
+      setShowDeleteConfirmModal(true);
+    } else if (response.data?.action === 'closed') {
+      // Tournament registration closed normally (had participants)
       setSuccess(t('success_registration_closed'));
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.error || t('error_failed_close_registration'));
     }
-  };
+  } catch (err: any) {
+    setError(err.response?.data?.error || t('error_failed_close_registration'));
+  }
+};
+
+const handleConfirmDelete = async () => {
+  try {
+    // Second call with confirmation
+    const response = await tournamentService.closeRegistration(id!, true);
+    
+    if (response.data?.action === 'deleted') {
+      setSuccess(t('tournaments.tournament_deleted_no_participants'));
+      setShowDeleteConfirmModal(false);
+      // Redirect after 2 seconds
+      setTimeout(() => {
+        navigate('/my-tournaments');
+      }, 2000);
+    }
+  } catch (err: any) {
+    setError(err.response?.data?.error || t('error_failed_close_registration'));
+    setShowDeleteConfirmModal(false);
+  }
+};
+
+const handleDownloadReplay = async (matchId: string | null, replayFilePath: string | null | undefined) => {
+  try {
+    if (!matchId || !replayFilePath) return;
+    const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
+    const downloadUrl = `/api/matches/${matchId}/replay/download`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    console.error('Error downloading replay:', err);
+  }
+};
 
   const handlePrepareAndStart = async () => {
     try {
@@ -823,21 +867,6 @@ const TournamentDetail: React.FC = () => {
                           // Use match_status_from_matches from the matches table (confirmed, disputed, unconfirmed, cancelled)
                           const confirmationStatus = isAdminDetermined ? 'admin' : (match.match_status_from_matches || 'unconfirmed');
 
-                          const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
-                            try {
-                              const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
-                              const downloadUrl = `/api/matches/${matchId}/replay/download`;
-                              const link = document.createElement('a');
-                              link.href = downloadUrl;
-                              link.download = filename;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            } catch (err) {
-                              console.error('Error downloading replay:', err);
-                            }
-                          };
-
                           return (
                             <tr key={match.id}>
                               <td>{t('label_round')} {match.round_number}</td>
@@ -1251,6 +1280,28 @@ const TournamentDetail: React.FC = () => {
 
             <div className="modal-footer">
               <button className="close-modal-btn" onClick={() => setMatchDetailsModal({ isOpen: false, match: null })}>{t('close_btn')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Tournament Confirmation Modal */}
+      {showDeleteConfirmModal && (
+        <div className="modal-overlay">
+          <div className="modal-content modal-small">
+            <div className="modal-header">
+              <h2>{t('tournaments.confirm_delete_title') || 'Confirm Tournament Deletion'}</h2>
+            </div>
+            <div className="modal-body">
+              <p>{t('tournaments.no_participants_message') || 'No participants have registered for this tournament. Delete it?'}</p>
+            </div>
+            <div className="modal-footer">
+              <button className="cancel-btn" onClick={() => setShowDeleteConfirmModal(false)}>
+                {t('cancel_btn') || 'Cancel'}
+              </button>
+              <button className="delete-btn" onClick={handleConfirmDelete}>
+                {t('delete_btn') || 'Delete'}
+              </button>
             </div>
           </div>
         </div>

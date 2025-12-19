@@ -1,4 +1,9 @@
 {
-  "tournaments.tournament_deleted_no_participants": "Tournoi supprimé (aucun participant inscrit)",
-  // ...existing code...
+  "cancel_btn": "Annuler",
+  "delete_btn": "Supprimer",
+  "tournaments": {
+    "tournament_deleted_no_participants": "Tournoi supprimé (aucun participant inscrit)",
+    "confirm_delete_title": "Confirmer la Suppression du Tournoi",
+    "no_participants_message": "Aucun participant n'est inscrit pour ce tournoi. Êtes-vous sûr de vouloir le supprimer?"
+  }
 }

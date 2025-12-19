@@ -117,6 +117,8 @@
   "download": "Descargar",
   "downloads": "Descargas",
   "close_btn": "Cerrar",
+  "cancel_btn": "Cancelar",
+  "delete_btn": "Eliminar",
   "recent_games": "Partidas Recientes",
   "recent_games_no_data": "No hay partidas recientes",
   "my_opponents": "Mis Oponentes",
@@ -356,7 +358,10 @@
     "btn_close_registration": "Cerrar Inscripciones",
     "btn_prepare": "Preparar Torneo",
     "btn_start": "Iniciar Torneo",
-    "request_join": "Solicitar Unirse"
+    "request_join": "Solicitar Unirse",
+    "tournament_deleted_no_participants": "Torneo eliminado (no hay participantes registrados)",
+    "confirm_delete_title": "Confirmar Eliminación del Torneo",
+    "no_participants_message": "No hay participantes registrados para este torneo. ¿Estás seguro de que quieres eliminarlo?"
   },
   "my_tournaments_title": "Mis Torneos",
   "tournaments.max_participants_required": "⚠️ El número máximo de participantes es obligatorio para configurar las rondas. Establécelo primero en la sección Información básica.",
@@ -391,6 +396,5 @@
     "map_3": "Mapa 3",
     "siege": "Asedio",
     "dueling_grounds": "Campos de Duelos"
-  },
-  "tournaments.tournament_deleted_no_participants": "Torneo eliminado (no hay participantes registrados)"
+  }
 }

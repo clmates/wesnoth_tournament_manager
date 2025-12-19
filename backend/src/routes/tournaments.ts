@@ -503,6 +503,7 @@ router.get('/:id/ranking', async (req, res) => {
 router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
+    const { confirm } = req.body; // confirm = true if user confirmed deletion
 
     // Verify tournament creator
     const tournamentCheck = await query('SELECT creator_id, status FROM tournaments WHERE id = $1', [id]);
@@ -519,7 +520,38 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
       return res.status(400).json({ error: 'Tournament registration is not open' });
     }
 
-    // Update tournament status to registration_closed
+    // Check if there are any accepted participants
+    const participantsCheck = await query(
+      'SELECT COUNT(*) as count FROM tournament_participants WHERE tournament_id = $1 AND participation_status = $2',
+      [id, 'accepted']
+    );
+
+    const participantCount = parseInt(participantsCheck.rows[0].count, 10);
+
+    // If no participants
+    if (participantCount === 0) {
+      // If not confirmed, ask for confirmation
+      if (!confirm) {
+        return res.status(200).json({ 
+          action: 'confirm_delete',
+          message: 'No participants registered. Delete tournament?',
+          requiresConfirmation: true
+        });
+      }
+
+      // Delete tournament and all related data
+      await query('DELETE FROM tournament_rounds WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM matches WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM tournament_participants WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM tournaments WHERE id = $1', [id]);
+
+      return res.status(200).json({ 
+        action: 'deleted',
+        message: 'Tournament deleted successfully (no participants)'
+      });
+    }
+
+    // If has participants, close registration normally
     await query(
       `UPDATE tournaments 
        SET status = $1, registration_closed_at = NOW() 
@@ -528,6 +560,7 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
     );
 
     res.json({ 
+      action: 'closed',
       message: 'Registration closed successfully',
       next_step: 'Prepare tournament by configuring rounds before starting'
     });

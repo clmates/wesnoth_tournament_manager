@@ -96,6 +96,8 @@ export const tournamentService = {
   getTournament: (id: string) => api.get(`/tournaments/${id}`),
   updateTournament: (id: string, data: any) => api.put(`/tournaments/${id}`, data),
   startTournament: (id: string) => api.post(`/tournaments/${id}/start`),
+  closeRegistration: (id: string, confirm?: boolean) => 
+    api.post(`/tournaments/${id}/close-registration`, confirm ? { confirm: true } : {}),
   getAllTournaments: () => api.get('/tournaments'),
   getMyTournaments: () => api.get('/tournaments/my'),
   joinTournament: (id: string) => api.post(`/tournaments/${id}/join`),

@@ -1408,3 +1408,53 @@
   font-weight: 600;
 }
 
+/* Modal Footer Styles */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-top: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.modal-small {
+  max-width: 500px;
+  width: 100%;
+  max-height: auto;
+}
+
+.cancel-btn,
+.close-modal-btn {
+  padding: 0.6rem 1.2rem;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #333;
+  transition: all 0.3s;
+}
+
+.cancel-btn:hover,
+.close-modal-btn:hover {
+  background: #e0e0e0;
+  border-color: #ccc;
+}
+
+.delete-btn {
+  padding: 0.6rem 1.2rem;
+  background: #e74c3c;
+  border: 1px solid #c0392b;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: white;
+  transition: all 0.3s;
+}
+
+.delete-btn:hover {
+  background: #c0392b;
+  border-color: #a93226;
+}
+
