@@ -22,6 +22,8 @@ const Register: React.FC = () => {
 
   const passwordRules = [
     { regex: /.{8,}/, label: 'At least 8 characters' },
+    { regex: /[A-Z]/, label: 'At least one uppercase letter' },
+    { regex: /[a-z]/, label: 'At least one lowercase letter' },
     { regex: /[0-9]/, label: 'At least one number' },
     { regex: /[!@#$%^&*(),.?":{}|<>]/, label: 'At least one special character' },
   ];
