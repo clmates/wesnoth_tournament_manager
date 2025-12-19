@@ -94,7 +94,7 @@ const ReportMatch: React.FC = () => {
         const currentPlayerName = profileRes.data?.nickname;
         console.log('Current player:', currentPlayerName);
 
-        // Autocomplete map
+        // Autocomplete map (always load if found)
         if (replayData.map) {
           const matchingMap = maps.find((m) =>
             m.name.toLowerCase() === replayData.map?.toLowerCase()
@@ -104,11 +104,28 @@ const ReportMatch: React.FC = () => {
               ...prev,
               map: matchingMap.name,
             }));
+            console.log('Set map to:', matchingMap.name);
+          }
+        }
+
+        // Autocomplete factions first (always load if found, independent of opponent)
+        const playerFaction = getPlayerFactionFromReplay(replayData, currentPlayerName);
+        if (playerFaction) {
+          const matchingFaction = factions.find(
+            (f) => f.name.toLowerCase() === playerFaction.toLowerCase()
+          );
+          if (matchingFaction) {
+            setFormData((prev) => ({
+              ...prev,
+              winner_faction: matchingFaction.name,
+            }));
+            console.log('Set winner faction to:', matchingFaction.name);
           }
         }
 
         // Autocomplete opponent from replay
         const opponent = getOpponentFromReplay(replayData, currentPlayerName);
+        let opponentFound = false;
         if (opponent) {
           // Find opponent in users list by nickname
           const opponentUser = users.find(
@@ -120,36 +137,25 @@ const ReportMatch: React.FC = () => {
               opponent_id: opponentUser.id,
             }));
             console.log('Set opponent to:', opponentUser.nickname);
+            opponentFound = true;
           } else {
             console.warn(`Opponent "${opponent.name}" not found in users list`);
             setError(`Opponent "${opponent.name}" is not registered. Please select manually.`);
           }
-        }
 
-        // Autocomplete factions
-        const playerFaction = getPlayerFactionFromReplay(replayData, currentPlayerName);
-        if (playerFaction) {
-          const matchingFaction = factions.find(
-            (f) => f.name.toLowerCase() === playerFaction.toLowerCase()
-          );
-          if (matchingFaction) {
-            setFormData((prev) => ({
-              ...prev,
-              winner_faction: matchingFaction.name,
-            }));
-          }
-        }
-
-        const opponentFaction = opponent?.faction;
-        if (opponentFaction) {
-          const matchingFaction = factions.find(
-            (f) => f.name.toLowerCase() === opponentFaction.toLowerCase()
-          );
-          if (matchingFaction) {
-            setFormData((prev) => ({
-              ...prev,
-              loser_faction: matchingFaction.name,
-            }));
+          // Load opponent faction regardless of whether user is registered
+          const opponentFaction = opponent?.faction;
+          if (opponentFaction) {
+            const matchingFaction = factions.find(
+              (f) => f.name.toLowerCase() === opponentFaction.toLowerCase()
+            );
+            if (matchingFaction) {
+              setFormData((prev) => ({
+                ...prev,
+                loser_faction: matchingFaction.name,
+              }));
+              console.log('Set loser faction to:', matchingFaction.name);
+            }
           }
         }
       } catch (profileErr) {

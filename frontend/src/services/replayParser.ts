@@ -119,7 +119,7 @@ export function extractReplayInfo(xmlText: string): ReplayData {
     }
   }
 
-  // Extract factions in order of <side ...> blocks
+  // Extract factions in order of <side ...> blocks (fallback)
   const factionsInOrder: string[] = [];
   const factionRegex = /faction_name\s*=\s*_?"([^"]+)"/g; // matches faction_name="..." and faction_name=_"..."
   const factionMatches = xmlText.matchAll(factionRegex);
@@ -129,12 +129,18 @@ export function extractReplayInfo(xmlText: string): ReplayData {
     factionsInOrder.push(clean);
   }
 
-  // Extract factions from [old_side*] blocks mapping current_player -> faction
+  // Extract factions from [old_side*] blocks mapping current_player -> faction_name (preferred) or faction
   const factionByPlayer: Record<string, string> = {};
-  const oldSideRegex = /\[old_side[^\]]*\][\s\S]*?current_player="([^"]+)"[\s\S]*?faction="([^"]+)"/g;
-  for (const m of xmlText.matchAll(oldSideRegex)) {
-    const player = m[1];
-    const rawFaction = m[2];
+  const oldSideBlockRegex = /\[old_side[^\]]*\][\s\S]*?(?=\[old_side|\Z)/g;
+  for (const block of xmlText.matchAll(oldSideBlockRegex)) {
+    const text = block[0];
+    const playerMatch = text.match(/current_player="([^"]+)"/);
+    if (!playerMatch) continue;
+    const player = playerMatch[1];
+    const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+    const factionMatch = text.match(/faction="([^"]+)"/);
+    const rawFaction = (factionNameMatch?.[1] || factionMatch?.[1] || '').trim();
+    if (!rawFaction) continue;
     const cleanFaction = rawFaction.replace(/^_/, '');
     factionByPlayer[player] = cleanFaction;
   }
