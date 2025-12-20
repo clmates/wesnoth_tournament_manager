@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { userService } from '../services/api';
@@ -7,6 +7,7 @@ import '../styles/Navbar.css';
 
 const Navbar: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { isAuthenticated, isAdmin, logout } = useAuthStore();
   const [userNickname, setUserNickname] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -55,6 +56,7 @@ const Navbar: React.FC = () => {
   const handleLogout = () => {
     logout();
     setDropdownOpen(false);
+    navigate('/');
   };
 
   return (

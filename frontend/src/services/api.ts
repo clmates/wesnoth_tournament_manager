@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 // Determine API URL based on environment
 let API_URL: string;
@@ -31,14 +31,61 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
-  // Disable caching for GET requests by adding a timestamp parameter
-  if (config.method === 'get') {
+  // Don't add cache busting for public endpoints - they should be cached
+  // Only add for authenticated requests
+  if (config.method === 'get' && token) {
     config.params = config.params || {};
     config.params._t = Date.now();
   }
   
   return config;
 });
+
+// Retry logic for rate limiting (429) and server errors
+const retryConfig = {
+  maxRetries: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 30000, // 30 seconds
+};
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    const config = error.config;
+    
+    // Don't retry if no config or if it's not a GET request
+    if (!config || config.method !== 'get') {
+      return Promise.reject(error);
+    }
+    
+    // Check if we should retry
+    const status = error.response?.status;
+    const retryCount = (config as any).__retryCount || 0;
+    
+    // Retry on 429 (Too Many Requests) or 5xx errors
+    const shouldRetry = (status === 429 || (status && status >= 500)) && retryCount < retryConfig.maxRetries;
+    
+    if (shouldRetry) {
+      (config as any).__retryCount = retryCount + 1;
+      
+      // Calculate delay with exponential backoff
+      const delay = Math.min(
+        retryConfig.baseDelay * Math.pow(2, retryCount),
+        retryConfig.maxDelay
+      );
+      
+      console.warn(`API error ${status}, retrying in ${delay}ms (attempt ${retryCount + 1}/${retryConfig.maxRetries})`);
+      
+      // Wait before retrying
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      
+      // Retry the request
+      return api(config);
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 export const authService = {
   register: (data: any) => api.post('/auth/register', data),

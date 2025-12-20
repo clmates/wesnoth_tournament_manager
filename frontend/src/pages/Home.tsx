@@ -1,8 +1,46 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { userService, matchService, publicService } from '../services/api';
 import { processMultiLanguageItems } from '../utils/languageFallback';
 import '../styles/Home.css';
+
+// Cache with 5-minute TTL for home page data
+const homeDataCache = new Map<string, { data: any; timestamp: number; userId: string | null }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const getCacheKey = (key: string) => `home_${key}`;
+
+const getCurrentUserId = (): string | null => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    // Decode JWT to get user ID (payload is second part)
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.id || null;
+  } catch {
+    return null;
+  }
+};
+
+const getCachedData = (key: string) => {
+  const cached = homeDataCache.get(getCacheKey(key));
+  const currentUserId = getCurrentUserId();
+  
+  if (
+    cached &&
+    Date.now() - cached.timestamp < CACHE_TTL &&
+    cached.userId === currentUserId
+  ) {
+    return cached.data;
+  }
+  homeDataCache.delete(getCacheKey(key));
+  return null;
+};
+
+const setCachedData = (key: string, data: any) => {
+  const currentUserId = getCurrentUserId();
+  homeDataCache.set(getCacheKey(key), { data, timestamp: Date.now(), userId: currentUserId });
+};
 
 const Home: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -14,6 +52,7 @@ const Home: React.FC = () => {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const fetchInProgressRef = useRef(false);
 
   const refetchMatches = async () => {
     try {
@@ -52,77 +91,127 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Prevent multiple simultaneous fetches
+      if (fetchInProgressRef.current) {
+        return;
+      }
+
       try {
+        fetchInProgressRef.current = true;
         setLoading(true);
         setError('');
         
-        // Fetch top 10 players
-        try {
-          const rankingRes = await userService.getGlobalRanking();
-          const players = rankingRes.data?.data || rankingRes.data || [];
-          setTopPlayers(Array.isArray(players) ? players.slice(0, 10) : []);
-          // Player of month - top player this month
-          if (Array.isArray(players) && players.length > 0) {
-            const topPlayer = players[0];
-            setPlayerOfMonth(topPlayer);
-            
-            // Fetch monthly stats for player of month
+        // Try to use cached data first
+        const cachedPlayers = getCachedData('players');
+        const cachedMatches = getCachedData('matches');
+        const cachedUsers = getCachedData('users');
+        const cachedNews = getCachedData('news');
+
+        if (cachedPlayers) {
+          setTopPlayers(cachedPlayers.slice(0, 10));
+          if (cachedPlayers.length > 0) {
+            setPlayerOfMonth(cachedPlayers[0]);
             try {
-              const statsRes = await userService.getUserMonthlyStats(topPlayer.id);
+              const statsRes = await userService.getUserMonthlyStats(cachedPlayers[0].id);
               setPlayerMonthlyStats(statsRes.data || statsRes);
             } catch (statsErr) {
               console.error('Error fetching monthly stats:', statsErr);
             }
           }
-        } catch (err) {
-          console.error('Error fetching ranking:', err);
+        } else {
+          // Fetch top 10 players only if not cached
+          try {
+            const rankingRes = await userService.getGlobalRanking();
+            const players = rankingRes.data?.data || rankingRes.data || [];
+            setTopPlayers(Array.isArray(players) ? players.slice(0, 10) : []);
+            setCachedData('players', players);
+            
+            // Player of month - top player this month
+            if (Array.isArray(players) && players.length > 0) {
+              const topPlayer = players[0];
+              setPlayerOfMonth(topPlayer);
+              
+              // Fetch monthly stats for player of month
+              try {
+                const statsRes = await userService.getUserMonthlyStats(topPlayer.id);
+                setPlayerMonthlyStats(statsRes.data || statsRes);
+              } catch (statsErr) {
+                console.error('Error fetching monthly stats:', statsErr);
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching ranking:', err);
+          }
         }
 
         // Fetch recent matches (only 3 for home page)
-        try {
-          const matchesRes = await publicService.getRecentMatches();
-          setRecentMatches(matchesRes.data?.slice(0, 3) || []);
-        } catch (err) {
-          console.error('Error fetching matches:', err);
+        if (cachedMatches) {
+          setRecentMatches(cachedMatches.slice(0, 3));
+        } else {
+          try {
+            const matchesRes = await publicService.getRecentMatches();
+            const matches = matchesRes.data || [];
+            setRecentMatches(matches.slice(0, 3));
+            setCachedData('matches', matches);
+          } catch (err) {
+            console.error('Error fetching matches:', err);
+          }
         }
 
         // Fetch recent players (latest registrations)
-        try {
-          const usersRes = await userService.getAllUsers();
-          const allUsers = usersRes.data?.data || usersRes.data || [];
-          if (Array.isArray(allUsers)) {
-            // Get newest players by sorting by creation date (reverse order for newest first)
-            const sortedByDate = [...allUsers].sort((a, b) => {
-              const dateA = new Date(a.created_at || 0).getTime();
-              const dateB = new Date(b.created_at || 0).getTime();
-              return dateB - dateA;
-            });
-            setRecentPlayers(sortedByDate.slice(0, 3));
+        if (cachedUsers) {
+          const sortedByDate = [...cachedUsers].sort((a, b) => {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+            return dateB - dateA;
+          });
+          setRecentPlayers(sortedByDate.slice(0, 3));
+        } else {
+          try {
+            const usersRes = await userService.getAllUsers();
+            const allUsers = usersRes.data?.data || usersRes.data || [];
+            if (Array.isArray(allUsers)) {
+              setCachedData('users', allUsers);
+              // Get newest players by sorting by creation date (reverse order for newest first)
+              const sortedByDate = [...allUsers].sort((a, b) => {
+                const dateA = new Date(a.created_at || 0).getTime();
+                const dateB = new Date(b.created_at || 0).getTime();
+                return dateB - dateA;
+              });
+              setRecentPlayers(sortedByDate.slice(0, 3));
+            }
+          } catch (err) {
+            console.error('Error fetching recent players:', err);
           }
-        } catch (err) {
-          console.error('Error fetching recent players:', err);
         }
 
         // Fetch announcements
-        try {
-          const newsRes = await publicService.getNews();
-          const rawNews = newsRes.data || [];
-          // Process with language fallback: use user's language, fallback to EN
-          const localizedNews = processMultiLanguageItems(rawNews, i18n.language);
+        if (cachedNews) {
+          const localizedNews = processMultiLanguageItems(cachedNews, i18n.language);
           setAnnouncements(localizedNews.slice(0, 5));
-        } catch (err) {
-          console.error('Error fetching announcements:', err);
+        } else {
+          try {
+            const newsRes = await publicService.getNews();
+            const rawNews = newsRes.data || [];
+            setCachedData('news', rawNews);
+            // Process with language fallback: use user's language, fallback to EN
+            const localizedNews = processMultiLanguageItems(rawNews, i18n.language);
+            setAnnouncements(localizedNews.slice(0, 5));
+          } catch (err) {
+            console.error('Error fetching announcements:', err);
+          }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
         setError('Error loading data');
       } finally {
         setLoading(false);
+        fetchInProgressRef.current = false;
       }
     };
 
     fetchData();
-  }, [i18n.language]);
+  }, []);
 
   if (loading) {
     return <div className="home"><p>{t('loading')}</p></div>;
