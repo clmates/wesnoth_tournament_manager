@@ -5,6 +5,7 @@ import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 import { registerLimiter, loginLimiter } from '../middleware/rateLimiter.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 import { isAccountLocked, recordFailedLoginAttempt, recordSuccessfulLogin, getRemainingLockoutTime } from '../services/accountLockout.js';
+import { notifyAdminNewRegistration, notifyUserWelcome } from '../services/discord.js';
 
 const router = Router();
 
@@ -68,6 +69,18 @@ router.post('/register', registerLimiter, async (req, res) => {
       ip_address: ip,
       user_agent: userAgent,
       details: { email, language: language || 'en' }
+    });
+
+    // Send Discord notifications
+    await notifyAdminNewRegistration({
+      nickname,
+      email,
+      discord_id
+    });
+
+    await notifyUserWelcome({
+      nickname,
+      discord_id
     });
 
     res.status(201).json({ id: result.rows[0].id, message: 'Registration successful' });

@@ -7,6 +7,7 @@ import { translateToAllLanguages } from '../utils/translation.js';
 import { calculateNewRating, calculateTrend } from '../utils/elo.js';
 import { unlockAccount } from '../services/accountLockout.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
+import { notifyAdminUserApproved, notifyAdminUserRejected, notifyUserUnlocked } from '../services/discord.js';
 
 const router = Router();
 
@@ -432,6 +433,27 @@ router.post('/users/:id/unblock', authMiddleware, async (req: AuthRequest, res) 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
+
+    const user = result.rows[0];
+
+    // Get admin nickname for notification
+    const adminResult = await query('SELECT nickname FROM users WHERE id = $1', [req.userId]);
+    const adminNickname = adminResult.rows[0]?.nickname || 'Admin';
+
+    // Get user discord_id for mention
+    const userDiscordResult = await query('SELECT discord_id FROM users WHERE id = $1', [id]);
+    const discord_id = userDiscordResult.rows[0]?.discord_id;
+
+    // Send Discord notifications
+    await notifyAdminUserApproved({
+      nickname: user.nickname,
+      approvedBy: adminNickname
+    });
+
+    await notifyUserUnlocked({
+      nickname: user.nickname,
+      discord_id
+    });
 
     res.json(result.rows[0]);
   } catch (error) {
