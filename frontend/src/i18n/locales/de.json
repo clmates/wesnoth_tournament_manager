@@ -23,12 +23,6 @@
   "register_discord": "Discord-ID",
   "register_button": "Registrieren",
   "register_success": "Registrierungsanfrage erfolgreich eingereicht",
-    "welcome_modal_title": "🎉 Willkommen bei Wesnoth Tournament Manager!",
-    "welcome_modal_success": "Ihr Konto wurde erfolgreich erstellt.",
-    "welcome_modal_locked": "⚠️ Ihr Konto ist vorübergehend gesperrt. Ein Administrator wird es bald überprüfen und freischalten.",
-    "welcome_modal_discord_title": "Treten Sie unserer Discord-Community bei:",
-    "welcome_modal_discord_note": "Sie erhalten dort eine Benachrichtigung, wenn Ihr Konto genehmigt wurde!",
-    "welcome_modal_button": "Verstanden!",
   "password_change_title": "Passwort ändern",
   "password_current": "Aktuelles Passwort",
   "password_new": "Neues Passwort",
@@ -121,11 +115,7 @@
   "details_btn": "Details",
   "no_replay": "Kein Replay",
   "download": "Herunterladen",
-  "downloads": "Downloads",
-  "close_btn": "Schließen",
-  "cancel_btn": "Abbrechen",
-  "delete_btn": "Löschen",
-  "confirm_delete_tournament": "Sind Sie sicher, dass Sie dieses Turnier löschen möchten? Zugehörige Spiele werden entkoppelt, aber nicht gelöscht.",
+  "downloads": "Downloads"
   ,
   "recent_games": "Neueste Spiele",
   "recent_games_no_data": "Keine aktuellen Spiele",
@@ -189,8 +179,6 @@
   "role_admin": "Admin",
   "role_user": "Benutzer",
   "btn_unblock": "Entsperren",
-  "btn_accept": "Akzeptieren",
-  "btn_reject": "Ablehnen"
   "btn_block": "Sperren",
   "btn_remove_admin": "Admin entfernen",
   "btn_make_admin": "Zum Admin machen",
@@ -285,14 +273,6 @@
     "btn_close_registration": "Anmeldung schließen",
     "btn_prepare": "Turnier vorbereiten",
     "btn_start": "Turnier starten",
-    "request_join": "Anfrage zur Teilnahme am Turnier",
-    "tournament_deleted_no_participants": "Turnier gelöscht (keine Teilnehmer registriert)",
-    "confirm_delete_title": "Turnierlöschung bestätigen",
-    "no_participants_message": "Für dieses Turnier sind keine Teilnehmer registriert. Sind Sie sicher, dass Sie es löschen möchten?"
-    "back_to_tournaments": "Zurück zu Turnieren",
-    "btn_close_registration": "Anmeldung schließen",
-    "btn_prepare": "Turnier vorbereiten",
-    "btn_start": "Turnier starten",
     "request_join": "Beitreten anfragen"
   },
   "my_tournaments_title": "Meine Turniere",
@@ -363,7 +343,6 @@
   "label_format": "Format",
   "matches": {
     "scheduled": "Geplante Spiele",
-    "details": "Spieldetails"
     "completed": "Abgeschlossene Spiele"
   },
   "no_scheduled_matches": "Derzeit sind keine Spiele geplant.",
@@ -417,5 +396,12 @@
     "error_password_too_short": "Neues Passwort muss mindestens 8 Zeichen lang sein",
     "password_changed_success": "Passwort erfolgreich geändert",
     "error_change_password_failed": "Fehler beim Ändern des Passworts"
+  },
+  "maps": {
+    "map_1": "Karte 1",
+    "map_2": "Karte 2",
+    "map_3": "Karte 3",
+    "siege": "Belagerung",
+    "dueling_grounds": "Duellfelder"
   }
 }

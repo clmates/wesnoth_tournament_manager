@@ -23,12 +23,6 @@
   "register_discord": "ID de Discord",
   "register_button": "Registrarse",
   "register_success": "Solicitud de registro enviada correctamente",
-    "welcome_modal_title": "🎉 ¡Bienvenido a Wesnoth Tournament Manager!",
-    "welcome_modal_success": "Tu cuenta ha sido creada exitosamente.",
-    "welcome_modal_locked": "⚠️ Tu cuenta está temporalmente bloqueada. Un administrador la revisará y desbloqueará pronto.",
-    "welcome_modal_discord_title": "Únete a nuestra comunidad de Discord:",
-    "welcome_modal_discord_note": "¡Recibirás una notificación allí cuando tu cuenta sea aprobada!",
-    "welcome_modal_button": "¡Entendido!",
   "password_change_title": "Cambiar Contraseña",
   "password_current": "Contraseña Actual",
   "password_new": "Nueva Contraseña",
@@ -245,8 +239,6 @@
   "report.submitting": "Reportando...",
   "btn_cancel": "Cancelar",
   "matches_label": "partidas",
-  "downloads": "Descargas",
-  "view_all": "Ver todo →",
   "filter_by_tournament_name": "Filtrar por nombre de torneo...",
   "filter_status": "Estado",
   "filter_type": "Tipo de Torneo",
@@ -371,14 +363,6 @@
     "tournament_deleted_no_participants": "Torneo eliminado (no hay participantes registrados)",
     "confirm_delete_title": "Confirmar Eliminación del Torneo",
     "no_participants_message": "No hay participantes registrados para este torneo. ¿Estás seguro de que quieres eliminarlo?"
-    "back_to_tournaments": "Volver a Torneos",
-    "btn_close_registration": "Cerrar Inscripciones",
-    "btn_prepare": "Preparar Torneo",
-    "btn_start": "Iniciar Torneo",
-    "request_join": "Solicitar Unirse",
-    "tournament_deleted_no_participants": "Torneo eliminado (no hay participantes registrados)",
-    "confirm_delete_title": "Confirmar Eliminación del Torneo",
-    "no_participants_message": "No hay participantes registrados para este torneo. ¿Estás seguro de que quieres eliminarlo?"
   },
   "my_tournaments_title": "Mis Torneos",
   "tournaments.max_participants_required": "⚠️ El número máximo de participantes es obligatorio para configurar las rondas. Establécelo primero en la sección Información básica.",
@@ -407,8 +391,13 @@
     "password_changed_success": "Contraseña cambiada correctamente",
     "error_change_password_failed": "Error al cambiar la contraseña"
   },
- 
+  "maps": {
+    "map_1": "Mapa 1",
+    "map_2": "Mapa 2",
+    "map_3": "Mapa 3",
+    "siege": "Asedio",
+    "dueling_grounds": "Campos de Duelos"
+  },
   "btn_accept": "Aceptar",
-  "btn_reject": "Rechazar"
   "btn_reject": "Rechazar"
 }
