@@ -1353,8 +1353,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
              FROM tournament_round_matches trm
              LEFT JOIN users u1 ON trm.player1_id = u1.id
              LEFT JOIN users u2 ON trm.player2_id = u2.id
-             WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = $1 AND round_number = 1)
-             ORDER BY trm.match_index ASC`,
+             WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = $1 AND round_number = 1)`,
             [id]
           );
           
@@ -1769,8 +1768,7 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
            FROM tournament_round_matches trm
            LEFT JOIN users u1 ON trm.player1_id = u1.id
            LEFT JOIN users u2 ON trm.player2_id = u2.id
-           WHERE trm.round_id = $1
-           ORDER BY trm.match_index ASC`,
+           WHERE trm.round_id = $1`,
           [nextRoundId]
         );
         
