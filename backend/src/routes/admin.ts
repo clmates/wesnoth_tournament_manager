@@ -425,16 +425,20 @@ router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) =>
 router.post('/users/:id/unblock', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
+    console.log('📝 Unblock endpoint called for user ID:', id);
+    
     const result = await query(
       `UPDATE users SET is_blocked = false WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
       [id]
     );
 
     if (result.rows.length === 0) {
+      console.log('❌ User not found:', id);
       return res.status(404).json({ error: 'User not found' });
     }
 
     const user = result.rows[0];
+    console.log('✅ User unblocked:', user.nickname);
 
     // Get admin nickname for notification
     const adminResult = await query('SELECT nickname FROM users WHERE id = $1', [req.userId]);
@@ -444,19 +448,26 @@ router.post('/users/:id/unblock', authMiddleware, async (req: AuthRequest, res) 
     const userDiscordResult = await query('SELECT discord_id FROM users WHERE id = $1', [id]);
     const discord_id = userDiscordResult.rows[0]?.discord_id;
 
+    console.log('📢 About to send Discord notifications for:', { nickname: user.nickname, discord_id });
+
     // Send Discord notifications
     await notifyAdminUserApproved({
       nickname: user.nickname,
       approvedBy: adminNickname
     });
 
+    console.log('✅ Admin notification sent');
+
     await notifyUserUnlocked({
       nickname: user.nickname,
       discord_id
     });
 
+    console.log('✅ User unlock notification sent');
+
     res.json(result.rows[0]);
   } catch (error) {
+    console.error('❌ Unblock error:', error);
     res.status(500).json({ error: 'Failed to unblock user' });
   }
 });
