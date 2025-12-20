@@ -812,10 +812,17 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     console.log(`[PREPARE] Tournament data:`, tournament);
     
     const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+    console.log(`[PREPARE] Tournament type: ${tournamentType}, current status: ${tournament.status}, total_rounds in DB: ${tournament.total_rounds}`);
     
     if (tournament.creator_id !== req.userId) {
       console.log(`[PREPARE] Authorization failed - creator_id: ${tournament.creator_id}, userId: ${req.userId}`);
       return res.status(403).json({ error: 'Only tournament creator can prepare tournament' });
+    }
+
+    // Verify tournament is in correct status
+    if (tournament.status !== 'registration_closed') {
+      console.log(`[PREPARE] Invalid status: ${tournament.status}, expected: registration_closed`);
+      return res.status(400).json({ error: `Tournament must have registration closed before preparing. Current status: ${tournament.status}` });
     }
 
     if (tournament.status !== 'registration_closed') {
@@ -847,9 +854,14 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     }
     // For league and swiss: no mathematical limit
     
-    // Total rounds requested
-    const totalRoundsRequested = (tournament.general_rounds || 0) + (tournament.final_rounds || 0);
+    // Total rounds requested (or use pre-calculated total_rounds for elimination)
+    let totalRoundsRequested = (tournament.general_rounds || 0) + (tournament.final_rounds || 0);
     const finalRoundsRequested = tournament.final_rounds || 0;
+    
+    // For elimination tournaments with no explicit round config, use total_rounds if available
+    if (tournamentType === 'elimination' && totalRoundsRequested === 0) {
+      totalRoundsRequested = tournament.total_rounds || maxRoundsNeeded;
+    }
     
     console.log(`[PREPARE] Tournament type: ${tournamentType}, Max rounds allowed: ${maxRoundsNeeded}, Total requested: ${totalRoundsRequested}, Final rounds: ${finalRoundsRequested}`);
 
@@ -874,17 +886,71 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     
     // For Elimination tournaments, generate all rounds based on calculated total_rounds
     if (tournamentType === 'elimination') {
-      const totalElimRounds = tournament.total_rounds || 0;
+      // Use existing total_rounds, or calculate it if not set
+      let totalElimRounds = tournament.total_rounds || 0;
+      if (totalElimRounds === 0) {
+        totalElimRounds = participantCount > 0 ? Math.ceil(Math.log2(participantCount)) : 0;
+        console.log(`[PREPARE] Calculated elimination rounds for ${participantCount} participants: ${totalElimRounds}`);
+      }
       
       // All elimination rounds use the general_rounds_format except the last one (final) uses final_rounds_format
       for (let i = 0; i < totalElimRounds; i++) {
         const isLastRound = (i === totalElimRounds - 1);
+        let label = '';
+        let classification = '';
+        
+        if (totalElimRounds === 1) {
+          label = `Final`;
+          classification = 'final';
+        } else if (totalElimRounds === 2) {
+          if (i === 0) {
+            label = `Semifinals`;
+            classification = 'semifinals';
+          } else {
+            label = `Final`;
+            classification = 'final';
+          }
+        } else if (totalElimRounds === 3) {
+          if (i === 0) {
+            label = `Quarterfinals`;
+            classification = 'quarterfinals';
+          } else if (i === 1) {
+            label = `Semifinals`;
+            classification = 'semifinals';
+          } else {
+            label = `Final`;
+            classification = 'final';
+          }
+        } else if (totalElimRounds === 4) {
+          if (i === 0) {
+            label = `Round of 16`;
+            classification = 'round16';
+          } else if (i === 1) {
+            label = `Quarterfinals`;
+            classification = 'quarterfinals';
+          } else if (i === 2) {
+            label = `Semifinals`;
+            classification = 'semifinals';
+          } else {
+            label = `Final`;
+            classification = 'final';
+          }
+        } else {
+          label = `Round ${i + 1}`;
+          classification = isLastRound ? 'final' : 'general';
+        }
+        
         roundsToCreate.push({
           roundNumber: i + 1,
           roundType: isLastRound ? 'final' : 'general',
-          matchFormat: isLastRound ? tournament.final_rounds_format : tournament.general_rounds_format
+          matchFormat: isLastRound ? tournament.final_rounds_format : tournament.general_rounds_format,
+          label: label,
+          classification: classification,
+          description: label
         });
       }
+      totalGeneralRounds = totalElimRounds - (totalElimRounds > 0 ? 1 : 0); // All but last are "general"
+      totalFinalRounds = totalElimRounds > 0 ? 1 : 0; // Last is "final"
     }
     // For League tournaments, calculate actual rounds based on format (1=ida, 2=ida y vuelta)
     else if (tournamentType === 'league') {
@@ -916,35 +982,35 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
       phaseDescription = 'Elimination tournament';
     }
 
-    // Add general rounds
-    for (let i = 0; i < totalGeneralRounds; i++) {
-      let classification = generalRoundClassification;
-      let label = '';
+    // Add general rounds (skip for pure elimination, already added above)
+    if (tournamentType !== 'elimination') {
+      for (let i = 0; i < totalGeneralRounds; i++) {
+        let classification = generalRoundClassification;
+        let label = '';
 
-      if (tournamentType === 'league') {
-        const leagueFormat = tournament.general_rounds || 1;
-        const phase = leagueFormat === 2 && i >= (totalGeneralRounds / 2) ? 'Vuelta' : 'Ida';
-        label = `League Round ${i + 1} (${phase})`;
-      } else if (tournamentType === 'swiss') {
-        label = `Swiss Round ${i + 1}`;
-      } else if (tournamentType === 'swiss_elimination') {
-        label = `Swiss Round ${i + 1}`;
-        classification = 'general';
-      } else if (tournamentType === 'elimination') {
-        label = `General Round ${i + 1}`;
+        if (tournamentType === 'league') {
+          const leagueFormat = tournament.general_rounds || 1;
+          const phase = leagueFormat === 2 && i >= (totalGeneralRounds / 2) ? 'Vuelta' : 'Ida';
+          label = `League Round ${i + 1} (${phase})`;
+        } else if (tournamentType === 'swiss') {
+          label = `Swiss Round ${i + 1}`;
+        } else if (tournamentType === 'swiss_elimination') {
+          label = `Swiss Round ${i + 1}`;
+          classification = 'general';
+        }
+
+        roundsToCreate.push({
+          roundNumber,
+          roundType: 'general',
+          matchFormat: tournament.general_rounds_format || 'bo3',
+          classification,
+          label,
+          description: label,
+          playersRemaining: participantCount,
+          playersAdvancing: participantCount
+        });
+        roundNumber++;
       }
-
-      roundsToCreate.push({
-        roundNumber,
-        roundType: 'general',
-        matchFormat: tournament.general_rounds_format || 'bo3',
-        classification,
-        label,
-        description: label,
-        playersRemaining: participantCount,
-        playersAdvancing: participantCount
-      });
-      roundNumber++;
     }
 
     // For Swiss-Elimination Mix, determine how many players advance to elimination phase
@@ -959,64 +1025,66 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
       elimiationPhaseParticipants = Math.pow(2, totalFinalRounds);
     }
 
-    // Add final rounds with detailed classification
-    for (let i = 0; i < totalFinalRounds; i++) {
-      let classification = finalRoundClassification;
-      let label = 'Final';
-      let playersRemaining = elimiationPhaseParticipants;
-      let playersAdvancing = 1;
-      let roundType = 'final';
+    // Add final rounds with detailed classification (skip for pure elimination, already added above)
+    if (tournamentType !== 'elimination') {
+      for (let i = 0; i < totalFinalRounds; i++) {
+        let classification = finalRoundClassification;
+        let label = 'Final';
+        let playersRemaining = elimiationPhaseParticipants;
+        let playersAdvancing = 1;
+        let roundType = 'final';
 
-      if (tournamentType === 'elimination' || tournamentType === 'swiss_elimination') {
-        // For elimination brackets
-        if (totalFinalRounds === 1) {
-          classification = 'final';
-          label = `Final (${elimiationPhaseParticipants}→1)`;
-          playersRemaining = elimiationPhaseParticipants;
-          playersAdvancing = 1;
-        } else if (totalFinalRounds === 2) {
-          if (i === 0) {
-            classification = 'semifinals';
-            label = `Semifinals (${elimiationPhaseParticipants}→${Math.round(elimiationPhaseParticipants / 2)})`;
-            playersRemaining = elimiationPhaseParticipants;
-            playersAdvancing = Math.round(elimiationPhaseParticipants / 2);
-          } else {
+        if (tournamentType === 'swiss_elimination') {
+          // For elimination brackets
+          if (totalFinalRounds === 1) {
             classification = 'final';
-            label = `Final (${Math.round(elimiationPhaseParticipants / 2)}→1)`;
-            playersRemaining = Math.round(elimiationPhaseParticipants / 2);
-            playersAdvancing = 1;
-          }
-        } else if (totalFinalRounds === 3) {
-          if (i === 0) {
-            classification = 'quarterfinals';
-            label = `Quarterfinals (${elimiationPhaseParticipants}→${Math.round(elimiationPhaseParticipants / 2)})`;
+            label = `Final (${elimiationPhaseParticipants}→1)`;
             playersRemaining = elimiationPhaseParticipants;
-            playersAdvancing = Math.round(elimiationPhaseParticipants / 2);
-          } else if (i === 1) {
-            classification = 'semifinals';
-            label = `Semifinals (${Math.round(elimiationPhaseParticipants / 2)}→${Math.round(elimiationPhaseParticipants / 4)})`;
-            playersRemaining = Math.round(elimiationPhaseParticipants / 2);
-            playersAdvancing = Math.round(elimiationPhaseParticipants / 4);
-          } else {
-            classification = 'final';
-            label = `Final (${Math.round(elimiationPhaseParticipants / 4)}→1)`;
-            playersRemaining = Math.round(elimiationPhaseParticipants / 4);
             playersAdvancing = 1;
+          } else if (totalFinalRounds === 2) {
+            if (i === 0) {
+              classification = 'semifinals';
+              label = `Semifinals (${elimiationPhaseParticipants}→${Math.round(elimiationPhaseParticipants / 2)})`;
+              playersRemaining = elimiationPhaseParticipants;
+              playersAdvancing = Math.round(elimiationPhaseParticipants / 2);
+            } else {
+              classification = 'final';
+              label = `Final (${Math.round(elimiationPhaseParticipants / 2)}→1)`;
+              playersRemaining = Math.round(elimiationPhaseParticipants / 2);
+              playersAdvancing = 1;
+            }
+          } else if (totalFinalRounds === 3) {
+            if (i === 0) {
+              classification = 'quarterfinals';
+              label = `Quarterfinals (${elimiationPhaseParticipants}→${Math.round(elimiationPhaseParticipants / 2)})`;
+              playersRemaining = elimiationPhaseParticipants;
+              playersAdvancing = Math.round(elimiationPhaseParticipants / 2);
+            } else if (i === 1) {
+              classification = 'semifinals';
+              label = `Semifinals (${Math.round(elimiationPhaseParticipants / 2)}→${Math.round(elimiationPhaseParticipants / 4)})`;
+              playersRemaining = Math.round(elimiationPhaseParticipants / 2);
+              playersAdvancing = Math.round(elimiationPhaseParticipants / 4);
+            } else {
+              classification = 'final';
+              label = `Final (${Math.round(elimiationPhaseParticipants / 4)}→1)`;
+              playersRemaining = Math.round(elimiationPhaseParticipants / 4);
+              playersAdvancing = 1;
+            }
           }
         }
-      }
 
-      roundsToCreate.push({
-        roundNumber,
-        roundType,
-        matchFormat: tournament.final_rounds_format || 'bo5',
-        classification,
-        label,
-        description: label,
-        playersRemaining,
-        playersAdvancing
-      });
-      roundNumber++;
+        roundsToCreate.push({
+          roundNumber,
+          roundType,
+          matchFormat: tournament.final_rounds_format || 'bo5',
+          classification,
+          label,
+          description: label,
+          playersRemaining,
+          playersAdvancing
+        });
+        roundNumber++;
+      }
     }
 
     console.log(`[PREPARE] Tournament type: ${tournamentType}, Rounds to create:`, roundsToCreate);
