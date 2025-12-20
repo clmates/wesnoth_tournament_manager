@@ -68,7 +68,7 @@ const MyTournaments: React.FC = () => {
       setRoundTypeConfig({
         generalRounds: 0,
         generalRoundsFormat: 'bo3',
-        finalRounds: 1, // At least 1 for pure elimination
+        finalRounds: 0, // Not used for elimination UI, but kept in state
         finalRoundsFormat: 'bo5',
       });
     }
@@ -207,7 +207,7 @@ const MyTournaments: React.FC = () => {
       setRoundTypeConfig({
         generalRounds: 0,
         generalRoundsFormat: 'bo3',
-        finalRounds: 1,
+        finalRounds: 0,
         finalRoundsFormat: 'bo5',
       });
       setShowCreateForm(false);
@@ -330,28 +330,15 @@ const MyTournaments: React.FC = () => {
               {/* ELIMINATION TOURNAMENT - Auto-calculated rounds */}
               {canConfigureRounds() && formData.tournament_type === 'elimination' && (
                 <div className="round-types-config">
-                  <h4>Round Type Configuration</h4>
-                  <p className="info-text">Configure which types of rounds your tournament will have</p>
+                  <h4>Round Configuration</h4>
+                  <p className="info-text">Configure match formats for your elimination tournament</p>
                   
                   <div className="info-box info">
-                    <p>ℹ️ For elimination tournaments, general rounds are auto-calculated based on participant count. Currently: <strong>{getCalculatedGeneralRounds()} rounds</strong></p>
+                    <p>ℹ️ Tournament rounds are automatically calculated based on the number of participants.</p>
                   </div>
 
                   <div className="form-group">
-                    <label>General Rounds</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="10"
-                      value={getCalculatedGeneralRounds()}
-                      disabled={true}
-                      onChange={() => {}}
-                    />
-                    <small>Auto-calculated for elimination tournaments</small>
-                  </div>
-
-                  <div className="form-group">
-                    <label>General Rounds Match Format</label>
+                    <label>Preliminary Rounds Match Format</label>
                     <select
                       value={roundTypeConfig.generalRoundsFormat}
                       onChange={(e) => setRoundTypeConfig({
@@ -363,31 +350,11 @@ const MyTournaments: React.FC = () => {
                       <option value="bo3">{t('match_format.bo3')}</option>
                       <option value="bo5">{t('match_format.bo5')}</option>
                     </select>
-                    <small>Number of games in each general round match</small>
+                    <small>Best of format for all preliminary elimination rounds</small>
                   </div>
 
                   <div className="form-group">
-                    <label>Final Rounds Count</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="3"
-                      value={roundTypeConfig.finalRounds}
-                      onChange={(e) => {
-                        const newFinalRounds = parseInt(e.target.value) || 1;
-                        // For pure elimination, final rounds are limited to 1-3
-                        const validFinalRounds = Math.max(1, Math.min(newFinalRounds, 3));
-                        setRoundTypeConfig({
-                          ...roundTypeConfig,
-                          finalRounds: validFinalRounds
-                        });
-                      }}
-                    />
-                    <small>Number of elimination rounds (1-3). For pure elimination tournaments, this determines the tournament structure.</small>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Final Rounds Match Format</label>
+                    <label>Final Match Format</label>
                     <select
                       value={roundTypeConfig.finalRoundsFormat}
                       onChange={(e) => setRoundTypeConfig({
@@ -399,19 +366,7 @@ const MyTournaments: React.FC = () => {
                       <option value="bo3">{t('match_format.bo3')}</option>
                       <option value="bo5">{t('match_format.bo5')}</option>
                     </select>
-                    <small>Number of games in each final round match</small>
-                  </div>
-
-                  <div className="round-summary">
-                    <div>
-                      <p><strong>Total Rounds (Fixed):</strong> {getCalculatedGeneralRounds()}</p>
-                      {roundTypeConfig.finalRounds > 0 && (
-                        <div>
-                          <p className="info-text">General Rounds ({roundTypeConfig.generalRoundsFormat.toUpperCase()}): {getAdjustedGeneralRounds()} rounds</p>
-                          <p className="info-text">Final Rounds ({roundTypeConfig.finalRoundsFormat.toUpperCase()}): {roundTypeConfig.finalRounds} rounds</p>
-                        </div>
-                      )}
-                    </div>
+                    <small>Best of format for the final match</small>
                   </div>
                 </div>
               )}
