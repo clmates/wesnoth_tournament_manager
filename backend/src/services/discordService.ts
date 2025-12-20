@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const DISCORD_API_URL = 'https://discord.com/api/v10';
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const FORUM_CHANNEL_ID = process.env.DISCORD_FORUM_CHANNEL_ID; // ID del canal tipo foro "tournaments"
+const FORUM_CHANNEL_ID = process.env.DISCORD_FORUM_CHANNEL_ID; // ID of the forum channel "tournaments"
 
 interface DiscordEmbed {
   title: string;
@@ -31,7 +31,7 @@ class DiscordService {
   };
 
   /**
-   * Crea un thread en el canal foro para un torneo
+   * Creates a thread in the forum channel for a tournament
    */
   async createTournamentThread(
     tournamentId: string,
@@ -57,7 +57,7 @@ class DiscordService {
         },
       };
 
-      console.log(`📤 Enviando a Discord - Channel: ${FORUM_CHANNEL_ID}, Payload:`, JSON.stringify(payload));
+      console.log(`📤 Sending to Discord - Channel: ${FORUM_CHANNEL_ID}, Payload:`, JSON.stringify(payload));
 
       const response = await axios.post(
         `${DISCORD_API_URL}/channels/${FORUM_CHANNEL_ID}/threads`,
@@ -66,7 +66,7 @@ class DiscordService {
       );
 
       const threadId = response.data.id;
-      console.log(`✅ Thread creado para torneo ${tournamentId}: ${threadId}`);
+      console.log(`✅ Thread created for tournament ${tournamentId}: ${threadId}`);
       return threadId;
     } catch (error: any) {
       console.error('❌ Error creando thread en Discord:', error.response?.data || error.message);
@@ -115,31 +115,31 @@ class DiscordService {
     const embed: DiscordEmbed = {
       title: `🎮 ${tournamentName}`,
       description: description,
-      color: 0x3498db, // Azul
+      color: 0x3498db, // Blue
       fields: [
         {
-          name: 'Tipo de Torneo',
+          name: 'Tournament Type',
           value: tournamentType,
           inline: true,
         },
         {
-          name: 'Organizador',
+          name: 'Organizer',
           value: organizer,
           inline: true,
         },
         {
-          name: 'Max Participantes',
-          value: maxParticipants ? `${maxParticipants}` : 'Ilimitado',
+          name: 'Max Participants',
+          value: maxParticipants ? `${maxParticipants}` : 'Unlimited',
           inline: true,
         },
         {
-          name: 'Estado',
-          value: '🔓 Inscripción Abierta',
+          name: 'Status',
+          value: '🔓 Registration Open',
           inline: true,
         },
       ],
       footer: {
-        text: 'Torneo creado',
+        text: 'Tournament created',
       },
       timestamp: new Date().toISOString(),
     };
@@ -155,11 +155,11 @@ class DiscordService {
     tournamentName: string
   ): Promise<boolean> {
     const embed: DiscordEmbed = {
-      title: `🔓 Inscripciones Abiertas`,
-      description: `Las inscripciones para **${tournamentName}** están abiertas.`,
-      color: 0x2ecc71, // Verde
+      title: `🔓 Registration Open`,
+      description: `Registration for **${tournamentName}** is now open.`,
+      color: 0x2ecc71, // Green
       footer: {
-        text: 'Estado: Inscripción abierta',
+        text: 'Status: Registration open',
       },
       timestamp: new Date().toISOString(),
     };
@@ -181,18 +181,18 @@ class DiscordService {
       : `${currentCount}`;
 
     const embed: DiscordEmbed = {
-      title: `✅ Nuevo Participante`,
-      description: `**${playerNickname}** se ha inscrito en el torneo.`,
+      title: `✅ New Participant`,
+      description: `**${playerNickname}** has registered for the tournament.`,
       color: 0x3498db,
       fields: [
         {
-          name: 'Participantes',
+          name: 'Participants',
           value: participantInfo,
           inline: true,
         },
       ],
       footer: {
-        text: 'Participante registrado',
+        text: 'Participant registered',
       },
       timestamp: new Date().toISOString(),
     };
@@ -209,18 +209,18 @@ class DiscordService {
     totalAccepted: number
   ): Promise<boolean> {
     const embed: DiscordEmbed = {
-      title: `👤 Participante Aceptado`,
-      description: `**${playerNickname}** ha sido aceptado en el torneo.`,
-      color: 0x27ae60, // Verde oscuro
+      title: `👤 Participant Accepted`,
+      description: `**${playerNickname}** has been accepted to the tournament.`,
+      color: 0x27ae60, // Dark green
       fields: [
         {
-          name: 'Total Aceptados',
+          name: 'Total Accepted',
           value: `${totalAccepted}`,
           inline: true,
         },
       ],
       footer: {
-        text: 'Participante aceptado',
+        text: 'Participant accepted',
       },
       timestamp: new Date().toISOString(),
     };
@@ -236,18 +236,18 @@ class DiscordService {
     totalParticipants: number
   ): Promise<boolean> {
     const embed: DiscordEmbed = {
-      title: `🔒 Inscripciones Cerradas`,
-      description: `Las inscripciones han sido cerradas.`,
-      color: 0xe74c3c, // Rojo
+      title: `🔒 Registration Closed`,
+      description: `Registration has been closed.`,
+      color: 0xe74c3c, // Red
       fields: [
         {
-          name: 'Total de Participantes',
+          name: 'Total Participants',
           value: `${totalParticipants}`,
           inline: true,
         },
       ],
       footer: {
-        text: 'Inscripciones cerradas',
+        text: 'Registration closed',
       },
       timestamp: new Date().toISOString(),
     };
@@ -265,23 +265,23 @@ class DiscordService {
     totalRounds: number
   ): Promise<boolean> {
     const embed: DiscordEmbed = {
-      title: `🚀 ¡Torneo Iniciado!`,
-      description: `**${tournamentName}** ha comenzado.`,
-      color: 0xf39c12, // Naranja
+      title: `🚀 Tournament Started!`,
+      description: `**${tournamentName}** has begun.`,
+      color: 0xf39c12, // Orange
       fields: [
         {
-          name: 'Participantes',
+          name: 'Participants',
           value: `${totalParticipants}`,
           inline: true,
         },
         {
-          name: 'Total de Rondas',
+          name: 'Total Rounds',
           value: `${totalRounds}`,
           inline: true,
         },
       ],
       footer: {
-        text: 'Torneo iniciado',
+        text: 'Tournament started',
       },
       timestamp: new Date().toISOString(),
     };
@@ -299,23 +299,23 @@ class DiscordService {
     endDate: string
   ): Promise<boolean> {
     const embed: DiscordEmbed = {
-      title: `⏱️ Ronda ${roundNumber} Iniciada`,
-      description: `La ronda ${roundNumber} ha comenzado.`,
-      color: 0x9b59b6, // Púrpura
+      title: `⏱️ Round ${roundNumber} Started`,
+      description: `Round ${roundNumber} has begun.`,
+      color: 0x9b59b6, // Purple
       fields: [
         {
-          name: 'Partidas',
+          name: 'Matches',
           value: `${matchesCount}`,
           inline: true,
         },
         {
-          name: 'Vencimiento',
+          name: 'Deadline',
           value: endDate,
           inline: true,
         },
       ],
       footer: {
-        text: `Ronda ${roundNumber}`,
+        text: `Round ${roundNumber}`,
       },
       timestamp: new Date().toISOString(),
     };
@@ -336,11 +336,11 @@ class DiscordService {
       .join('\n');
 
     const embed: DiscordEmbed = {
-      title: `🎲 Cuadro de Emparejamientos - Ronda ${roundNumber}`,
-      description: matchupText || 'Sin emparejamientos',
-      color: 0x34495e, // Gris oscuro
+      title: `🎲 Round ${roundNumber} Matchups`,
+      description: matchupText || 'No matchups',
+      color: 0x34495e, // Dark gray
       footer: {
-        text: `Ronda ${roundNumber}`,
+        text: `Round ${roundNumber}`,
       },
       timestamp: new Date().toISOString(),
     };
@@ -360,28 +360,28 @@ class DiscordService {
     faction: string
   ): Promise<boolean> {
     const embed: DiscordEmbed = {
-      title: `🏆 Resultado - ${winner} Gana`,
+      title: `🏆 Match Result - ${winner} Wins`,
       description: `**${player1}** vs **${player2}**`,
-      color: 0x2ecc71, // Verde
+      color: 0x2ecc71, // Green
       fields: [
         {
-          name: 'Ganador',
+          name: 'Winner',
           value: winner,
           inline: true,
         },
         {
-          name: 'Mapa',
+          name: 'Map',
           value: map,
           inline: true,
         },
         {
-          name: 'Facción',
+          name: 'Faction',
           value: faction,
           inline: true,
         },
       ],
       footer: {
-        text: 'Partida reportada',
+        text: 'Match reported',
       },
       timestamp: new Date().toISOString(),
     };
@@ -397,11 +397,11 @@ class DiscordService {
     roundNumber: number
   ): Promise<boolean> {
     const embed: DiscordEmbed = {
-      title: `✅ Ronda ${roundNumber} Finalizada`,
-      description: `La ronda ${roundNumber} ha terminado.`,
-      color: 0x27ae60, // Verde oscuro
+      title: `✅ Round ${roundNumber} Completed`,
+      description: `Round ${roundNumber} has finished.`,
+      color: 0x27ae60, // Dark green
       footer: {
-        text: `Ronda ${roundNumber}`,
+        text: `Round ${roundNumber}`,
       },
       timestamp: new Date().toISOString(),
     };
@@ -418,23 +418,23 @@ class DiscordService {
     players: Array<{ nickname: string; points: number }>
   ): Promise<boolean> {
     const playerText = players
-      .slice(0, 20) // Máximo 20 para no exceder límite de Discord
+      .slice(0, 20) // Max 20 to not exceed Discord limit
       .map((p, i) => `${i + 1}. **${p.nickname}** - ${p.points} pts`)
       .join('\n');
 
     const embed: DiscordEmbed = {
-      title: `📊 Clasificación - Ronda ${roundNumber}`,
-      description: playerText || 'Sin clasificados',
-      color: 0x3498db, // Azul
+      title: `📊 Standings - Round ${roundNumber}`,
+      description: playerText || 'No qualified players',
+      color: 0x3498db, // Blue
       fields: [
         {
           name: 'Total',
-          value: `${players.length} jugadores`,
+          value: `${players.length} players`,
           inline: true,
         },
       ],
       footer: {
-        text: `Ronda ${roundNumber}`,
+        text: `Round ${roundNumber}`,
       },
       timestamp: new Date().toISOString(),
     };
@@ -452,23 +452,23 @@ class DiscordService {
     runnerUp: string
   ): Promise<boolean> {
     const embed: DiscordEmbed = {
-      title: `🎉 ¡${tournamentName} Finalizado!`,
-      description: `El torneo ha llegado a su fin.`,
-      color: 0xf1c40f, // Amarillo
+      title: `🎉 ${tournamentName} Finished!`,
+      description: `The tournament has come to an end.`,
+      color: 0xf1c40f, // Yellow
       fields: [
         {
-          name: '🥇 Ganador',
+          name: '🥇 Champion',
           value: winner,
           inline: true,
         },
         {
-          name: '🥈 Subcampeón',
+          name: '🥈 Runner-up',
           value: runnerUp || 'N/A',
           inline: true,
         },
       ],
       footer: {
-        text: 'Torneo finalizado',
+        text: 'Tournament finished',
       },
       timestamp: new Date().toISOString(),
     };
