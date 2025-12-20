@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { activateRound, checkAndCompleteRound } from '../utils/tournament.js';
+import discordService from '../services/discordService.js';
 
 const router = Router();
 
@@ -121,6 +122,36 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     );
 
     const tournamentId = tournamentResult.rows[0].id;
+
+    // Create Discord forum thread for the tournament
+    try {
+      const threadId = await discordService.createTournamentThread(
+        tournamentId.toString(),
+        name,
+        tournament_type
+      );
+
+      // Update tournament with Discord thread ID
+      if (threadId) {
+        await query(
+          'UPDATE tournaments SET discord_thread_id = $1 WHERE id = $2',
+          [threadId, tournamentId]
+        );
+
+        // Post tournament created message to Discord
+        await discordService.postTournamentCreated(
+          threadId,
+          name,
+          tournament_type,
+          description,
+          req.userId, // organizer
+          max_participants
+        );
+      }
+    } catch (discordError) {
+      console.error('Discord integration error:', discordError);
+      // Don't fail the tournament creation if Discord fails
+    }
 
     res.status(201).json({ 
       id: tournamentId,
@@ -452,7 +483,7 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
 
     // Verify the user is the tournament creator
     const tournamentResult = await query(
-      'SELECT creator_id FROM tournaments WHERE id = $1',
+      'SELECT creator_id, discord_thread_id FROM tournaments WHERE id = $1',
       [tournamentId]
     );
 
@@ -463,6 +494,20 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
     if (tournamentResult.rows[0].creator_id !== req.userId) {
       return res.status(403).json({ error: 'Only the tournament creator can accept participants' });
     }
+
+    // Get participant info
+    const participantResult = await query(
+      `SELECT tp.*, u.nickname FROM tournament_participants tp
+       JOIN users u ON tp.user_id = u.id
+       WHERE tp.id = $1 AND tp.tournament_id = $2`,
+      [participantId, tournamentId]
+    );
+
+    if (participantResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Participant not found' });
+    }
+
+    const participant = participantResult.rows[0];
 
     // Update participant status to accepted
     const result = await query(
@@ -475,6 +520,28 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Participant not found' });
+    }
+
+    // Get total accepted participants for Discord message
+    const countResult = await query(
+      `SELECT COUNT(*) as count FROM tournament_participants 
+       WHERE tournament_id = $1 AND participation_status = 'accepted'`,
+      [tournamentId]
+    );
+    const totalAccepted = countResult.rows[0]?.count || 0;
+
+    // Post to Discord if thread exists
+    if (tournamentResult.rows[0].discord_thread_id) {
+      try {
+        await discordService.postPlayerAccepted(
+          tournamentResult.rows[0].discord_thread_id,
+          participant.nickname,
+          totalAccepted
+        );
+      } catch (discordError) {
+        console.error('Discord notification error:', discordError);
+        // Don't fail the request if Discord fails
+      }
     }
 
     res.json({ 
@@ -556,7 +623,10 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
     const { confirm } = req.body; // confirm = true if user confirmed deletion
 
     // Verify tournament creator
-    const tournamentCheck = await query('SELECT creator_id, status FROM tournaments WHERE id = $1', [id]);
+    const tournamentCheck = await query(
+      'SELECT creator_id, status, discord_thread_id, name FROM tournaments WHERE id = $1', 
+      [id]
+    );
     if (tournamentCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
@@ -608,6 +678,19 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
        WHERE id = $2`,
       ['registration_closed', id]
     );
+
+    // Post to Discord if thread exists
+    if (tournament.discord_thread_id) {
+      try {
+        await discordService.postRegistrationClosed(
+          tournament.discord_thread_id,
+          participantCount
+        );
+      } catch (discordError) {
+        console.error('Discord notification error:', discordError);
+        // Don't fail the request if Discord fails
+      }
+    }
 
     res.json({ 
       action: 'closed',
@@ -876,7 +959,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
 
     // Verify tournament creator
     const tournamentCheck = await query(
-      `SELECT creator_id, status, general_rounds, final_rounds, general_rounds_format, final_rounds_format, tournament_type
+      `SELECT creator_id, status, general_rounds, final_rounds, general_rounds_format, final_rounds_format, tournament_type, name, discord_thread_id
        FROM tournaments WHERE id = $1`, 
       [id]
     );
@@ -997,6 +1080,21 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
     } catch (err) {
       console.error(`[START] Warning: Could not activate first round for tournament ${id}:`, err);
       // Don't fail the tournament start if round activation fails
+    }
+
+    // Post to Discord if thread exists
+    if (tournament.discord_thread_id) {
+      try {
+        await discordService.postTournamentStarted(
+          tournament.discord_thread_id,
+          tournament.name,
+          acceptedParticipants,
+          roundCount
+        );
+      } catch (discordError) {
+        console.error('Discord notification error:', discordError);
+        // Don't fail the request if Discord fails
+      }
     }
 
     res.json({ 
