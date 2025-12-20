@@ -1315,6 +1315,22 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
     );
     console.log(`[START] Tournament ${id} status updated to in_progress`);
 
+    // Post tournament started notification to Discord FIRST
+    if (tournament.discord_thread_id) {
+      try {
+        await discordService.postTournamentStarted(
+          tournament.discord_thread_id,
+          tournament.name,
+          acceptedParticipants,
+          roundCount
+        );
+        console.log(`[START] Posted tournament started notification to Discord`);
+      } catch (discordError) {
+        console.error('Discord tournament started notification error:', discordError);
+        // Don't fail the request if Discord fails
+      }
+    }
+
     // Activate first round to generate initial matches
     try {
       console.log(`[START] Attempting to activate round 1 for tournament ${id}`);
@@ -1340,6 +1356,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
             matchesCount,
             estimatedEndDate
           );
+          console.log(`[START] Posted round started notification to Discord`);
         } catch (discordErr) {
           console.error('Discord round start notification error:', discordErr);
         }
@@ -1368,6 +1385,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
               1,
               matchups
             );
+            console.log(`[START] Posted matchups notification to Discord`);
           }
         } catch (discordErr) {
           console.error('Discord matchups notification error:', discordErr);
@@ -1376,21 +1394,6 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
     } catch (err) {
       console.error(`[START] Warning: Could not activate first round for tournament ${id}:`, err);
       // Don't fail the tournament start if round activation fails
-    }
-
-    // Post to Discord if thread exists
-    if (tournament.discord_thread_id) {
-      try {
-        await discordService.postTournamentStarted(
-          tournament.discord_thread_id,
-          tournament.name,
-          acceptedParticipants,
-          roundCount
-        );
-      } catch (discordError) {
-        console.error('Discord notification error:', discordError);
-        // Don't fail the request if Discord fails
-      }
     }
 
     res.json({ 
