@@ -5,6 +5,7 @@ import { matchService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import MainLayout from '../components/MainLayout';
 import MatchesTable from '../components/MatchesTable';
+import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import '../styles/Matches.css';
 
 interface FilterState {
@@ -31,6 +32,10 @@ const MyMatches: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [matchDetailsModal, setMatchDetailsModal] = useState<MatchDetailsModal>({
+    isOpen: false,
+    match: null,
+  });
+  const [confirmationModal, setConfirmationModal] = useState<MatchDetailsModal>({
     isOpen: false,
     match: null,
   });
@@ -135,6 +140,35 @@ const MyMatches: React.FC = () => {
       isOpen: false,
       match: null,
     });
+  };
+
+  const openConfirmation = (match: any) => {
+    setConfirmationModal({
+      isOpen: true,
+      match,
+    });
+  };
+
+  const closeConfirmation = () => {
+    setConfirmationModal({
+      isOpen: false,
+      match: null,
+    });
+  };
+
+  const handleConfirmationSuccess = () => {
+    closeConfirmation();
+    // Refetch matches to update the status
+    const fetchMatches = async () => {
+      try {
+        const res = await matchService.getUserMatches(userId!, currentPage, filters);
+        const matchesData = res.data?.data || [];
+        setAllMatches(matchesData);
+      } catch (err) {
+        console.error('Error refetching matches:', err);
+      }
+    };
+    fetchMatches();
   };
 
   if (loading) {
@@ -275,6 +309,7 @@ const MyMatches: React.FC = () => {
             matches={paginatedMatches}
             currentPlayerId={userId || undefined}
             onViewDetails={openMatchDetails}
+            onOpenConfirmation={openConfirmation}
             onDownloadReplay={handleDownloadReplay}
           />
         </div>
@@ -420,6 +455,16 @@ const MyMatches: React.FC = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Match Confirmation Modal */}
+        {confirmationModal.isOpen && confirmationModal.match && (
+          <MatchConfirmationModal
+            match={confirmationModal.match}
+            currentPlayerId={userId!}
+            onClose={closeConfirmation}
+            onSubmit={handleConfirmationSuccess}
+          />
         )}
       </div>
     </MainLayout>

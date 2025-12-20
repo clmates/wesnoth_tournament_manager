@@ -7,6 +7,7 @@ interface MatchesTableProps {
   currentPlayerId?: string;
   onDownloadReplay?: (matchId: string, replayFilePath: string) => void;
   onViewDetails?: (match: any) => void;
+  onOpenConfirmation?: (match: any) => void;
 }
 
 const MatchesTable: React.FC<MatchesTableProps> = ({
@@ -14,6 +15,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   currentPlayerId,
   onDownloadReplay,
   onViewDetails,
+  onOpenConfirmation,
 }) => {
   const { t } = useTranslation();
 
@@ -148,7 +150,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                   {currentPlayerId === match.loser_id && (match.status === 'unconfirmed' || !match.status) && (
                     <button
                       className="btn-report-match"
-                      onClick={() => onViewDetails && onViewDetails(match)}
+                      onClick={() => onOpenConfirmation && onOpenConfirmation(match)}
                       title={t('report_match_link')}
                     >
                       {t('report_match_link')}

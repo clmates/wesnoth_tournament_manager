@@ -71,6 +71,7 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
           matches={matches}
           currentPlayerId={currentPlayerId}
           onViewDetails={handleReportClick}
+          onOpenConfirmation={handleReportClick}
           onDownloadReplay={handleDownloadReplay}
         />
       </div>
