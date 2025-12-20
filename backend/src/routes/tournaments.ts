@@ -130,12 +130,24 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
 
     const tournamentId = tournamentResult.rows[0].id;
 
+    // Get organizer nickname
+    let organizerNickname = 'Unknown';
+    try {
+      const userResult = await query('SELECT nickname FROM users WHERE id = $1', [req.userId]);
+      if (userResult.rows.length > 0) {
+        organizerNickname = userResult.rows[0].nickname;
+      }
+    } catch (userError) {
+      console.warn('Could not fetch organizer nickname:', userError);
+    }
+
     // Create Discord forum thread for the tournament
     try {
       const threadId = await discordService.createTournamentThread(
         tournamentId.toString(),
         name,
-        tournament_type
+        tournament_type,
+        organizerNickname
       );
 
       // Update tournament with Discord thread ID
@@ -151,7 +163,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
           name,
           tournament_type,
           description,
-          req.userId || 'Unknown', // organizer
+          organizerNickname,
           max_participants
         );
       }

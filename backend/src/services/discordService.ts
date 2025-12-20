@@ -36,7 +36,8 @@ class DiscordService {
   async createTournamentThread(
     tournamentId: string,
     tournamentName: string,
-    tournamentType: string
+    tournamentType: string,
+    organizerNickname?: string
   ): Promise<string> {
     if (!FORUM_CHANNEL_ID || !BOT_TOKEN) {
       console.warn('Discord credentials not configured, skipping thread creation');
@@ -45,11 +46,12 @@ class DiscordService {
 
     try {
       const threadName = `${tournamentName} [${tournamentType}]`.substring(0, 100);
+      const organizer = organizerNickname || 'Unknown';
       const payload = {
         name: threadName,
         auto_archive_duration: 10080, // 7 días
         message: {
-          content: `Tournament created: **${threadName}**\n\nDiscussions and updates will be posted here.`,
+          content: `**🎮 ${threadName}**\n\nOrganizado por: **${organizer}**\n\nDiscussions and updates will be posted here.`,
         },
       };
 
