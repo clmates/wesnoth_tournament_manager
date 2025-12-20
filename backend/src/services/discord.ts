@@ -119,7 +119,7 @@ export async function notifyUserWelcome(user: {
   const hasDiscordId = !!user.discord_id;
   const userMention = hasDiscordId ? `<@${user.discord_id}>` : `**${user.nickname}**`;
 
-  const message: any = {
+  const message = {
     content: `${userMention}`,
     embeds: [{
       title: '👋 Welcome to Wesnoth Tournament Manager!',
@@ -129,13 +129,6 @@ export async function notifyUserWelcome(user: {
       footer: { text: 'Please wait for admin approval' }
     }]
   };
-
-  // Ensure mentions are allowed and targeted
-  if (hasDiscordId) {
-    message.allowed_mentions = { users: [user.discord_id] };
-  } else {
-    message.allowed_mentions = { parse: [] };
-  }
 
   try {
     console.log('📤 Sending Discord WELCOME to users channel', {
@@ -169,7 +162,7 @@ export async function notifyUserUnlocked(user: {
   const hasDiscordId = !!user.discord_id;
   const userMention = hasDiscordId ? `<@${user.discord_id}>` : `**${user.nickname}**`;
 
-  const message: any = {
+  const message = {
     content: `${userMention}`,
     embeds: [{
       title: '🔓 Account Unlocked!',
@@ -179,13 +172,6 @@ export async function notifyUserUnlocked(user: {
       footer: { text: 'Wesnoth Tournament Manager' }
     }]
   };
-
-  // Ensure mentions are allowed and targeted
-  if (hasDiscordId) {
-    message.allowed_mentions = { parse: [], users: [user.discord_id] };
-  } else {
-    message.allowed_mentions = { parse: [] };
-  }
 
   try {
     console.log('📤 Sending Discord UNLOCK to users channel', {
