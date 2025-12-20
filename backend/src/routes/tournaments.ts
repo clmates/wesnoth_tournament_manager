@@ -1349,11 +1349,12 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
       if (tournament.discord_thread_id) {
         try {
           const matchupsResult = await query(
-            `SELECT tm.player1_id, tm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
-             FROM tournament_matches tm
-             LEFT JOIN users u1 ON tm.player1_id = u1.id
-             LEFT JOIN users u2 ON tm.player2_id = u2.id
-             WHERE tm.tournament_id = $1 AND tm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = $1 AND round_number = 1)`,
+            `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
+             FROM tournament_round_matches trm
+             LEFT JOIN users u1 ON trm.player1_id = u1.id
+             LEFT JOIN users u2 ON trm.player2_id = u2.id
+             WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = $1 AND round_number = 1)
+             ORDER BY trm.match_index ASC`,
             [id]
           );
           
@@ -1764,12 +1765,13 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
       // Post matchups notification to Discord
       try {
         const matchupsResult = await query(
-          `SELECT tm.player1_id, tm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
-           FROM tournament_matches tm
-           LEFT JOIN users u1 ON tm.player1_id = u1.id
-           LEFT JOIN users u2 ON tm.player2_id = u2.id
-           WHERE tm.tournament_id = $1 AND tm.round_id = $2 AND tm.match_status = 'pending'`,
-          [id, nextRoundId]
+          `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
+           FROM tournament_round_matches trm
+           LEFT JOIN users u1 ON trm.player1_id = u1.id
+           LEFT JOIN users u2 ON trm.player2_id = u2.id
+           WHERE trm.round_id = $1
+           ORDER BY trm.match_index ASC`,
+          [nextRoundId]
         );
         
         if (matchupsResult.rows.length > 0) {
