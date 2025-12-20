@@ -83,6 +83,16 @@ export const matchService = {
     }
     return api.get('/matches', { params });
   },
+  getUserMatches: (userId: string, page: number = 1, filters?: any) => {
+    const params: any = { page };
+    if (filters) {
+      if (filters.winner) params.winner = filters.winner;
+      if (filters.loser) params.loser = filters.loser;
+      if (filters.map) params.map = filters.map;
+      if (filters.status) params.status = filters.status;
+    }
+    return api.get(`/users/${userId}/matches`, { params });
+  },
   getPendingMatches: () => api.get('/matches/pending/user'),
   getAllPendingMatches: () => api.get('/matches/pending/all'),
   getAllDisputedMatches: () => api.get('/matches/disputed/all'),

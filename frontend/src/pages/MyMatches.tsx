@@ -53,7 +53,7 @@ const MyMatches: React.FC = () => {
     const fetchMatches = async () => {
       try {
         console.log('Fetching user matches for page:', currentPage, 'with filters:', filters);
-        const res = await matchService.getAllMatches(currentPage, filters);
+        const res = await matchService.getUserMatches(userId!, currentPage, filters);
         console.log('Full response:', res);
         console.log('Response data:', res.data);
         
@@ -74,10 +74,10 @@ const MyMatches: React.FC = () => {
       }
     };
 
-    if (isAuthenticated) {
+    if (isAuthenticated && userId) {
       fetchMatches();
     }
-  }, [currentPage, filters, isAuthenticated]);
+  }, [currentPage, filters, isAuthenticated, userId]);
 
   const handleFilterChangeWithReset = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

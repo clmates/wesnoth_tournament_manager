@@ -56,11 +56,63 @@ router.get('/:id/stats', async (req, res) => {
   }
 });
 
-// Get recent matches
+// Get user matches with pagination and filters
 router.get('/:id/matches', async (req, res) => {
   try {
     const { id } = req.params;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = 20;
+    const offset = (page - 1) * limit;
 
+    // Get filter params from query
+    const winnerFilter = (req.query.winner as string)?.trim() || '';
+    const loserFilter = (req.query.loser as string)?.trim() || '';
+    const mapFilter = (req.query.map as string)?.trim() || '';
+    const statusFilter = (req.query.status as string)?.trim() || '';
+
+    // Build WHERE clause dynamically
+    let whereConditions: string[] = ['(m.winner_id = $1 OR m.loser_id = $1)'];
+    let params: any[] = [id];
+    let paramCount = 2;
+
+    if (winnerFilter) {
+      whereConditions.push(`w.nickname ILIKE $${paramCount}`);
+      params.push(`%${winnerFilter}%`);
+      paramCount++;
+    }
+
+    if (loserFilter) {
+      whereConditions.push(`l.nickname ILIKE $${paramCount}`);
+      params.push(`%${loserFilter}%`);
+      paramCount++;
+    }
+
+    if (mapFilter) {
+      whereConditions.push(`m.map ILIKE $${paramCount}`);
+      params.push(`%${mapFilter}%`);
+      paramCount++;
+    }
+
+    if (statusFilter) {
+      whereConditions.push(`m.status = $${paramCount}`);
+      params.push(statusFilter);
+      paramCount++;
+    }
+
+    const whereClause = whereConditions.join(' AND ');
+
+    // Get total count of filtered matches
+    const countQuery = `SELECT COUNT(*) as total FROM matches m 
+                        JOIN users w ON m.winner_id = w.id 
+                        JOIN users l ON m.loser_id = l.id 
+                        WHERE ${whereClause}`;
+    const countResult = await query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
+
+    // Get matches for current page with filters
+    params.push(limit);
+    params.push(offset);
     const result = await query(
       `SELECT 
         m.*,
@@ -69,14 +121,24 @@ router.get('/:id/matches', async (req, res) => {
        FROM matches m
        JOIN users w ON m.winner_id = w.id
        JOIN users l ON m.loser_id = l.id
-       WHERE (m.winner_id = $1 OR m.loser_id = $1)
+       WHERE ${whereClause}
        ORDER BY m.created_at DESC
-       LIMIT 20`,
-      [id]
+       LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
+      params
     );
 
-    res.json(result.rows);
+    res.json({
+      data: result.rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        showing: result.rows.length
+      }
+    });
   } catch (error) {
+    console.error('Error fetching user matches:', error);
     res.status(500).json({ error: 'Failed to fetch matches' });
   }
 });

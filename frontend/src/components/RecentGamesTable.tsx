@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MatchesTable from './MatchesTable';
 import MatchConfirmationModal from './MatchConfirmationModal';
+import { matchService } from '../services/api';
 import '../styles/RecentGamesTable.css';
 
 interface RecentGamesTableProps {

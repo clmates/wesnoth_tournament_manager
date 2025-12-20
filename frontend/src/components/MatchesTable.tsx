@@ -144,6 +144,16 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                   </span>
                 </div>
                 <div className="actions-item">
+                  {/* Show Report Match button for loser when match is unconfirmed */}
+                  {currentPlayerId === match.loser_id && !match.status && (
+                    <button
+                      className="btn-report-match"
+                      onClick={() => onViewDetails && onViewDetails(match)}
+                      title={t('report_match_link')}
+                    >
+                      {t('report_match_link')}
+                    </button>
+                  )}
                   <button
                     className="details-btn"
                     onClick={() => onViewDetails && onViewDetails(match)}
