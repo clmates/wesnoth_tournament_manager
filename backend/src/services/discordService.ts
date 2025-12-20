@@ -95,7 +95,7 @@ class DiscordService {
     tournamentName: string,
     tournamentType: string,
     description: string,
-    organizer: string,
+    organizer: string | undefined,
     maxParticipants: number | null
   ): Promise<boolean> {
     const embed: DiscordEmbed = {
@@ -110,7 +110,7 @@ class DiscordService {
         },
         {
           name: 'Organizador',
-          value: organizer,
+          value: organizer || 'Unknown',
           inline: true,
         },
         {
