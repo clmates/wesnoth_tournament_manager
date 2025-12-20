@@ -107,35 +107,6 @@ router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) =>
 });
 
 // Unblock user
-router.post('/users/:id/unblock', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    const ip = getUserIP(req);
-
-    // Verify user is admin
-    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: 'Only admins can perform this action' });
-    }
-
-    await query('UPDATE public.users SET is_blocked = false WHERE id = $1', [id]);
-
-    // Log admin action
-    await logAuditEvent({
-      event_type: 'ADMIN_ACTION',
-      user_id: req.userId,
-      ip_address: ip,
-      user_agent: getUserAgent(req),
-      details: { action: 'unblock_user', target_user_id: id }
-    });
-
-    res.json({ message: 'User unblocked' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to unblock user' });
-  }
-});
-
-// Unlock user account (remove lockout from failed login attempts)
 router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
