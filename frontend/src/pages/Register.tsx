@@ -19,6 +19,7 @@ const Register: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPasswordHints, setShowPasswordHints] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   const passwordRules = [
     { regex: /.{8,}/, label: 'At least 8 characters' },
@@ -103,10 +104,8 @@ const Register: React.FC = () => {
         language: formData.language,
       });
 
-      setSuccess('Registration successful! Redirecting to login...');
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+      setSuccess('Registration successful!');
+      setShowWelcomeModal(true);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed');
     } finally {
@@ -241,6 +240,43 @@ const Register: React.FC = () => {
           Already have an account? <a href="/login">Login here</a>
         </p>
       </div>
+
+      {/* Welcome Modal */}
+      {showWelcomeModal && (
+        <div className="modal-overlay" onClick={() => {
+          setShowWelcomeModal(false);
+          navigate('/login');
+        }}>
+          <div className="modal-content welcome-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>🎉 Welcome to Wesnoth Tournament Manager!</h2>
+            <p>Your account has been created successfully.</p>
+            <p className="warning-text">
+              ⚠️ Your account is temporarily locked. An admin will review and unlock it soon.
+            </p>
+            <div className="discord-invite">
+              <p><strong>Join our Discord community:</strong></p>
+              <a 
+                href="https://discord.gg/XUTpvBQNP6" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="discord-link"
+              >
+                https://discord.gg/XUTpvBQNP6
+              </a>
+              <p className="discord-note">You'll receive a notification there when your account is approved!</p>
+            </div>
+            <button 
+              className="btn btn-primary"
+              onClick={() => {
+                setShowWelcomeModal(false);
+                navigate('/login');
+              }}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
