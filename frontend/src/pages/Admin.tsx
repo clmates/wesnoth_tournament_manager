@@ -22,6 +22,9 @@ const AdminUsers: React.FC = () => {
   const [searchNIC, setSearchNIC] = useState('');
   const [recalculatingStats, setRecalculatingStats] = useState(false);
   const [userStatusFilter, setUserStatusFilter] = useState('all'); // 'all', 'active', 'blocked'
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [tempPassword, setTempPassword] = useState('');
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated || !isAdmin) {
@@ -108,7 +111,8 @@ const AdminUsers: React.FC = () => {
           break;
         case 'resetPassword':
           const result = await adminService.forceResetPassword(selectedUser.id);
-          setMessage(t('admin.password_reset_success', { tempPassword: result.data.tempPassword }));
+          setTempPassword(result.data.tempPassword);
+          setShowPasswordModal(true);
           break;
       }
 
@@ -325,6 +329,47 @@ const AdminUsers: React.FC = () => {
                 </button>
               </div>
             </div>
+        </div>
+      )}
+
+      {showPasswordModal && selectedUser && (
+        <div className="modal-overlay">
+          <div className="modal password-reset-modal">
+            <h3>Password Reset Successful</h3>
+            <p>Temporary password for <strong>{selectedUser.nickname}</strong>:</p>
+            <div className="password-display">
+              <input 
+                type="text" 
+                value={tempPassword} 
+                readOnly 
+                className="password-input"
+              />
+              <button 
+                className="btn-copy"
+                onClick={() => {
+                  navigator.clipboard.writeText(tempPassword);
+                  setPasswordCopied(true);
+                  setTimeout(() => setPasswordCopied(false), 2000);
+                }}
+              >
+                {passwordCopied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <p className="info-text">User must change this password on their next login.</p>
+            <div className="modal-actions">
+              <button 
+                className="btn-confirm" 
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setSelectedUser(null);
+                  setActionType('');
+                  fetchUsers();
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
       </div>
