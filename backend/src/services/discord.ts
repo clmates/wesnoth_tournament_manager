@@ -109,7 +109,12 @@ export async function notifyUserWelcome(user: {
   nickname: string;
   discord_id?: string;
 }) {
-  if (!DISCORD_WEBHOOK_URL_USERS) return;
+  console.log('🔔 notifyUserWelcome called for:', user.nickname);
+  console.log('📍 DISCORD_WEBHOOK_URL_USERS configured:', !!DISCORD_WEBHOOK_URL_USERS);
+  if (!DISCORD_WEBHOOK_URL_USERS) {
+    console.warn('⚠️ DISCORD_WEBHOOK_URL_USERS not configured - skipping user welcome notification');
+    return;
+  }
 
   const hasDiscordId = !!user.discord_id;
   const userMention = hasDiscordId ? `<@${user.discord_id}>` : `**${user.nickname}**`;
@@ -133,14 +138,20 @@ export async function notifyUserWelcome(user: {
   }
 
   try {
-    console.log('Sending Discord WELCOME to users channel', {
+    console.log('📤 Sending Discord WELCOME to users channel', {
       webhook: DISCORD_WEBHOOK_URL_USERS?.slice(0, 60) + '...',
       discord_id: user.discord_id,
       nickname: user.nickname,
     });
-    await axios.post(DISCORD_WEBHOOK_URL_USERS, message);
+    const response = await axios.post(DISCORD_WEBHOOK_URL_USERS, message);
+    console.log('✅ Discord welcome notification sent successfully. Status:', response.status);
   } catch (error: any) {
-    console.error('Error sending Discord welcome notification:', error.response?.data || error.message);
+    console.error('❌ Error sending Discord welcome notification:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
   }
 }
 
@@ -148,7 +159,12 @@ export async function notifyUserUnlocked(user: {
   nickname: string;
   discord_id?: string;
 }) {
-  if (!DISCORD_WEBHOOK_URL_USERS) return;
+  console.log('🔔 notifyUserUnlocked called for:', user.nickname);
+  console.log('📍 DISCORD_WEBHOOK_URL_USERS configured:', !!DISCORD_WEBHOOK_URL_USERS);
+  if (!DISCORD_WEBHOOK_URL_USERS) {
+    console.warn('⚠️ DISCORD_WEBHOOK_URL_USERS not configured - skipping user unlock notification');
+    return;
+  }
 
   const hasDiscordId = !!user.discord_id;
   const userMention = hasDiscordId ? `<@${user.discord_id}>` : `**${user.nickname}**`;
@@ -172,12 +188,13 @@ export async function notifyUserUnlocked(user: {
   }
 
   try {
-    console.log('Sending Discord UNLOCK to users channel', {
+    console.log('📤 Sending Discord UNLOCK to users channel', {
       webhook: DISCORD_WEBHOOK_URL_USERS?.slice(0, 60) + '...',
       discord_id: user.discord_id,
       nickname: user.nickname,
     });
-    await axios.post(DISCORD_WEBHOOK_URL_USERS, message);
+    const response = await axios.post(DISCORD_WEBHOOK_URL_USERS, message);
+    console.log('✅ Discord unlock notification sent successfully. Status:', response.status);
   } catch (error: any) {
     console.error('Error sending Discord unlock notification:', error.response?.data || error.message);
   }
