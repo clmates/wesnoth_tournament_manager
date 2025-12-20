@@ -1182,12 +1182,24 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
       await activateRound(id, 1);
       console.log(`[START] Round 1 activated successfully for tournament ${id}`);
 
+      // Get round details for Discord notification
+      const roundDetailsResult = await query(
+        `SELECT COUNT(*) as match_count FROM tournament_matches tm
+         JOIN tournament_rounds tr ON tm.round_id = tr.id
+         WHERE tr.tournament_id = $1 AND tr.round_number = 1`,
+        [id]
+      );
+      const matchesCount = parseInt(roundDetailsResult.rows[0]?.match_count || '0');
+
       // Post round started notification to Discord
       if (tournament.discord_thread_id) {
         try {
+          const estimatedEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
           await discordService.postRoundStarted(
             tournament.discord_thread_id,
-            1
+            1,
+            matchesCount,
+            estimatedEndDate
           );
         } catch (discordErr) {
           console.error('Discord round start notification error:', discordErr);
@@ -1587,12 +1599,24 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
       [id]
     );
 
+    // Get round details for Discord notification
+    const roundDetailsResult2 = await query(
+      `SELECT COUNT(*) as match_count FROM tournament_matches tm
+       JOIN tournament_rounds tr ON tm.round_id = tr.id
+       WHERE tr.tournament_id = $1 AND tr.round_number = $2`,
+      [id, nextRoundNum]
+    );
+    const matchesCount2 = parseInt(roundDetailsResult2.rows[0]?.match_count || '0');
+
     // Post round started notification to Discord
     if (tournamentInfoForNotify.rows[0]?.discord_thread_id) {
       try {
+        const estimatedEndDate2 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
         await discordService.postRoundStarted(
           tournamentInfoForNotify.rows[0].discord_thread_id,
-          nextRoundNum
+          nextRoundNum,
+          matchesCount2,
+          estimatedEndDate2
         );
       } catch (discordErr) {
         console.error('Discord round start notification error:', discordErr);

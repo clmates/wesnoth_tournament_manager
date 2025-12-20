@@ -731,9 +731,7 @@ export async function completeRound(roundId: string, tournamentId: string): Prom
               tournamentResult.rows[0].discord_thread_id,
               tournamentResult.rows[0].name,
               winner.nickname || 'Unknown',
-              runnerUp ? runnerUp.nickname : 'N/A',
-              winner.tournament_points || 0,
-              runnerUp ? (runnerUp.tournament_points || 0) : 0
+              runnerUp ? runnerUp.nickname : 'N/A'
             );
           }
         }
@@ -943,9 +941,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
                   tournamentResult.rows[0].discord_thread_id,
                   tournamentResult.rows[0].name,
                   winner.nickname || 'Unknown',
-                  runnerUp ? runnerUp.nickname : 'N/A',
-                  winner.tournament_points || 0,
-                  runnerUp ? (runnerUp.tournament_points || 0) : 0
+                  runnerUp ? runnerUp.nickname : 'N/A'
                 );
               }
             }
