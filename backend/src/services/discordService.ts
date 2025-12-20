@@ -48,6 +48,9 @@ class DiscordService {
       const payload = {
         name: threadName,
         auto_archive_duration: 10080, // 7 días
+        message: {
+          content: `Tournament created: **${threadName}**\n\nDiscussions and updates will be posted here.`,
+        },
       };
 
       console.log(`📤 Enviando a Discord - Channel: ${FORUM_CHANNEL_ID}, Payload:`, JSON.stringify(payload));
