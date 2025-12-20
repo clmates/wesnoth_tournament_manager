@@ -82,16 +82,23 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         return res.status(400).json({ error: 'Swiss-Elimination Mix must have between 1 and 3 final rounds (Elimination phase)' });
       }
     } else if (tournamentTypeLower === 'elimination') {
-      // Pure Elimination: only final_rounds, must be 1-3
-      if ((general_rounds || 0) > 0) {
-        return res.status(400).json({ error: 'Elimination tournaments should not have general rounds' });
-      }
-      if ((final_rounds || 0) < 1 || (final_rounds || 0) > 3) {
-        return res.status(400).json({ error: 'Elimination tournaments must have between 1 and 3 final rounds' });
+      // Pure Elimination: system calculates rounds automatically based on participants
+      // Only need match formats (general_rounds_format for preliminaries, final_rounds_format for final)
+      if (!general_rounds_format || !final_rounds_format) {
+        return res.status(400).json({ error: 'Elimination tournaments must specify match formats (general_rounds_format and final_rounds_format)' });
       }
     }
 
-    const totalRounds = (general_rounds || 0) + (final_rounds || 0);
+    // Calculate total rounds based on tournament type and participants
+    let totalRounds = 0;
+    if (tournamentTypeLower === 'elimination' && max_participants && max_participants > 0) {
+      // For elimination: calculate rounds needed for all participants
+      totalRounds = Math.ceil(Math.log2(max_participants));
+    } else if (tournamentTypeLower !== 'elimination') {
+      // For other types, use specified rounds
+      totalRounds = (general_rounds || 0) + (final_rounds || 0);
+    }
+    // If elimination without max_participants, total_rounds will be calculated during close-registration
 
     // Create tournament
     const tournamentResult = await query(
@@ -112,8 +119,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         round_duration_days || 7,
         auto_advance_round || false,
         totalRounds,
-        general_rounds || 0,
-        final_rounds || 0,
+        tournamentTypeLower === 'elimination' ? 0 : (general_rounds || 0),
+        tournamentTypeLower === 'elimination' ? 0 : (final_rounds || 0),
         general_rounds_format || 'bo3',
         final_rounds_format || 'bo5',
         'registration_open',
@@ -624,7 +631,7 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
 
     // Verify tournament creator
     const tournamentCheck = await query(
-      'SELECT creator_id, status, discord_thread_id, name FROM tournaments WHERE id = $1', 
+      'SELECT creator_id, status, discord_thread_id, name, tournament_type, max_participants, total_rounds FROM tournaments WHERE id = $1', 
       [id]
     );
     if (tournamentCheck.rows.length === 0) {
@@ -671,12 +678,18 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
       });
     }
 
+    // Calculate total_rounds for elimination tournaments if not already set
+    let totalRounds = tournament.total_rounds || 0;
+    if (tournament.tournament_type.toLowerCase() === 'elimination' && totalRounds === 0) {
+      totalRounds = Math.ceil(Math.log2(participantCount));
+    }
+
     // If has participants, close registration normally
     await query(
       `UPDATE tournaments 
-       SET status = $1, registration_closed_at = NOW() 
-       WHERE id = $2`,
-      ['registration_closed', id]
+       SET status = $1, registration_closed_at = NOW(), total_rounds = $2
+       WHERE id = $3`,
+      ['registration_closed', totalRounds, id]
     );
 
     // Post to Discord if thread exists
@@ -779,11 +792,25 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     // Generate tournament rounds based on configuration and tournament type
     const roundsToCreate = [];
     let roundNumber = 1;
-    const totalFinalRounds = tournament.final_rounds || 0;
     let totalGeneralRounds = tournament.general_rounds || 0;
+    let totalFinalRounds = tournament.final_rounds || 0;
     
+    // For Elimination tournaments, generate all rounds based on calculated total_rounds
+    if (tournamentType === 'elimination') {
+      const totalElimRounds = tournament.total_rounds || 0;
+      
+      // All elimination rounds use the general_rounds_format except the last one (final) uses final_rounds_format
+      for (let i = 0; i < totalElimRounds; i++) {
+        const isLastRound = (i === totalElimRounds - 1);
+        roundsToCreate.push({
+          roundNumber: i + 1,
+          roundType: isLastRound ? 'final' : 'general',
+          matchFormat: isLastRound ? tournament.final_rounds_format : tournament.general_rounds_format
+        });
+      }
+    }
     // For League tournaments, calculate actual rounds based on format (1=ida, 2=ida y vuelta)
-    if (tournamentType === 'league') {
+    else if (tournamentType === 'league') {
       const leagueFormat = totalGeneralRounds; // 1 or 2
       // Calculate combinations: C(n,2) = n*(n-1)/2
       const matchCombinations = (participantCount * (participantCount - 1)) / 2;
