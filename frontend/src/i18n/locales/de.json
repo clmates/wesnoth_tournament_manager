@@ -396,12 +396,5 @@
     "error_password_too_short": "Neues Passwort muss mindestens 8 Zeichen lang sein",
     "password_changed_success": "Passwort erfolgreich geändert",
     "error_change_password_failed": "Fehler beim Ändern des Passworts"
-  },
-  "maps": {
-    "map_1": "Karte 1",
-    "map_2": "Karte 2",
-    "map_3": "Karte 3",
-    "siege": "Belagerung",
-    "dueling_grounds": "Duellfelder"
   }
 }

@@ -401,13 +401,6 @@
     "password_changed_success": "Password changed successfully",
     "error_change_password_failed": "Failed to change password"
   },
-  "maps": {
-    "map_1": "Map 1",
-    "map_2": "Map 2",
-    "map_3": "Map 3",
-    "siege": "Siege",
-    "dueling_grounds": "Dueling Grounds"
-  },
   "btn_accept": "Accept",
   "btn_reject": "Reject"
 }

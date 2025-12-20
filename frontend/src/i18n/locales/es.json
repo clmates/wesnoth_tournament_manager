@@ -391,13 +391,6 @@
     "password_changed_success": "Contraseña cambiada correctamente",
     "error_change_password_failed": "Error al cambiar la contraseña"
   },
-  "maps": {
-    "map_1": "Mapa 1",
-    "map_2": "Mapa 2",
-    "map_3": "Mapa 3",
-    "siege": "Asedio",
-    "dueling_grounds": "Campos de Duelos"
-  },
   "btn_accept": "Aceptar",
   "btn_reject": "Rechazar"
 }
