@@ -115,7 +115,11 @@
   "details_btn": "Детали",
   "no_replay": "Нет повтора",
   "download": "Скачать",
-  "downloads": "Скачивания"
+  "downloads": "Скачивания",
+  "close_btn": "Закрыть",
+  "cancel_btn": "Отмена",
+  "delete_btn": "Удалить",
+  "confirm_delete_tournament": "Вы уверены, что хотите удалить этот турнир? Связанные матчи будут отвязаны, но не удалены.",
   ,
   "recent_games": "Последние игры",
   "recent_games_no_data": "Нет последних игр",
@@ -177,6 +181,8 @@
   "role_admin": "Админ",
   "role_user": "Пользователь",
   "btn_unblock": "Разблокировать",
+  "btn_accept": "Принять",
+  "btn_reject": "Отклонить"
   "btn_block": "Заблокировать",
   "btn_remove_admin": "Убрать админа",
   "btn_make_admin": "Сделать админом",
@@ -271,6 +277,14 @@
     "btn_close_registration": "Закрыть регистрацию",
     "btn_prepare": "Подготовить турнир",
     "btn_start": "Начать турнир",
+    "request_join": "Запрос на участие в турнире",
+    "tournament_deleted_no_participants": "Турнир удалён (нет зарегистрированных участников)",
+    "confirm_delete_title": "Подтвердить удаление турнира",
+    "no_participants_message": "Нет зарегистрированных участников для этого турнира. Вы уверены, что хотите его удалить?"
+    "back_to_tournaments": "Назад к турнирам",
+    "btn_close_registration": "Закрыть регистрацию",
+    "btn_prepare": "Подготовить турнир",
+    "btn_start": "Начать турнир",
     "request_join": "Запрос на участие"
   },
   "my_tournaments_title": "Мои турниры",
@@ -341,6 +355,7 @@
   "label_format": "Формат",
   "matches": {
     "scheduled": "Запланированные матчи",
+    "details": "Детали матча"
     "completed": "Завершённые матчи"
   },
   "no_scheduled_matches": "В настоящее время нет запланированных матчей.",
@@ -394,12 +409,5 @@
     "error_password_too_short": "Новый пароль должен содержать не менее 8 символов",
     "password_changed_success": "Пароль успешно изменен",
     "error_change_password_failed": "Не удалось изменить пароль"
-  },
-  "maps": {
-    "map_1": "Карта 1",
-    "map_2": "Карта 2",
-    "map_3": "Карта 3",
-    "siege": "Осада",
-    "dueling_grounds": "Арена дуэлей"
   }
 }

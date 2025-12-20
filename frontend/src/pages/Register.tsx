@@ -248,13 +248,13 @@ const Register: React.FC = () => {
           navigate('/login');
         }}>
           <div className="modal-content welcome-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>🎉 Welcome to Wesnoth Tournament Manager!</h2>
-            <p>Your account has been created successfully.</p>
+            <h2>{t('welcome_modal_title', '🎉 Welcome to Wesnoth Tournament Manager!')}</h2>
+            <p>{t('welcome_modal_success', 'Your account has been created successfully.')}</p>
             <p className="warning-text">
-              ⚠️ Your account is temporarily locked. An admin will review and unlock it soon.
+              {t('welcome_modal_locked', '⚠️ Your account is temporarily locked. An admin will review and unlock it soon.')}
             </p>
             <div className="discord-invite">
-              <p><strong>Join our Discord community:</strong></p>
+              <p><strong>{t('welcome_modal_discord_title', 'Join our Discord community:')}</strong></p>
               <a 
                 href="https://discord.gg/XUTpvBQNP6" 
                 target="_blank" 
@@ -263,7 +263,7 @@ const Register: React.FC = () => {
               >
                 https://discord.gg/XUTpvBQNP6
               </a>
-              <p className="discord-note">You'll receive a notification there when your account is approved!</p>
+              <p className="discord-note">{t('welcome_modal_discord_note', "You'll receive a notification there when your account is approved!")}</p>
             </div>
             <button 
               className="btn btn-primary"
@@ -272,7 +272,7 @@ const Register: React.FC = () => {
                 navigate('/login');
               }}
             >
-              Got it!
+              {t('welcome_modal_button', 'Got it!')}
             </button>
           </div>
         </div>
