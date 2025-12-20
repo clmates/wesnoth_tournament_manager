@@ -49,7 +49,7 @@ class DiscordService {
         {
           name: `${tournamentName} [${tournamentType}]`.substring(0, 100), // Límite de Discord
           auto_archive_duration: 10080, // 7 días
-          type: 11, // GUILD_PUBLIC_THREAD
+          // No especificar 'type' para canales Foro - se crea automáticamente como post
         },
         { headers: this.headers }
       );
