@@ -267,8 +267,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         await tournamentService.updateTournament(id!, updateObj);
       }
       
-      // Change status to prepared (without starting yet)
-      await tournamentService.updateTournament(id!, { status: 'prepared' });
+      // Call backend to prepare tournament (create rounds based on type and configuration)
+      await tournamentService.prepareTournament(id!);
       setSuccess(t('success_tournament_prepared'));
       setEditMode(false);
       fetchTournamentData();

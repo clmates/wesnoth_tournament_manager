@@ -1179,11 +1179,18 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
     if (roundCount === 0) {
       console.log(`[START] No rounds found, creating them now`);
       
+      // Get tournament type
+      const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+      console.log(`[START] Tournament type: ${tournamentType}`);
+      
       // Calculate maximum rounds needed for elimination tournament
       const maxRoundsNeeded = acceptedParticipants > 0 ? Math.ceil(Math.log2(acceptedParticipants)) : 0;
       
-      // Total rounds requested
-      const totalRoundsRequested = (tournament.general_rounds || 0) + (tournament.final_rounds || 0);
+      // Total rounds requested - for elimination, use total_rounds if available
+      let totalRoundsRequested = (tournament.general_rounds || 0) + (tournament.final_rounds || 0);
+      if (tournamentType === 'elimination' && totalRoundsRequested === 0) {
+        totalRoundsRequested = tournament.total_rounds || maxRoundsNeeded;
+      }
       console.log(`[START] Max rounds needed: ${maxRoundsNeeded}, Total requested: ${totalRoundsRequested}`);
 
       if (totalRoundsRequested > maxRoundsNeeded) {
@@ -1197,35 +1204,99 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
       const roundsToCreate = [];
       let roundNumber = 1;
 
-      // Add general rounds
-      for (let i = 0; i < (tournament.general_rounds || 0); i++) {
-        roundsToCreate.push({
-          roundNumber,
-          roundType: 'general',
-          matchFormat: tournament.general_rounds_format || 'bo3'
-        });
-        roundNumber++;
-      }
+      // For pure elimination, generate rounds differently
+      if (tournamentType === 'elimination') {
+        const totalElimRounds = totalRoundsRequested || maxRoundsNeeded;
+        console.log(`[START] Creating ${totalElimRounds} elimination rounds`);
+        
+        for (let i = 0; i < totalElimRounds; i++) {
+          const isLastRound = (i === totalElimRounds - 1);
+          let label = '';
+          let classification = '';
+          
+          if (totalElimRounds === 1) {
+            label = 'Final';
+            classification = 'final';
+          } else if (totalElimRounds === 2) {
+            if (i === 0) {
+              label = 'Semifinals';
+              classification = 'semifinals';
+            } else {
+              label = 'Final';
+              classification = 'final';
+            }
+          } else if (totalElimRounds === 3) {
+            if (i === 0) {
+              label = 'Quarterfinals';
+              classification = 'quarterfinals';
+            } else if (i === 1) {
+              label = 'Semifinals';
+              classification = 'semifinals';
+            } else {
+              label = 'Final';
+              classification = 'final';
+            }
+          } else if (totalElimRounds === 4) {
+            if (i === 0) {
+              label = 'Round of 16';
+              classification = 'round16';
+            } else if (i === 1) {
+              label = 'Quarterfinals';
+              classification = 'quarterfinals';
+            } else if (i === 2) {
+              label = 'Semifinals';
+              classification = 'semifinals';
+            } else {
+              label = 'Final';
+              classification = 'final';
+            }
+          } else {
+            label = `Round ${i + 1}`;
+            classification = isLastRound ? 'final' : 'general';
+          }
+          
+          roundsToCreate.push({
+            roundNumber,
+            roundType: isLastRound ? 'final' : 'general',
+            matchFormat: isLastRound ? (tournament.final_rounds_format || 'bo5') : (tournament.general_rounds_format || 'bo3'),
+            label,
+            classification,
+            description: label
+          });
+          roundNumber++;
+        }
+      } else {
+        // For other tournament types, use general_rounds and final_rounds
+        // Add general rounds
+        for (let i = 0; i < (tournament.general_rounds || 0); i++) {
+          roundsToCreate.push({
+            roundNumber,
+            roundType: 'general',
+            matchFormat: tournament.general_rounds_format || 'bo3'
+          });
+          roundNumber++;
+        }
 
-      // Add final rounds
-      for (let i = 0; i < (tournament.final_rounds || 0); i++) {
-        roundsToCreate.push({
-          roundNumber,
-          roundType: 'final',
-          matchFormat: tournament.final_rounds_format || 'bo5'
-        });
-        roundNumber++;
+        // Add final rounds
+        for (let i = 0; i < (tournament.final_rounds || 0); i++) {
+          roundsToCreate.push({
+            roundNumber,
+            roundType: 'final',
+            matchFormat: tournament.final_rounds_format || 'bo5'
+          });
+          roundNumber++;
+        }
       }
 
       console.log(`[START] Rounds to create:`, roundsToCreate);
 
       // Insert generated rounds
       for (const round of roundsToCreate) {
-        console.log(`[START] Inserting round ${round.roundNumber} (${round.roundType})`);
+        console.log(`[START] Inserting round ${round.roundNumber} (${round.roundType}): ${round.label || 'N/A'}`);
         await query(
-          `INSERT INTO tournament_rounds (tournament_id, round_number, round_type, match_format, round_status)
-           VALUES ($1, $2, $3, $4, 'pending')`,
-          [id, round.roundNumber, round.roundType, round.matchFormat]
+          `INSERT INTO tournament_rounds (tournament_id, round_number, round_type, match_format, round_status, round_phase_label, round_phase_description, round_classification)
+           VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7)`,
+          [id, round.roundNumber, round.roundType, round.matchFormat, round.label || '', round.description || '', round.classification || '']
         );
         console.log(`[START] Round ${round.roundNumber} inserted successfully`);
       }
