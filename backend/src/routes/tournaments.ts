@@ -460,14 +460,17 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     console.log('Request to join tournament:', { id, userId: req.userId });
 
     // Check if tournament exists
-    const tournamentResult = await query('SELECT id FROM tournaments WHERE id = $1', [id]);
+    const tournamentResult = await query(
+      'SELECT id, discord_thread_id, max_participants FROM tournaments WHERE id = $1',
+      [id]
+    );
     if (tournamentResult.rows.length === 0) {
       console.log('Tournament not found:', id);
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    // Get user's ELO rating
-    const userResult = await query('SELECT elo_rating FROM users WHERE id = $1', [req.userId]);
+    // Get user's ELO rating and nickname
+    const userResult = await query('SELECT elo_rating, nickname FROM users WHERE id = $1', [req.userId]);
     if (userResult.rows.length === 0) {
       console.log('User not found:', req.userId);
       return res.status(404).json({ error: 'User not found' });
@@ -482,6 +485,30 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     );
 
     console.log('Join request created:', result.rows[0].id);
+
+    // Get current participant count
+    const countResult = await query(
+      `SELECT COUNT(*) as count FROM tournament_participants 
+       WHERE tournament_id = $1 AND participation_status IN ('pending', 'accepted')`,
+      [id]
+    );
+    const currentCount = countResult.rows[0]?.count || 0;
+
+    // Post to Discord if thread exists
+    if (tournamentResult.rows[0].discord_thread_id) {
+      try {
+        await discordService.postPlayerRegistered(
+          tournamentResult.rows[0].discord_thread_id,
+          userResult.rows[0].nickname,
+          currentCount,
+          tournamentResult.rows[0].max_participants
+        );
+      } catch (discordError) {
+        console.error('Discord notification error:', discordError);
+        // Don't fail the request if Discord fails
+      }
+    }
+
     res.status(201).json({ 
       id: result.rows[0].id,
       message: 'Join request sent. Waiting for organizer approval.'
@@ -581,7 +608,7 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
 
     // Verify the user is the tournament creator
     const tournamentResult = await query(
-      'SELECT creator_id FROM tournaments WHERE id = $1',
+      'SELECT creator_id, discord_thread_id FROM tournaments WHERE id = $1',
       [tournamentId]
     );
 
@@ -592,6 +619,20 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     if (tournamentResult.rows[0].creator_id !== req.userId) {
       return res.status(403).json({ error: 'Only the tournament creator can reject participants' });
     }
+
+    // Get participant info including nickname
+    const participantResult = await query(
+      `SELECT tp.*, u.nickname FROM tournament_participants tp
+       JOIN users u ON tp.user_id = u.id
+       WHERE tp.id = $1 AND tp.tournament_id = $2`,
+      [participantId, tournamentId]
+    );
+
+    if (participantResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Participant not found' });
+    }
+
+    const participant = participantResult.rows[0];
 
     // Update participant status to denied
     const result = await query(
@@ -604,6 +645,29 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Participant not found' });
+    }
+
+    // Post to Discord if thread exists
+    if (tournamentResult.rows[0].discord_thread_id) {
+      try {
+        // Simple notification about rejection
+        const embed = {
+          title: '❌ Participante Rechazado',
+          description: `**${participant.nickname}** ha sido rechazado del torneo.`,
+          color: 0xe74c3c,
+          footer: {
+            text: 'Participante rechazado',
+          },
+          timestamp: new Date().toISOString(),
+        };
+        await discordService.publishTournamentMessage(
+          tournamentResult.rows[0].discord_thread_id,
+          { embeds: [embed] }
+        );
+      } catch (discordError) {
+        console.error('Discord notification error:', discordError);
+        // Don't fail the request if Discord fails
+      }
     }
 
     res.json({ 
@@ -1117,6 +1181,47 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
       console.log(`[START] Attempting to activate round 1 for tournament ${id}`);
       await activateRound(id, 1);
       console.log(`[START] Round 1 activated successfully for tournament ${id}`);
+
+      // Post round started notification to Discord
+      if (tournament.discord_thread_id) {
+        try {
+          await discordService.postRoundStarted(
+            tournament.discord_thread_id,
+            1
+          );
+        } catch (discordErr) {
+          console.error('Discord round start notification error:', discordErr);
+        }
+      }
+
+      // Post matchups notification to Discord
+      if (tournament.discord_thread_id) {
+        try {
+          const matchupsResult = await query(
+            `SELECT tm.player1_id, tm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
+             FROM tournament_matches tm
+             LEFT JOIN users u1 ON tm.player1_id = u1.id
+             LEFT JOIN users u2 ON tm.player2_id = u2.id
+             WHERE tm.tournament_id = $1 AND tm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = $1 AND round_number = 1)`,
+            [id]
+          );
+          
+          if (matchupsResult.rows.length > 0) {
+            const matchups = matchupsResult.rows.map(m => ({
+              player1: m.player1_nickname || 'Unknown',
+              player2: m.player2_nickname || 'Unknown'
+            }));
+            
+            await discordService.postMatchups(
+              tournament.discord_thread_id,
+              1,
+              matchups
+            );
+          }
+        } catch (discordErr) {
+          console.error('Discord matchups notification error:', discordErr);
+        }
+      }
     } catch (err) {
       console.error(`[START] Warning: Could not activate first round for tournament ${id}:`, err);
       // Don't fail the tournament start if round activation fails
@@ -1475,6 +1580,51 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
     await activateRound(id, nextRoundNum);
 
     console.log(`✅ Activated next round: tournament=${id}, round_number=${nextRoundNum}`);
+
+    // Get tournament info for Discord notification
+    const tournamentInfoForNotify = await query(
+      'SELECT discord_thread_id FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    // Post round started notification to Discord
+    if (tournamentInfoForNotify.rows[0]?.discord_thread_id) {
+      try {
+        await discordService.postRoundStarted(
+          tournamentInfoForNotify.rows[0].discord_thread_id,
+          nextRoundNum
+        );
+      } catch (discordErr) {
+        console.error('Discord round start notification error:', discordErr);
+      }
+
+      // Post matchups notification to Discord
+      try {
+        const matchupsResult = await query(
+          `SELECT tm.player1_id, tm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
+           FROM tournament_matches tm
+           LEFT JOIN users u1 ON tm.player1_id = u1.id
+           LEFT JOIN users u2 ON tm.player2_id = u2.id
+           WHERE tm.tournament_id = $1 AND tm.round_id = $2 AND tm.match_status = 'pending'`,
+          [id, nextRoundId]
+        );
+        
+        if (matchupsResult.rows.length > 0) {
+          const matchups = matchupsResult.rows.map(m => ({
+            player1: m.player1_nickname || 'Unknown',
+            player2: m.player2_nickname || 'Unknown'
+          }));
+          
+          await discordService.postMatchups(
+            tournamentInfoForNotify.rows[0].discord_thread_id,
+            nextRoundNum,
+            matchups
+          );
+        }
+      } catch (discordErr) {
+        console.error('Discord matchups notification error:', discordErr);
+      }
+    }
 
     res.json({ 
       message: `Round ${nextRoundNum} activated successfully`,

@@ -4,6 +4,7 @@
  */
 
 import { query } from '../config/database.js';
+import discordService from '../services/discordService.js';
 
 interface Participant {
   id: string;
@@ -702,6 +703,44 @@ export async function completeRound(roundId: string, tournamentId: string): Prom
         `UPDATE tournaments SET status = 'finished', finished_at = NOW() WHERE id = $1`,
         [tournamentId]
       );
+
+      // Notify Discord of tournament finish
+      try {
+        const tournamentResult = await query(
+          `SELECT name, discord_thread_id FROM tournaments WHERE id = $1`,
+          [tournamentId]
+        );
+
+        if (tournamentResult.rows.length > 0 && tournamentResult.rows[0].discord_thread_id) {
+          // Get winner and runner up
+          const rankingResult = await query(
+            `SELECT tp.user_id, u.nickname, tp.tournament_points, tp.tournament_wins
+             FROM tournament_participants tp
+             LEFT JOIN users u ON tp.user_id = u.id
+             WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+             ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC
+             LIMIT 2`,
+            [tournamentId]
+          );
+
+          if (rankingResult.rows.length > 0) {
+            const winner = rankingResult.rows[0];
+            const runnerUp = rankingResult.rows.length > 1 ? rankingResult.rows[1] : null;
+
+            await discordService.postTournamentFinished(
+              tournamentResult.rows[0].discord_thread_id,
+              tournamentResult.rows[0].name,
+              winner.nickname || 'Unknown',
+              runnerUp ? runnerUp.nickname : 'N/A',
+              winner.tournament_points || 0,
+              runnerUp ? (runnerUp.tournament_points || 0) : 0
+            );
+          }
+        }
+      } catch (discordErr) {
+        console.error('Discord tournament finished notification error:', discordErr);
+        // Don't fail the tournament completion if Discord fails
+      }
     }
   } catch (error) {
     console.error('Error completing round:', error);
@@ -876,6 +915,44 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
             [tournamentId]
           );
           console.log(`🏆 Tournament ${tournamentId} finished - Winner: ${winnerId}`);
+
+          // Notify Discord of tournament finish
+          try {
+            const tournamentResult = await query(
+              `SELECT name, discord_thread_id FROM tournaments WHERE id = $1`,
+              [tournamentId]
+            );
+
+            if (tournamentResult.rows.length > 0 && tournamentResult.rows[0].discord_thread_id) {
+              // Get detailed ranking with nicknames for winner and runner-up
+              const detailedRankingResult = await query(
+                `SELECT tp.user_id, u.nickname, tp.tournament_points, tp.tournament_wins
+                 FROM tournament_participants tp
+                 LEFT JOIN users u ON tp.user_id = u.id
+                 WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+                 ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC
+                 LIMIT 2`,
+                [tournamentId]
+              );
+
+              if (detailedRankingResult.rows.length > 0) {
+                const winner = detailedRankingResult.rows[0];
+                const runnerUp = detailedRankingResult.rows.length > 1 ? detailedRankingResult.rows[1] : null;
+
+                await discordService.postTournamentFinished(
+                  tournamentResult.rows[0].discord_thread_id,
+                  tournamentResult.rows[0].name,
+                  winner.nickname || 'Unknown',
+                  runnerUp ? runnerUp.nickname : 'N/A',
+                  winner.tournament_points || 0,
+                  runnerUp ? (runnerUp.tournament_points || 0) : 0
+                );
+              }
+            }
+          } catch (discordErr) {
+            console.error('Discord tournament finished notification error:', discordErr);
+            // Don't fail the tournament completion if Discord fails
+          }
         }
       }
 
