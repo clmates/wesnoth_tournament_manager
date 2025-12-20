@@ -25,6 +25,7 @@ const Profile: React.FC = () => {
   const [changingPassword, setChangingPassword] = useState(false);
   const [updatingDiscord, setUpdatingDiscord] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
+  const [showPasswordHints, setShowPasswordHints] = useState(false);
 
   const languages = [
     { code: 'en', name: 'English', countryCode: 'us' },
@@ -35,6 +36,24 @@ const Profile: React.FC = () => {
   ];
 
   const currentLanguage = languages.find(l => l.code === selectedLanguage) || languages[0];
+
+  const passwordRules = [
+    { regex: /.{8,}/, label: 'At least 8 characters' },
+    { regex: /[A-Z]/, label: 'At least one uppercase letter' },
+    { regex: /[a-z]/, label: 'At least one lowercase letter' },
+    { regex: /[0-9]/, label: 'At least one number' },
+    { regex: /[!@#$%^&*(),.?":{}|<>]/, label: 'At least one special character' },
+  ];
+
+  const getPasswordValidation = () => {
+    return passwordRules.map(rule => ({
+      ...rule,
+      satisfied: rule.regex.test(newPassword)
+    }));
+  };
+
+  const passwordValidation = getPasswordValidation();
+  const isNewPasswordValid = passwordValidation.every(rule => rule.satisfied);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -115,7 +134,15 @@ const Profile: React.FC = () => {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!oldPassword || !newPassword || !confirmPassword) {
+    // Si es cambio forzado, no requiere contraseña antigua
+    const requiresOldPassword = !mustChangePassword;
+    
+    if (requiresOldPassword && !oldPassword) {
+      setPasswordError(t('profile.error_all_fields_required'));
+      return;
+    }
+
+    if (!newPassword || !confirmPassword) {
       setPasswordError(t('profile.error_all_fields_required'));
       return;
     }
@@ -125,8 +152,10 @@ const Profile: React.FC = () => {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setPasswordError(t('profile.error_password_too_short'));
+    // Validate against all password rules
+    const failedRules = passwordValidation.filter(rule => !rule.satisfied);
+    if (failedRules.length > 0) {
+      setPasswordError(`Password requirements not met: ${failedRules.map(r => r.label).join(', ')}`);
       return;
     }
 
@@ -161,37 +190,45 @@ const Profile: React.FC = () => {
       <div className="profile-page-content">
         <h1>{t('profile.title')}</h1>
 
+        {mustChangePassword && (
+          <div className="alert-password-must-change">
+            <strong>⚠️ Important:</strong> Your password has been reset by an administrator. You must change it immediately before continuing.
+          </div>
+        )}
+
         {profile && (
           <>
-            <section className="profile-info">
-              <h2>{t('profile.info_title')}</h2>
-              <div className="info-group">
-                <label>{t('profile.label_nickname')}</label>
-                <p>{profile?.nickname}</p>
-              </div>
-              <div className="info-group">
-                <label>{t('profile.label_email')}</label>
-                <p>{profile?.email}</p>
-              </div>
-              <div className="info-group">
-                <label>{t('profile.label_elo')}</label>
-                <p>
-                  {profile?.is_rated ? (
-                    <>
-                      {profile?.elo_rating || 1200}
-                    </>
-                  ) : (
-                    <>
-                      <span style={{ color: '#e67e22', fontWeight: 'bold' }}>{t('unrated')}</span>
-                      {profile?.matches_played > 0 && (
-                        <span style={{ marginLeft: '10px', fontSize: '0.9em' }}>
-                          ({profile?.matches_played}/5 {t('matches_label')})
-                        </span>
+            {!mustChangePassword && (
+              <>
+                <section className="profile-info">
+                  <h2>{t('profile.info_title')}</h2>
+                  <div className="info-group">
+                    <label>{t('profile.label_nickname')}</label>
+                    <p>{profile?.nickname}</p>
+                  </div>
+                  <div className="info-group">
+                    <label>{t('profile.label_email')}</label>
+                    <p>{profile?.email}</p>
+                  </div>
+                  <div className="info-group">
+                    <label>{t('profile.label_elo')}</label>
+                    <p>
+                      {profile?.is_rated ? (
+                        <>
+                          {profile?.elo_rating || 1200}
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ color: '#e67e22', fontWeight: 'bold' }}>{t('unrated')}</span>
+                          {profile?.matches_played > 0 && (
+                            <span style={{ marginLeft: '10px', fontSize: '0.9em' }}>
+                              ({profile?.matches_played}/5 {t('matches_label')})
+                            </span>
+                          )}
+                        </>
                       )}
-                    </>
-                  )}
-                </p>
-              </div>
+                    </p>
+                  </div>
               <div className="info-group">
                 <label>{t('profile.label_level')}</label>
                 <p>{profile?.level || t('level_novice')}</p>
@@ -249,34 +286,61 @@ const Profile: React.FC = () => {
                 )}
               </div>
             </section>
+              </>
+            )}
 
             <section className="change-password">
               <h2>{t('password_change_title')}</h2>
               {passwordMessage && <p className="success-message">{passwordMessage}</p>}
               {passwordError && <p className="error">{passwordError}</p>}
               <form onSubmit={handleChangePassword}>
-                <input
-                  type="password"
-                  placeholder={t('password_current')}
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  required
-                />
+                {!mustChangePassword && (
+                  <input
+                    type="password"
+                    placeholder={t('password_current')}
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    required
+                  />
+                )}
+                {mustChangePassword && (
+                  <p style={{ color: '#e67e22', fontWeight: 'bold', marginBottom: '1rem' }}>
+                    Enter your new password below:
+                  </p>
+                )}
                 <input
                   type="password"
                   placeholder={t('password_new')}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
+                  onFocus={() => setShowPasswordHints(true)}
+                  onBlur={() => setShowPasswordHints(false)}
                   required
+                  className={newPassword && !isNewPasswordValid ? 'input-invalid' : ''}
                 />
+                {showPasswordHints && newPassword && (
+                  <div className="password-hints">
+                    <div className="password-hint-label">Password requirements:</div>
+                    {passwordValidation.map((rule, idx) => (
+                      <div
+                        key={idx}
+                        className={`password-hint ${rule.satisfied ? 'satisfied' : 'unsatisfied'}`}
+                      >
+                        <span className="hint-icon">{rule.satisfied ? '✓' : '✗'}</span>
+                        <span className="hint-text">{rule.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <input
                   type="password"
                   placeholder={t('password_confirm')}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
+                  className={newPassword && confirmPassword && newPassword !== confirmPassword ? 'input-invalid' : ''}
                 />
-                <button type="submit" disabled={changingPassword}>
+                <button type="submit" disabled={changingPassword || (newPassword && !isNewPasswordValid)}>
                   {changingPassword ? t('profile.changing') : t('password_change_button')}
                 </button>
               </form>

@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import User from './pages/User';
 import Profile from './pages/Profile';
+import ForcePasswordChange from './pages/ForcePasswordChange';
 import Matches from './pages/Matches';
 import MyMatches from './pages/MyMatches';
 import Admin from './pages/Admin';
@@ -50,6 +51,7 @@ const App: React.FC = () => {
             <Route path="/register" element={<Register />} />
             <Route path="/user" element={<User />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/force-password-change" element={<ForcePasswordChange />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/my-matches" element={<MyMatches />} />
             <Route path="/players" element={<Players />} />

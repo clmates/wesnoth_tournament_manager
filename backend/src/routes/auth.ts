@@ -230,8 +230,45 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res) =>
       [req.userId, userResult.rows[0].password_hash]
     );
 
-    // Update password
-    await query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newHash, req.userId]);
+    // Update password and clear the password_must_change flag
+    await query('UPDATE users SET password_hash = $1, password_must_change = false, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newHash, req.userId]);
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Password change failed' });
+  }
+});
+
+// Force change password (no old password required, used after admin reset)
+router.post('/force-change-password', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ error: 'New password is required' });
+    }
+
+    const userResult = await query('SELECT password_hash FROM public.users WHERE id = $1', [req.userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Validate new password
+    const validation = await validatePassword(newPassword, req.userId);
+    if (!validation.valid) {
+      return res.status(400).json({ errors: validation.errors });
+    }
+
+    const newHash = await hashPassword(newPassword);
+
+    // Save old password to history
+    await query(
+      'INSERT INTO password_history (user_id, password_hash) VALUES ($1, $2)',
+      [req.userId, userResult.rows[0].password_hash]
+    );
+
+    // Update password and clear the password_must_change flag
+    await query('UPDATE users SET password_hash = $1, password_must_change = false, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newHash, req.userId]);
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {

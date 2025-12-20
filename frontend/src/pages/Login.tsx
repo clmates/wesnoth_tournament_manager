@@ -28,12 +28,21 @@ const Login: React.FC = () => {
       setToken(response.data.token);
       setUserId(response.data.userId);
       
-      // Get user profile to check if admin
+      // Get user profile to check if admin and if password must be changed
       try {
         const profileRes = await userService.getProfile();
         console.log('Profile response:', profileRes.data);
         console.log('is_admin value:', profileRes.data.is_admin);
+        console.log('password_must_change:', profileRes.data.password_must_change);
         setIsAdmin(profileRes.data.is_admin || false);
+        
+        // Check if user must change password
+        if (profileRes.data.password_must_change) {
+          // Redirect to forced password change page
+          sessionStorage.setItem('mustChangePassword', 'true');
+          navigate('/force-password-change');
+          return;
+        }
       } catch (err) {
         console.error('Error getting profile:', err);
         setIsAdmin(false);

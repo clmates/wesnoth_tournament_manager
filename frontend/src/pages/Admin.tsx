@@ -112,8 +112,11 @@ const AdminUsers: React.FC = () => {
         case 'resetPassword':
           const result = await adminService.forceResetPassword(selectedUser.id);
           setTempPassword(result.data.tempPassword);
+          // DO NOT clear selectedUser here, we need it for the password modal
           setShowPasswordModal(true);
-          break;
+          setShowModal(false);
+          setActionType('');
+          return; // Exit early to skip the code below
       }
 
       setShowModal(false);

@@ -496,7 +496,7 @@ router.post('/users/:id/force-reset-password', authMiddleware, async (req: AuthR
     const passwordHash = await hashPassword(tempPassword);
 
     const result = await query(
-      `UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id, nickname, email`,
+      `UPDATE users SET password_hash = $1, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, nickname, email`,
       [passwordHash, id]
     );
 
