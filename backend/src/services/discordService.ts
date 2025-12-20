@@ -44,21 +44,28 @@ class DiscordService {
     }
 
     try {
+      const threadName = `${tournamentName} [${tournamentType}]`.substring(0, 100);
+      const payload = {
+        name: threadName,
+        auto_archive_duration: 10080, // 7 días
+      };
+
+      console.log(`📤 Enviando a Discord - Channel: ${FORUM_CHANNEL_ID}, Payload:`, JSON.stringify(payload));
+
       const response = await axios.post(
         `${DISCORD_API_URL}/channels/${FORUM_CHANNEL_ID}/threads`,
-        {
-          name: `${tournamentName} [${tournamentType}]`.substring(0, 100), // Límite de Discord
-          auto_archive_duration: 10080, // 7 días
-          // No especificar 'type' para canales Foro - se crea automáticamente como post
-        },
+        payload,
         { headers: this.headers }
       );
 
       const threadId = response.data.id;
       console.log(`✅ Thread creado para torneo ${tournamentId}: ${threadId}`);
       return threadId;
-    } catch (error) {
-      console.error('Error creando thread en Discord:', error);
+    } catch (error: any) {
+      console.error('❌ Error creando thread en Discord:', error.response?.data || error.message);
+      if (error.response?.data?.errors) {
+        console.error('Detalles de errores:', JSON.stringify(error.response.data.errors, null, 2));
+      }
       return '';
     }
   }
