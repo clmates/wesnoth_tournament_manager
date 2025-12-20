@@ -144,7 +144,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
           name,
           tournament_type,
           description,
-          req.userId, // organizer
+          req.userId || 'Unknown', // organizer
           max_participants
         );
       }
