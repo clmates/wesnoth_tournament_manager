@@ -147,7 +147,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         tournamentId.toString(),
         name,
         tournament_type,
-        organizerNickname
+        organizerNickname,
+        description
       );
 
       // Update tournament with Discord thread ID
