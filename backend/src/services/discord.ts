@@ -111,9 +111,10 @@ export async function notifyUserWelcome(user: {
 }) {
   if (!DISCORD_WEBHOOK_URL_USERS) return;
 
-  const userMention = user.discord_id ? `<@${user.discord_id}>` : `**${user.nickname}**`;
-  
-  const message = {
+  const hasDiscordId = !!user.discord_id;
+  const userMention = hasDiscordId ? `<@${user.discord_id}>` : `**${user.nickname}**`;
+
+  const message: any = {
     content: `${userMention}`,
     embeds: [{
       title: '👋 Welcome to Wesnoth Tournament Manager!',
@@ -124,10 +125,22 @@ export async function notifyUserWelcome(user: {
     }]
   };
 
+  // Ensure mentions are allowed and targeted
+  if (hasDiscordId) {
+    message.allowed_mentions = { users: [user.discord_id] };
+  } else {
+    message.allowed_mentions = { parse: [] };
+  }
+
   try {
+    console.log('Sending Discord WELCOME to users channel', {
+      webhook: DISCORD_WEBHOOK_URL_USERS?.slice(0, 60) + '...',
+      discord_id: user.discord_id,
+      nickname: user.nickname,
+    });
     await axios.post(DISCORD_WEBHOOK_URL_USERS, message);
-  } catch (error) {
-    console.error('Error sending Discord welcome notification:', error);
+  } catch (error: any) {
+    console.error('Error sending Discord welcome notification:', error.response?.data || error.message);
   }
 }
 
@@ -137,9 +150,10 @@ export async function notifyUserUnlocked(user: {
 }) {
   if (!DISCORD_WEBHOOK_URL_USERS) return;
 
-  const userMention = user.discord_id ? `<@${user.discord_id}>` : `**${user.nickname}**`;
-  
-  const message = {
+  const hasDiscordId = !!user.discord_id;
+  const userMention = hasDiscordId ? `<@${user.discord_id}>` : `**${user.nickname}**`;
+
+  const message: any = {
     content: `${userMention}`,
     embeds: [{
       title: '🔓 Account Unlocked!',
@@ -150,9 +164,21 @@ export async function notifyUserUnlocked(user: {
     }]
   };
 
+  // Ensure mentions are allowed and targeted
+  if (hasDiscordId) {
+    message.allowed_mentions = { users: [user.discord_id] };
+  } else {
+    message.allowed_mentions = { parse: [] };
+  }
+
   try {
+    console.log('Sending Discord UNLOCK to users channel', {
+      webhook: DISCORD_WEBHOOK_URL_USERS?.slice(0, 60) + '...',
+      discord_id: user.discord_id,
+      nickname: user.nickname,
+    });
     await axios.post(DISCORD_WEBHOOK_URL_USERS, message);
-  } catch (error) {
-    console.error('Error sending Discord unlock notification:', error);
+  } catch (error: any) {
+    console.error('Error sending Discord unlock notification:', error.response?.data || error.message);
   }
 }
