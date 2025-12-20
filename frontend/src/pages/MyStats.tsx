@@ -32,7 +32,8 @@ const MyStats: React.FC = () => {
         // Get recent matches
         try {
           const matchesRes = await matchService.getAllMatches();
-          setRecentMatches(matchesRes.data?.slice(0, 10) || []);
+          const matchesData = matchesRes.data?.data || matchesRes.data || [];
+          setRecentMatches(matchesData.slice(0, 10));
         } catch (err) {
           console.error('Error fetching matches:', err);
           setRecentMatches([]);

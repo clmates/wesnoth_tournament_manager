@@ -37,7 +37,8 @@ const User: React.FC = () => {
           console.log('Fetching matches for user ID:', userId);
           const matchesRes = await userService.getRecentMatches(userId);
           console.log('Matches response:', matchesRes.data);
-          setMatches(matchesRes.data || []);
+          const matchesData = matchesRes.data?.data || matchesRes.data || [];
+          setMatches(matchesData);
         } else {
           console.warn('User ID not available:', userId);
         }
@@ -56,7 +57,8 @@ const User: React.FC = () => {
     try {
       if (userId) {
         const matchesRes = await userService.getRecentMatches(userId);
-        setMatches(matchesRes.data || []);
+        const matchesData = matchesRes.data?.data || matchesRes.data || [];
+        setMatches(matchesData);
       }
     } catch (err) {
       console.error('Error refetching matches:', err);

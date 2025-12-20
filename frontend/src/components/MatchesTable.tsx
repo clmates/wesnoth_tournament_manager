@@ -145,7 +145,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                 </div>
                 <div className="actions-item">
                   {/* Show Report Match button for loser when match is unconfirmed */}
-                  {currentPlayerId === match.loser_id && !match.status && (
+                  {currentPlayerId === match.loser_id && (match.status === 'unconfirmed' || !match.status) && (
                     <button
                       className="btn-report-match"
                       onClick={() => onViewDetails && onViewDetails(match)}
