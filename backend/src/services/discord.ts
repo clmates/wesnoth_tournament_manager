@@ -182,7 +182,7 @@ export async function notifyUserUnlocked(user: {
 
   // Ensure mentions are allowed and targeted
   if (hasDiscordId) {
-    message.allowed_mentions = { users: [user.discord_id] };
+    message.allowed_mentions = { parse: [], users: [user.discord_id] };
   } else {
     message.allowed_mentions = { parse: [] };
   }
@@ -196,6 +196,11 @@ export async function notifyUserUnlocked(user: {
     const response = await axios.post(DISCORD_WEBHOOK_URL_USERS, message);
     console.log('✅ Discord unlock notification sent successfully. Status:', response.status);
   } catch (error: any) {
-    console.error('Error sending Discord unlock notification:', error.response?.data || error.message);
+    console.error('❌ Error sending Discord unlock notification:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
   }
 }
