@@ -30,17 +30,9 @@ if (!fs.existsSync(uploadsDir)) {
   console.log(`✅ Created uploads directory: ${uploadsDir}`);
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `replay_${Date.now()}${path.extname(file.originalname)}`);
-  },
-});
-
+// Use memory storage to avoid writing temp files before uploading to Supabase
 const upload = multer({ 
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 512 * 1024 }, // 512KB max file size
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -363,7 +355,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/report', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
   try {
     console.log('📤 [UPLOAD] Starting match report from user:', req.userId);
-    console.log('📤 [UPLOAD] File info:', req.file ? { fieldname: req.file.fieldname, originalname: req.file.originalname, size: req.file.size, path: req.file.path } : 'NO FILE');
+    console.log('📤 [UPLOAD] File info:', req.file ? { fieldname: req.file.fieldname, originalname: req.file.originalname, size: req.file.size } : 'NO FILE');
     
     const { opponent_id, map, winner_faction, loser_faction, comments, rating, tournament_id, tournament_match_id } = req.body;
     console.log('📤 [UPLOAD] Match details:', { opponent_id, map, winner_faction, loser_faction, tournament_id, tournament_match_id });
@@ -428,24 +420,19 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     if (req.file) {
       try {
         console.log('📤 [UPLOAD] Starting Supabase upload...');
-        const fileBuffer = fs.readFileSync(req.file.path);
+        const fileBuffer = req.file.buffer;
+        if (!fileBuffer) {
+          throw new Error('Uploaded file buffer is missing');
+        }
         console.log('📤 [UPLOAD] File buffer size:', fileBuffer.length, 'bytes');
         
         // Generate filename using the original filename's extension
-        const ext = path.extname(req.file.originalname);
+        const ext = path.extname(req.file.originalname) || '.gz';
         const filename = `replay_${Date.now()}${ext}`;
         
         const uploadResult = await uploadReplayToSupabase(filename, fileBuffer);
         replayPath = uploadResult.path;
         console.log('✅ [UPLOAD] Replay uploaded to Supabase:', replayPath);
-        
-        // Clean up temporary file
-        try {
-          fs.unlinkSync(req.file.path);
-          console.log('🗑️ [UPLOAD] Temporary local file deleted');
-        } catch (cleanupError) {
-          console.warn('⚠️ [UPLOAD] Could not delete temporary file:', cleanupError);
-        }
       } catch (uploadError) {
         console.error('❌ [UPLOAD] Error uploading to Supabase:', uploadError);
         // Don't fail the entire request if upload fails - we can retry later
