@@ -297,7 +297,7 @@ const Players: React.FC = () => {
                     onClick={(e) => {
                       e.preventDefault();
                       if (userId === player.id) {
-                        navigate('/profile');
+                        navigate('/user');
                       } else {
                         navigate(`/player/${player.id}`);
                       }

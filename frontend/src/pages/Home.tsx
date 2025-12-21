@@ -278,7 +278,7 @@ const Home: React.FC = () => {
                           
                           <td className="winner-col">
                             <div className="player-info">
-                              <span className="player-name">{match.winner_nickname}</span>
+                              <span className="player-name"><PlayerLink nickname={match.winner_nickname} userId={match.winner_id} /></span>
                               {match.winner_faction && (
                                 <span className="faction-badge">{match.winner_faction}</span>
                               )}
@@ -299,7 +299,7 @@ const Home: React.FC = () => {
                           
                           <td className="loser-col">
                             <div className="player-info">
-                              <span className="player-name">{match.loser_nickname}</span>
+                              <span className="player-name"><PlayerLink nickname={match.loser_nickname} userId={match.loser_id} /></span>
                               {match.loser_faction && (
                                 <span className="faction-badge">{match.loser_faction}</span>
                               )}

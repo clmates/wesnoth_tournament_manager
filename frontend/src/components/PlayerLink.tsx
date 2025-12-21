@@ -15,7 +15,7 @@ const PlayerLink: React.FC<PlayerLinkProps> = ({ nickname, userId, className = '
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     if (currentUserId === userId) {
-      navigate('/profile');
+      navigate('/user');
     } else {
       navigate(`/player/${userId}`);
     }
