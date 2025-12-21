@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { publicService, tournamentService } from '../services/api';
 import TournamentMatchReportModal from '../components/TournamentMatchReportModal';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
+import PlayerLink from '../components/PlayerLink';
 import '../styles/Tournaments.css';
 
 interface Tournament {
@@ -480,7 +481,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       {success && <p className="success-message">{success}</p>}
 
       <div className="tournament-info">
-        <p><strong>{t('tournament.col_organizer')}:</strong> {tournament.creator_nickname}</p>
+        <p><strong>{t('tournament.col_organizer')}:</strong> <PlayerLink nickname={tournament.creator_nickname} userId={tournament.creator_id} /></p>
         <p><strong>{t('tournament.col_type')}:</strong> {tournament.tournament_type}</p>
         <p><strong>{t('label_max_participants')}:</strong> {tournament.max_participants || t('unlimited')}</p>
         <p><strong>{t('label_created')}:</strong> {formatDate(tournament.created_at)}</p>
@@ -696,7 +697,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               <tbody>
                 {participants.map((p) => (
                   <tr key={p.id}>
-                    <td>{p.nickname}</td>
+                    <td><PlayerLink nickname={p.nickname} userId={p.id} /></td>
                     <td>
                       <span 
                         className="status-badge"
@@ -802,9 +803,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 
                                 return (
                                   <tr key={match.id}>
-                                    <td><strong>{match.player1_nickname}</strong></td>
+                                    <td><strong><PlayerLink nickname={match.player1_nickname} userId={match.player1_id} /></strong></td>
                                     <td>vs</td>
-                                    <td><strong>{match.player2_nickname}</strong></td>
+                                    <td><strong><PlayerLink nickname={match.player2_nickname} userId={match.player2_id} /></strong></td>
                                     <td>{playBeforeDate}</td>
                                     <td>
                                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -883,6 +884,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           const loserId = match.winner_nickname === match.player1_nickname 
                             ? match.player2_id 
                             : match.player1_id;
+                          const winnerId = match.winner_nickname === match.player1_nickname 
+                            ? match.player1_id 
+                            : match.player2_id;
                           const isCurrentUserLoser = userId === loserId;
                           
                           // If no match_id, it was determined by admin, show "ADMIN" status
@@ -896,7 +900,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               <td>
                                 <div className="player-block">
                                   <div className="first-row">
-                                    <strong>{match.winner_nickname || '-'}</strong>
+                                    <strong><PlayerLink nickname={match.winner_nickname || '-'} userId={winnerId} /></strong>
                                   </div>
                                   {match.winner_comments && (
                                     <div className="comments-row winner-comments">
@@ -908,7 +912,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               <td>
                                 <div className="player-block">
                                   <div className="first-row">
-                                    <strong>{loserNickname}</strong>
+                                    <strong><PlayerLink nickname={loserNickname} userId={loserId} /></strong>
                                   </div>
                                   {match.loser_comments && (
                                     <div className="comments-row loser-comments">
@@ -1071,7 +1075,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         {matchesInRound.map((match) => (
                           <tr key={match.id}>
                             <td>
-                              <strong>{match.player1_nickname}</strong>
+                              <strong><PlayerLink nickname={match.player1_nickname} userId={match.player1_id} /></strong>
                               {(match as any).player1_wins !== undefined && (
                                 <span style={{ color: '#666', fontSize: '0.85em' }}>
                                   {' '}({(match as any).player1_wins})
@@ -1080,7 +1084,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             </td>
                             <td>vs</td>
                             <td>
-                              <strong>{match.player2_nickname}</strong>
+                              <strong><PlayerLink nickname={match.player2_nickname} userId={match.player2_id} /></strong>
                               {(match as any).player2_wins !== undefined && (
                                 <span style={{ color: '#666', fontSize: '0.85em' }}>
                                   {' '}({(match as any).player2_wins})
@@ -1089,9 +1093,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             </td>
                             <td>
                               {match.winner_id === match.player1_id ? (
-                                <strong style={{ color: '#28a745' }}>{match.player1_nickname}</strong>
+                                <strong style={{ color: '#28a745' }}><PlayerLink nickname={match.player1_nickname} userId={match.player1_id} /></strong>
                               ) : match.winner_id === match.player2_id ? (
-                                <strong style={{ color: '#28a745' }}>{match.player2_nickname}</strong>
+                                <strong style={{ color: '#28a745' }}><PlayerLink nickname={match.player2_nickname} userId={match.player2_id} /></strong>
                               ) : (
                                 <span style={{ color: '#999' }}>-</span>
                               )}
@@ -1265,8 +1269,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   <div className="grid-header loser-col">Loser</div>
 
                   <div className="grid-cell label-cell">Player</div>
-                  <div className="grid-cell winner-cell">{matchDetailsModal.match.winner_nickname || '-'}</div>
-                  <div className="grid-cell loser-cell">{matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_nickname : matchDetailsModal.match.player1_nickname}</div>
+                  <div className="grid-cell winner-cell"><PlayerLink nickname={matchDetailsModal.match.winner_nickname || '-'} userId={matchDetailsModal.match.winner_id} /></div>
+                  <div className="grid-cell loser-cell"><PlayerLink nickname={matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_nickname : matchDetailsModal.match.player1_nickname} userId={matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_id : matchDetailsModal.match.player1_id} /></div>
 
                   <div className="grid-cell label-cell">Faction</div>
                   <div className="grid-cell winner-cell"><span className="faction-badge">{matchDetailsModal.match.winner_faction || '-'}</span></div>

@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { userService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import PlayerLink from '../components/PlayerLink';
 import '../styles/Rankings.css';
 
 interface PlayerStats {
@@ -261,7 +263,9 @@ const Rankings: React.FC = () => {
                   <td className="rank-col">
                     <span className="rank-badge">#{(currentPage - 1) * 20 + index + 1}</span>
                   </td>
-                  <td className="nickname-col">{player.nickname}</td>
+                  <td className="nickname-col">
+                    <PlayerLink nickname={player.nickname} userId={player.id} />
+                  </td>
                   <td className="elo-col">
                     <span className="elo-badge">{player.elo_rating}</span>
                   </td>

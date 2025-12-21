@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { getLevelTranslationKey } from '../utils/levelTranslation';
 import '../styles/ProfileStats.css';
 
 interface ProfileStatsProps {
@@ -39,7 +40,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
           <div className="stat-value elo-badge">
             {player.elo_rating}
           </div>
-          {player.level && <div className="stat-detail">{player.level}</div>}
+          {player.level && <div className="stat-detail">{t(getLevelTranslationKey(player.level))}</div>}
         </div>
 
         <div className="stat-card">

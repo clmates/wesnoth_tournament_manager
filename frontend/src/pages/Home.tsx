@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { userService, matchService, publicService } from '../services/api';
 import { processMultiLanguageItems } from '../utils/languageFallback';
+import { getLevelTranslationKey } from '../utils/levelTranslation';
+import PlayerLink from '../components/PlayerLink';
 import '../styles/Home.css';
 
 // Get API URL for direct backend calls
@@ -365,7 +367,7 @@ const Home: React.FC = () => {
             <h3>{t('home.player_of_month')}</h3>
             {playerOfMonth ? (
                 <div className="widget-card player-of-month">
-                  <div className="player-name">{playerOfMonth.nickname}</div>
+                  <div className="player-name"><PlayerLink nickname={playerOfMonth.nickname} userId={playerOfMonth.id} /></div>
                   <div className="player-stat">
                     <span className="label">{t('label_elo')}:</span>
                     <span className="value">
@@ -374,7 +376,7 @@ const Home: React.FC = () => {
                   </div>
                   <div className="player-stat">
                     <span className="label">{t('label_level')}:</span>
-                    <span className="value">{playerOfMonth.level}</span>
+                    <span className="value">{t(getLevelTranslationKey(playerOfMonth.level))}</span>
                   </div>
                   {playerMonthlyStats && (
                     <>
@@ -405,7 +407,7 @@ const Home: React.FC = () => {
               <div className="widget-list">
                 {recentPlayers.map((player) => (
                   <div key={player.id} className="widget-item">
-                    <span className="player-nick">{player.nickname}</span>
+                    <span className="player-nick"><PlayerLink nickname={player.nickname} userId={player.id} /></span>
                     <span className="player-elo">
                       {player.is_rated ? `${player.elo_rating} ${t('label_elo')}` : t('unrated')}
                     </span>
@@ -425,7 +427,7 @@ const Home: React.FC = () => {
                 {topPlayers.map((player, index) => (
                   <div key={player.id} className="widget-item ranking-item">
                     <span className="rank">#{index + 1}</span>
-                    <span className="player-nick">{player.nickname}</span>
+                    <span className="player-nick"><PlayerLink nickname={player.nickname} userId={player.id} /></span>
                     <span className="player-elo">
                       {player.is_rated ? player.elo_rating : t('unrated')}
                     </span>

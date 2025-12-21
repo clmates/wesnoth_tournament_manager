@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { publicService } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import '../styles/Players.css';
 
 interface PlayerStats {
@@ -26,6 +27,7 @@ interface FilterState {
 const Players: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { userId } = useAuthStore();
   const [players, setPlayers] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -294,7 +296,11 @@ const Players: React.FC = () => {
                     href="#" 
                     onClick={(e) => {
                       e.preventDefault();
-                      navigate(`/player/${player.id}`);
+                      if (userId === player.id) {
+                        navigate('/profile');
+                      } else {
+                        navigate(`/player/${player.id}`);
+                      }
                     }}
                     className="player-link"
                   >

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { matchService } from '../services/api';
+import PlayerLink from './PlayerLink';
 
 // Get API URL for direct backend calls
 const getApiUrl = (): string => {
@@ -112,7 +113,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
               <td className="winner-col">
                 <div className="player-block">
                   <div className="first-row">
-                    <div className="player-name">{match.winner_nickname}</div>
+                    <div className="player-name">
+                      <PlayerLink nickname={match.winner_nickname} userId={match.winner_id} />
+                    </div>
                     <div className="faction-badge">{match.winner_faction}</div>
                     <div className="elo-info">
                       <span className="elo-value">{match.winner_elo_before || 'N/A'}</span>
@@ -138,7 +141,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
               <td className="loser-col">
                 <div className="player-block">
                   <div className="first-row">
-                    <div className="player-name">{match.loser_nickname}</div>
+                    <div className="player-name">
+                      <PlayerLink nickname={match.loser_nickname} userId={match.loser_id} />
+                    </div>
                     <div className="faction-badge">{match.loser_faction}</div>
                     <div className="elo-info">
                       <span className="elo-value">{match.loser_elo_before || 'N/A'}</span>

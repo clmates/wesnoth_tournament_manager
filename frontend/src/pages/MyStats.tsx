@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { userService, matchService } from '../services/api';
+import { getLevelTranslationKey } from '../utils/levelTranslation';
 import '../styles/Auth.css';
 
 const MyStats: React.FC = () => {
@@ -81,7 +82,7 @@ const MyStats: React.FC = () => {
         </div>
         <div className="info-group">
           <label>Level:</label>
-          <p>{stats.level || 'Novato'}</p>
+          <p>{t(getLevelTranslationKey(stats.level || 'Novato'))}</p>
         </div>
       </section>
 

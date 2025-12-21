@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import PlayerLink from './PlayerLink';
 import '../styles/OpponentStats.css';
 
 interface OpponentStatItem {
@@ -120,7 +121,7 @@ const OpponentStats: React.FC<OpponentStatsProps> = ({ matches, currentPlayerId 
             {opponentStats.map((stat) => (
               <tr key={stat.opponentId} className="opponent-row">
                 <td className="opponent-name">
-                  <span className="name">{stat.opponentName}</span>
+                  <span className="name"><PlayerLink nickname={stat.opponentName} userId={stat.opponentId} /></span>
                 </td>
                 <td className="numeric">
                   <span className="elo-badge">{stat.currentElo}</span>
