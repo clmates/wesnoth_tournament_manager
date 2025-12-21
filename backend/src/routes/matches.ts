@@ -999,15 +999,14 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
   }
 });
 
-// Download replay file - MUST be BEFORE generic /:matchId routes
+// Get signed download URL for replay file - PUBLIC endpoint with expiring URLs
+// Returns a 5-minute signed URL that client can use for direct download from Supabase
 router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
   try {
     const { matchId } = req.params;
-    console.log('📥 [DOWNLOAD] ===== DOWNLOAD ENDPOINT CALLED =====');
-    console.log('📥 [DOWNLOAD] Match ID:', matchId);
-    console.log('📥 [DOWNLOAD] Auth user:', req.userId);
+    console.log('📥 [DOWNLOAD] Signed URL request for match:', matchId);
 
-    // Get match and replay file path from Supabase
+    // Get match and replay file path from database
     const result = await query(
       'SELECT replay_file_path FROM matches WHERE id = $1',
       [matchId]
@@ -1027,25 +1026,29 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
     }
 
     try {
-      // Download from Supabase and stream to client
-      console.log('📥 [DOWNLOAD] Downloading from Supabase:', replayFilePath);
-      const fileBuffer = await downloadReplayFromSupabase(replayFilePath);
-      console.log('📥 [DOWNLOAD] ✅ Buffer received from Supabase:', fileBuffer.length, 'bytes');
-      
-      // Extract filename from path
+      // Generate a short-lived signed URL (5 minutes) for direct download from Supabase
+      console.log('📥 [DOWNLOAD] Generating signed URL for:', replayFilePath);
       const filename = path.basename(replayFilePath);
-      
-      // Set response headers for file download
-      res.setHeader('Content-Type', 'application/gzip');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Length', fileBuffer.length);
-      
-      console.log('📥 [DOWNLOAD] Sending to client:', filename, 'size:', fileBuffer.length, 'bytes');
-      res.send(fileBuffer);
-      console.log('📥 [DOWNLOAD] ===== SENT SUCCESSFULLY =====');
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('replays')
+        .createSignedUrl(replayFilePath, 300); // 5 minutes expiration
+
+      if (signedError || !signedData?.signedUrl) {
+        console.error('❌ [DOWNLOAD] Failed to generate signed URL:', signedError?.message || 'No signed URL');
+        return res.status(500).json({ error: 'Failed to generate download link' });
+      }
+
+      console.log('✅ [DOWNLOAD] Signed URL generated (5-min expiry), sending to client');
+
+      // Return the signed URL to client (5-minute validity)
+      res.json({
+        signedUrl: signedData.signedUrl,
+        filename: filename,
+        expiresIn: 300
+      });
     } catch (supabaseError) {
-      console.error('❌ [DOWNLOAD] Supabase download error:', supabaseError);
-      res.status(404).json({ error: 'Replay file not found in storage' });
+      console.error('❌ [DOWNLOAD] Supabase error:', supabaseError);
+      res.status(500).json({ error: 'Failed to generate download link' });
     }
   } catch (error) {
     console.error('❌ [DOWNLOAD] Replay download error:', error);

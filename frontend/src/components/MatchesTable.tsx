@@ -43,20 +43,15 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
       }
 
       console.log('🔽 Starting download for match:', matchId);
-      const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
       console.log('🔽 Incrementing download count...');
       await matchService.incrementReplayDownloads(matchId);
       
-      // Fetch the file from the backend
-      console.log('🔽 Fetching file from backend...');
-      const token = localStorage.getItem('token');
+      // Fetch signed URL from the backend
+      console.log('🔽 Fetching signed URL from backend...');
       const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
       console.log('🔽 Download URL:', downloadUrl);
       const response = await fetch(downloadUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        method: 'GET'
       });
 
       console.log('🔽 Response status:', response.status);
@@ -64,18 +59,11 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
         throw new Error(`Download failed with status ${response.status}`);
       }
 
-      // Create blob and download
-      console.log('🔽 Creating blob...');
-      const blob = await response.blob();
-      console.log('🔽 Blob size:', blob.size, 'bytes');
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Get signed URL from response and redirect
+      console.log('🔽 Getting signed URL...');
+      const { signedUrl, filename } = await response.json();
+      console.log('🔽 Redirecting to signed URL:', signedUrl);
+      window.location.href = signedUrl;
     } catch (err) {
       console.error('Error downloading replay:', err);
     }
