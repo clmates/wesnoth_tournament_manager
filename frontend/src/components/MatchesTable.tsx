@@ -24,6 +24,12 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
 
   const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
     try {
+      // Delegate to parent if it wants to handle the download (prevents double calls)
+      if (onDownloadReplay) {
+        await onDownloadReplay(matchId, replayFilePath);
+        return;
+      }
+
       const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
       await matchService.incrementReplayDownloads(matchId);
       const downloadUrl = `/api/matches/${matchId}/replay/download`;
@@ -33,9 +39,6 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      if (onDownloadReplay) {
-        onDownloadReplay(matchId, replayFilePath);
-      }
     } catch (err) {
       console.error('Error downloading replay:', err);
     }
