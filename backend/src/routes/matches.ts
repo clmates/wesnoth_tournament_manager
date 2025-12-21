@@ -41,7 +41,14 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB max file size
+  limits: { fileSize: 512 * 1024 }, // 512KB max file size
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext !== '.gz') {
+      return cb(new Error('Only .gz replay files are allowed'));
+    }
+    cb(null, true);
+  },
 });
 
 // Helper function to check if a round is complete and update round_end_date
@@ -123,6 +130,15 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
 
     if (!opponent_id || !map || !winner_faction || !loser_faction) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Enforce .gz uploads (defensive even with multer filter)
+    if (req.file) {
+      const ext = path.extname(req.file.originalname).toLowerCase();
+      if (ext !== '.gz') {
+        console.warn('📤 [UPLOAD] Rejected file with invalid extension:', ext);
+        return res.status(400).json({ error: 'Only .gz replay files are allowed' });
+      }
     }
 
     // Get winner and opponent data (FIDE system)
