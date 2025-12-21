@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import matchRoutes from './routes/matches.js';
@@ -7,6 +9,9 @@ import tournamentRoutes from './routes/tournaments.js';
 import adminRoutes from './routes/admin.js';
 import publicRoutes from './routes/public.js';
 import { generalLimiter } from './middleware/rateLimiter.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -33,6 +38,11 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded files (replays)
+const uploadsPath = path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(uploadsPath));
+console.log(`📁 Serving uploads from: ${uploadsPath}`);
 
 // Apply general rate limiting to all API routes (except specific endpoints with stricter limits)
 app.use('/api/', generalLimiter);

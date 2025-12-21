@@ -12,19 +12,36 @@ import { updateBestOfSeriesDB, createNextMatchInSeries } from '../utils/bestOf.j
 import { checkAndCompleteRound } from '../utils/tournament.js';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = Router();
 
 console.log('🔧 Registrando rutas de matches');
 
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'replays');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log(`✅ Created uploads directory: ${uploadsDir}`);
+}
+
 const storage = multer.diskStorage({
-  destination: 'uploads/replays',
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
   filename: (req, file, cb) => {
     cb(null, `replay_${Date.now()}${path.extname(file.originalname)}`);
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB max file size
+});
 
 // Helper function to check if a round is complete and update round_end_date
 async function checkAndUpdateRoundCompletion(roundId: string, tournamentId: string) {
@@ -398,7 +415,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         comments,
         null, // loser_comments will be added when loser confirms/disputes
         rating,
-        req.file?.path || null,
+        req.file ? path.relative(process.cwd(), req.file.path) : null,
         tournament_id || null,
         legacyEloChange,
         winner.elo_rating,
@@ -957,14 +974,32 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Match not found' });
     }
 
-    const replayFilePath = result.rows[0].replay_file_path;
+    let replayFilePath = result.rows[0].replay_file_path;
 
     if (!replayFilePath) {
       return res.status(404).json({ error: 'No replay file for this match' });
     }
 
+    // Try to resolve the path (handles both absolute and relative paths from old files)
+    let finalPath = replayFilePath;
+    
+    // If it's not an absolute path, make it relative to cwd
+    if (!path.isAbsolute(finalPath)) {
+      finalPath = path.resolve(process.cwd(), replayFilePath);
+    }
+
+    // Check if file exists
+    if (!fs.existsSync(finalPath)) {
+      console.error(`File not found: ${finalPath} (original: ${replayFilePath})`);
+      return res.status(404).json({ error: 'Replay file not found on server' });
+    }
+
+    // Get file stats to verify it has content
+    const stats = fs.statSync(finalPath);
+    console.log(`📥 Downloading replay: ${finalPath} (${stats.size} bytes)`);
+
     // Send file for download
-    res.download(replayFilePath, (err) => {
+    res.download(finalPath, (err) => {
       if (err) {
         console.error('Error downloading replay:', err);
         if (!res.headersSent) {
