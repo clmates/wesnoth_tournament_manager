@@ -1003,7 +1003,9 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
 router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
   try {
     const { matchId } = req.params;
-    console.log('📥 [DOWNLOAD] Starting download for match:', matchId);
+    console.log('📥 [DOWNLOAD] ===== DOWNLOAD ENDPOINT CALLED =====');
+    console.log('📥 [DOWNLOAD] Match ID:', matchId);
+    console.log('📥 [DOWNLOAD] Auth user:', req.userId);
 
     // Get match and replay file path from Supabase
     const result = await query(
@@ -1026,9 +1028,9 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
 
     try {
       // Download from Supabase and stream to client
-      console.log('📥 [DOWNLOAD] Downloading from Supabase...');
+      console.log('📥 [DOWNLOAD] Downloading from Supabase:', replayFilePath);
       const fileBuffer = await downloadReplayFromSupabase(replayFilePath);
-      console.log('📥 [DOWNLOAD] Buffer received from Supabase:', fileBuffer.length, 'bytes');
+      console.log('📥 [DOWNLOAD] ✅ Buffer received from Supabase:', fileBuffer.length, 'bytes');
       
       // Extract filename from path
       const filename = path.basename(replayFilePath);
@@ -1038,9 +1040,9 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Content-Length', fileBuffer.length);
       
-      console.log('📥 [DOWNLOAD] Sending file to client:', filename, 'size:', fileBuffer.length);
+      console.log('📥 [DOWNLOAD] Sending to client:', filename, 'size:', fileBuffer.length, 'bytes');
       res.send(fileBuffer);
-      console.log('✅ [DOWNLOAD] Successfully sent replay file');
+      console.log('📥 [DOWNLOAD] ===== SENT SUCCESSFULLY =====');
     } catch (supabaseError) {
       console.error('❌ [DOWNLOAD] Supabase download error:', supabaseError);
       res.status(404).json({ error: 'Replay file not found in storage' });

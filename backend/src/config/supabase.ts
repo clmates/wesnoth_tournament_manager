@@ -57,14 +57,17 @@ export async function downloadReplayFromSupabase(
   filename: string
 ): Promise<Buffer> {
   try {
-    console.log('📥 [SUPABASE] Downloading replay from Supabase:', filename);
+    console.log('📥 [SUPABASE] ===== DOWNLOAD START =====');
+    console.log('📥 [SUPABASE] Filename:', filename);
 
     const { data, error } = await supabase.storage
       .from('replays')
       .download(filename);
 
+    console.log('📥 [SUPABASE] Download response - error:', error?.message || 'none', 'data type:', typeof data);
+
     if (error) {
-      console.error('❌ [SUPABASE] Download failed:', error.message);
+      console.error('❌ [SUPABASE] Download error object:', error);
       throw error;
     }
 
@@ -73,9 +76,12 @@ export async function downloadReplayFromSupabase(
       throw new Error('No data returned from Supabase');
     }
 
+    console.log('📥 [SUPABASE] Data type:', data.constructor.name, 'data instanceof Blob:', data instanceof Blob);
     const buffer = await data.arrayBuffer();
+    console.log('📥 [SUPABASE] ArrayBuffer size:', buffer.byteLength, 'bytes');
     const fileBuffer = Buffer.from(buffer);
-    console.log('✅ [SUPABASE] Download successful, size:', fileBuffer.length, 'bytes');
+    console.log('✅ [SUPABASE] Download successful, final buffer size:', fileBuffer.length, 'bytes');
+    console.log('📥 [SUPABASE] ===== DOWNLOAD END =====');
 
     return fileBuffer;
   } catch (error) {
