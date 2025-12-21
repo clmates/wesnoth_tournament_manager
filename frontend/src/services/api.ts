@@ -221,6 +221,7 @@ export const publicService = {
   getFaq: () => api.get('/public/faq'), // Get all FAQ items (all languages)
   getNews: () => api.get('/public/news'),
   getRecentMatches: () => api.get('/public/matches/recent'),
+  getPlayerProfile: (id: string) => api.get(`/public/players/${id}`),
   getAllMatches: (page: number = 1, filters?: any) => {
     const params: any = { page };
     if (filters) {

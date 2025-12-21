@@ -473,6 +473,29 @@ router.get('/matches', async (req, res) => {
   }
 });
 
+// Get specific player profile (public endpoint)
+router.get('/players/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      `SELECT id, nickname, elo_rating, is_rated, matches_played, total_wins, total_losses, level, created_at
+       FROM users
+       WHERE id = $1 AND is_active = true AND is_blocked = false`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching player:', error);
+    res.status(500).json({ error: 'Failed to fetch player' });
+  }
+});
+
 // Get all maps (public endpoint - only active)
 router.get('/maps', async (req, res) => {
   try {

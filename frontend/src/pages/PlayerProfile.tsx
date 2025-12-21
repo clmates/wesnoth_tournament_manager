@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { userService } from '../services/api';
+import { userService, publicService } from '../services/api';
 import ProfileStats from '../components/ProfileStats';
 import EloChart from '../components/EloChart';
 import OpponentStats from '../components/OpponentStats';
@@ -26,8 +26,8 @@ const PlayerProfile: React.FC = () => {
 
     const fetchData = async () => {
       try {
-        // Fetch profile data for the specific user
-        const profileRes = await userService.getUserProfile(id);
+        // Fetch player profile
+        const profileRes = await publicService.getPlayerProfile(id);
         setProfile(profileRes.data);
 
         // Fetch recent matches for the user
