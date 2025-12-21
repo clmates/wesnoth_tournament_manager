@@ -10,6 +10,7 @@ import {
 } from '../utils/elo.js';
 import { updateBestOfSeriesDB, createNextMatchInSeries } from '../utils/bestOf.js';
 import { checkAndCompleteRound } from '../utils/tournament.js';
+import { uploadReplayToSupabase, downloadReplayFromSupabase, deleteReplayFromSupabase } from '../config/supabase.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -406,12 +407,36 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
     const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
 
-    // Insert match with ranking positions
-    const replayPath = req.file ? path.relative(process.cwd(), req.file.path) : null;
-    console.log('📤 [UPLOAD] Storing replay path:', replayPath);
-    console.log('📤 [UPLOAD] Original file path:', req.file?.path);
-    console.log('📤 [UPLOAD] CWD:', process.cwd());
+    // Upload replay to Supabase if file exists
+    let replayPath = null;
+    if (req.file) {
+      try {
+        console.log('📤 [UPLOAD] Starting Supabase upload...');
+        const fileBuffer = fs.readFileSync(req.file.path);
+        console.log('📤 [UPLOAD] File buffer size:', fileBuffer.length, 'bytes');
+        
+        // Generate filename using the original filename's extension
+        const ext = path.extname(req.file.originalname);
+        const filename = `replay_${Date.now()}${ext}`;
+        
+        const uploadResult = await uploadReplayToSupabase(filename, fileBuffer, req.file.originalname);
+        replayPath = uploadResult.path;
+        console.log('✅ [UPLOAD] Replay uploaded to Supabase:', replayPath);
+        
+        // Clean up temporary file
+        try {
+          fs.unlinkSync(req.file.path);
+          console.log('🗑️ [UPLOAD] Temporary local file deleted');
+        } catch (cleanupError) {
+          console.warn('⚠️ [UPLOAD] Could not delete temporary file:', cleanupError);
+        }
+      } catch (uploadError) {
+        console.error('❌ [UPLOAD] Error uploading to Supabase:', uploadError);
+        // Don't fail the entire request if upload fails - we can retry later
+      }
+    }
     
+    // Insert match with ranking positions
     const matchResult = await query(
       `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, loser_comments, winner_rating, replay_file_path, tournament_id, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, winner_ranking_pos, loser_ranking_pos)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
@@ -438,8 +463,8 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     );
 
     const matchId = matchResult.rows[0].id;
-    console.log('📤 [UPLOAD] Match created successfully with ID:', matchId);
-    console.log('📤 [UPLOAD] Replay file stored at:', replayPath);
+    console.log('📤 [MATCH] Match created with ID:', matchId);
+    console.log('✅ [UPLOAD] Replay stored in Supabase at:', replayPath);
 
     // Calculate new trends: winner gets a win, loser gets a loss
     const currentWinnerTrend = winner.trend || '-';
@@ -977,7 +1002,7 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
     const { matchId } = req.params;
     console.log('📥 [DOWNLOAD] Starting download for match:', matchId);
 
-    // Get match and replay file path
+    // Get match and replay file path from Supabase
     const result = await query(
       'SELECT replay_file_path FROM matches WHERE id = $1',
       [matchId]
@@ -996,48 +1021,27 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'No replay file for this match' });
     }
 
-    // Try to resolve the path (handles both absolute and relative paths from old files)
-    let finalPath = replayFilePath;
-    console.log('📥 [DOWNLOAD] Path is absolute?', path.isAbsolute(finalPath));
-    console.log('📥 [DOWNLOAD] Current working directory:', process.cwd());
-    
-    // If it's not an absolute path, make it relative to cwd
-    if (!path.isAbsolute(finalPath)) {
-      finalPath = path.resolve(process.cwd(), replayFilePath);
-      console.log('📥 [DOWNLOAD] Converted to absolute path:', finalPath);
+    try {
+      // Download from Supabase Storage
+      console.log('📥 [DOWNLOAD] Downloading from Supabase...');
+      const fileBuffer = await downloadReplayFromSupabase(replayFilePath);
+      
+      // Extract filename from path
+      const filename = path.basename(replayFilePath);
+      
+      // Set response headers for file download
+      res.setHeader('Content-Type', 'application/gzip');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', fileBuffer.length);
+      
+      console.log('📥 [DOWNLOAD] Sending file to client:', filename, 'size:', fileBuffer.length);
+      res.send(fileBuffer);
+      console.log('✅ [DOWNLOAD] Successfully sent replay file');
+      
+    } catch (supabaseError) {
+      console.error('❌ [DOWNLOAD] Supabase download error:', supabaseError);
+      res.status(404).json({ error: 'Replay file not found in storage' });
     }
-
-    // Check if file exists
-    console.log('📥 [DOWNLOAD] Checking file existence at:', finalPath);
-    if (!fs.existsSync(finalPath)) {
-      console.error(`❌ [DOWNLOAD] File not found: ${finalPath} (original: ${replayFilePath})`);
-      // Try alternative locations for debugging
-      const alternativePaths = [
-        replayFilePath,
-        path.join(uploadsDir, path.basename(replayFilePath)),
-        path.resolve(process.cwd(), 'uploads', 'replays', path.basename(replayFilePath))
-      ];
-      console.log('📥 [DOWNLOAD] Tried alternative paths:', alternativePaths);
-      return res.status(404).json({ error: 'Replay file not found on server' });
-    }
-
-    // Get file stats to verify it has content
-    const stats = fs.statSync(finalPath);
-    console.log(`✅ [DOWNLOAD] File found: ${finalPath} (${stats.size} bytes)`);
-    console.log('📥 [DOWNLOAD] File details:', { size: stats.size, isFile: stats.isFile(), mtime: stats.mtime });
-
-    // Send file for download
-    console.log('📥 [DOWNLOAD] Sending file to client:', finalPath);
-    res.download(finalPath, path.basename(finalPath), (err) => {
-      if (err) {
-        console.error('❌ [DOWNLOAD] Error sending replay to client:', err);
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Failed to download replay' });
-        }
-      } else {
-        console.log('✅ [DOWNLOAD] Successfully sent replay file');
-      }
-    });
   } catch (error) {
     console.error('❌ [DOWNLOAD] Replay download error:', error);
     res.status(500).json({ error: 'Failed to download replay' });
