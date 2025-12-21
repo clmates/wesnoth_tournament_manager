@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { publicService } from '../services/api';
 import '../styles/Players.css';
 
@@ -24,6 +25,7 @@ interface FilterState {
 
 const Players: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [players, setPlayers] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -287,7 +289,18 @@ const Players: React.FC = () => {
                 <td className="rank-col">
                   <span className="rank-badge">#{(currentPage - 1) * 20 + index + 1}</span>
                 </td>
-                <td className="nickname-col">{player.nickname}</td>
+                <td className="nickname-col">
+                  <a 
+                    href="#" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(`/player/${player.id}`);
+                    }}
+                    className="player-link"
+                  >
+                    {player.nickname}
+                  </a>
+                </td>
                 <td className="elo-col">
                   <span className="elo-badge">{player.elo_rating}</span>
                 </td>
