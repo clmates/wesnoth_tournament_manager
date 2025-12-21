@@ -345,9 +345,14 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
 // Report match (with file upload)
 router.post('/report', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
   try {
+    console.log('📤 [UPLOAD] Starting match report from user:', req.userId);
+    console.log('📤 [UPLOAD] File info:', req.file ? { fieldname: req.file.fieldname, originalname: req.file.originalname, size: req.file.size, path: req.file.path } : 'NO FILE');
+    
     const { opponent_id, map, winner_faction, loser_faction, comments, rating, tournament_id, tournament_match_id } = req.body;
+    console.log('📤 [UPLOAD] Match details:', { opponent_id, map, winner_faction, loser_faction, tournament_id, tournament_match_id });
 
     if (!opponent_id || !map || !winner_faction || !loser_faction) {
+      console.warn('📤 [UPLOAD] Missing required fields');
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -402,6 +407,11 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
 
     // Insert match with ranking positions
+    const replayPath = req.file ? path.relative(process.cwd(), req.file.path) : null;
+    console.log('📤 [UPLOAD] Storing replay path:', replayPath);
+    console.log('📤 [UPLOAD] Original file path:', req.file?.path);
+    console.log('📤 [UPLOAD] CWD:', process.cwd());
+    
     const matchResult = await query(
       `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, loser_comments, winner_rating, replay_file_path, tournament_id, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, winner_ranking_pos, loser_ranking_pos)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
@@ -415,7 +425,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         comments,
         null, // loser_comments will be added when loser confirms/disputes
         rating,
-        req.file ? path.relative(process.cwd(), req.file.path) : null,
+        replayPath,
         tournament_id || null,
         legacyEloChange,
         winner.elo_rating,
@@ -428,6 +438,8 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     );
 
     const matchId = matchResult.rows[0].id;
+    console.log('📤 [UPLOAD] Match created successfully with ID:', matchId);
+    console.log('📤 [UPLOAD] Replay file stored at:', replayPath);
 
     // Calculate new trends: winner gets a win, loser gets a loss
     const currentWinnerTrend = winner.trend || '-';
@@ -963,6 +975,7 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
 router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
   try {
     const { matchId } = req.params;
+    console.log('📥 [DOWNLOAD] Starting download for match:', matchId);
 
     // Get match and replay file path
     const result = await query(
@@ -971,44 +984,62 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
     );
 
     if (result.rows.length === 0) {
+      console.warn('📥 [DOWNLOAD] Match not found:', matchId);
       return res.status(404).json({ error: 'Match not found' });
     }
 
     let replayFilePath = result.rows[0].replay_file_path;
+    console.log('📥 [DOWNLOAD] Retrieved replay path from DB:', replayFilePath);
 
     if (!replayFilePath) {
+      console.warn('📥 [DOWNLOAD] No replay file stored for match:', matchId);
       return res.status(404).json({ error: 'No replay file for this match' });
     }
 
     // Try to resolve the path (handles both absolute and relative paths from old files)
     let finalPath = replayFilePath;
+    console.log('📥 [DOWNLOAD] Path is absolute?', path.isAbsolute(finalPath));
+    console.log('📥 [DOWNLOAD] Current working directory:', process.cwd());
     
     // If it's not an absolute path, make it relative to cwd
     if (!path.isAbsolute(finalPath)) {
       finalPath = path.resolve(process.cwd(), replayFilePath);
+      console.log('📥 [DOWNLOAD] Converted to absolute path:', finalPath);
     }
 
     // Check if file exists
+    console.log('📥 [DOWNLOAD] Checking file existence at:', finalPath);
     if (!fs.existsSync(finalPath)) {
-      console.error(`File not found: ${finalPath} (original: ${replayFilePath})`);
+      console.error(`❌ [DOWNLOAD] File not found: ${finalPath} (original: ${replayFilePath})`);
+      // Try alternative locations for debugging
+      const alternativePaths = [
+        replayFilePath,
+        path.join(uploadsDir, path.basename(replayFilePath)),
+        path.resolve(process.cwd(), 'uploads', 'replays', path.basename(replayFilePath))
+      ];
+      console.log('📥 [DOWNLOAD] Tried alternative paths:', alternativePaths);
       return res.status(404).json({ error: 'Replay file not found on server' });
     }
 
     // Get file stats to verify it has content
     const stats = fs.statSync(finalPath);
-    console.log(`📥 Downloading replay: ${finalPath} (${stats.size} bytes)`);
+    console.log(`✅ [DOWNLOAD] File found: ${finalPath} (${stats.size} bytes)`);
+    console.log('📥 [DOWNLOAD] File details:', { size: stats.size, isFile: stats.isFile(), mtime: stats.mtime });
 
     // Send file for download
-    res.download(finalPath, (err) => {
+    console.log('📥 [DOWNLOAD] Sending file to client:', finalPath);
+    res.download(finalPath, path.basename(finalPath), (err) => {
       if (err) {
-        console.error('Error downloading replay:', err);
+        console.error('❌ [DOWNLOAD] Error sending replay to client:', err);
         if (!res.headersSent) {
           res.status(500).json({ error: 'Failed to download replay' });
         }
+      } else {
+        console.log('✅ [DOWNLOAD] Successfully sent replay file');
       }
     });
   } catch (error) {
-    console.error('Replay download error:', error);
+    console.error('❌ [DOWNLOAD] Replay download error:', error);
     res.status(500).json({ error: 'Failed to download replay' });
   }
 });
@@ -1017,6 +1048,7 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
 router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => {
   try {
     const { matchId } = req.params;
+    console.log('📊 [COUNTER] Incrementing download count for match:', matchId);
 
     // Increment the download count
     const result = await query(
@@ -1025,12 +1057,14 @@ router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => 
     );
 
     if (result.rows.length === 0) {
+      console.warn('📊 [COUNTER] Match not found:', matchId);
       return res.status(404).json({ error: 'Match not found' });
     }
 
+    console.log('✅ [COUNTER] Download count updated to:', result.rows[0].replay_downloads);
     res.json({ replay_downloads: result.rows[0].replay_downloads });
   } catch (error) {
-    console.error('Error incrementing replay downloads:', error);
+    console.error('❌ [COUNTER] Error incrementing replay downloads:', error);
     res.status(500).json({ error: 'Failed to increment download count' });
   }
 });

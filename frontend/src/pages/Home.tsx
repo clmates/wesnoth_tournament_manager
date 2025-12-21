@@ -56,8 +56,9 @@ const Home: React.FC = () => {
 
   const refetchMatches = async () => {
     try {
-      const matchesRes = await matchService.getAllMatches();
-      setRecentMatches(matchesRes.data?.slice(0, 10) || []);
+      const matchesRes = await publicService.getRecentMatches();
+      const matches = matchesRes.data || matchesRes || [];
+      setRecentMatches(Array.isArray(matches) ? matches.slice(0, 10) : []);
     } catch (err) {
       console.error('Error refetching matches:', err);
     }
