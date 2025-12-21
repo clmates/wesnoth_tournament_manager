@@ -15,14 +15,6 @@ export const getLevelTranslationKey = (level: string): string => {
     'experto': 'level_experto',
     'maestro': 'level_maestro',
   };
-  
-  return levelMap[level] || 'level_novato';
-};
 
-/**
- * Component wrapper for displaying translated player levels
- * Usage: <TranslatedLevel level={player.level} />
- */
-export const TranslatedLevel = ({ level, t }: { level: string; t: (key: string) => string }) => {
-  return <>{t(getLevelTranslationKey(level))}</>;
+  return levelMap[level] || 'level_novato';
 };
