@@ -76,6 +76,7 @@ const Home: React.FC = () => {
       await refetchMatches();
       
       // Fetch the file from the backend
+      console.log('🔽 Fetching file from backend...');
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/matches/${matchId}/replay/download`, {
         method: 'GET',
@@ -84,12 +85,15 @@ const Home: React.FC = () => {
         }
       });
 
+      console.log('🔽 Response status:', response.status);
       if (!response.ok) {
-        throw new Error('Download failed');
+        throw new Error(`Download failed with status ${response.status}`);
       }
 
       // Create blob and download
+      console.log('🔽 Creating blob...');
       const blob = await response.blob();
+      console.log('🔽 Blob size:', blob.size, 'bytes');
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
