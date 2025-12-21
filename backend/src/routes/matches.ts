@@ -1025,29 +1025,22 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
     }
 
     try {
-      // Prefer a short-lived signed URL so the client downloads directly from Supabase
+      // Download from Supabase and stream to client
+      console.log('📥 [DOWNLOAD] Downloading from Supabase...');
+      const fileBuffer = await downloadReplayFromSupabase(replayFilePath);
+      console.log('📥 [DOWNLOAD] Buffer received from Supabase:', fileBuffer.length, 'bytes');
+      
+      // Extract filename from path
       const filename = path.basename(replayFilePath);
-      console.log('📥 [DOWNLOAD] Generating signed URL for:', replayFilePath);
-      const { data: signedData, error: signedError } = await supabase.storage
-        .from('replays')
-        .createSignedUrl(replayFilePath, 300, { download: filename });
-
-      if (signedError || !signedData?.signedUrl) {
-        console.error('❌ [DOWNLOAD] Signed URL generation failed:', signedError || 'No signed URL');
-        // Fallback to streaming through the backend
-        const fileBuffer = await downloadReplayFromSupabase(replayFilePath);
-        console.log('📥 [DOWNLOAD] Buffer received from Supabase:', fileBuffer.length, 'bytes');
-        res.setHeader('Content-Type', 'application/gzip');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.setHeader('Content-Length', fileBuffer.length);
-        console.log('📥 [DOWNLOAD] Sending file to client (fallback):', filename, 'size:', fileBuffer.length);
-        res.send(fileBuffer);
-        console.log('✅ [DOWNLOAD] Successfully sent replay file (fallback)');
-        return;
-      }
-
-      console.log('✅ [DOWNLOAD] Redirecting to signed URL');
-      res.redirect(signedData.signedUrl);
+      
+      // Set response headers for file download
+      res.setHeader('Content-Type', 'application/gzip');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', fileBuffer.length);
+      
+      console.log('📥 [DOWNLOAD] Sending file to client:', filename, 'size:', fileBuffer.length);
+      res.send(fileBuffer);
+      console.log('✅ [DOWNLOAD] Successfully sent replay file');
     } catch (supabaseError) {
       console.error('❌ [DOWNLOAD] Supabase download error:', supabaseError);
       res.status(404).json({ error: 'Replay file not found in storage' });
