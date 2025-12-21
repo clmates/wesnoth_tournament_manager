@@ -435,7 +435,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         const ext = path.extname(req.file.originalname);
         const filename = `replay_${Date.now()}${ext}`;
         
-        const uploadResult = await uploadReplayToSupabase(filename, fileBuffer, req.file.originalname);
+        const uploadResult = await uploadReplayToSupabase(filename, fileBuffer);
         replayPath = uploadResult.path;
         console.log('✅ [UPLOAD] Replay uploaded to Supabase:', replayPath);
         
@@ -1041,6 +1041,7 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
       // Download from Supabase Storage
       console.log('📥 [DOWNLOAD] Downloading from Supabase...');
       const fileBuffer = await downloadReplayFromSupabase(replayFilePath);
+      console.log('📥 [DOWNLOAD] Buffer received from Supabase:', fileBuffer.length, 'bytes');
       
       // Extract filename from path
       const filename = path.basename(replayFilePath);

@@ -14,19 +14,18 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
 export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 // Helper function to upload replay to Supabase Storage
+// Expects caller to provide the final filename (including extension) to avoid double extensions
 export async function uploadReplayToSupabase(
-  matchId: string,
-  fileBuffer: Buffer,
-  originalFilename: string
+  storedFilename: string,
+  fileBuffer: Buffer
 ): Promise<{ path: string; url: string }> {
   try {
-    const filename = `${matchId}${originalFilename.substring(originalFilename.lastIndexOf('.'))}`;
-    console.log('📤 [SUPABASE] Uploading replay to Supabase:', filename);
+    console.log('📤 [SUPABASE] Uploading replay to Supabase:', storedFilename);
     console.log('📤 [SUPABASE] File size:', fileBuffer.length, 'bytes');
 
     const { data, error } = await supabase.storage
       .from('replays')
-      .upload(filename, fileBuffer, {
+      .upload(storedFilename, fileBuffer, {
         contentType: 'application/gzip',
         upsert: false, // Don't overwrite if exists
       });
@@ -41,7 +40,7 @@ export async function uploadReplayToSupabase(
     // Get the public URL if bucket is public, or generate signed URL if private
     const { data: publicData } = supabase.storage
       .from('replays')
-      .getPublicUrl(filename);
+      .getPublicUrl(storedFilename);
 
     return {
       path: data.path,
