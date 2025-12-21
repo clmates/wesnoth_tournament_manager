@@ -4,6 +4,16 @@ import { userService, matchService, publicService } from '../services/api';
 import { processMultiLanguageItems } from '../utils/languageFallback';
 import '../styles/Home.css';
 
+// Get API URL for direct backend calls
+let API_URL: string;
+if (window.location.hostname.includes('main.')) {
+  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
+} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+} else {
+  API_URL = '/api';
+}
+
 // Cache with 5-minute TTL for home page data
 const homeDataCache = new Map<string, { data: any; timestamp: number; userId: string | null }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
