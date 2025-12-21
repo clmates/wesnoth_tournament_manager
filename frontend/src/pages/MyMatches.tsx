@@ -8,6 +8,16 @@ import MatchesTable from '../components/MatchesTable';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import '../styles/Matches.css';
 
+// Get API URL for direct backend calls
+let API_URL: string;
+if (window.location.hostname.includes('main.')) {
+  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
+} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+} else {
+  API_URL = '/api';
+}
+
 interface FilterState {
   winner: string;
   loser: string;

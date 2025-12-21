@@ -8,9 +8,7 @@ import '../styles/Matches.css';
 
 // Get API URL for direct backend calls
 let API_URL: string;
-if (import.meta.env.VITE_API_URL) {
-  API_URL = import.meta.env.VITE_API_URL;
-} else if (window.location.hostname.includes('main.')) {
+if (window.location.hostname.includes('main.')) {
   API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
 } else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
   API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
