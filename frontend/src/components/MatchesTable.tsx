@@ -2,6 +2,18 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { matchService } from '../services/api';
 
+// Get API URL for direct backend calls
+const getApiUrl = (): string => {
+  if (window.location.hostname.includes('main.')) {
+    return 'https://wesnothtournamentmanager-main.up.railway.app/api';
+  } else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+    return 'https://wesnothtournamentmanager-production.up.railway.app/api';
+  } else {
+    return '/api';
+  }
+};
+const API_URL = getApiUrl();
+
 interface MatchesTableProps {
   matches: any[];
   currentPlayerId?: string;
@@ -38,7 +50,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
       // Fetch the file from the backend
       console.log('🔽 Fetching file from backend...');
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/matches/${matchId}/replay/download`, {
+      const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
+      console.log('🔽 Download URL:', downloadUrl);
+      const response = await fetch(downloadUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`

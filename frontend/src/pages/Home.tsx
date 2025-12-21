@@ -78,7 +78,9 @@ const Home: React.FC = () => {
       // Fetch the file from the backend
       console.log('🔽 Fetching file from backend...');
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/matches/${matchId}/replay/download`, {
+      const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
+      console.log('🔽 Download URL:', downloadUrl);
+      const response = await fetch(downloadUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
