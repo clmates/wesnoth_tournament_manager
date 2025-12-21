@@ -32,13 +32,30 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
 
       const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
       await matchService.incrementReplayDownloads(matchId);
-      const downloadUrl = `/api/matches/${matchId}/replay/download`;
+      
+      // Fetch the file from the backend
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/matches/${matchId}/replay/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = url;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error downloading replay:', err);
     }
