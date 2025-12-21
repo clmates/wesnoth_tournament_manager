@@ -330,7 +330,7 @@ const Home: React.FC = () => {
                 {announcements.map((announcement) => (
                   <div key={announcement.id} className="announcement-card">
                     <h3>{announcement.title}</h3>
-                    <p>{announcement.content}</p>
+                    <p dangerouslySetInnerHTML={{ __html: announcement.content.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>') }} />
                     <small>By {announcement.author} - {new Date(announcement.published_at || announcement.created_at).toLocaleDateString()}</small>
                   </div>
                 ))}
