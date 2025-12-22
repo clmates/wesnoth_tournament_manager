@@ -59,11 +59,11 @@ export const loginLimiter = rateLimit({
 /**
  * General rate limiter for API endpoints
  * Prevents resource exhaustion and API abuse
- * Limits: 30 requests per minute per IP
+ * Limits: 100 requests per minute per IP
  */
 export const generalLimiter = rateLimit({
   windowMs: 60 * 1000,        // 1 minute
-  max: 30,                    // 30 requests per window
+  max: 100,                   // 100 requests per window
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req, res) => {
