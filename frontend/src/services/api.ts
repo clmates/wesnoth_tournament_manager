@@ -171,6 +171,7 @@ export const tournamentService = {
     api.post(`/tournaments/${tournamentId}/matches/${matchId}/result`, data),
   determineMatchWinner: (tournamentId: string, matchId: string, data: any) =>
     api.post(`/tournaments/${tournamentId}/matches/${matchId}/determine-winner`, data),
+  startNextRound: (id: string) => api.post(`/tournaments/${id}/next-round`),
   acceptParticipant: (tournamentId: string, participantId: string) => 
     api.post(`/tournaments/${tournamentId}/participants/${participantId}/accept`),
   rejectParticipant: (tournamentId: string, participantId: string) => 

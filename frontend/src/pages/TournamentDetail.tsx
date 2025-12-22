@@ -396,24 +396,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
   const handleStartNextRound = async (currentRoundNumber: number) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/tournaments/${id}/next-round`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to start next round');
-      }
+      await tournamentService.startNextRound(id!);
 
       setSuccess(t('success_round_started', { number: currentRoundNumber + 1 }));
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.message || t('error_failed_start_next_round'));
+      setError(err.response?.data?.error || err.message || t('error_failed_start_next_round'));
     }
   };
 
