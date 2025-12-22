@@ -44,7 +44,7 @@ function fetchRoundMatches() {
       path: `/api/tournaments/${tournamentId}/round-matches`,
       method: 'GET',
       headers: {
-        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjM0NTY3ODkwYWJjZGVmIiwibmljayI6ImFkbWluMiIsImlhdCI6MTczMzc1MzIwNn0.EGR8SEkTvCmIaQXfAeNt7e6V5j1h49HFSE3iQXGGlD8`
+        'Authorization': `Bearer ${token}`
       }
     };
 

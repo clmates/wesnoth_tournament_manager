@@ -3,7 +3,7 @@
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/api';
-const TOKEN = process.env.ADMIN_TOKEN || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJmMWI5MmZjOS0xMjQyLTRjNGEtODA1Yy0zMmUyOGFkNDM3OWUiLCJpYXQiOjE3MzEwMjAwNDYsImV4cCI6MTc0Njc3NzI0Nn0.khYdvWwMfRPZcmFVL2fUQCMkC8P-Nn6a6h0z84j-Bhg';
+const TOKEN = process.env.ADMIN_TOKEN;;
 
 async function testNextRound(tournamentId) {
   try {
