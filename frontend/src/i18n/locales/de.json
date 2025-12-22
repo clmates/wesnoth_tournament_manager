@@ -401,5 +401,7 @@
     "error_password_too_short": "Neues Passwort muss mindestens 8 Zeichen lang sein",
     "password_changed_success": "Passwort erfolgreich geändert",
     "error_change_password_failed": "Fehler beim Ändern des Passworts"
-  }
+  },
+  "tournaments.player_abandoned": "Spieler Aufgegeben",
+  "tournaments.abandonment_note": "Wählen Sie den Gewinner. Wenn ein Spieler aufgegeben hat, gewinnt sein Gegner automatisch alle verbleibenden Spiele (keine ELO-Auswirkung, Turnierpunkte vergeben)."
 }

@@ -407,5 +407,7 @@
     "error_change_password_failed": "Failed to change password"
   },
   "btn_accept": "Accept",
-  "btn_reject": "Reject"
+  "btn_reject": "Reject",
+  "tournaments.player_abandoned": "Player Abandoned",
+  "tournaments.abandonment_note": "Select the winner. If a player abandoned, their opponent automatically wins all remaining matches (no ELO impact, tournament points awarded)."
 }

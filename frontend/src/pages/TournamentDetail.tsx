@@ -1196,7 +1196,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <div className="modal-overlay" onClick={() => { setShowDetermineWinnerModal(false); setDetermineWinnerData(null); }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{t('determine_winner_title')}</h3>
+              <h3>{t('determine_winner_title')} / {t('tournaments.player_abandoned') || 'Player Abandoned'}</h3>
               <button
                 className="modal-close"
                 onClick={() => { setShowDetermineWinnerModal(false); setDetermineWinnerData(null); }}
@@ -1207,6 +1207,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
             <div className="modal-body">
               <p style={{ marginBottom: '1.5rem', color: '#666' }}>
                 {t('determine_winner_prompt', { p1: determineWinnerData.player1_nickname, p2: determineWinnerData.player2_nickname })}
+              </p>
+              <p style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: '#999' }}>
+                {t('tournaments.abandonment_note') || 'Select the winner. If a player abandoned, their opponent automatically wins (no ELO impact, tournament points awarded).'}
               </p>
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                 <button
@@ -1269,8 +1272,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   <div className="grid-header loser-col">Loser</div>
 
                   <div className="grid-cell label-cell">Player</div>
-                  <div className="grid-cell winner-cell"><PlayerLink nickname={matchDetailsModal.match.winner_nickname || '-'} userId={matchDetailsModal.match.winner_id} /></div>
-                  <div className="grid-cell loser-cell"><PlayerLink nickname={matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_nickname : matchDetailsModal.match.player1_nickname} userId={matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_id : matchDetailsModal.match.player1_id} /></div>
+                  <div className="grid-cell winner-cell">{matchDetailsModal.match.winner_id ? <PlayerLink nickname={matchDetailsModal.match.winner_nickname || '-'} userId={matchDetailsModal.match.winner_id} /> : <span>{matchDetailsModal.match.winner_nickname || '-'}</span>}</div>
+                  <div className="grid-cell loser-cell">{(matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_id : matchDetailsModal.match.player1_id) ? <PlayerLink nickname={matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_nickname : matchDetailsModal.match.player1_nickname} userId={matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_id! : matchDetailsModal.match.player1_id!} /> : <span>{matchDetailsModal.match.winner_nickname === matchDetailsModal.match.player1_nickname ? matchDetailsModal.match.player2_nickname : matchDetailsModal.match.player1_nickname}</span>}</div>
 
                   <div className="grid-cell label-cell">Faction</div>
                   <div className="grid-cell winner-cell"><span className="faction-badge">{matchDetailsModal.match.winner_faction || '-'}</span></div>

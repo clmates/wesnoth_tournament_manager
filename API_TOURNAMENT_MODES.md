@@ -2,7 +2,7 @@
 
 ## 📋 Resumen
 
-Esta documentación describe los nuevos endpoints y funcionalidad para soportar múltiples modos de torneo en CLM Competitive.
+Esta documentación describe los nuevos endpoints y funcionalidad para soportar múltiples modos de torneo en Competitive Wesnoth.
 
 ## 🎯 Modos de Torneo Soportados
 

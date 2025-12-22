@@ -397,5 +397,7 @@
     "error_change_password_failed": "Error al cambiar la contraseña"
   },
   "btn_accept": "Aceptar",
-  "btn_reject": "Rechazar"
+  "btn_reject": "Rechazar",
+  "tournaments.player_abandoned": "Jugador Abandonó",
+  "tournaments.abandonment_note": "Selecciona el ganador. Si un jugador abandonó, su oponente gana automáticamente todos los partidos restantes (sin impacto en ELO, puntos del torneo otorgados)."
 }

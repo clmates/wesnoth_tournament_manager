@@ -400,6 +400,9 @@
     "error_password_too_short": "新密码必须至少 8 个字符",
     "password_changed_success": "密码已成功更改",
     "error_change_password_failed": "更改密码失败"
-  }
+  },
+  "tournaments.player_abandoned": "玩家弃权",
+  "tournaments.abandonment_note": "选择获胜者。如果玩家弃权，其对手自动赢得所有剩余比赛（不影响ELO，分配赛事积分）。"
 }
+
 
