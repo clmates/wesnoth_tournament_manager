@@ -1782,12 +1782,12 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
     if (winnerParticipantResult.rows.length > 0) {
       const winnerParticipantId = winnerParticipantResult.rows[0].id;
       
-      // Add wins and points for all matches won
+      // Add wins and points for all matches won (1 point per victory, consistent with normal logic)
       await query(
         `UPDATE tournament_participants 
-         SET tournament_wins = tournament_wins + $1, tournament_points = tournament_points + $2 
-         WHERE id = $3`,
-        [loserLossCount, loserLossCount * 3, winnerParticipantId]
+         SET tournament_wins = tournament_wins + $1, tournament_points = tournament_points + $1 
+         WHERE id = $2`,
+        [loserLossCount, winnerParticipantId]
       );
     }
 
