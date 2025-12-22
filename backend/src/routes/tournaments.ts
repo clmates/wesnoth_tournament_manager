@@ -1692,7 +1692,6 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         : null;
 
       // If Best Of series and complete, mark remaining matches as organizer wins/loss
-      let matchesToMarkWins = [];
       if (roundMatch.best_of > 1 && seriesComplete) {
         // Get all tournament_matches for this series that are still pending
         const seriesMatches = await query(
@@ -1702,20 +1701,17 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
           [roundMatch.id]
         );
 
-        // Mark remaining matches appropriately
-        for (const seriesMatch of seriesMatches.rows) {
-          matchesToMarkWins.push(seriesMatch.id);
-        }
-
-        // Update remaining matches with organizer action to series winner
-        if (matchesToMarkWins.length > 0) {
-          await query(
-            `UPDATE tournament_matches 
-             SET winner_id = $1, match_status = 'completed', played_at = NOW(),
-                 organizer_action = 'organizer_win', updated_at = NOW()
-             WHERE id = ANY($2)`,
-            [newWinnerId, matchesToMarkWins]
-          );
+        // Mark remaining matches with organizer action to series winner
+        if (seriesMatches.rows.length > 0) {
+          for (const seriesMatch of seriesMatches.rows) {
+            await query(
+              `UPDATE tournament_matches 
+               SET winner_id = $1, match_status = 'completed', played_at = NOW(),
+                   organizer_action = 'organizer_win', updated_at = NOW()
+               WHERE id = $2`,
+              [newWinnerId, seriesMatch.id]
+            );
+          }
         }
       }
 
@@ -1738,22 +1734,12 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         if (participantResult.rows.length > 0) {
           const participantId = participantResult.rows[0].id;
           
-          // Get all completed series for this participant to calculate points
-          const seriesWinsResult = await query(
-            `SELECT COUNT(*) as series_wins FROM tournament_round_matches 
-             WHERE tournament_id = $1 AND (winner_id = $2) AND series_status = 'completed'`,
-            [tournamentId, newWinnerId]
-          );
-
-          const seriesWins = parseInt(seriesWinsResult.rows[0].series_wins || '0');
-          const points = seriesWins * 3; // Assuming 3 points per win
-
-          // Update participant points
+          // Add 3 points for winning this series
           await query(
             `UPDATE tournament_participants 
-             SET points = $1, tournament_wins = tournament_wins + 1, updated_at = NOW() 
-             WHERE id = $2`,
-            [points, participantId]
+             SET points = points + 3, tournament_wins = tournament_wins + 1, updated_at = NOW() 
+             WHERE id = $1`,
+            [participantId]
           );
         }
       }
@@ -1788,6 +1774,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
       [roundId, loser_id, matchId]
     );
 
+    let loserLossCount = 0;
     if (loserPendingMatches.rows.length > 0) {
       const loserMatchIds = loserPendingMatches.rows.map(m => m.id);
       
@@ -1810,10 +1797,12 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
              WHERE id = $2`,
             [opponent_id, loserMatchId]
           );
+
+          loserLossCount++;
         }
       }
 
-      // Update loser's tournament record
+      // Update loser's tournament record with losses
       const loserParticipantResult = await query(
         `SELECT id FROM tournament_participants 
          WHERE tournament_id = $1 AND user_id = $2`,
@@ -1826,10 +1815,9 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         // Add losses for the loser
         await query(
           `UPDATE tournament_participants 
-           SET tournament_losses = tournament_losses + (SELECT COUNT(*) FROM tournament_matches WHERE round_id = $1 AND (player1_id = $2 OR player2_id = $2) AND match_status = 'completed'),
-               updated_at = NOW() 
-           WHERE id = $3`,
-          [roundId, loser_id, loserParticipantId]
+           SET tournament_losses = tournament_losses + $1, updated_at = NOW() 
+           WHERE id = $2`,
+          [loserLossCount, loserParticipantId]
         );
       }
     }
@@ -1853,7 +1841,13 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
     });
   } catch (error: any) {
     console.error('Error determining match winner:', error);
-    res.status(500).json({ error: 'Failed to determine match winner', details: error.message });
+    console.error('Error stack:', error.stack);
+    console.error('Error code:', error.code);
+    res.status(500).json({ 
+      error: 'Failed to determine match winner', 
+      details: error.message,
+      code: error.code 
+    });
   }
 });
 
