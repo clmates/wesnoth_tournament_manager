@@ -1794,6 +1794,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
             ? loserMatch.rows[0].player2_id 
             : loserMatch.rows[0].player1_id;
 
+          // Update the match
           await query(
             `UPDATE tournament_matches 
              SET winner_id = $1, match_status = 'completed', played_at = NOW(),
@@ -1801,6 +1802,44 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
              WHERE id = $2`,
             [opponent_id, loserMatchId]
           );
+
+          // Also update the tournament_round_match if this match is part of a series
+          const roundMatchForLosersMatch = await query(
+            `SELECT trm.id, trm.player1_id, trm.player2_id, trm.player1_wins, trm.player2_wins, trm.wins_required, trm.series_status
+             FROM tournament_round_matches trm
+             WHERE trm.id IN (
+               SELECT tournament_round_match_id FROM tournament_matches WHERE id = $1
+             )`,
+            [loserMatchId]
+          );
+
+          if (roundMatchForLosersMatch.rows.length > 0) {
+            const rmatch = roundMatchForLosersMatch.rows[0];
+            let p1_wins = rmatch.player1_wins;
+            let p2_wins = rmatch.player2_wins;
+
+            // Update wins based on who won this match
+            if (opponent_id === rmatch.player1_id) {
+              p1_wins += 1;
+            } else {
+              p2_wins += 1;
+            }
+
+            // Check if series is complete
+            const seriesComplete = p1_wins >= rmatch.wins_required || p2_wins >= rmatch.wins_required;
+            const newSeriesStatus = seriesComplete ? 'completed' : 'in_progress';
+            const newWinnerId = seriesComplete
+              ? (p1_wins >= rmatch.wins_required ? rmatch.player1_id : rmatch.player2_id)
+              : null;
+
+            // Update tournament_round_matches
+            await query(
+              `UPDATE tournament_round_matches 
+               SET player1_wins = $1, player2_wins = $2, series_status = $3, winner_id = $4, updated_at = NOW()
+               WHERE id = $5`,
+              [p1_wins, p2_wins, newSeriesStatus, newWinnerId, rmatch.id]
+            );
+          }
 
           loserLossCount++;
         }
@@ -1822,6 +1861,25 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
            SET tournament_losses = tournament_losses + $1 
            WHERE id = $2`,
           [loserLossCount, loserParticipantId]
+        );
+      }
+
+      // Update winner's record for each match won
+      const winnerParticipantResult = await query(
+        `SELECT id FROM tournament_participants 
+         WHERE tournament_id = $1 AND user_id = $2`,
+        [tournamentId, winner_id]
+      );
+
+      if (winnerParticipantResult.rows.length > 0) {
+        const winnerParticipantId = winnerParticipantResult.rows[0].id;
+        
+        // Add wins for the winner (loserLossCount matches won = loserLossCount * 3 points)
+        await query(
+          `UPDATE tournament_participants 
+           SET tournament_wins = tournament_wins + $1, points = points + ($1 * 3)
+           WHERE id = $2`,
+          [loserLossCount, winnerParticipantId]
         );
       }
     }
