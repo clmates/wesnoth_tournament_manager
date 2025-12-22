@@ -3,6 +3,10 @@ import axios from 'axios';
 const DISCORD_API_URL = 'https://discord.com/api/v10';
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const FORUM_CHANNEL_ID = process.env.DISCORD_FORUM_CHANNEL_ID; // ID of the forum channel "tournaments"
+const DISCORD_ENABLED = process.env.DISCORD_ENABLED === 'true'; // Enable Discord if explicitly set to 'true'
+
+// Log Discord status on module load
+console.log(`🔔 Discord Service: ${DISCORD_ENABLED ? '✅ ENABLED' : '⏭️  DISABLED'} (DISCORD_ENABLED=${process.env.DISCORD_ENABLED || 'not set'})`);
 
 interface DiscordEmbed {
   title: string;
@@ -40,6 +44,10 @@ class DiscordService {
     organizerNickname?: string,
     description?: string
   ): Promise<string> {
+    if (!DISCORD_ENABLED) {
+      console.log(`⏭️  Discord disabled (DISCORD_ENABLED=${process.env.DISCORD_ENABLED}). Skipping thread creation.`);
+      return '';
+    }
     if (!FORUM_CHANNEL_ID || !BOT_TOKEN) {
       console.warn('Discord credentials not configured, skipping thread creation');
       return '';
@@ -84,6 +92,10 @@ class DiscordService {
     threadId: string,
     message: DiscordMessage
   ): Promise<boolean> {
+    if (!DISCORD_ENABLED) {
+      console.log(`⏭️  Discord disabled (DISCORD_ENABLED=${process.env.DISCORD_ENABLED}). Skipping message publish.`);
+      return false;
+    }
     if (!BOT_TOKEN || !threadId) {
       return false;
     }
