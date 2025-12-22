@@ -825,7 +825,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                             {t('report_match_link')}
                                           </button>
                                         )}
-                                        {isCreator && (round.round_status === 'completed') && !match.winner_id && (
+                                        {isCreator && (round.round_status === 'completed' || round.round_status === 'in_progress') && !match.winner_id && (
                                           <button
                                             className="btn-determine-winner"
                                             onClick={() => {
