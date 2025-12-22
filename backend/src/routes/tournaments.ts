@@ -1504,7 +1504,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
         tr.round_number,
         u1.nickname as player1_nickname,
         u2.nickname as player2_nickname,
-        uw.nickname as winner_nickname,
+        COALESCE(uw.nickname, uwt.nickname) as winner_nickname,
         ul.nickname as loser_nickname,
         m.status as match_status_from_matches,
         m.winner_faction,
@@ -1520,6 +1520,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
        LEFT JOIN users u2 ON tm.player2_id = u2.id
        LEFT JOIN matches m ON tm.match_id = m.id
        LEFT JOIN users uw ON m.winner_id = uw.id
+       LEFT JOIN users uwt ON tm.winner_id = uwt.id
        LEFT JOIN users ul ON m.loser_id = ul.id
        WHERE tm.tournament_id = $1
        ORDER BY tr.round_number ASC, tm.created_at ASC`,
