@@ -1670,6 +1670,8 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
       [matchId]
     );
 
+    let seriesMatchIds = []; // Track which matches belong to the series being completed
+    
     if (roundMatchResult.rows.length > 0) {
       const roundMatch = roundMatchResult.rows[0];
       const isPlayer1 = winner_id === roundMatch.player1_id;
@@ -1704,6 +1706,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         // Mark remaining matches with organizer action to series winner
         if (seriesMatches.rows.length > 0) {
           for (const seriesMatch of seriesMatches.rows) {
+            seriesMatchIds.push(seriesMatch.id); // Track series matches
             await query(
               `UPDATE tournament_matches 
                SET winner_id = $1, match_status = 'completed', played_at = NOW(),
@@ -1737,7 +1740,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
           // Add 3 points for winning this series
           await query(
             `UPDATE tournament_participants 
-             SET points = points + 3, tournament_wins = tournament_wins + 1, updated_at = NOW() 
+             SET points = points + 3, tournament_wins = tournament_wins + 1 
              WHERE id = $1`,
             [participantId]
           );
@@ -1757,14 +1760,15 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         // Add 3 points for the win
         await query(
           `UPDATE tournament_participants 
-           SET points = points + 3, tournament_wins = tournament_wins + 1, updated_at = NOW() 
+           SET points = points + 3, tournament_wins = tournament_wins + 1 
            WHERE id = $1`,
           [participantId]
         );
       }
     }
 
-    // Mark ALL pending matches of the loser in this round as losses
+    // Mark ALL OTHER pending matches of the loser in this round as losses
+    // (but skip the ones we already marked as part of series BO completion)
     const loserPendingMatches = await query(
       `SELECT id FROM tournament_matches 
        WHERE round_id = $1 
@@ -1815,7 +1819,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         // Add losses for the loser
         await query(
           `UPDATE tournament_participants 
-           SET tournament_losses = tournament_losses + $1, updated_at = NOW() 
+           SET tournament_losses = tournament_losses + $1 
            WHERE id = $2`,
           [loserLossCount, loserParticipantId]
         );
