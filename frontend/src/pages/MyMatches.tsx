@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import MainLayout from '../components/MainLayout';
 import MatchesTable from '../components/MatchesTable';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
+import MatchDetailsModal from '../components/MatchDetailsModal';
 import '../styles/Matches.css';
 
 // Get API URL for direct backend calls
@@ -376,109 +377,11 @@ const MyMatches: React.FC = () => {
         )}
 
         {/* Match Details Modal */}
-        {matchDetailsModal.isOpen && matchDetailsModal.match && (
-          <div className="modal-overlay" onClick={closeMatchDetails}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Match Details</h2>
-                <button className="close-btn" onClick={closeMatchDetails}>✕</button>
-              </div>
-
-              <div className="modal-body">
-                <div className="match-details-container">
-                  <div className="detail-header-row">
-                    <div className="detail-item">
-                      <label>Date:</label>
-                      <span>{new Date(matchDetailsModal.match.created_at).toLocaleString()}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Map:</label>
-                      <span>{matchDetailsModal.match.map}</span>
-                    </div>
-                    <div className="detail-item">
-                      <label>Status:</label>
-                      <span className={`status-badge ${matchDetailsModal.match.status || 'unconfirmed'}`}>
-                        {matchDetailsModal.match.status === 'confirmed' && '✓ Confirmed'}
-                        {matchDetailsModal.match.status === 'unconfirmed' && '⏳ Unconfirmed'}
-                        {matchDetailsModal.match.status === 'disputed' && '⚠ Disputed'}
-                        {matchDetailsModal.match.status === 'cancelled' && '✗ Cancelled'}
-                        {!matchDetailsModal.match.status && '⏳ Unconfirmed'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="match-stats-grid">
-                    <div className="grid-header label-col">Statistic</div>
-                    <div className="grid-header winner-col">Winner</div>
-                    <div className="grid-header loser-col">Loser</div>
-
-                    <div className="grid-cell label-cell">Player</div>
-                    <div className="grid-cell winner-cell">{matchDetailsModal.match.winner_nickname}</div>
-                    <div className="grid-cell loser-cell">{matchDetailsModal.match.loser_nickname}</div>
-
-                    <div className="grid-cell label-cell">Faction</div>
-                    <div className="grid-cell winner-cell"><span className="faction-badge">{matchDetailsModal.match.winner_faction}</span></div>
-                    <div className="grid-cell loser-cell"><span className="faction-badge">{matchDetailsModal.match.loser_faction}</span></div>
-
-                    <div className="grid-cell label-cell">Rating</div>
-                    <div className="grid-cell winner-cell">{matchDetailsModal.match.winner_rating || '-'}</div>
-                    <div className="grid-cell loser-cell">{matchDetailsModal.match.loser_rating || '-'}</div>
-
-                    <div className="grid-cell label-cell">ELO Before</div>
-                    <div className="grid-cell winner-cell">{matchDetailsModal.match.winner_elo_before || 'N/A'}</div>
-                    <div className="grid-cell loser-cell">{matchDetailsModal.match.loser_elo_before || 'N/A'}</div>
-
-                    <div className="grid-cell label-cell">ELO After</div>
-                    <div className="grid-cell winner-cell">{matchDetailsModal.match.winner_elo_after || 'N/A'}</div>
-                    <div className="grid-cell loser-cell">{matchDetailsModal.match.loser_elo_after || 'N/A'}</div>
-
-                    <div className="grid-cell label-cell">ELO Change</div>
-                    <div className="grid-cell winner-cell">
-                      <span className={`rating-change ${winnerEloChange(matchDetailsModal.match) >= 0 ? 'positive' : 'negative'}`}>
-                        {winnerEloChange(matchDetailsModal.match) >= 0 ? '+' : ''}{winnerEloChange(matchDetailsModal.match)}
-                      </span>
-                    </div>
-                    <div className="grid-cell loser-cell">
-                      <span className={`rating-change ${loserEloChange(matchDetailsModal.match) >= 0 ? 'positive' : 'negative'}`}>
-                        {loserEloChange(matchDetailsModal.match) >= 0 ? '+' : ''}{loserEloChange(matchDetailsModal.match)}
-                      </span>
-                    </div>
-
-                    {(matchDetailsModal.match.winner_comments || matchDetailsModal.match.loser_comments) && (
-                      <>
-                        <div className="grid-cell label-cell">Comments</div>
-                        <div className="grid-cell winner-cell" title={matchDetailsModal.match.winner_comments || undefined}>{matchDetailsModal.match.winner_comments || '-'}</div>
-                        <div className="grid-cell loser-cell" title={matchDetailsModal.match.loser_comments || undefined}>{matchDetailsModal.match.loser_comments || '-'}</div>
-                      </>
-                    )}
-
-                    {matchDetailsModal.match.replay_file_path && (
-                      <>
-                        <div className="grid-cell label-cell">Replay</div>
-                        <div className="grid-cell winner-cell" style={{ gridColumn: '2 / 4' }}>
-                          <button 
-                            className="download-btn-compact"
-                            onClick={() => {
-                              handleDownloadReplay(matchDetailsModal.match.id, matchDetailsModal.match.replay_file_path);
-                              closeMatchDetails();
-                            }}
-                            title={`Downloads: ${matchDetailsModal.match.replay_downloads || 0}`}
-                          >
-                            ⬇️ Download ({matchDetailsModal.match.replay_downloads || 0})
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button className="close-modal-btn" onClick={closeMatchDetails}>Close</button>
-              </div>
-            </div>
-          </div>
-        )}
+        <MatchDetailsModal 
+          match={matchDetailsModal.match}
+          isOpen={matchDetailsModal.isOpen}
+          onClose={closeMatchDetails}
+        />
 
         {/* Match Confirmation Modal */}
         {confirmationModal.isOpen && confirmationModal.match && (
