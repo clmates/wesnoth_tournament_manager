@@ -5,7 +5,7 @@ import { userService, publicService } from '../services/api';
 import ProfileStats from '../components/ProfileStats';
 import EloChart from '../components/EloChart';
 import OpponentStats from '../components/OpponentStats';
-import RecentGamesTable from '../components/RecentGamesTable';
+import MatchesTable from '../components/MatchesTable';
 import '../styles/UserProfile.css';
 
 const PlayerProfile: React.FC = () => {
@@ -110,12 +110,36 @@ const PlayerProfile: React.FC = () => {
             currentPlayerId={id || ''}
           />
 
-          <RecentGamesTable 
-            matches={matches.slice(0, 30)}
-            currentPlayerId={id || ''}
-            onMatchConfirmed={refetchMatches}
-            onViewDetails={openMatchDetails}
-          />
+          <div className="recent-games-container">
+            <h2>{t('recent_games')}</h2>
+            <MatchesTable 
+              matches={matches.slice(0, 30)}
+              currentPlayerId={id || ''}
+              onViewDetails={openMatchDetails}
+              onDownloadReplay={async (matchId, replayFilePath) => {
+                try {
+                  const API_URL = window.location.hostname.includes('main.') 
+                    ? 'https://wesnothtournamentmanager-main.up.railway.app/api'
+                    : window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')
+                    ? 'https://wesnothtournamentmanager-production.up.railway.app/api'
+                    : '/api';
+                  
+                  const response = await fetch(`${API_URL}/matches/${matchId}/replay/download`, {
+                    method: 'GET'
+                  });
+                  
+                  if (!response.ok) {
+                    throw new Error(`Download failed with status ${response.status}`);
+                  }
+                  
+                  const { signedUrl } = await response.json();
+                  window.location.href = signedUrl;
+                } catch (err) {
+                  console.error('Error downloading replay:', err);
+                }
+              }}
+            />
+          </div>
         </>
       )}
 
