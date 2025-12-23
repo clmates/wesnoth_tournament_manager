@@ -21,9 +21,10 @@ interface RecentGamesTableProps {
   currentPlayerId: string;
   onDownloadReplay?: (matchId: string, filename: string) => void;
   onMatchConfirmed?: () => void;
+  onViewDetails?: (match: any) => void;
 }
 
-const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPlayerId, onDownloadReplay, onMatchConfirmed }) => {
+const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPlayerId, onDownloadReplay, onMatchConfirmed, onViewDetails }) => {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuthStore();
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
@@ -31,6 +32,12 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
   const handleReportClick = (match: any) => {
     if (isAuthenticated) {
       setSelectedMatch(match);
+    }
+  };
+
+  const handleDetailsClick = (match: any) => {
+    if (onViewDetails) {
+      onViewDetails(match);
     }
   };
 
@@ -89,7 +96,7 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
         <MatchesTable 
           matches={matches}
           currentPlayerId={currentPlayerId}
-          onViewDetails={handleReportClick}
+          onViewDetails={handleDetailsClick}
           onOpenConfirmation={handleReportClick}
           onDownloadReplay={handleDownloadReplay}
         />
