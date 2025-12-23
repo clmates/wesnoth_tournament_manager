@@ -60,7 +60,9 @@ const PlayerProfile: React.FC = () => {
 
   const openMatchDetails = (match: any) => {
     console.log('openMatchDetails called in PlayerProfile with match:', match);
+    console.log('Setting matchDetailsModal state to:', match);
     setMatchDetailsModal(match);
+    console.log('matchDetailsModal state updated');
   };
 
   const closeMatchDetails = () => {

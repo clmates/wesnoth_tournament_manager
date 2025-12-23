@@ -32,7 +32,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   onOpenConfirmation,
 }) => {
   const { t } = useTranslation();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, userId } = useAuthStore();
+  
+  console.log('MatchesTable rendered - isAuthenticated:', isAuthenticated, 'userId:', userId, 'onViewDetails:', !!onViewDetails);
 
   const winnerEloChange = (match: any) => (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
   const loserEloChange = (match: any) => (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
