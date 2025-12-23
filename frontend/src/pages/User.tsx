@@ -140,81 +140,97 @@ const User: React.FC = () => {
         {/* Match Details Modal */}
         {matchDetailsModal && (
           <div className="modal-overlay" onClick={closeMatchDetails}>
-            <div className="modal-content match-details-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>Match Details</h2>
-                <button className="close-btn" onClick={closeMatchDetails}>&times;</button>
+                <button className="close-btn" onClick={closeMatchDetails}>✕</button>
               </div>
 
               <div className="modal-body">
-                <div className="details-grid">
-                  <div className="grid-cell label-cell">Date</div>
-                  <div className="grid-cell winner-cell" style={{ gridColumn: '2 / 4' }}>{new Date(matchDetailsModal.created_at).toLocaleString()}</div>
-
-                  <div className="grid-cell label-cell">Players</div>
-                  <div className="grid-cell winner-cell">{matchDetailsModal.winner_nickname}</div>
-                  <div className="grid-cell loser-cell">{matchDetailsModal.loser_nickname}</div>
-
-                  <div className="grid-cell label-cell">Factions</div>
-                  <div className="grid-cell winner-cell">{matchDetailsModal.winner_faction || 'N/A'}</div>
-                  <div className="grid-cell loser-cell">{matchDetailsModal.loser_faction || 'N/A'}</div>
-
-                  <div className="grid-cell label-cell">Map</div>
-                  <div className="grid-cell winner-cell" style={{ gridColumn: '2 / 4' }}>{matchDetailsModal.map || 'N/A'}</div>
-
-                  <div className="grid-cell label-cell">Status</div>
-                  <div className="grid-cell winner-cell" style={{ gridColumn: '2 / 4' }}>
-                    <span className={`status-badge ${matchDetailsModal.status || 'unconfirmed'}`}>
-                      {matchDetailsModal.status === 'confirmed' && t('match_status_confirmed')}
-                      {matchDetailsModal.status === 'unconfirmed' && t('match_status_unconfirmed')}
-                      {matchDetailsModal.status === 'disputed' && t('match_status_disputed')}
-                      {matchDetailsModal.status === 'cancelled' && t('match_status_cancelled')}
-                      {!matchDetailsModal.status && t('match_status_unconfirmed')}
-                    </span>
+                <div className="match-details-container">
+                  <div className="detail-header-row">
+                    <div className="detail-item">
+                      <label>Date:</label>
+                      <span>{new Date(matchDetailsModal.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Map:</label>
+                      <span>{matchDetailsModal.map}</span>
+                    </div>
+                    <div className="detail-item">
+                      <label>Status:</label>
+                      <span className={`status-badge ${matchDetailsModal.status || 'unconfirmed'}`}>
+                        {matchDetailsModal.status === 'confirmed' && '✓ Confirmed'}
+                        {matchDetailsModal.status === 'unconfirmed' && '⏳ Unconfirmed'}
+                        {matchDetailsModal.status === 'disputed' && '⚠ Disputed'}
+                        {matchDetailsModal.status === 'cancelled' && '✗ Cancelled'}
+                        {!matchDetailsModal.status && '⏳ Unconfirmed'}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="grid-cell label-cell">ELO Before</div>
-                  <div className="grid-cell winner-cell">{matchDetailsModal.winner_elo_before || 'N/A'}</div>
-                  <div className="grid-cell loser-cell">{matchDetailsModal.loser_elo_before || 'N/A'}</div>
+                  <div className="match-stats-grid">
+                    <div className="grid-header label-col">Statistic</div>
+                    <div className="grid-header winner-col">Winner</div>
+                    <div className="grid-header loser-col">Loser</div>
 
-                  <div className="grid-cell label-cell">ELO After</div>
-                  <div className="grid-cell winner-cell">{matchDetailsModal.winner_elo_after || 'N/A'}</div>
-                  <div className="grid-cell loser-cell">{matchDetailsModal.loser_elo_after || 'N/A'}</div>
+                    <div className="grid-cell label-cell">Player</div>
+                    <div className="grid-cell winner-cell">{matchDetailsModal.winner_nickname}</div>
+                    <div className="grid-cell loser-cell">{matchDetailsModal.loser_nickname}</div>
 
-                  <div className="grid-cell label-cell">ELO Change</div>
-                  <div className="grid-cell winner-cell">
-                    <span className={`rating-change ${winnerEloChange(matchDetailsModal) >= 0 ? 'positive' : 'negative'}`}>
-                      {winnerEloChange(matchDetailsModal) >= 0 ? '+' : ''}{winnerEloChange(matchDetailsModal)}
-                    </span>
+                    <div className="grid-cell label-cell">Faction</div>
+                    <div className="grid-cell winner-cell"><span className="faction-badge">{matchDetailsModal.winner_faction}</span></div>
+                    <div className="grid-cell loser-cell"><span className="faction-badge">{matchDetailsModal.loser_faction}</span></div>
+
+                    <div className="grid-cell label-cell">Rating</div>
+                    <div className="grid-cell winner-cell">{matchDetailsModal.winner_rating || '-'}</div>
+                    <div className="grid-cell loser-cell">{matchDetailsModal.loser_rating || '-'}</div>
+
+                    <div className="grid-cell label-cell">ELO Before</div>
+                    <div className="grid-cell winner-cell">{matchDetailsModal.winner_elo_before || 'N/A'}</div>
+                    <div className="grid-cell loser-cell">{matchDetailsModal.loser_elo_before || 'N/A'}</div>
+
+                    <div className="grid-cell label-cell">ELO After</div>
+                    <div className="grid-cell winner-cell">{matchDetailsModal.winner_elo_after || 'N/A'}</div>
+                    <div className="grid-cell loser-cell">{matchDetailsModal.loser_elo_after || 'N/A'}</div>
+
+                    <div className="grid-cell label-cell">ELO Change</div>
+                    <div className="grid-cell winner-cell">
+                      <span className={`rating-change ${winnerEloChange(matchDetailsModal) >= 0 ? 'positive' : 'negative'}`}>
+                        {winnerEloChange(matchDetailsModal) >= 0 ? '+' : ''}{winnerEloChange(matchDetailsModal)}
+                      </span>
+                    </div>
+                    <div className="grid-cell loser-cell">
+                      <span className={`rating-change ${loserEloChange(matchDetailsModal) >= 0 ? 'positive' : 'negative'}`}>
+                        {loserEloChange(matchDetailsModal) >= 0 ? '+' : ''}{loserEloChange(matchDetailsModal)}
+                      </span>
+                    </div>
+
+                    {(matchDetailsModal.winner_comments || matchDetailsModal.loser_comments) && (
+                      <>
+                        <div className="grid-cell label-cell">Comments</div>
+                        <div className="grid-cell winner-cell" title={matchDetailsModal.winner_comments || undefined}>{matchDetailsModal.winner_comments || '-'}</div>
+                        <div className="grid-cell loser-cell" title={matchDetailsModal.loser_comments || undefined}>{matchDetailsModal.loser_comments || '-'}</div>
+                      </>
+                    )}
+
+                    {matchDetailsModal.replay_file_path && (
+                      <>
+                        <div className="grid-cell label-cell">Replay</div>
+                        <div className="grid-cell winner-cell" style={{ gridColumn: '2 / 4' }}>
+                          <button 
+                            className="download-btn-compact"
+                            onClick={() => {
+                              closeMatchDetails();
+                            }}
+                            title={`Downloads: ${matchDetailsModal.replay_downloads || 0}`}
+                          >
+                            ⬇️ Download ({matchDetailsModal.replay_downloads || 0})
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div className="grid-cell loser-cell">
-                    <span className={`rating-change ${loserEloChange(matchDetailsModal) >= 0 ? 'positive' : 'negative'}`}>
-                      {loserEloChange(matchDetailsModal) >= 0 ? '+' : ''}{loserEloChange(matchDetailsModal)}
-                    </span>
-                  </div>
-
-                  {(matchDetailsModal.winner_comments || matchDetailsModal.loser_comments) && (
-                    <>
-                      <div className="grid-cell label-cell">Comments</div>
-                      <div className="grid-cell winner-cell" title={matchDetailsModal.winner_comments || undefined}>{matchDetailsModal.winner_comments || '-'}</div>
-                      <div className="grid-cell loser-cell" title={matchDetailsModal.loser_comments || undefined}>{matchDetailsModal.loser_comments || '-'}</div>
-                    </>
-                  )}
-
-                  {matchDetailsModal.replay_file_path && (
-                    <>
-                      <div className="grid-cell label-cell">Replay</div>
-                      <div className="grid-cell winner-cell" style={{ gridColumn: '2 / 4' }}>
-                        <button 
-                          className="download-btn-compact"
-                          onClick={() => closeMatchDetails()}
-                          title={`Downloads: ${matchDetailsModal.replay_downloads || 0}`}
-                        >
-                          ⬇️ Download ({matchDetailsModal.replay_downloads || 0})
-                        </button>
-                      </div>
-                    </>
-                  )}
                 </div>
               </div>
 
