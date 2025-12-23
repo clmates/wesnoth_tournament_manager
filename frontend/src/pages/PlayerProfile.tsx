@@ -114,6 +114,7 @@ const PlayerProfile: React.FC = () => {
 
           <div className="recent-games-container">
             <h2>{t('recent_games')}</h2>
+            {/* Direct MatchesTable - not using RecentGamesTable wrapper */}
             <MatchesTable 
               matches={matches.slice(0, 30)}
               currentPlayerId={id || ''}
