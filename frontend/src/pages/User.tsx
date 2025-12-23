@@ -9,6 +9,7 @@ import EloChart from '../components/EloChart';
 import OpponentStats from '../components/OpponentStats';
 import MatchesTable from '../components/MatchesTable';
 import MatchDetailsModal from '../components/MatchDetailsModal';
+import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import '../styles/UserProfile.css';
 
 const User: React.FC = () => {
@@ -21,6 +22,10 @@ const User: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [matchDetailsModal, setMatchDetailsModal] = useState<any>(null);
+  const [confirmationModal, setConfirmationModal] = useState<any>({
+    isOpen: false,
+    match: null,
+  });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -75,6 +80,25 @@ const User: React.FC = () => {
     setMatchDetailsModal(null);
   };
 
+  const openConfirmation = (match: any) => {
+    setConfirmationModal({
+      isOpen: true,
+      match: match,
+    });
+  };
+
+  const closeConfirmation = () => {
+    setConfirmationModal({
+      isOpen: false,
+      match: null,
+    });
+  };
+
+  const handleConfirmationSuccess = () => {
+    closeConfirmation();
+    refetchMatches();
+  };
+
   if (loading) {
     return <div className="auth-container"><p>Loading...</p></div>;
   }
@@ -108,6 +132,7 @@ const User: React.FC = () => {
                 matches={matches.slice(0, 30)}
                 currentPlayerId={userId || ''}
                 onViewDetails={openMatchDetails}
+                onOpenConfirmation={openConfirmation}
                 onDownloadReplay={async (matchId, replayFilePath) => {
                   try {
                     const API_URL = window.location.hostname.includes('main.') 
@@ -141,6 +166,16 @@ const User: React.FC = () => {
           isOpen={!!matchDetailsModal}
           onClose={closeMatchDetails}
         />
+
+        {/* Match Confirmation Modal */}
+        {confirmationModal.isOpen && confirmationModal.match && (
+          <MatchConfirmationModal
+            match={confirmationModal.match}
+            currentPlayerId={userId || ''}
+            onClose={closeConfirmation}
+            onSubmit={handleConfirmationSuccess}
+          />
+        )}
       </div>
     </MainLayout>
   );
