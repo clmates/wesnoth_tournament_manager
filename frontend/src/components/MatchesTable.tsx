@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { matchService } from '../services/api';
 import PlayerLink from './PlayerLink';
+import { useAuthStore } from '../store/authStore';
 
 // Get API URL for direct backend calls
 const getApiUrl = (): string => {
@@ -31,6 +32,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   onOpenConfirmation,
 }) => {
   const { t } = useTranslation();
+  const { isAuthenticated } = useAuthStore();
 
   const winnerEloChange = (match: any) => (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
   const loserEloChange = (match: any) => (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
@@ -179,8 +181,8 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                   </span>
                 </div>
                 <div className="actions-item">
-                  {/* Show Report Match button for loser when match is unconfirmed */}
-                  {currentPlayerId === match.loser_id && (match.status === 'unconfirmed' || !match.status) && (
+                  {/* Show Report Match button for loser when match is unconfirmed and user is authenticated */}
+                  {isAuthenticated && currentPlayerId === match.loser_id && (match.status === 'unconfirmed' || !match.status) && (
                     <button
                       className="btn-report-match"
                       onClick={() => onOpenConfirmation && onOpenConfirmation(match)}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import '../styles/MatchConfirmationModal.css';
 
 interface MatchConfirmationModalProps {
@@ -21,6 +22,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>('');
+  const { isAuthenticated } = useAuthStore();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -155,20 +157,29 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
           >
             Cancel
           </button>
-          <button
-            className="btn btn-danger"
-            onClick={handleDispute}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Processing...' : 'Dispute'}
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={handleConfirm}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Processing...' : 'Confirm'}
-          </button>
+          {isAuthenticated && (
+            <>
+              <button
+                className="btn btn-danger"
+                onClick={handleDispute}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Processing...' : 'Dispute'}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleConfirm}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Processing...' : 'Confirm'}
+              </button>
+            </>
+          )}
+          {!isAuthenticated && (
+            <div className="unauthenticated-message">
+              Please log in to confirm or dispute this match.
+            </div>
+          )}
         </div>
       </div>
     </div>

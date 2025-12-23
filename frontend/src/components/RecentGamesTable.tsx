@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import MatchesTable from './MatchesTable';
 import MatchConfirmationModal from './MatchConfirmationModal';
 import { matchService } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import '../styles/RecentGamesTable.css';
 
 // Get API URL for direct backend calls
@@ -24,10 +25,13 @@ interface RecentGamesTableProps {
 
 const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPlayerId, onDownloadReplay, onMatchConfirmed }) => {
   const { t } = useTranslation();
+  const { isAuthenticated } = useAuthStore();
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
 
   const handleReportClick = (match: any) => {
-    setSelectedMatch(match);
+    if (isAuthenticated) {
+      setSelectedMatch(match);
+    }
   };
 
   const handleCloseModal = () => {
