@@ -193,7 +193,13 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                   )}
                   <button
                     className="details-btn"
-                    onClick={() => onViewDetails && onViewDetails(match)}
+                    onClick={() => {
+                      console.log('Details button clicked for match:', match);
+                      console.log('onViewDetails prop exists:', !!onViewDetails);
+                      if (onViewDetails) {
+                        onViewDetails(match);
+                      }
+                    }}
                     title={t('view_match_details')}
                   >
                     {t('details_btn')}

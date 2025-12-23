@@ -36,8 +36,12 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
   };
 
   const handleDetailsClick = (match: any) => {
+    console.log('handleDetailsClick called with match:', match);
+    console.log('onViewDetails callback:', onViewDetails);
     if (onViewDetails) {
       onViewDetails(match);
+    } else {
+      console.warn('onViewDetails callback not provided to RecentGamesTable');
     }
   };
 
