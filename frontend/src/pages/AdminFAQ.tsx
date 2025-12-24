@@ -29,11 +29,11 @@ const AdminFAQ: React.FC = () => {
   };
 
   const [formData, setFormData] = useState({
-    en: { question: '', answer: '' },
-    es: { question: '', answer: '' },
-    zh: { question: '', answer: '' },
-    de: { question: '', answer: '' },
-    ru: { question: '', answer: '' }
+    en: { question: '', answer: '', order: '' },
+    es: { question: '', answer: '', order: '' },
+    zh: { question: '', answer: '', order: '' },
+    de: { question: '', answer: '', order: '' },
+    ru: { question: '', answer: '', order: '' }
   });
 
   useEffect(() => {
@@ -77,11 +77,11 @@ const AdminFAQ: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      en: { question: '', answer: '' },
-      es: { question: '', answer: '' },
-      zh: { question: '', answer: '' },
-      de: { question: '', answer: '' },
-      ru: { question: '', answer: '' }
+      en: { question: '', answer: '', order: '' },
+      es: { question: '', answer: '', order: '' },
+      zh: { question: '', answer: '', order: '' },
+      de: { question: '', answer: '', order: '' },
+      ru: { question: '', answer: '', order: '' }
     });
     setActiveLanguageTab('en');
     setEditingId(null);
@@ -120,7 +120,8 @@ const AdminFAQ: React.FC = () => {
       if (item[lang]) {
         newFormData[lang as keyof typeof newFormData] = {
           question: item[lang].question,
-          answer: item[lang].answer
+          answer: item[lang].answer,
+          order: item[lang].order !== undefined ? String(item[lang].order) : ''
         };
       }
     });
@@ -205,6 +206,25 @@ const AdminFAQ: React.FC = () => {
                 })}
                 rows={5}
                 required
+              />
+              {/* Campo order solo editable en inglés, visible en otros idiomas */}
+              <input
+                type="number"
+                placeholder="Order"
+                value={formData[activeLanguageTab as keyof typeof formData].order}
+                onChange={(e) => {
+                  if (activeLanguageTab === 'en') {
+                    setFormData({
+                      ...formData,
+                      en: { ...formData.en, order: e.target.value }
+                    });
+                  }
+                }}
+                min={0}
+                step={1}
+                readOnly={activeLanguageTab !== 'en'}
+                style={{ background: activeLanguageTab !== 'en' ? '#f0f0f0' : undefined }}
+                title={activeLanguageTab !== 'en' ? 'Order can only be edited in English' : ''}
               />
             </div>
 
