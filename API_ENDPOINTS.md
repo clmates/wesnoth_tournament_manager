@@ -24,6 +24,8 @@ Public API (no auth)
 - [GET] /api/public/matches/recent — Public — none — Recent confirmed matches.
 - [GET] /api/public/players?page=1&nickname=&min_elo=&max_elo=&min_matches=&rated_only= — Public — query: pagination + filters — Players directory (supports pagination and filter query params).
 - [GET] /api/public/matches?page=1 — Public — query: page — List public matches (paginated).
+- [GET] /api/public/maps — Public — List all active maps (is_active = true)
+- [GET] /api/public/factions — Public — List all active factions (is_active = true)
 
 User routes
 - [GET] /api/users/profile — Private — none — Get profile of current authenticated user.
@@ -95,6 +97,22 @@ Admin routes
 - [POST] /api/admin/faq — Private — Create FAQ
 - [PUT] /api/admin/faq/:id — Private — Update FAQ
 - [DELETE] /api/admin/faq/:id — Private — Delete FAQ
+
+## Maps & Factions Endpoints
+
+### Admin Maps
+- [GET] /api/admin/maps — Private — List all maps
+- [GET] /api/admin/maps/:mapId/translations — Private — Get translations for a map
+- [POST] /api/admin/maps — Private — Create new map
+- [POST] /api/admin/maps/:mapId/translations — Private — Add/update translation for a map
+- [DELETE] /api/admin/maps/:mapId — Private — Delete map (checks if used in matches)
+
+### Admin Factions
+- [GET] /api/admin/factions — Private — List all factions
+- [GET] /api/admin/factions/:factionId/translations — Private — Get translations for a faction
+- [POST] /api/admin/factions — Private — Create new faction
+- [POST] /api/admin/factions/:factionId/translations — Private — Add/update translation for a faction
+- [DELETE] /api/admin/factions/:factionId — Private — Delete faction (checks if used in matches)
 
 ---
 

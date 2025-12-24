@@ -1,72 +1,103 @@
-# Discord Integration Setup Guide
+# Discord Integration & Environment Control Guide
 
-## Configuration Variables Required in Railway
+## Configuración de variables en Railway
 
-To enable Discord forum thread creation for tournaments, add the following environment variables to your Railway project:
+Para habilitar la integración y control de notificaciones de Discord, añade las siguientes variables de entorno a tu proyecto Railway:
 
-### Required Variables
+### Variables requeridas
 
 ```
 DISCORD_BOT_TOKEN=your_bot_token_here
 DISCORD_FORUM_CHANNEL_ID=your_forum_channel_id_here
+DISCORD_ENABLED=true
 ```
 
-## How to Get These Values
+- **DISCORD_BOT_TOKEN:** Token de tu bot de Discord
+- **DISCORD_FORUM_CHANNEL_ID:** ID del canal de foro donde se crearán los hilos
+- **DISCORD_ENABLED:** `true` para habilitar notificaciones, cualquier otro valor (o no definido) las desactiva
+
+## Cómo obtener los valores
 
 ### 1. DISCORD_BOT_TOKEN
-
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click "New Application" and give it a name (e.g., "Wesnoth Bot")
-3. Go to the "Bot" section and click "Add Bot"
-4. Under TOKEN, click "Copy" to copy your bot token
-5. Paste this value as `DISCORD_BOT_TOKEN` in Railway
+1. Ve a [Discord Developer Portal](https://discord.com/developers/applications)
+2. Crea una nueva aplicación y añade un bot
+3. Copia el token del bot y pégalo como `DISCORD_BOT_TOKEN` en Railway
 
 ### 2. DISCORD_FORUM_CHANNEL_ID
+1. Crea un canal de foro en tu servidor Discord (ej: "tournaments")
+2. Haz clic derecho y selecciona "Copy Channel ID"
+3. Pega ese valor como `DISCORD_FORUM_CHANNEL_ID` en Railway
 
-1. Go to your Discord server
-2. Create a **Forum Channel** named "tournaments"
-3. Right-click on the forum channel and select "Copy Channel ID"
-4. Paste this value as `DISCORD_FORUM_CHANNEL_ID` in Railway
-
-### 3. Give Bot Permissions
-
-1. Back in Discord Developer Portal, in your bot's OAuth2 section:
-2. Go to **URL Generator**
-3. Select these scopes: `bot`
-4. Select these permissions:
+### 3. Permisos del bot
+1. En OAuth2 > URL Generator, selecciona el scope `bot` y los permisos:
    - Send Messages
    - Create Public Threads
    - Manage Threads
-5. Copy the generated URL and open it in your browser
-6. Select your Discord server and authorize the bot
+2. Autoriza el bot en tu servidor
 
-## What This Does
+## Control de notificaciones por entorno
 
-Once configured, your system will:
+La variable `DISCORD_ENABLED` permite activar o desactivar las notificaciones de Discord sin depender del entorno de despliegue:
 
-✅ Create a Discord thread automatically when a tournament is created  
-✅ Post updates when participants join and are accepted  
-✅ Post when registration closes  
-✅ Post when the tournament starts  
-✅ Post round updates and match results  
-✅ Allow anyone in Discord to comment on the thread without restrictions
+- `DISCORD_ENABLED=true` → Discord **habilitado** ✅
+- `DISCORD_ENABLED=false` o no definido → Discord **deshabilitado** ⏭️
 
-## Testing
+**Recomendación:**
+- En producción: `DISCORD_ENABLED=true`
+- En test/desarrollo: `DISCORD_ENABLED=false` o no definida
 
-After setting up:
+## Comportamiento e implementación
 
-1. Create a tournament in your application
-2. Check the "tournaments" forum channel in Discord
-3. A new thread should appear automatically with the tournament name
-4. Discord thread will receive messages as tournament events happen
+- Si `DISCORD_ENABLED` es `true`, el sistema enviará notificaciones a Discord normalmente.
+- Si está en `false` o no definida, los métodos de notificación retornan sin error y se loguea que Discord está deshabilitado.
+- El sistema es tolerante a fallos: si la API de Discord falla o las variables no están configuradas, el resto de la aplicación sigue funcionando.
+- El estado de Discord y los skips se loguean en consola para trazabilidad.
 
-## If Discord Features Don't Work
+**Ejemplo de log al iniciar:**
+```
+🔔 Discord Service: ✅ ENABLED (DISCORD_ENABLED=true)
+```
+O si está deshabilitado:
+```
+🔔 Discord Service: ⏭️  DISABLED (DISCORD_ENABLED=not set)
+```
 
-The system is designed to be **fault-tolerant**:
-- If Discord variables are not configured, tournaments will still work normally
-- If Discord API fails, tournament operations will continue without error
-- Discord notifications are logged but don't affect core functionality
+**Ejemplo de log al intentar notificar con Discord deshabilitado:**
+```
+⏭️  Discord disabled (DISCORD_ENABLED=false). Skipping thread creation.
+```
 
-## Support
+## Qué hace la integración
 
-For Discord API issues, check the [Discord Developer Documentation](https://discord.com/developers/docs/intro)
+Una vez configurado:
+
+✅ Crea un hilo de Discord automáticamente al crear un torneo  
+✅ Publica actualizaciones de participantes, inicio, rondas y resultados  
+✅ Permite comentarios en el hilo de Discord sin restricciones
+
+## Pruebas y verificación
+
+1. Crea un torneo en la aplicación
+2. Verifica que aparece un hilo en el canal de foro de Discord
+3. Si `DISCORD_ENABLED` está desactivado, revisa los logs para confirmar que las operaciones se omiten correctamente
+
+## Resumen de código relevante
+
+- El servicio de Discord en `backend/src/services/discordService.ts` usa:
+  ```typescript
+  const DISCORD_ENABLED = process.env.DISCORD_ENABLED === 'true';
+  console.log(`🔔 Discord Service: ${DISCORD_ENABLED ? '✅ ENABLED' : '⏭️  DISABLED'} (DISCORD_ENABLED=${process.env.DISCORD_ENABLED || 'not set'})`);
+  ```
+- Todos los métodos de notificación están protegidos por este flag y loguean si se omite la operación.
+
+## Beneficios
+
+1. **Control independiente:** Puedes activar/desactivar Discord sin cambiar el entorno
+2. **Tolerancia a fallos:** El sistema nunca falla por problemas de Discord
+3. **Logs claros:** Siempre sabrás si Discord está activo y por qué
+4. **Fácil de usar:** Solo cambia la variable en Railway
+
+## Soporte
+
+Para problemas con la API de Discord, consulta la [documentación oficial](https://discord.com/developers/docs/intro)
+

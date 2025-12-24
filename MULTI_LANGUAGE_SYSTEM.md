@@ -1,10 +1,15 @@
-# Multi-Language System Documentation
+---
+# Multi-Language System
 
 ## Overview
 
-The FAQ and Announcements (News) systems now support direct admin input for all 5 supported languages in a single unified form. This replaces the previous AI translation API approach.
+El sistema permite gestionar contenido en 5 idiomas (EN, ES, ZH, DE, RU) para News y FAQ, con administración centralizada y un sistema de fallback inteligente para el usuario final.
 
-## Supported Languages
+---
+
+## 1. Multi-Language System (Gestión y Administración)
+
+### Supported Languages
 
 - **EN** - English
 - **ES** - Español (Spanish)
@@ -12,72 +17,97 @@ The FAQ and Announcements (News) systems now support direct admin input for all 
 - **DE** - Deutsch (German)
 - **RU** - Русский (Russian)
 
-## Database Schema
+### Database Schema
 
-### News Table (news)
-- **id** (UUID) - Unique identifier, same for all language versions
-- **title** (VARCHAR) - Title for this language version
-- **content** (TEXT) - Content for this language version
-- **language_code** (VARCHAR(10)) - Language code (en, es, zh, de, ru)
-- **author** (VARCHAR) - Author name
-- **published_at** (TIMESTAMP) - Publication timestamp
-- **created_at** (TIMESTAMP) - Creation timestamp
-- **updated_at** (TIMESTAMP) - Last update timestamp
+#### News Table (`news`)
+- id (UUID) — Unique identifier, same for all language versions
+- title (VARCHAR)
+- content (TEXT)
+- language_code (VARCHAR(10))
+- author (VARCHAR)
+- published_at (TIMESTAMP)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+- **Unique Constraint**: (id, language_code)
 
-**Unique Constraint**: (id, language_code) - ensures only one record per language per announcement
+#### FAQ Table (`faq`)
+- id (UUID)
+- question (VARCHAR)
+- answer (TEXT)
+- language_code (VARCHAR(10))
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+- **Unique Constraint**: (id, language_code)
 
-### FAQ Table (faq)
-- **id** (UUID) - Unique identifier, same for all language versions
-- **question** (VARCHAR) - Question for this language version
-- **answer** (TEXT) - Answer for this language version
-- **language_code** (VARCHAR(10)) - Language code (en, es, zh, de, ru)
-- **created_at** (TIMESTAMP) - Creation timestamp
-- **updated_at** (TIMESTAMP) - Last update timestamp
+### Admin UI
 
-**Unique Constraint**: (id, language_code) - ensures only one record per language per FAQ
+- Formularios con pestañas para los 5 idiomas.
+- Un solo submit crea/actualiza todas las versiones.
+- Estructura de estado:
+  ```typescript
+  {
+    en: { title/question, content/answer },
+    es: { ... },
+    zh: { ... },
+    de: { ... },
+    ru: { ... }
+  }
+  ```
 
-## Admin Form Architecture
+### API Endpoints
 
-### AdminFAQ.tsx
-- Shows form with 5 language tabs (EN, ES, ZH, DE, RU)
-- Admin enters question + answer for each language
-- Single submit button creates/updates all 5 records simultaneously
-- Display shows multi-language badge indicating all languages are available
+- POST/PUT/DELETE/GET para `/api/admin/news` y `/api/admin/faq` gestionan todas las versiones de idioma.
+- El frontend agrupa por ID para mostrar el contenido multilingüe.
 
-**Form State Structure**:
+---
+
+## 2. Language Fallback System (Selección y Experiencia de Usuario)
+
+### Principio Clave
+
+**El backend retorna todas las versiones de idioma; el frontend selecciona la mejor para el usuario, con fallback automático a inglés.**
+
+### Flujo de Datos
+
+1. El usuario abre la app con preferencia de idioma (ej: ES).
+2. El frontend llama a `/api/public/news` y `/api/public/faq` (sin filtro de idioma).
+3. El backend retorna todos los registros en todos los idiomas.
+4. El frontend agrupa por ID y aplica lógica de fallback:
+   - Si existe el idioma del usuario → lo usa.
+   - Si no, usa inglés.
+   - Si no hay inglés, usa cualquier idioma disponible.
+
+### Utilidades Frontend
+
+- `groupByLanguage(items)`
+- `getLocalizedContent(groupedItem, userLanguage)`
+- `processMultiLanguageItems(items, userLanguage)`
+
+### Ejemplo de Uso
+
 ```typescript
-{
-  en: { question: string, answer: string },
-  es: { question: string, answer: string },
-  zh: { question: string, answer: string },
-  de: { question: string, answer: string },
-  ru: { question: string, answer: string }
-}
+const rawData = await publicService.getNews();
+const localized = processMultiLanguageItems(rawData, i18n.language);
 ```
 
-### AdminAnnouncements.tsx
-- Shows form with 5 language tabs (EN, ES, ZH, DE, RU)
-- Admin enters title + content for each language
-- Single submit button creates/updates all 5 records simultaneously
-- Display shows multi-language badge indicating all languages are available
+### Ejemplo de Fallback
 
-**Form State Structure**:
-```typescript
-{
-  en: { title: string, content: string },
-  es: { title: string, content: string },
-  zh: { title: string, content: string },
-  de: { title: string, content: string },
-  ru: { title: string, content: string }
-}
-```
+- Usuario ES, item tiene ES → muestra ES.
+- Usuario DE, item solo EN → muestra EN.
+- Usuario RU, item no existe → no se muestra.
 
-## API Endpoints
+### Beneficios
 
-### Create News/Announcement
-**Endpoint**: `POST /api/admin/news`
+- Siempre muestra contenido (nunca vacío).
+- Menos llamadas API (una sola para todos los idiomas).
+- Mejor UX y rendimiento.
+- Transparente para el usuario.
 
-**Request Body**:
+### Futuras Mejoras
+
+- Badge de idioma cuando se usa fallback.
+- Flags de "traducción pendiente" para admins.
+- Sugerencias de traducción comunitaria.
 ```json
 {
   "en": { "title": "Welcome", "content": "Welcome to our site" },
