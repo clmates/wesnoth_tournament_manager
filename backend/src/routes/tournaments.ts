@@ -955,10 +955,12 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     // For League tournaments, calculate actual rounds based on format (1=ida, 2=ida y vuelta)
     else if (tournamentType === 'league') {
       const leagueFormat = totalGeneralRounds; // 1 or 2
-      // Calculate combinations: C(n,2) = n*(n-1)/2
-      const matchCombinations = (participantCount * (participantCount - 1)) / 2;
-      // Each combination is one "round", and if ida y vuelta, multiply by 2
-      totalGeneralRounds = matchCombinations * leagueFormat;
+      // For round-robin: each player plays each other player once per format iteration
+      // Rounds needed = (n-1) * format, where n = number of participants
+      // This works for both even and odd number of players
+      // With odd players: one "bye" per round, players rotate
+      // With even players: all players play each round
+      totalGeneralRounds = (participantCount - 1) * leagueFormat;
     }
 
     // Determine round classification based on tournament type
