@@ -34,7 +34,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   const { t } = useTranslation();
   const { isAuthenticated, userId } = useAuthStore();
   
-  console.log('MatchesTable rendered - isAuthenticated:', isAuthenticated, 'userId:', userId, 'onViewDetails:', !!onViewDetails);
+  if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('MatchesTable rendered - isAuthenticated:', isAuthenticated, 'userId:', userId, 'onViewDetails:', !!onViewDetails);
 
   const winnerEloChange = (match: any) => (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
   const loserEloChange = (match: any) => (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
@@ -47,27 +47,29 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
         return;
       }
 
-      console.log('🔽 Starting download for match:', matchId);
-      console.log('🔽 Incrementing download count...');
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
+        console.log('🔽 Starting download for match:', matchId);
+        console.log('🔽 Incrementing download count...');
+      }
       await matchService.incrementReplayDownloads(matchId);
       
       // Fetch signed URL from the backend
-      console.log('🔽 Fetching signed URL from backend...');
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Fetching signed URL from backend...');
       const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
-      console.log('🔽 Download URL:', downloadUrl);
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Download URL:', downloadUrl);
       const response = await fetch(downloadUrl, {
         method: 'GET'
       });
 
-      console.log('🔽 Response status:', response.status);
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Response status:', response.status);
       if (!response.ok) {
         throw new Error(`Download failed with status ${response.status}`);
       }
 
       // Get signed URL from response and redirect
-      console.log('🔽 Getting signed URL...');
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Getting signed URL...');
       const { signedUrl, filename } = await response.json();
-      console.log('🔽 Redirecting to signed URL:', signedUrl);
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Redirecting to signed URL:', signedUrl);
       window.location.href = signedUrl;
     } catch (err) {
       console.error('Error downloading replay:', err);
@@ -196,8 +198,10 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                   <button
                     className="details-btn"
                     onClick={() => {
-                      console.log('Details button clicked for match:', match);
-                      console.log('onViewDetails prop exists:', !!onViewDetails);
+                      if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
+                        console.log('Details button clicked for match:', match);
+                        console.log('onViewDetails prop exists:', !!onViewDetails);
+                      }
                       if (onViewDetails) {
                         onViewDetails(match);
                       }

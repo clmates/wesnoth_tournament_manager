@@ -74,8 +74,10 @@ const AdminMapsAndFactions: React.FC = () => {
         api.get('/admin/maps'),
         api.get('/admin/factions'),
       ]);
-      console.log('Maps response:', mapsRes.data);
-      console.log('Factions response:', factionsRes.data);
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
+        console.log('Maps response:', mapsRes.data);
+        console.log('Factions response:', factionsRes.data);
+      }
       setMaps(mapsRes.data || []);
       setFactions(factionsRes.data || []);
     } catch (err: any) {

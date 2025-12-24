@@ -1,3 +1,8 @@
+# API Endpoints Reference
+
+**Última actualización:** 2025-12-24  
+*Actualiza este archivo cada vez que se añada, modifique o elimine un endpoint.*
+
 API Endpoints (summary)
 
 Format: [METHOD] /path  — (Public/Private) — params — Short description
@@ -63,28 +68,451 @@ Match routes
 - [GET] /api/matches/:matchId/replay/download — Public/Private — params: matchId — Download replay file for a match (if exists).
 - [POST] /api/matches/:matchId/replay/download-count — Public — params: matchId — Increment replay download count for analytics.
 - [GET] /api/matches?page=1&winner=&loser=&map=&status=&confirmed= — Private — query: pagination + filters — List matches (supports pagination and filtering parameters used by the UI).
+- [GET] /api/matches/:id — Private — Get match details.
 
-Admin routes (prefix /api/admin)
-- [GET] /api/admin/users — Private — admin only — List all users.
-- [GET] /api/admin/registration-requests — Private — admin — List pending registration requests.
-- [POST] /api/admin/registration-requests/:id/approve — Private — admin — body: {password} — Approve registration and create user (unrated).
-- [POST] /api/admin/registration-requests/:id/reject — Private — admin — Reject registration request.
-- [POST] /api/admin/users/:id/block — Private — admin — Block a user.
-- [POST] /api/admin/users/:id/unblock — Private — admin — Unblock a user.
-- [POST] /api/admin/users/:id/make-admin — Private — admin — Grant admin rights.
-- [POST] /api/admin/users/:id/remove-admin — Private — admin — Revoke admin rights.
-- [DELETE] /api/admin/users/:id — Private — admin — Delete a user.
-- [POST] /api/admin/users/:id/force-reset-password — Private — admin — Force password reset and return temp password.
-- [PUT] /api/admin/password-policy — Private — admin — Update password policy settings.
-- [POST] /api/admin/news — Private — admin — Create news/announcement with all 5 languages (body: {en: {title, content}, es: {title, content}, zh: {title, content}, de: {title, content}, ru: {title, content}}).
-- [PUT] /api/admin/news/:id — Private — admin — Update news with all 5 languages (replaces all language versions).
-- [DELETE] /api/admin/news/:id — Private — admin — Delete news (removes all language versions).
-- [GET] /api/admin/news — Private — admin — List news (returns all language versions grouped by ID).
-- [GET] /api/admin/faq — Private — admin — List FAQ entries (returns all language versions grouped by ID).
-- [POST] /api/admin/faq — Private — admin — Create FAQ entry with all 5 languages (body: {en: {question, answer}, es: {question, answer}, zh: {question, answer}, de: {question, answer}, ru: {question, answer}}).
-- [PUT] /api/admin/faq/:id — Private — admin — Update FAQ entry with all 5 languages (replaces all language versions).
-- [DELETE] /api/admin/faq/:id — Private — admin — Delete FAQ (removes all language versions).
-- [POST] /api/admin/recalculate-all-stats — Private — admin — Recalculate all stats globally by replaying matches.
+Admin routes
+- [GET] /api/admin/registration-requests — Private — List pending registration requests
+- [POST] /api/admin/registration-requests/:id/approve — Private — Approve registration (requires password)
+- [POST] /api/admin/registration-requests/:id/reject — Private — Reject registration
+- [GET] /api/admin/users — Private — List all users
+- [POST] /api/admin/users/:id/block — Private — Block user
+- [POST] /api/admin/users/:id/unblock — Private — Unblock user
+- [POST] /api/admin/users/:id/unlock — Private — Unlock user account
+- [POST] /api/admin/users/:id/make-admin — Private — Grant admin role
+- [POST] /api/admin/users/:id/remove-admin — Private — Remove admin role
+- [DELETE] /api/admin/users/:id — Private — Delete user
+- [POST] /api/admin/users/:id/force-reset-password — Private — Force password reset
+- [POST] /api/admin/recalculate-all-stats — Private — Recalculate all stats
+- [GET] /api/admin/audit-logs — Private — Get audit logs (optional params)
+- [DELETE] /api/admin/audit-logs — Private — Delete audit logs (by logIds)
+- [DELETE] /api/admin/audit-logs/old — Private — Delete old audit logs (by daysBack)
+- [PUT] /api/admin/password-policy — Private — Update password policy
+- [GET] /api/admin/news — Private — List news
+- [POST] /api/admin/news — Private — Create news
+- [PUT] /api/admin/news/:id — Private — Update news
+- [DELETE] /api/admin/news/:id — Private — Delete news
+- [GET] /api/admin/faq — Private — List FAQ
+- [POST] /api/admin/faq — Private — Create FAQ
+- [PUT] /api/admin/faq/:id — Private — Update FAQ
+- [DELETE] /api/admin/faq/:id — Private — Delete FAQ
+
+---
+
+## Ejemplo de formato para cada endpoint
+
+- **[METHOD] /path** — (Public/Private) — params — Descripción
+
+### Request
+```json
+{
+  // Ejemplo de body o parámetros
+}
+```
+### Response
+```json
+{
+  // Ejemplo de respuesta
+}
+```
+
+---
+
+# Endpoints con ejemplos
+
+### [POST] /api/auth/register — Public — body: {nickname, email, password, language?, discord_id?} — Register a new user.
+**Request:**
+```json
+{
+  "nickname": "player1",
+  "email": "player1@email.com",
+  "password": "securepass",
+  "language": "es",
+  "discord_id": "123456789"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "userId": "abc123",
+  "token": "jwt-token-string"
+}
+```
+
+### [POST] /api/auth/login — Public — body: {nickname, password} — Authenticate and return token + userId.
+**Request:**
+```json
+{
+  "nickname": "player1",
+  "password": "securepass"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "userId": "abc123",
+  "token": "jwt-token-string"
+}
+```
+
+### [GET] /api/public/tournaments?page=1&name=&status=&type= — Public — query: page, name, status, type — List public tournaments.
+**Request:**
+```http
+GET /api/public/tournaments?page=1&name=Summer&status=in_progress&type=elimination
+```
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "t1",
+      "name": "Summer Cup",
+      "status": "in_progress",
+      "type": "elimination"
+    }
+  ],
+  "page": 1,
+  "total": 10
+}
+```
+
+### [POST] /api/matches/report — Private — multipart/form-data — Report a match with replay upload.
+**Request:**
+```http
+POST /api/matches/report
+Content-Type: multipart/form-data
+
+{
+  "opponent_id": "user2",
+  "map": "Weldyn Channel",
+  "winner_faction": "Drakes",
+  "loser_faction": "Undead",
+  "comments": "Good game!",
+  "rating": 5,
+  "replay": "file.wesnoth"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "match_id": "m123"
+}
+```
+
+### [POST] /api/matches/:id/confirm — Private — params: id — body: {action: 'confirm'|'dispute', comments?, rating?}
+**Request:**
+```json
+{
+  "action": "confirm",
+  "comments": "No issues",
+  "rating": 4
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "status": "confirmed"
+}
+```
+
+### [GET] /api/users/profile — Private — none — Get profile of current authenticated user.
+**Response:**
+```json
+{
+  "id": "abc123",
+  "nickname": "player1",
+  "email": "player1@email.com",
+  "language": "es",
+  "discord_id": "123456789"
+}
+```
+
+### [GET] /api/tournaments/:id — Public — params: id — Get tournament full details.
+**Response:**
+```json
+{
+  "id": "t1",
+  "name": "Summer Cup",
+  "status": "in_progress",
+  "rounds": 5,
+  "participants": ["player1", "player2"]
+}
+```
+
+### [POST] /api/tournaments/:tournamentId/matches/:matchId/result — Private — body: {winner_id, reported_match_id?}
+**Request:**
+```json
+{
+  "winner_id": "player1",
+  "reported_match_id": "m123"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "match_id": "m123",
+  "status": "completed"
+}
+```
+
+### [GET] /api/matches/disputed/all — Private — admin only — List all disputed matches for admin review.
+**Response:**
+```json
+{
+  "matches": [
+    {
+      "id": "m123",
+      "status": "disputed",
+      "players": ["player1", "player2"],
+      "map": "Weldyn Channel"
+    }
+  ]
+}
+```
+
+### [GET] /api/public/faq — Public — none — Retrieve all FAQ entries.
+**Response:**
+```json
+{
+  "question": "¿Cómo reporto una partida?",
+  "answer": "Usa el botón Report Match en la página de partidas.",
+  "language": "es"
+}
+```
+
+### [GET] /api/public/news — Public — none — List all news/announcements.
+**Response:**
+```json
+{
+  "id": "n1",
+  "title": "Nuevo torneo disponible",
+  "content": "Inscríbete ya!",
+  "language": "es"
+}
+```
+
+### [GET] /api/public/matches/recent — Public — none — Recent confirmed matches.
+**Response:**
+```json
+{
+  "id": "m123",
+  "winner": "player1",
+  "loser": "player2",
+  "map": "Weldyn Channel",
+  "date": "2025-12-23T18:00:00Z"
+}
+```
+
+### [GET] /api/public/players — Public — query: pagination + filters — Players directory.
+**Response:**
+```json
+{
+  "players": [
+    {
+      "id": "abc123",
+      "nickname": "player1",
+      "elo": 1500,
+      "matches": 20
+    }
+  ],
+  "page": 1,
+  "total": 100
+}
+```
+
+### [GET] /api/users/:id/stats — Public — params: id — Get aggregated stats for a user.
+**Response:**
+```json
+{
+  "id": "abc123",
+  "wins": 10,
+  "losses": 5,
+  "elo": 1500
+}
+```
+
+### [GET] /api/users/:id/matches — Public — params: id — Get recent matches for a user.
+**Response:**
+```json
+{
+  "id": "m123",
+  "winner": "player1",
+  "loser": "player2",
+  "map": "Weldyn Channel",
+  "date": "2025-12-23T18:00:00Z"
+}
+```
+
+### [GET] /api/tournaments/:id/participants — Public — params: id — List participants for a tournament.
+**Response:**
+```json
+{
+  "id": "abc123",
+  "nickname": "player1",
+  "status": "active"
+}
+```
+
+### [GET] /api/tournaments/:id/matches — Public — params: id — List tournament matches.
+**Response:**
+```json
+{
+  "id": "tm1",
+  "player1": "player1",
+  "player2": "player2",
+  "status": "pending"
+}
+```
+
+### [POST] /api/tournaments/:id/join — Private — none — Join a tournament.
+**Response:**
+```json
+{
+  "success": true,
+  "participant_id": "p123"
+}
+```
+
+### [POST] /api/tournaments/:tournamentId/participants/:participantId/accept — Private — organizer only — Accept a pending participant.
+**Response:**
+```json
+{
+  "success": true,
+  "status": "approved"
+}
+```
+
+### [POST] /api/tournaments/:id/close-registration — Private — organizer only — Close registration.
+**Response:**
+```json
+{
+  "success": true,
+  "status": "registration_closed"
+}
+```
+
+### [POST] /api/tournaments/:id/prepare — Private — organizer only — Generate tournament rounds.
+**Response:**
+```json
+{
+  "success": true,
+  "rounds_created": 5
+}
+```
+
+### [POST] /api/tournaments/:id/start — Private — organizer only — Start tournament.
+**Response:**
+```json
+{
+  "success": true,
+  "status": "in_progress"
+}
+```
+
+### [GET] /api/tournaments/:tournamentId/rounds/:roundId/matches — Public — params: tournamentId, roundId — List matches for a round.
+**Response:**
+```json
+{
+  "id": "tm1",
+  "player1": "player1",
+  "player2": "player2",
+  "status": "pending"
+}
+```
+
+### [POST] /api/matches/admin/:id/dispute — Private — Admin validates or rejects dispute.
+**Request:**
+```json
+{
+  "action": "validate"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "status": "validated"
+}
+```
+
+### [POST] /api/matches/:matchId/replay/download-count — Private — Increment replay download count.
+**Response:**
+```json
+{
+  "success": true,
+  "downloads": 11
+}
+```
+
+### [GET] /api/matches/:id — Private — Get match details.
+**Response:**
+```json
+{
+  "id": "m123",
+  "winner": "player1",
+  "loser": "player2",
+  "map": "Weldyn Channel",
+  "status": "confirmed"
+}
+```
+
+### [GET] /api/admin/users — Private — List all users.
+**Response:**
+```json
+{
+  "id": "abc123",
+  "nickname": "player1",
+  "email": "player1@email.com",
+  "status": "active"
+}
+```
+
+### [POST] /api/admin/users/:id/block — Private — Block user.
+**Response:**
+```json
+{
+  "success": true,
+  "status": "blocked"
+}
+```
+
+### [POST] /api/admin/news — Private — Create news.
+**Request:**
+```json
+{
+  "title": "Nuevo torneo disponible",
+  "content": "Inscríbete ya!",
+  "language": "es"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "news_id": "n1"
+}
+```
+
+### [POST] /api/admin/faq — Private — Create FAQ.
+**Request:**
+```json
+{
+  "question": "¿Cómo reporto una partida?",
+  "answer": "Usa el botón Report Match en la página de partidas.",
+  "language": "es"
+}
+```
+**Response:**
+```json
+{
+  "success": true,
+  "faq_id": "f1"
+}
+```
 
 Notes:
 - Many endpoints require authentication via Bearer token (middleware `authMiddleware`).

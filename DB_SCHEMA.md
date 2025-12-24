@@ -1,38 +1,393 @@
-# Database schema (live)
+# Database Schema (Live)
 
-Extracted on: 2025-12-09T19:10:34.431Z
+**Última actualización:** 2025-12-24  
+*Actualiza esta fecha cada vez que se incorporen cambios al fichero.*
 
-## Table: chat_messages
+Extraído el: 2025-12-09T19:10:34.431Z
 
-Columns:
-| Column | Type | Nullable | Default |
-|---|---|---:|---|
-| id | uuid | NO | gen_random_uuid() |
-| sender_id | uuid | NO |  |
-| receiver_id | uuid | NO |  |
-| message | text | NO |  |
-| is_read | boolean | YES | false |
-| created_at | timestamp without time zone | YES | CURRENT_TIMESTAMP |
+## Esquema completo de la base de datos (actualizado al 2025-12-24)
 
-**Primary key**: id
+### Columnas de tablas
 
-**Foreign keys:**
-- sender_id -> users(id)
-- receiver_id -> users(id)
+| Tabla                    | Columna                   | Tipo de dato                 | Nulo | Default                                       |
+|--------------------------|---------------------------|------------------------------|------|-----------------------------------------------|
+| audit_logs               | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| audit_logs               | event_type                | character varying            | NO   | null                                          |
+| audit_logs               | user_id                   | uuid                         | YES  | null                                          |
+| audit_logs               | username                  | character varying            | YES  | null                                          |
+| audit_logs               | ip_address                | character varying            | YES  | null                                          |
+| audit_logs               | user_agent                | text                         | YES  | null                                          |
+| audit_logs               | details                   | jsonb                        | YES  | null                                          |
+| audit_logs               | created_at                | timestamp without time zone  | YES  | now()                                         |
+| chat_messages            | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| chat_messages            | sender_id                 | uuid                         | NO   | null                                          |
+| chat_messages            | receiver_id               | uuid                         | NO   | null                                          |
+| chat_messages            | message                   | text                         | NO   | null                                          |
+| chat_messages            | is_read                   | boolean                      | YES  | false                                         |
+| chat_messages            | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| faction_translations     | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| faction_translations     | faction_id                | uuid                         | NO   | null                                          |
+| faction_translations     | language_code             | character varying            | NO   | null                                          |
+| faction_translations     | name                      | character varying            | NO   | null                                          |
+| faction_translations     | description               | text                         | YES  | null                                          |
+| faction_translations     | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| faction_translations     | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| factions                 | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| factions                 | name                      | character varying            | NO   | null                                          |
+| factions                 | description               | text                         | YES  | null                                          |
+| factions                 | icon_path                 | character varying            | YES  | null                                          |
+| factions                 | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| factions                 | is_active                 | boolean                      | YES  | true                                          |
+| faq                      | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| faq                      | question                  | character varying            | NO   | null                                          |
+| faq                      | answer                    | text                         | NO   | null                                          |
+| faq                      | translations              | jsonb                        | YES  | '{"de": {}, "en": {}, "es": {}, "zh": {}}'::jsonb |
+| faq                      | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| faq                      | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| faq                      | language_code             | character varying            | YES  | 'en'::character varying                       |
+| faq                      | order                     | integer                      | YES  | 0                                             |
+| game_maps                | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| game_maps                | name                      | character varying            | NO   | null                                          |
+| game_maps                | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| game_maps                | usage_count               | integer                      | YES  | 1                                             |
+| game_maps                | is_active                 | boolean                      | YES  | true                                          |
+| login_attempts           | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| login_attempts           | user_id                   | uuid                         | YES  | null                                          |
+| login_attempts           | username                  | character varying            | NO   | null                                          |
+| login_attempts           | ip_address                | character varying            | NO   | null                                          |
+| login_attempts           | success                   | boolean                      | NO   | null                                          |
+| login_attempts           | timestamp                 | timestamp without time zone  | YES  | now()                                         |
+| map_translations         | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| map_translations         | map_id                    | uuid                         | NO   | null                                          |
+| map_translations         | language_code             | character varying            | NO   | null                                          |
+| map_translations         | name                      | character varying            | NO   | null                                          |
+| map_translations         | description               | text                         | YES  | null                                          |
+| map_translations         | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| map_translations         | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| matches                  | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| matches                  | winner_id                 | uuid                         | NO   | null                                          |
+| matches                  | loser_id                  | uuid                         | NO   | null                                          |
+| matches                  | map                       | character varying            | NO   | null                                          |
+| matches                  | winner_faction            | character varying            | NO   | null                                          |
+| matches                  | loser_faction             | character varying            | NO   | null                                          |
+| matches                  | winner_comments           | text                         | YES  | null                                          |
+| matches                  | winner_rating             | integer                      | YES  | null                                          |
+| matches                  | loser_comments            | text                         | YES  | null                                          |
+| matches                  | loser_rating              | integer                      | YES  | null                                          |
+| matches                  | loser_confirmed           | boolean                      | YES  | false                                         |
+| matches                  | replay_file_path          | character varying            | YES  | null                                          |
+| matches                  | tournament_id             | uuid                         | YES  | null                                          |
+| matches                  | elo_change                | integer                      | YES  | null                                          |
+| matches                  | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| matches                  | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| matches                  | status                    | character varying            | YES  | 'unconfirmed'::character varying              |
+| matches                  | admin_reviewed            | boolean                      | YES  | false                                         |
+| matches                  | admin_reviewed_at         | timestamp without time zone  | YES  | null                                          |
+| matches                  | admin_reviewed_by         | uuid                         | YES  | null                                          |
+| matches                  | winner_elo_before         | integer                      | YES  | 1600                                          |
+| matches                  | winner_elo_after          | integer                      | YES  | 1600                                          |
+| matches                  | loser_elo_before          | integer                      | YES  | 1600                                          |
+| matches                  | loser_elo_after           | integer                      | YES  | 1600                                          |
+| matches                  | winner_level_before       | character varying            | YES  | 'novato'::character varying                   |
+| matches                  | winner_level_after        | character varying            | YES  | 'novato'::character varying                   |
+| matches                  | loser_level_before        | character varying            | YES  | 'novato'::character varying                   |
+| matches                  | loser_level_after         | character varying            | YES  | 'novato'::character varying                   |
+| matches                  | replay_downloads          | integer                      | YES  | 0                                             |
+| matches                  | winner_ranking_pos        | integer                      | YES  | null                                          |
+| matches                  | winner_ranking_change     | integer                      | YES  | null                                          |
+| matches                  | loser_ranking_pos         | integer                      | YES  | null                                          |
+| matches                  | loser_ranking_change      | integer                      | YES  | null                                          |
+| matches                  | round_id                  | uuid                         | YES  | null                                          |
+| migrations               | id                        | integer                      | NO   | nextval('migrations_id_seq'::regclass)        |
+| migrations               | name                      | character varying            | NO   | null                                          |
+| migrations               | executed_at               | timestamp without time zone  | YES  | now()                                         |
+| news                     | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| news                     | title                     | character varying            | NO   | null                                          |
+| news                     | content                   | text                         | NO   | null                                          |
+| news                     | translations              | jsonb                        | YES  | '{"de": {}, "en": {}, "es": {}, "zh": {}}'::jsonb |
+| news                     | author_id                 | uuid                         | NO   | null                                          |
+| news                     | published_at              | timestamp without time zone  | YES  | null                                          |
+| news                     | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| news                     | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| news                     | language_code             | character varying            | YES  | 'en'::character varying                       |
+| online_users             | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| online_users             | user_id                   | uuid                         | NO   | null                                          |
+| online_users             | last_seen                 | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| password_history         | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| password_history         | user_id                   | uuid                         | NO   | null                                          |
+| password_history         | password_hash             | character varying            | NO   | null                                          |
+| password_history         | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| password_policy          | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| password_policy          | min_length                | integer                      | YES  | 8                                             |
+| password_policy          | require_uppercase         | boolean                      | YES  | true                                          |
+| password_policy          | require_lowercase         | boolean                      | YES  | true                                          |
+| password_policy          | require_numbers           | boolean                      | YES  | true                                          |
+| password_policy          | require_symbols           | boolean                      | YES  | true                                          |
+| password_policy          | previous_passwords_count  | integer                      | YES  | 5                                             |
+| password_policy          | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| registration_requests    | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| registration_requests    | nickname                  | character varying            | NO   | null                                          |
+| registration_requests    | email                     | character varying            | NO   | null                                          |
+| registration_requests    | language                  | character varying            | YES  | null                                          |
+| registration_requests    | discord_id                | character varying            | YES  | null                                          |
+| registration_requests    | status                    | character varying            | YES  | 'pending'::character varying                  |
+| registration_requests    | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| registration_requests    | reviewed_at               | timestamp without time zone  | YES  | null                                          |
+| registration_requests    | reviewed_by               | uuid                         | YES  | null                                          |
+| tournament_matches       | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| tournament_matches       | tournament_id             | uuid                         | NO   | null                                          |
+| tournament_matches       | round_id                  | uuid                         | NO   | null                                          |
+| tournament_matches       | player1_id                | uuid                         | NO   | null                                          |
+| tournament_matches       | player2_id                | uuid                         | NO   | null                                          |
+| tournament_matches       | winner_id                 | uuid                         | YES  | null                                          |
+| tournament_matches       | match_id                  | uuid                         | YES  | null                                          |
+| tournament_matches       | match_status              | character varying            | YES  | 'pending'::character varying                  |
+| tournament_matches       | played_at                 | timestamp without time zone  | YES  | null                                          |
+| tournament_matches       | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| tournament_matches       | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| tournament_matches       | tournament_round_match_id | uuid                         | YES  | null                                          |
+| tournament_matches       | organizer_action          | character varying            | YES  | NULL::character varying                       |
+| tournament_participants  | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| tournament_participants  | tournament_id             | uuid                         | NO   | null                                          |
+| tournament_participants  | user_id                   | uuid                         | NO   | null                                          |
+| tournament_participants  | current_round             | integer                      | YES  | 1                                             |
+| tournament_participants  | status                    | character varying            | YES  | 'active'::character varying                   |
+| tournament_participants  | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| tournament_participants  | participation_status      | character varying            | YES  | 'pending'::character varying                  |
+| tournament_participants  | tournament_ranking        | integer                      | YES  | null                                          |
+| tournament_participants  | tournament_wins           | integer                      | YES  | 0                                             |
+| tournament_participants  | tournament_losses         | integer                      | YES  | 0                                             |
+| tournament_participants  | tournament_points         | integer                      | YES  | 0                                             |
+| tournament_round_matches | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| tournament_round_matches | tournament_id             | uuid                         | NO   | null                                          |
+| tournament_round_matches | round_id                  | uuid                         | NO   | null                                          |
+| tournament_round_matches | player1_id                | uuid                         | NO   | null                                          |
+| tournament_round_matches | player2_id                | uuid                         | NO   | null                                          |
+| tournament_round_matches | best_of                   | integer                      | NO   | null                                          |
+| tournament_round_matches | wins_required             | integer                      | NO   | null                                          |
+| tournament_round_matches | player1_wins              | integer                      | NO   | 0                                             |
+| tournament_round_matches | player2_wins              | integer                      | NO   | 0                                             |
+| tournament_round_matches | matches_scheduled         | integer                      | NO   | 0                                             |
+| tournament_round_matches | series_status             | character varying            | NO   | 'in_progress'::character varying              |
+| tournament_round_matches | winner_id                 | uuid                         | YES  | null                                          |
+| tournament_round_matches | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| tournament_round_matches | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| tournament_rounds        | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| tournament_rounds        | tournament_id             | uuid                         | NO   | null                                          |
+| tournament_rounds        | round_number              | integer                      | NO   | null                                          |
+| tournament_rounds        | match_format              | character varying            | NO   | null                                          |
+| tournament_rounds        | round_status              | character varying            | YES  | 'pending'::character varying                  |
+| tournament_rounds        | round_start_date          | timestamp without time zone  | YES  | null                                          |
+| tournament_rounds        | round_end_date            | timestamp without time zone  | YES  | null                                          |
+| tournament_rounds        | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| tournament_rounds        | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| tournament_rounds        | round_type                | character varying            | YES  | 'general'::character varying                  |
+| tournament_rounds        | round_classification      | character varying            | YES  | 'standard'::character varying                 |
+| tournament_rounds        | players_remaining         | integer                      | YES  | null                                          |
+| tournament_rounds        | players_advancing_to_next | integer                      | YES  | null                                          |
+| tournament_rounds        | round_phase_label         | character varying            | YES  | null                                          |
+| tournament_rounds        | round_phase_description   | character varying            | YES  | null                                          |
+| tournaments              | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| tournaments              | name                      | character varying            | NO   | null                                          |
+| tournaments              | description               | text                         | NO   | null                                          |
+| tournaments              | creator_id                | uuid                         | NO   | null                                          |
+| tournaments              | status                    | character varying            | YES  | 'pending'::character varying                  |
+| tournaments              | approved_at               | timestamp without time zone  | YES  | null                                          |
+| tournaments              | started_at                | timestamp without time zone  | YES  | null                                          |
+| tournaments              | finished_at               | timestamp without time zone  | YES  | null                                          |
+| tournaments              | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| tournaments              | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| tournaments              | general_rounds            | integer                      | YES  | 0                                             |
+| tournaments              | final_rounds              | integer                      | YES  | 0                                             |
+| tournaments              | registration_closed_at    | timestamp without time zone  | YES  | null                                          |
+| tournaments              | prepared_at               | timestamp without time zone  | YES  | null                                          |
+| tournaments              | tournament_type           | character varying            | YES  | null                                          |
+| tournaments              | max_participants          | integer                      | YES  | null                                          |
+| tournaments              | round_duration_days       | integer                      | YES  | 7                                             |
+| tournaments              | auto_advance_round        | boolean                      | YES  | false                                         |
+| tournaments              | current_round             | integer                      | YES  | 0                                             |
+| tournaments              | total_rounds              | integer                      | YES  | 0                                             |
+| tournaments              | general_rounds_format     | character varying            | YES  | 'bo3'::character varying                      |
+| tournaments              | final_rounds_format       | character varying            | YES  | 'bo5'::character varying                      |
+| tournaments              | discord_thread_id         | character varying            | YES  | null                                          |
+| users                    | id                        | uuid                         | NO   | gen_random_uuid()                             |
+| users                    | nickname                  | character varying            | NO   | null                                          |
+| users                    | email                     | character varying            | NO   | null                                          |
+| users                    | password_hash             | character varying            | NO   | null                                          |
+| users                    | language                  | character varying            | YES  | 'en'::character varying                       |
+| users                    | discord_id                | character varying            | YES  | null                                          |
+| users                    | elo_rating                | integer                      | YES  | 1200                                          |
+| users                    | level                     | character varying            | YES  | 'novato'::character varying                   |
+| users                    | is_active                 | boolean                      | YES  | false                                         |
+| users                    | is_blocked                | boolean                      | YES  | false                                         |
+| users                    | is_admin                  | boolean                      | YES  | false                                         |
+| users                    | created_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| users                    | updated_at                | timestamp without time zone  | YES  | CURRENT_TIMESTAMP                             |
+| users                    | is_rated                  | boolean                      | YES  | false                                         |
+| users                    | matches_played            | integer                      | YES  | 0                                             |
+| users                    | elo_provisional           | boolean                      | YES  | false                                         |
+| users                    | total_wins                | integer                      | YES  | 0                                             |
+| users                    | total_losses              | integer                      | YES  | 0                                             |
+| users                    | trend                     | character varying            | YES  | '-'::character varying                        |
+| users                    | failed_login_attempts     | integer                      | YES  | 0                                             |
+| users                    | locked_until              | timestamp without time zone  | YES  | null                                          |
+| users                    | last_login_attempt        | timestamp without time zone  | YES  | null                                          |
+| users                    | password_must_change      | boolean                      | YES  | false                                         |
 
-**Constraints:**
-- chat_messages_pkey [p]: PRIMARY KEY (id)
-- chat_messages_sender_id_fkey [f]: FOREIGN KEY (sender_id) REFERENCES users(id)
-- chat_messages_receiver_id_fkey [f]: FOREIGN KEY (receiver_id) REFERENCES users(id)
-- chat_messages_receiver_id_not_null [n]: NOT NULL receiver_id
-- chat_messages_message_not_null [n]: NOT NULL message
-- chat_messages_id_not_null [n]: NOT NULL id
-- chat_messages_sender_id_not_null [n]: NOT NULL sender_id
+### Índices
 
-**Indexes:**
-- idx_chat_sender: `CREATE INDEX idx_chat_sender ON public.chat_messages USING btree (sender_id)`
-- idx_chat_receiver: `CREATE INDEX idx_chat_receiver ON public.chat_messages USING btree (receiver_id)`
-- chat_messages_pkey: `CREATE UNIQUE INDEX chat_messages_pkey ON public.chat_messages USING btree (id)`
+| Tabla                    | Índice                          | Columna                   | Único | Primario |
+|--------------------------|---------------------------------|---------------------------|-------|----------|
+| audit_logs               | audit_logs_pkey                 | id                        | true  | true     |
+| audit_logs               | idx_audit_logs_created_at       | created_at                | false | false    |
+| audit_logs               | idx_audit_logs_event_type       | event_type                | false | false    |
+| audit_logs               | idx_audit_logs_ip_address       | ip_address                | false | false    |
+| audit_logs               | idx_audit_logs_user_id          | user_id                   | false | false    |
+| chat_messages            | chat_messages_pkey              | id                        | true  | true     |
+| chat_messages            | idx_chat_receiver               | receiver_id               | false | false    |
+| chat_messages            | idx_chat_sender                 | sender_id                 | false | false    |
+| faction_translations     | faction_translations_faction_id_language_code_key | faction_id | true  | false    |
+| faction_translations     | faction_translations_faction_id_language_code_key | language_code | true  | false    |
+| faction_translations     | faction_translations_pkey       | id                        | true  | true     |
+| faction_translations     | idx_faction_translations_faction_id | faction_id             | false | false    |
+| faction_translations     | idx_faction_translations_language | language_code            | false | false    |
+| factions                 | factions_name_key               | name                      | true  | false    |
+| factions                 | factions_pkey                   | id                        | true  | true     |
+| factions                 | idx_factions_active             | is_active                 | false | false    |
+| faq                      | faq_pkey                        | id                        | true  | true     |
+| faq                      | idx_faq_order                   | order                     | false | false    |
+| game_maps                | game_maps_name_key              | name                      | true  | false    |
+| game_maps                | game_maps_pkey                  | id                        | true  | true     |
+| game_maps                | idx_game_maps_active            | is_active                 | false | false    |
+| login_attempts           | idx_login_attempts_ip_address   | ip_address                | false | false    |
+| login_attempts           | idx_login_attempts_timestamp    | timestamp                 | false | false    |
+| login_attempts           | idx_login_attempts_user_id      | user_id                   | false | false    |
+| login_attempts           | idx_login_attempts_username     | username                  | false | false    |
+| login_attempts           | login_attempts_pkey             | id                        | true  | true     |
+| map_translations         | idx_map_translations_language   | language_code             | false | false    |
+| map_translations         | idx_map_translations_map_id     | map_id                    | false | false    |
+| map_translations         | map_translations_map_id_language_code_key | map_id         | true  | false    |
+| map_translations         | map_translations_map_id_language_code_key | language_code   | true  | false    |
+| map_translations         | map_translations_pkey           | id                        | true  | true     |
+| matches                  | idx_matches_admin_reviewed      | admin_reviewed            | false | false    |
+| matches                  | idx_matches_created_at          | created_at                | false | false    |
+| matches                  | idx_matches_loser               | loser_id                  | false | false    |
+| matches                  | idx_matches_round               | round_id                  | false | false    |
+| matches                  | idx_matches_status              | status                    | false | false    |
+| matches                  | idx_matches_tournament          | tournament_id             | false | false    |
+| matches                  | idx_matches_winner              | winner_id                 | false | false    |
+| matches                  | matches_pkey                    | id                        | true  | true     |
+| migrations               | migrations_name_key             | name                      | true  | false    |
+| migrations               | migrations_pkey                 | id                        | true  | true     |
+| news                     | idx_news_author                 | author_id                 | false | false    |
+| news                     | idx_news_language_code          | language_code             | false | false    |
+| news                     | news_pkey                       | id                        | true  | true     |
+| online_users             | online_users_pkey               | id                        | true  | true     |
+| online_users             | online_users_user_id_key        | user_id                   | true  | false    |
+| password_history         | password_history_pkey           | id                        | true  | true     |
+| password_policy          | password_policy_pkey            | id                        | true  | true     |
+| registration_requests    | registration_requests_nickname_key | nickname                | true  | false    |
+| registration_requests    | registration_requests_pkey      | id                        | true  | true     |
+| tournament_matches       | idx_tournament_matches_match    | match_id                  | false | false    |
+| tournament_matches       | idx_tournament_matches_organizer_action | organizer_action   | false | false    |
+| tournament_matches       | idx_tournament_matches_player1  | player1_id                | false | false    |
+| tournament_matches       | idx_tournament_matches_player2  | player2_id                | false | false    |
+| tournament_matches       | idx_tournament_matches_round    | round_id                  | false | false    |
+| tournament_matches       | idx_tournament_matches_round_match | tournament_round_match_id | false | false    |
+| tournament_matches       | idx_tournament_matches_status   | match_status              | false | false    |
+| tournament_matches       | idx_tournament_matches_tournament | tournament_id             | false | false    |
+| tournament_matches       | idx_tournament_matches_winner   | winner_id                 | false | false    |
+| tournament_matches       | tournament_matches_pkey         | id                        | true  | true     |
+| tournament_participants  | tournament_participants_pkey    | id                        | true  | true     |
+| tournament_participants  | tournament_participants_tournament_id_user_id_key | tournament_id | true  | false    |
+| tournament_participants  | tournament_participants_tournament_id_user_id_key | user_id      | true  | false    |
+| tournament_round_matches | idx_tournament_round_matches_players | player1_id            | false | false    |
+| tournament_round_matches | idx_tournament_round_matches_players | player2_id            | false | false    |
+| tournament_round_matches | idx_tournament_round_matches_round | round_id               | false | false    |
+| tournament_round_matches | idx_tournament_round_matches_status | series_status          | false | false    |
+| tournament_round_matches | idx_tournament_round_matches_tournament | tournament_id       | false | false    |
+| tournament_round_matches | tournament_round_matches_pkey   | id                        | true  | true     |
+| tournament_round_matches | tournament_round_matches_tournament_id_round_id_player1_id__key | tournament_id | true | false |
+| tournament_round_matches | tournament_round_matches_tournament_id_round_id_player1_id__key | player1_id    | true | false |
+| tournament_round_matches | tournament_round_matches_tournament_id_round_id_player1_id__key | player2_id    | true | false |
+| tournament_round_matches | tournament_round_matches_tournament_id_round_id_player1_id__key | round_id      | true | false |
+| tournament_rounds        | idx_tournament_rounds_classification | round_classification  | false | false    |
+| tournament_rounds        | idx_tournament_rounds_status    | round_status              | false | false    |
+| tournament_rounds        | idx_tournament_rounds_tournament | tournament_id             | false | false    |
+| tournament_rounds        | idx_tournament_rounds_type      | round_type                | false | false    |
+| tournament_rounds        | tournament_rounds_pkey          | id                        | true  | true     |
+| tournament_rounds        | tournament_rounds_tournament_id_round_number_key | tournament_id | true | false    |
+| tournament_rounds        | tournament_rounds_tournament_id_round_number_key | round_number  | true | false    |
+| tournaments              | idx_discord_thread_id           | discord_thread_id         | false | false    |
+| tournaments              | idx_tournament_creator          | creator_id                | false | false    |
+| tournaments              | idx_tournament_status           | status                    | false | false    |
+| tournaments              | idx_tournaments_formats         | general_rounds_format     | false | false    |
+| tournaments              | idx_tournaments_formats         | final_rounds_format       | false | false    |
+| tournaments              | tournaments_pkey                | id                        | true  | true     |
+| users                    | idx_users_elo_rating            | elo_rating                | false | false    |
+| users                    | idx_users_email                 | email                     | false | false    |
+| users                    | idx_users_is_rated              | is_rated                  | false | false    |
+| users                    | idx_users_matches_played        | matches_played            | false | false    |
+| users                    | idx_users_nickname              | nickname                  | false | false    |
+| users                    | idx_users_password_must_change  | password_must_change      | false | false    |
+| users                    | idx_users_total_losses          | total_losses              | false | false    |
+| users                    | idx_users_total_wins            | total_wins                | false | false    |
+| users                    | idx_users_trend                 | trend                     | false | false    |
+| users                    | users_email_key                 | email                     | true  | false    |
+| users                    | users_nickname_key              | nickname                  | true  | false    |
+| users                    | users_pkey                      | id                        | true  | true     |
+
+### Claves foráneas
+
+| Tabla                    | Columna                   | Tabla foránea               | Columna foránea |
+|--------------------------|---------------------------|-----------------------------|-----------------|
+| audit_logs               | user_id                   | users                       | id              |
+| chat_messages            | receiver_id               | users                       | id              |
+| chat_messages            | sender_id                 | users                       | id              |
+| faction_translations     | faction_id                | factions                    | id              |
+| login_attempts           | user_id                   | users                       | id              |
+| map_translations         | map_id                    | game_maps                   | id              |
+| matches                  | admin_reviewed_by         | users                       | id              |
+| matches                  | loser_id                  | users                       | id              |
+| matches                  | round_id                  | tournament_rounds           | id              |
+| matches                  | winner_id                 | users                       | id              |
+| news                     | author_id                 | users                       | id              |
+| online_users             | user_id                   | users                       | id              |
+| password_history         | user_id                   | users                       | id              |
+| registration_requests    | reviewed_by               | users                       | id              |
+| tournament_matches       | match_id                  | matches                     | id              |
+| tournament_matches       | player1_id                | users                       | id              |
+| tournament_matches       | player2_id                | users                       | id              |
+| tournament_matches       | round_id                  | tournament_rounds           | id              |
+| tournament_matches       | tournament_id             | tournaments                 | id              |
+| tournament_matches       | tournament_round_match_id | tournament_round_matches    | id              |
+| tournament_matches       | winner_id                 | users                       | id              |
+| tournament_participants  | tournament_id             | tournaments                 | id              |
+| tournament_participants  | user_id                   | users                       | id              |
+| tournament_round_matches | player1_id                | users                       | id              |
+| tournament_round_matches | player2_id                | users                       | id              |
+| tournament_round_matches | round_id                  | tournament_rounds           | id              |
+| tournament_round_matches | tournament_id             | tournaments                 | id              |
+| tournament_round_matches | winner_id                 | users                       | id              |
+| tournament_rounds        | tournament_id             | tournaments                 | id              |
+| tournaments              | creator_id                | users                       | id              |
+
+## Instrucciones de actualización
+
+Para mantener este archivo actualizado:
+
+1. **Después de ejecutar migraciones SQL**: Ejecuta las consultas SQL proporcionadas al inicio de este documento para extraer el esquema actual de la base de datos.
+2. **Actualiza la fecha**: Cambia la fecha en "Última actualización" al día actual.
+3. **Verifica consistencia**: Asegúrate de que todas las tablas, columnas, índices y claves foráneas estén documentadas.
+4. **Formato**: Mantén las tablas en formato Markdown para máxima legibilidad.
+
+## Cambios recientes en tablas existentes
+
+- **users**: Añadidos `failed_login_attempts`, `locked_until`, `last_login_attempt`, `password_must_change`
+- **tournaments**: Añadido `discord_thread_id`
+- **tournament_matches**: Añadido `organizer_action`
+- **game_maps** y **factions**: Añadido `is_active`
+- **faq**: Añadido `order`
 
 ## Table: factions
 
@@ -42,24 +397,10 @@ Columns:
 | id | uuid | NO | gen_random_uuid() |
 | name | character varying | NO |  |
 | description | text | YES |  |
-| icon_path | character varying | YES |  |
 | created_at | timestamp without time zone | YES | CURRENT_TIMESTAMP |
-
-**Primary key**: id
-
-**Unique columns**: name
-
-**Constraints:**
-- factions_pkey [p]: PRIMARY KEY (id)
-- factions_id_not_null [n]: NOT NULL id
+| is_active | boolean | YES | true |
 - factions_name_not_null [n]: NOT NULL name
 - factions_name_key [u]: UNIQUE (name)
-
-**Indexes:**
-- factions_pkey: `CREATE UNIQUE INDEX factions_pkey ON public.factions USING btree (id)`
-- factions_name_key: `CREATE UNIQUE INDEX factions_name_key ON public.factions USING btree (name)`
-
-## Table: faq
 
 Columns:
 | Column | Type | Nullable | Default |
@@ -71,6 +412,7 @@ Columns:
 | created_at | timestamp without time zone | YES | CURRENT_TIMESTAMP |
 | updated_at | timestamp without time zone | YES | CURRENT_TIMESTAMP |
 | language_code | character varying | YES | 'en'::character varying |
+| order | integer | YES | 0 |
 
 **Primary key**: id
 
@@ -92,6 +434,7 @@ Columns:
 | name | character varying | NO |  |
 | created_at | timestamp without time zone | YES | CURRENT_TIMESTAMP |
 | usage_count | integer | YES | 1 |
+| is_active | boolean | YES | true |
 
 **Primary key**: id
 
@@ -338,6 +681,7 @@ Columns:
 | created_at | timestamp without time zone | YES | CURRENT_TIMESTAMP |
 | updated_at | timestamp without time zone | YES | CURRENT_TIMESTAMP |
 | tournament_round_match_id | uuid | YES |  |
+| organizer_action | jsonb | YES | '{}'::jsonb |
 
 **Primary key**: id
 
@@ -547,6 +891,7 @@ Columns:
 | total_rounds | integer | YES | 0 |
 | general_rounds_format | character varying | YES | 'bo3'::character varying |
 | final_rounds_format | character varying | YES | 'bo5'::character varying |
+| discord_thread_id | character varying | YES |  |
 
 **Primary key**: id
 
@@ -595,6 +940,9 @@ Columns:
 | total_wins | integer | YES | 0 |
 | total_losses | integer | YES | 0 |
 | trend | character varying | YES | '-'::character varying |
+| failed_login_attempts | integer | YES | 0 |
+| locked_until | timestamp without time zone | YES |  |
+| last_login_attempt | timestamp without time zone | YES |  |
 
 **Primary key**: id
 
@@ -622,12 +970,85 @@ Columns:
 - idx_users_total_wins: `CREATE INDEX idx_users_total_wins ON public.users USING btree (total_wins DESC)`
 - idx_users_matches_played: `CREATE INDEX idx_users_matches_played ON public.users USING btree (matches_played)`
 
-## Application-defined Functions (public schema)
+## Table: audit_logs
+Columns:
+| Column      | Type         | Nullable | Default           |
+|------------|--------------|----------|-------------------|
+| id         | uuid         | NO       | gen_random_uuid() |
+| event_type | varchar(50)  | NO       |                   |
+| user_id    | uuid         | YES      |                   |
+| username   | varchar(255) | YES      |                   |
+| ip_address | varchar(45)  | YES      |                   |
+| user_agent | text         | YES      |                   |
+| details    | jsonb        | YES      |                   |
+| created_at | timestamp    | YES      | NOW()             |
 
-No application-defined functions found in the `public` schema.
+Primary key: id
+Foreign keys: user_id -> users(id)
+Indexes: idx_audit_logs_user_id, idx_audit_logs_event_type, idx_audit_logs_created_at, idx_audit_logs_ip_address
 
-*Note: extension functions (typically implemented in C) are present in the schema; the full function list (including extension functions) is available in `backend/tmp/db_schema_full.json`.*
+## Table: login_attempts
+Columns:
+| Column    | Type         | Nullable | Default           |
+|-----------|--------------|----------|-------------------|
+| id        | uuid         | NO       | gen_random_uuid() |
+| user_id   | uuid         | YES      |                   |
+| username  | varchar(255) | NO       |                   |
+| ip_address| varchar(45)  | NO       |                   |
+| success   | boolean      | NO       |                   |
+| timestamp | timestamp    | YES      | NOW()             |
 
-## Rules (pg_rules for public schema)
+Primary key: id
+Foreign keys: user_id -> users(id)
+Indexes: idx_login_attempts_user_id, idx_login_attempts_username, idx_login_attempts_ip_address, idx_login_attempts_timestamp
 
-No rules found in `public` schema.
+## Table: map_translations
+Columns:
+| Column        | Type                | Nullable | Default           |
+|---------------|---------------------|----------|-------------------|
+| id            | uuid                | NO       | gen_random_uuid() |
+| map_id        | uuid                | NO       |                   |
+| language_code | varchar(10)         | NO       |                   |
+| name          | varchar(255)        | NO       |                   |
+| description   | text                | YES      |                   |
+| created_at    | timestamp           | YES      | CURRENT_TIMESTAMP |
+| updated_at    | timestamp           | YES      | CURRENT_TIMESTAMP |
+
+Primary key: id
+Foreign keys: map_id -> game_maps(id)
+Unique: map_id, language_code
+Indexes: idx_map_translations_language, idx_map_translations_map_id
+
+## Table: faction_translations
+Columns:
+| Column        | Type                | Nullable | Default           |
+|---------------|---------------------|----------|-------------------|
+| id            | uuid                | NO       | gen_random_uuid() |
+| faction_id    | uuid                | NO       |                   |
+| language_code | varchar(10)         | NO       |                   |
+| name          | varchar(255)        | NO       |                   |
+| description   | text                | YES      |                   |
+| created_at    | timestamp           | YES      | CURRENT_TIMESTAMP |
+| updated_at    | timestamp           | YES      | CURRENT_TIMESTAMP |
+
+Primary key: id
+Foreign keys: faction_id -> factions(id)
+Unique: faction_id, language_code
+Indexes: idx_faction_translations_language, idx_faction_translations_faction_id
+
+## Table: migrations
+Columns:
+| Column      | Type         | Nullable | Default |
+|-------------|--------------|----------|---------|
+| id          | integer      | NO       |         |
+| name        | varchar(255) | NO       |         |
+| run_on      | timestamp    | YES      |         |
+
+Primary key: id
+
+## Cambios recientes en tablas existentes
+- users: Añadidos failed_login_attempts, locked_until, last_login_attempt
+- tournaments: Añadido discord_thread_id
+- tournament_matches: Añadido organizer_action
+- game_maps y factions: Añadido is_active
+- faq: Añadido order

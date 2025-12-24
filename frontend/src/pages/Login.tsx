@@ -31,9 +31,11 @@ const Login: React.FC = () => {
       // Get user profile to check if admin and if password must be changed
       try {
         const profileRes = await userService.getProfile();
-        console.log('Profile response:', profileRes.data);
-        console.log('is_admin value:', profileRes.data.is_admin);
-        console.log('password_must_change:', profileRes.data.password_must_change);
+        if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
+          console.log('Profile response:', profileRes.data);
+          console.log('is_admin value:', profileRes.data.is_admin);
+          console.log('password_must_change:', profileRes.data.password_must_change);
+        }
         setIsAdmin(profileRes.data.is_admin || false);
         
         // Check if user must change password

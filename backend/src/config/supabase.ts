@@ -20,8 +20,8 @@ export async function uploadReplayToSupabase(
   fileBuffer: Buffer
 ): Promise<{ path: string; url: string }> {
   try {
-    console.log('📤 [SUPABASE] Uploading replay to Supabase:', storedFilename);
-    console.log('📤 [SUPABASE] File size:', fileBuffer.length, 'bytes');
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📤 [SUPABASE] Uploading replay to Supabase:', storedFilename);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📤 [SUPABASE] File size:', fileBuffer.length, 'bytes');
 
     const { data, error } = await supabase.storage
       .from('replays')
@@ -35,7 +35,7 @@ export async function uploadReplayToSupabase(
       throw error;
     }
 
-    console.log('✅ [SUPABASE] Upload successful:', data.path);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('✅ [SUPABASE] Upload successful:', data.path);
 
     // Get the public URL if bucket is public, or generate signed URL if private
     const { data: publicData } = supabase.storage
@@ -57,14 +57,14 @@ export async function downloadReplayFromSupabase(
   filename: string
 ): Promise<Buffer> {
   try {
-    console.log('📥 [SUPABASE] ===== DOWNLOAD START =====');
-    console.log('📥 [SUPABASE] Filename:', filename);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📥 [SUPABASE] ===== DOWNLOAD START =====');
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📥 [SUPABASE] Filename:', filename);
 
     const { data, error } = await supabase.storage
       .from('replays')
       .download(filename);
 
-    console.log('📥 [SUPABASE] Download response - error:', error?.message || 'none', 'data type:', typeof data);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📥 [SUPABASE] Download response - error:', error?.message || 'none', 'data type:', typeof data);
 
     if (error) {
       console.error('❌ [SUPABASE] Download error object:', error);
@@ -76,12 +76,12 @@ export async function downloadReplayFromSupabase(
       throw new Error('No data returned from Supabase');
     }
 
-    console.log('📥 [SUPABASE] Data type:', data.constructor.name, 'data instanceof Blob:', data instanceof Blob);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📥 [SUPABASE] Data type:', data.constructor.name, 'data instanceof Blob:', data instanceof Blob);
     const buffer = await data.arrayBuffer();
-    console.log('📥 [SUPABASE] ArrayBuffer size:', buffer.byteLength, 'bytes');
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📥 [SUPABASE] ArrayBuffer size:', buffer.byteLength, 'bytes');
     const fileBuffer = Buffer.from(buffer);
-    console.log('✅ [SUPABASE] Download successful, final buffer size:', fileBuffer.length, 'bytes');
-    console.log('📥 [SUPABASE] ===== DOWNLOAD END =====');
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('✅ [SUPABASE] Download successful, final buffer size:', fileBuffer.length, 'bytes');
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📥 [SUPABASE] ===== DOWNLOAD END =====');
 
     return fileBuffer;
   } catch (error) {
@@ -93,7 +93,7 @@ export async function downloadReplayFromSupabase(
 // Helper function to delete replay from Supabase Storage
 export async function deleteReplayFromSupabase(filename: string): Promise<void> {
   try {
-    console.log('🗑️ [SUPABASE] Deleting replay from Supabase:', filename);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('🗑️ [SUPABASE] Deleting replay from Supabase:', filename);
 
     const { error } = await supabase.storage.from('replays').remove([filename]);
 
@@ -102,7 +102,7 @@ export async function deleteReplayFromSupabase(filename: string): Promise<void> 
       throw error;
     }
 
-    console.log('✅ [SUPABASE] Delete successful:', filename);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('✅ [SUPABASE] Delete successful:', filename);
   } catch (error) {
     console.error('❌ [SUPABASE] Error deleting replay:', error);
     throw error;

@@ -86,22 +86,22 @@ const Home: React.FC = () => {
       await refetchMatches();
       
       // Fetch signed URL from the backend
-      console.log('🔽 Fetching signed URL from backend...');
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Fetching signed URL from backend...');
       const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
-      console.log('🔽 Download URL:', downloadUrl);
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Download URL:', downloadUrl);
       const response = await fetch(downloadUrl, {
         method: 'GET'
       });
 
-      console.log('🔽 Response status:', response.status);
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Response status:', response.status);
       if (!response.ok) {
         throw new Error(`Download failed with status ${response.status}`);
       }
 
       // Get signed URL from response and redirect
-      console.log('🔽 Getting signed URL...');
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Getting signed URL...');
       const { signedUrl, filename } = await response.json();
-      console.log('🔽 Redirecting to signed URL:', signedUrl);
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Redirecting to signed URL:', signedUrl);
       window.location.href = signedUrl;
     } catch (err) {
       console.error('Error downloading replay:', err);

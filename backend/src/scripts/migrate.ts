@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
  */
 export async function runMigrations() {
   try {
-    console.log('🔄 Starting database migrations...');
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('🔄 Starting database migrations...');
 
     // Create migrations tracking table if it doesn't exist
     await query(`
@@ -29,7 +29,7 @@ export async function runMigrations() {
       .sort();
 
     if (migrationFiles.length === 0) {
-      console.log('✅ No migration files found');
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('✅ No migration files found');
       return;
     }
 
@@ -41,7 +41,7 @@ export async function runMigrations() {
     let executedCount = 0;
     for (const migrationFile of migrationFiles) {
       if (executed.has(migrationFile)) {
-        console.log(`⏭️  Skipping already executed: ${migrationFile}`);
+        if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`⏭️  Skipping already executed: ${migrationFile}`);
         continue;
       }
 
@@ -58,7 +58,7 @@ export async function runMigrations() {
           [migrationFile]
         );
 
-        console.log(`✅ Executed: ${migrationFile}`);
+        if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`✅ Executed: ${migrationFile}`);
         executedCount++;
       } catch (error) {
         console.error(`❌ Failed to execute migration ${migrationFile}:`, error);
@@ -67,9 +67,9 @@ export async function runMigrations() {
     }
 
     if (executedCount === 0) {
-      console.log('✅ All migrations already executed');
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('✅ All migrations already executed');
     } else {
-      console.log(`✅ Successfully executed ${executedCount} migration(s)`);
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`✅ Successfully executed ${executedCount} migration(s)`);
     }
   } catch (error) {
     console.error('❌ Migration error:', error);

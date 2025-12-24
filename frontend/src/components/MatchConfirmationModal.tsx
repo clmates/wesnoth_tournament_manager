@@ -39,7 +39,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
     try {
       // Use match_id if it exists (tournament match), otherwise use id (regular match)
       const matchId = match.match_id || match.id;
-      console.log('Confirming match with ID:', matchId, 'match object:', match);
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('Confirming match with ID:', matchId, 'match object:', match);
       
       await api.post(`/matches/${matchId}/confirm`, {
         action: 'confirm',
@@ -62,7 +62,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
     try {
       // Use match_id if it exists (tournament match), otherwise use id (regular match)
       const matchId = match.match_id || match.id;
-      console.log('Disputing match with ID:', matchId, 'match object:', match);
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('Disputing match with ID:', matchId, 'match object:', match);
       
       await api.post(`/matches/${matchId}/confirm`, {
         action: 'dispute',

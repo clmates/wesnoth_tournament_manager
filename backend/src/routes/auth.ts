@@ -16,25 +16,25 @@ router.post('/register', registerLimiter, async (req, res) => {
     const ip = getUserIP(req);
     const userAgent = getUserAgent(req);
 
-    console.log('Register request:', { nickname, email, language, password: '***', discord_id });
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Register request:', { nickname, email, language, password: '***', discord_id });
 
     // Validate required fields
     if (!nickname || !email || !password) {
-      console.log('Missing required fields:', { nickname: !!nickname, email: !!email, password: !!password });
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Missing required fields:', { nickname: !!nickname, email: !!email, password: !!password });
       return res.status(400).json({ error: 'Nickname, email, and password are required' });
     }
 
     // Validate password
     const validation = await validatePassword(password);
     if (!validation.valid) {
-      console.log('Password validation failed:', validation.errors);
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Password validation failed:', validation.errors);
       return res.status(400).json({ errors: validation.errors });
     }
 
     // Check if user already exists
     const existing = await query('SELECT id FROM public.users WHERE nickname = $1 OR email = $2', [nickname, email]);
     if (existing.rows.length > 0) {
-      console.log('User already exists');
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('User already exists');
       
       // Log failed registration attempt
       await logAuditEvent({
@@ -59,7 +59,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       [nickname, email, passwordHash, language || 'en', discord_id || null]
     );
 
-    console.log('User created successfully:', result.rows[0].id);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('User created successfully:', result.rows[0].id);
 
     // Log successful registration
     await logAuditEvent({

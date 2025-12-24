@@ -31,7 +31,7 @@ export async function logAuditEvent(entry: AuditLogEntry) {
     );
 
     // Also log to console for real-time monitoring
-    console.log(`[AUDIT] ${entry.event_type}:`, {
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`[AUDIT] ${entry.event_type}:`, {
       user: entry.username || entry.user_id || 'ANONYMOUS',
       ip: entry.ip_address,
       details: entry.details
