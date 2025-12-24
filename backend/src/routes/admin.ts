@@ -275,7 +275,7 @@ router.get('/news', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/faq', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const result = await query(
-      `SELECT id, question, answer, language_code, created_at FROM faq ORDER BY created_at DESC`
+      `SELECT id, question, answer, language_code, "order", created_at FROM faq ORDER BY "order" ASC, created_at DESC`
     );
     res.json(result.rows);
   } catch (error) {
@@ -307,10 +307,17 @@ router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
     // Create records for all languages provided (English is guaranteed)
     for (const lang of languages) {
       if (lang.data && lang.data.question && lang.data.answer) {
-        await query(
-          `INSERT INTO public.faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
-          [faqId, lang.data.question, lang.data.answer, lang.code]
-        );
+        if (lang.code === 'en') {
+          await query(
+            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
+            [faqId, lang.data.question, lang.data.answer, lang.code, lang.data.order ? Number(lang.data.order) : 0]
+          );
+        } else {
+          await query(
+            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
+            [faqId, lang.data.question, lang.data.answer, lang.code, en.order ? Number(en.order) : 0]
+          );
+        }
       }
     }
 
@@ -347,10 +354,17 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
     // Create records for all languages provided (English is guaranteed)
     for (const lang of languages) {
       if (lang.data && lang.data.question && lang.data.answer) {
-        await query(
-          `INSERT INTO public.faq (id, question, answer, language_code) VALUES ($1, $2, $3, $4)`,
-          [id, lang.data.question, lang.data.answer, lang.code]
-        );
+        if (lang.code === 'en') {
+          await query(
+            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
+            [id, lang.data.question, lang.data.answer, lang.code, lang.data.order ? Number(lang.data.order) : 0]
+          );
+        } else {
+          await query(
+            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
+            [id, lang.data.question, lang.data.answer, lang.code, en.order ? Number(en.order) : 0]
+          );
+        }
       }
     }
 
