@@ -59,6 +59,11 @@ const Navbar: React.FC = () => {
     navigate('/');
   };
 
+  const handleNavigateAndClose = (path: string) => {
+    setDropdownOpen(false);
+    navigate(path);
+  };
+
   return (
     <nav className="navbar">
       <div className="navbar-container">
@@ -90,9 +95,12 @@ const Navbar: React.FC = () => {
               </button>
               {dropdownOpen && (
                 <div className="user-dropdown">
-                  <Link to="/user" className="dropdown-item">
+                  <button 
+                    className="dropdown-item"
+                    onClick={() => handleNavigateAndClose('/user')}
+                  >
                     {t('navbar_profile') || 'Profile'}
-                  </Link>
+                  </button>
                   <button 
                     className="dropdown-item logout-item"
                     onClick={handleLogout}
