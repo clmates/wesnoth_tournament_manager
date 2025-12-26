@@ -148,9 +148,20 @@
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.players-table td {
-  padding: 1rem;
-  border-bottom: 1px solid #e9ecef;
+/* Default left alignment for table headers */
+.players-table th {
+  text-align: left;
+}
+
+/* Center header text for specific columns to match content alignment */
+.players-table th.elo-col,
+.players-table th.status-col,
+.players-table th.matches-col,
+.players-table th.wins-col,
+.players-table th.losses-col,
+.players-table th.ratio-col {
+  text-align: center;
+}
 }
 
 .players-table tbody tr {
