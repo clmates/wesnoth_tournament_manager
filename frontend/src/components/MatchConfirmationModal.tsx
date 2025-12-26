@@ -79,6 +79,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
   };
 
   const winnerElo = match.winner_elo_rating || 'N/A';
+  const loserElo = match.loser_elo_rating || 'N/A';
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -105,6 +106,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
               <div className="player-block loser">
                 <h3>You (Loser)</h3>
                 <p className="player-name">{match.loser_nickname}</p>
+                <p className="player-elo">ELO: {loserElo}</p>
                 <p className="faction">Faction: {match.loser_faction || 'N/A'}</p>
               </div>
             </div>
