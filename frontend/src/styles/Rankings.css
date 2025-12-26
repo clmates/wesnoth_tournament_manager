@@ -112,9 +112,26 @@
   color: #2c3e50;
 }
 
+
 .elo-col {
   width: 100px;
   text-align: center;
+}
+
+.matches-col,
+.wins-col,
+.losses-col,
+.ratio-col,
+.trend-col {
+  text-align: center;
+}
+
+.rankings-table td {
+  text-align: center;
+}
+.rankings-table td.rank-col,
+.rankings-table td.nickname-col {
+  text-align: left;
 }
 
 .matches-col {
