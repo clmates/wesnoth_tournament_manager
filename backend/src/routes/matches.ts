@@ -799,7 +799,7 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
     }
 
     // Build players array by index mapping
-    const players: Array<{ id: string; name: string }> = [];
+    const players: Array<{ id: string; name: string; faction: string }> = [];
     const count = Math.min(playerNames.length, factionsInOrder.length);
     for (let i = 0; i < count; i++) {
       const name = playerNames[i];
