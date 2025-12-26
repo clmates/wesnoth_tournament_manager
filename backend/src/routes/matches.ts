@@ -716,11 +716,24 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
     } else if (fileExt === '.bz2') {
       console.log('[PREVIEW] Handling BZ2 decompression');
       // Handle bzip2 decompression
-      const bz2 = await import('bz2');
-      const decompress = bz2.decompress;
+      const bz2Module = await import('bz2');
+      console.log('[PREVIEW] bz2Module:', Object.keys(bz2Module));
+      console.log('[PREVIEW] bz2Module.default:', bz2Module.default);
+      
+      // Try different ways to access decompress function
+      let decompress = bz2Module.decompress || bz2Module.default?.decompress;
+      
+      // If still not found, try accessing the module differently
+      if (!decompress && typeof bz2Module === 'function') {
+        // Sometimes the module itself is the decompress function
+        decompress = bz2Module;
+      }
+      
+      console.log('[PREVIEW] decompress type:', typeof decompress);
 
       if (typeof decompress !== 'function') {
-        console.error('[PREVIEW] bz2.decompress is not a function, type:', typeof decompress);
+        console.error('[PREVIEW] Could not find decompress function in bz2 module');
+        console.error('[PREVIEW] Available keys:', Object.keys(bz2Module || {}));
         throw new Error('bz2.decompress is not available');
       }
 
