@@ -83,9 +83,17 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
       
       const token = localStorage.getItem('token') || '';
       console.log('[REPLAY] Token available:', !!token);
-      console.log('[REPLAY] Sending request to /api/matches/preview-replay');
       
-      const response = await fetch('/api/matches/preview-replay', {
+      // Determine backend URL based on environment
+      let backendUrl = '/api/matches/preview-replay';
+      if (window.location.hostname.includes('main.')) {
+        backendUrl = 'https://wesnothtournamentmanager-main.up.railway.app/api/matches/preview-replay';
+      } else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+        backendUrl = 'https://wesnothtournamentmanager-production.up.railway.app/api/matches/preview-replay';
+      }
+      console.log('[REPLAY] Sending request to', backendUrl);
+      
+      const response = await fetch(backendUrl, {
         method: 'POST',
         body: formData,
         headers: {
