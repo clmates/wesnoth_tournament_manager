@@ -306,7 +306,7 @@
 
 .recent-matches-table th {
   padding: 0.5rem 0.75rem;
-  text-align: left;
+  text-align: center;
   font-weight: 600;
   color: #2c3e50;
 }
