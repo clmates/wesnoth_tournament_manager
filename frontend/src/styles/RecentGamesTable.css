@@ -43,7 +43,11 @@
   font-size: 0.85rem;
 }
 
-.games-table tbody tr {
+/* Ensure Winner and Loser headers are centered */
+.games-table th.winner-col,
+.games-table th.loser-col {
+  text-align: center !important;
+}
   border-bottom: 1px solid #e9ecef;
   transition: all 0.3s ease;
 }
