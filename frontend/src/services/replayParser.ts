@@ -1,10 +1,7 @@
 /**
  * Replay/Save Parser Service
- * Extracts map, players, and factions from Wesnoth replay (.gz) and save files
+ * Extracts map, players, and factions from Wesnoth replay (.gz, .bz2) and save files
  */
-
-// Declare bz2 as a global type
-declare const bz2: any;
 
 interface ReplayData {
   map: string | null;
@@ -14,107 +11,110 @@ interface ReplayData {
 }
 
 /**
- * Decompress bzip2 data using bz2 library
- */
-async function decompressBz2(data: Uint8Array): Promise<Uint8Array> {
-  try {
-    // Check if bz2 is available globally
-    if (typeof window !== 'undefined' && (window as any).bz2) {
-      const bz2Module = (window as any).bz2;
-      const decompress = bz2Module.decompress;
-      if (typeof decompress === 'function') {
-        const decompressed = decompress(data);
-        return new Uint8Array(decompressed);
-      }
-    }
-    throw new Error('bz2.decompress is not available');
-  } catch (err: any) {
-    throw new Error(`Failed to decompress bzip2 file: ${err.message}`);
-  }
-}
-
-/**
  * Parse a Wesnoth replay or save file and extract game information
- * Handles compressed replay files (.gz) and uncompressed save files
- * Note: .bz2 files are handled by the backend
+ * - Handles .gz files: browser-side decompression
+ * - Handles .bz2 files: backend-side decompression (via preview endpoint)
+ * - Handles uncompressed .save files: direct parsing
  * @param file - The replay or save file to parse
  * @returns Promise with extracted map, players, and faction data
  */
 export async function parseReplayFile(file: File): Promise<ReplayData> {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Check compression type by magic bytes
+    const view = new Uint8Array(arrayBuffer);
+    const isGzip = view[0] === 0x1f && view[1] === 0x8b; // gzip magic bytes
+    const isBz2 = view[0] === 0x42 && view[1] === 0x5a; // bz2 magic bytes: 'BZ'
+    
+    let xmlText: string;
+    
+    if (isGzip) {
+      // Decompress gzip file using browser API
+      let decompressed: Uint8Array;
       
-      // Check compression type by magic bytes
-      const view = new Uint8Array(arrayBuffer);
-      const isGzip = view[0] === 0x1f && view[1] === 0x8b; // gzip magic bytes
-      const isBz2 = view[0] === 0x42 && view[1] === 0x5a; // bz2 magic bytes: 'BZ'
-      
-      let xmlText: string;
-      
-      if (isGzip) {
-        // Decompress gzip file
-        let decompressed: Uint8Array;
-        
-        if ('DecompressionStream' in window) {
-          try {
-            const stream = new ReadableStream<Uint8Array>({
-              start(controller) {
-                controller.enqueue(new Uint8Array(arrayBuffer));
-                controller.close();
-              },
-            });
-            
-            const decompressedStream = (stream as ReadableStream<Uint8Array>).pipeThrough(
-              new (window as any).DecompressionStream('gzip')
-            ) as ReadableStream<Uint8Array>;
-            
-            const reader = (decompressedStream as ReadableStream<Uint8Array>).getReader();
-            const chunks: Uint8Array[] = [];
-            
-            let result = await reader.read();
-            while (!result.done) {
-              const chunk = result.value as Uint8Array;
-              if (chunk) chunks.push(chunk);
-              result = await reader.read();
-            }
-            
-            decompressed = new Uint8Array(
-              chunks.reduce((acc, chunk) => acc + chunk.length, 0)
-            );
-            let offset = 0;
-            for (const chunk of chunks) {
-              decompressed.set(chunk, offset);
-              offset += chunk.length;
-            }
-          } catch (err) {
-            throw new Error('Failed to decompress gzip file. Please use a modern browser.');
+      if ('DecompressionStream' in window) {
+        try {
+          const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new Uint8Array(arrayBuffer));
+              controller.close();
+            },
+          });
+          
+          const decompressedStream = (stream as ReadableStream<Uint8Array>).pipeThrough(
+            new (window as any).DecompressionStream('gzip')
+          ) as ReadableStream<Uint8Array>;
+          
+          const reader = (decompressedStream as ReadableStream<Uint8Array>).getReader();
+          const chunks: Uint8Array[] = [];
+          
+          let result = await reader.read();
+          while (!result.done) {
+            const chunk = result.value as Uint8Array;
+            if (chunk) chunks.push(chunk);
+            result = await reader.read();
           }
-        } else {
-          throw new Error('Your browser does not support decompression. Please use Chrome, Firefox, or Edge.');
+          
+          decompressed = new Uint8Array(
+            chunks.reduce((acc, chunk) => acc + chunk.length, 0)
+          );
+          let offset = 0;
+          for (const chunk of chunks) {
+            decompressed.set(chunk, offset);
+            offset += chunk.length;
+          }
+        } catch (err) {
+          throw new Error('Failed to decompress gzip file. Please use a modern browser.');
         }
-        
-        // Convert decompressed data to string
-        const decoder = new TextDecoder();
-        xmlText = decoder.decode(decompressed);
-      } else if (isBz2) {
-        // Decompress bzip2 file
-        const decompressed = await decompressBz2(new Uint8Array(arrayBuffer));
-        const decoder = new TextDecoder();
-        xmlText = decoder.decode(decompressed);
       } else {
-        // File is not compressed (save file)
-        const decoder = new TextDecoder();
-        xmlText = decoder.decode(arrayBuffer);
+        throw new Error('Your browser does not support decompression. Please use Chrome, Firefox, or Edge.');
       }
       
-      // Extract information from XML
-      const replayData = extractReplayInfo(xmlText);
-      resolve(replayData);
-    } catch (err: any) {
-      reject(new Error(`Failed to parse file: ${err.message}`));
+      // Convert decompressed data to string
+      const decoder = new TextDecoder();
+      xmlText = decoder.decode(decompressed);
+    } else if (isBz2) {
+      // Decompress bzip2 file using backend endpoint
+      const formData = new FormData();
+      formData.append('replay', file);
+      
+      const response = await fetch('/api/matches/preview-replay', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to parse bzip2 file');
+      }
+      
+      const result = await response.json();
+      
+      // Return the parsed data directly from backend
+      return {
+        map: result.map,
+        players: result.players.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          faction: p.faction || 'Unknown',
+        })),
+      };
+    } else {
+      // File is not compressed (save file)
+      const decoder = new TextDecoder();
+      xmlText = decoder.decode(arrayBuffer);
     }
-  });
+    
+    // Extract information from XML
+    const replayData = extractReplayInfo(xmlText);
+    return replayData;
+  } catch (err: any) {
+    throw new Error(`Failed to parse file: ${err.message}`);
+  }
 }
 
 /**
