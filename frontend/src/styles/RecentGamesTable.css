@@ -46,7 +46,7 @@
 /* Center Winner and Loser column headers */
 .games-table th.winner-col,
 .games-table th.loser-col {
-  text-align: center;
+  text-align: center !important;
 }
 
 .games-table tbody tr {
