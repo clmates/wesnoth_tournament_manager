@@ -1,10 +1,10 @@
 /**
  * Replay/Save Parser Service
- * Extracts map, players, and factions from Wesnoth replay (.gz and .bz2) and save files
+ * Extracts map, players, and factions from Wesnoth replay (.gz) and save files
  */
 
-// Import bz2 module - it exports { decompress }
-import * as bz2Lib from 'bz2';
+// Declare bz2 as a global type
+declare const bz2: any;
 
 interface ReplayData {
   map: string | null;
@@ -18,13 +18,16 @@ interface ReplayData {
  */
 async function decompressBz2(data: Uint8Array): Promise<Uint8Array> {
   try {
-    // bz2Lib should have a decompress property/function
-    const decompress = (bz2Lib as any).decompress;
-    if (typeof decompress !== 'function') {
-      throw new Error('decompress is not a function in bz2 module');
+    // Check if bz2 is available globally
+    if (typeof window !== 'undefined' && (window as any).bz2) {
+      const bz2Module = (window as any).bz2;
+      const decompress = bz2Module.decompress;
+      if (typeof decompress === 'function') {
+        const decompressed = decompress(data);
+        return new Uint8Array(decompressed);
+      }
     }
-    const decompressed = decompress(data);
-    return new Uint8Array(decompressed);
+    throw new Error('bz2.decompress is not available');
   } catch (err: any) {
     throw new Error(`Failed to decompress bzip2 file: ${err.message}`);
   }
@@ -32,7 +35,8 @@ async function decompressBz2(data: Uint8Array): Promise<Uint8Array> {
 
 /**
  * Parse a Wesnoth replay or save file and extract game information
- * Handles both compressed replay files (.gz and .bz2) and uncompressed save files
+ * Handles compressed replay files (.gz) and uncompressed save files
+ * Note: .bz2 files are handled by the backend
  * @param file - The replay or save file to parse
  * @returns Promise with extracted map, players, and faction data
  */
@@ -95,7 +99,6 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
         xmlText = decoder.decode(decompressed);
       } else if (isBz2) {
         // Decompress bzip2 file
-        // bzip2 requires a library as it's not natively supported by DecompressionStream
         const decompressed = await decompressBz2(new Uint8Array(arrayBuffer));
         const decoder = new TextDecoder();
         xmlText = decoder.decode(decompressed);
