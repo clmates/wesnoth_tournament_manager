@@ -1,7 +1,9 @@
 /**
  * Replay/Save Parser Service
- * Extracts map, players, and factions from Wesnoth replay (.gz) and save files
+ * Extracts map, players, and factions from Wesnoth replay (.gz and .bz2) and save files
  */
+
+import { decompress as decompressBz2Data } from 'bz2';
 
 interface ReplayData {
   map: string | null;
@@ -11,8 +13,20 @@ interface ReplayData {
 }
 
 /**
+ * Decompress bzip2 data using bz2 library
+ */
+async function decompressBz2(data: Uint8Array): Promise<Uint8Array> {
+  try {
+    const decompressed = decompressBz2Data(data);
+    return new Uint8Array(decompressed);
+  } catch (err: any) {
+    throw new Error(`Failed to decompress bzip2 file: ${err.message}`);
+  }
+}
+
+/**
  * Parse a Wesnoth replay or save file and extract game information
- * Handles both compressed replay files (.gz) and uncompressed save files
+ * Handles both compressed replay files (.gz and .bz2) and uncompressed save files
  * @param file - The replay or save file to parse
  * @returns Promise with extracted map, players, and faction data
  */
@@ -21,9 +35,10 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
     try {
       const arrayBuffer = await file.arrayBuffer();
       
-      // Check if file is gzip compressed (magic bytes: 1f 8b)
+      // Check compression type by magic bytes
       const view = new Uint8Array(arrayBuffer);
-      const isGzip = view[0] === 0x1f && view[1] === 0x8b;
+      const isGzip = view[0] === 0x1f && view[1] === 0x8b; // gzip magic bytes
+      const isBz2 = view[0] === 0x42 && view[1] === 0x5a; // bz2 magic bytes: 'BZ'
       
       let xmlText: string;
       
@@ -70,6 +85,12 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
         }
         
         // Convert decompressed data to string
+        const decoder = new TextDecoder();
+        xmlText = decoder.decode(decompressed);
+      } else if (isBz2) {
+        // Decompress bzip2 file
+        // bzip2 requires a library as it's not natively supported by DecompressionStream
+        const decompressed = await decompressBz2(new Uint8Array(arrayBuffer));
         const decoder = new TextDecoder();
         xmlText = decoder.decode(decompressed);
       } else {
