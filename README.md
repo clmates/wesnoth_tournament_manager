@@ -11,10 +11,7 @@ Una aplicación web completa para gestionar torneos de Wesnoth con sistema de ra
 - ✅ Confirmación de partidas por ambos jugadores
 - ✅ Gestión de torneos (crear, unirse, participar)
 - ✅ Múltiples idiomas (Inglés, Español, Chino, Alemán, Ruso)
-- ✅ Traducción automática de noticias y FAQs
 - ✅ Niveles de jugadores automáticos
-- ✅ Chat entre jugadores
-- ✅ Ver jugadores en línea
 
 ## Requisitos previos
 
@@ -258,8 +255,6 @@ JWT_EXPIRATION=7d
 PORT=3000
 NODE_ENV=development
 
-# OpenAI (REQUERIDO para traducciones)
-OPENAI_API_KEY=sk-... (obtener en https://platform.openai.com/api-keys)
 
 # URLs
 FRONTEND_URL=http://localhost:5173
@@ -445,16 +440,11 @@ FRONTEND_URL=http://localhost:5173
 ### Multiidioma
 - Inglés, Español, Chino, Alemán, Ruso
 - Selector de idioma en interfaz
-- Traducción automática de contenido con OpenAI/GPT
 
-## Próximas Características
+## Otras Características
 
-- 🔄 WebSocket para chat en tiempo real
-- 📧 Sistema de notificaciones por email
-- 🏆 Medallas y logros
 - 📊 Estadísticas avanzadas
 - 🎮 Integración con Discord
-- 📱 Aplicación móvil
 
 ## Contribuir
 
@@ -468,7 +458,7 @@ Las contribuciones son bienvenidas. Por favor:
 
 ## Licencia
 
-Este proyecto está bajo la licencia MIT.
+Este proyecto está bajo la licencia GPL.
 
 ## Contacto
 
