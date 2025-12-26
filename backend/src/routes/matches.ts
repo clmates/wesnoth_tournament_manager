@@ -670,12 +670,18 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
  * MUST be BEFORE generic /:id routes
  */
 router.options('/preview-replay', (req, res) => {
+  console.log('✅ [PREVIEW] OPTIONS request received for /preview-replay');
   res.status(200).end();
 });
 
 router.post('/preview-replay', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
   try {
+    console.log('✅ [PREVIEW] POST /preview-replay endpoint reached');
+    console.log('[PREVIEW] User ID:', req.userId);
+    console.log('[PREVIEW] File info:', req.file ? { fieldname: req.file.fieldname, originalname: req.file.originalname, size: req.file.size } : 'NO FILE');
+    
     if (!req.file) {
+      console.warn('[PREVIEW] No file in request');
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
@@ -683,13 +689,13 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
     const fileName = req.file.originalname;
     const fileExt = path.extname(fileName).toLowerCase();
 
-    console.log(`📂 Previewing replay file: ${fileName} (${fileBuffer.length} bytes)`);
+    console.log(`📂 [PREVIEW] Previewing replay file: ${fileName} (${fileBuffer.length} bytes), ext: ${fileExt}`);
 
     let decompressed: Buffer;
 
     if (fileExt === '.gz') {
+      console.log('[PREVIEW] Handling GZIP decompression');
       // Handle gzip decompression
-      const { createReadStream } = await import('fs');
       const { createGunzip } = await import('zlib');
       const { Readable } = await import('stream');
 
@@ -706,27 +712,35 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
       });
 
       decompressed = Buffer.concat(chunks);
+      console.log('[PREVIEW] GZIP decompression complete, decompressed size:', decompressed.length);
     } else if (fileExt === '.bz2') {
+      console.log('[PREVIEW] Handling BZ2 decompression');
       // Handle bzip2 decompression
       const bz2 = await import('bz2');
       const decompress = bz2.decompress;
 
       if (typeof decompress !== 'function') {
+        console.error('[PREVIEW] bz2.decompress is not a function, type:', typeof decompress);
         throw new Error('bz2.decompress is not available');
       }
 
+      console.log('[PREVIEW] Calling bz2.decompress...');
       const decompressedData = decompress(fileBuffer);
       decompressed = Buffer.from(decompressedData);
+      console.log('[PREVIEW] BZ2 decompression complete, decompressed size:', decompressed.length);
     } else {
+      console.warn('[PREVIEW] Unsupported file extension:', fileExt);
       return res.status(400).json({ error: 'Unsupported file format. Only .gz and .bz2 files are allowed.' });
     }
 
     // Convert to string and extract replay info
+    console.log('[PREVIEW] Converting decompressed data to string...');
     const xmlText = decompressed.toString('utf-8');
 
     // Extract map name
     const scenarioMatch = xmlText.match(/mp_scenario_name="([^"]+)"/);
     const map = scenarioMatch ? scenarioMatch[1] : null;
+    console.log('[PREVIEW] Extracted map:', map);
 
     // Extract players
     const players: Array<{ id: string; name: string }> = [];
@@ -737,7 +751,9 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
         players.push({ id: playerId, name: playerName });
       }
     }
+    console.log('[PREVIEW] Extracted players:', players);
 
+    console.log('[PREVIEW] Sending successful response...');
     res.json({
       success: true,
       map,
@@ -745,7 +761,8 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
       fileName,
     });
   } catch (error: any) {
-    console.error('Error previewing replay file:', error);
+    console.error('[PREVIEW] Error in preview-replay endpoint:', error);
+
     res.status(400).json({
       error: 'Failed to parse replay file',
       details: error.message,

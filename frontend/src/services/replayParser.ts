@@ -76,23 +76,35 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
       xmlText = decoder.decode(decompressed);
     } else if (isBz2) {
       // Decompress bzip2 file using backend endpoint
+      console.log('[REPLAY] Detected BZ2 file:', file.name);
+      
       const formData = new FormData();
       formData.append('replay', file);
+      
+      const token = localStorage.getItem('token') || '';
+      console.log('[REPLAY] Token available:', !!token);
+      console.log('[REPLAY] Sending request to /api/matches/preview-replay');
       
       const response = await fetch('/api/matches/preview-replay', {
         method: 'POST',
         body: formData,
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
+      
+      console.log('[REPLAY] Response status:', response.status, response.statusText);
+      console.log('[REPLAY] Response headers:', Array.from(response.headers.entries()));
       
       if (!response.ok) {
         let errorMessage = 'Failed to parse bzip2 file';
         try {
-          const errorData = await response.json();
+          const errorText = await response.text();
+          console.log('[REPLAY] Error response text:', errorText);
+          const errorData = JSON.parse(errorText);
           errorMessage = errorData.error || errorMessage;
-        } catch {
+        } catch (e) {
+          console.log('[REPLAY] Could not parse error response:', e);
           errorMessage = `Server error (${response.status}): ${response.statusText}`;
         }
         throw new Error(errorMessage);
@@ -101,7 +113,9 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
       let result;
       try {
         result = await response.json();
+        console.log('[REPLAY] Successfully parsed response:', result);
       } catch (e) {
+        console.error('[REPLAY] Failed to parse JSON response:', e);
         throw new Error('Invalid server response - could not parse JSON');
       }
       
