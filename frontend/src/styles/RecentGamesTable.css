@@ -34,19 +34,13 @@
 
 .games-table th {
   padding: 14px 12px;
-  text-align: left;
+  text-align: center;
   color: #2c3e50;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
   font-size: 0.85rem;
-}
-
-/* Center Winner and Loser column headers */
-.games-table th.winner-col,
-.games-table th.loser-col {
-  text-align: center !important;
 }
 
 .games-table tbody tr {
