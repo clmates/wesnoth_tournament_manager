@@ -343,10 +343,10 @@ const ReportMatch: React.FC = () => {
             <FileUploadInput
               value={formData.replay}
               onChange={handleReplayFileChange}
-              accept=".gz,.cfg,.txt,.save"
+              accept=".gz,.bz2"
             />
             <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
-              Upload your replay file (.gz) or save file to auto-fill opponent, map, and factions
+              Upload your replay file (.gz or .bz2) to auto-fill opponent, map, and factions
             </small>
           </div>
 

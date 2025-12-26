@@ -8,7 +8,7 @@ interface FileUploadInputProps {
   accept?: string;
 }
 
-const FileUploadInput: React.FC<FileUploadInputProps> = ({ value, onChange, accept = '.gz' }) => {
+const FileUploadInput: React.FC<FileUploadInputProps> = ({ value, onChange, accept = '.gz,.bz2' }) => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 

@@ -36,8 +36,8 @@ const upload = multer({
   limits: { fileSize: 512 * 1024 }, // 512KB max file size
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (ext !== '.gz') {
-      return cb(new Error('Only .gz replay files are allowed'));
+    if (ext !== '.gz' && ext !== '.bz2') {
+      return cb(new Error('Only .gz and .bz2 replay files are allowed'));
     }
     cb(null, true);
   },
@@ -124,12 +124,12 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Enforce .gz uploads (defensive even with multer filter)
+    // Enforce .gz and .bz2 uploads (defensive even with multer filter)
     if (req.file) {
       const ext = path.extname(req.file.originalname).toLowerCase();
-      if (ext !== '.gz') {
+      if (ext !== '.gz' && ext !== '.bz2') {
         console.warn('📤 [UPLOAD] Rejected file with invalid extension:', ext);
-        return res.status(400).json({ error: 'Only .gz replay files are allowed' });
+        return res.status(400).json({ error: 'Only .gz and .bz2 replay files are allowed' });
       }
     }
 

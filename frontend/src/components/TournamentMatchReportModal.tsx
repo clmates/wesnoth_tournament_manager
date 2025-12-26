@@ -310,10 +310,10 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 id="replay"
                 name="replay"
                 onChange={handleFileChange}
-                accept=".gz"
+                accept=".gz,.bz2"
               />
               <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
-                Upload your replay file (.gz) or save file to auto-fill map and factions
+                Upload your replay file (.gz or .bz2) or save file to auto-fill map and factions
               </small>
             </div>
 
