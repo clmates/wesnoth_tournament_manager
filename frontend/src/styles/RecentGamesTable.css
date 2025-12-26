@@ -48,6 +48,8 @@
 .games-table th.loser-col {
   text-align: center !important;
 }
+
+.games-table tbody tr {
   border-bottom: 1px solid #e9ecef;
   transition: all 0.3s ease;
 }
