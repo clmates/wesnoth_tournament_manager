@@ -3,13 +3,16 @@ import axios from 'axios';
 const DISCORD_WEBHOOK_URL_ADMIN = process.env.DISCORD_WEBHOOK_URL_ADMIN || 'https://discord.com/api/webhooks/1451903758408614021/YZsof0mktnEB_C7GcpFcIyD7Tc6v2g63dR_bqFQJYqrZRrlzNw6LPYBFfCAOHOurHZRt';
 const DISCORD_WEBHOOK_URL_USERS = process.env.DISCORD_WEBHOOK_URL_USERS || 'https://discord.com/api/webhooks/1451906911900274791/HLp96wiBX5AkZe4A86dSAz5rbJMddDDNM1SVzHGN0h8ekoWdZJ7_Sg0d4x_di54gaMyw';
 
+// Check if Discord is enabled (at least one webhook URL is properly configured)
+export const DISCORD_ENABLED = !!(process.env.DISCORD_WEBHOOK_URL_ADMIN || process.env.DISCORD_WEBHOOK_URL_USERS);
+
 export async function notifyAdminNewRegistration(user: {
   nickname: string;
   email: string;
   discord_id?: string;
 }) {
-  if (!DISCORD_WEBHOOK_URL_ADMIN) {
-    console.warn('Discord webhook URL not configured');
+  if (!DISCORD_ENABLED || !DISCORD_WEBHOOK_URL_ADMIN) {
+    console.warn('[DISCORD] Discord webhook URL not configured, skipping admin notification');
     return;
   }
 
@@ -54,7 +57,7 @@ export async function notifyAdminUserApproved(user: {
   nickname: string;
   approvedBy: string;
 }) {
-  if (!DISCORD_WEBHOOK_URL_ADMIN) return;
+  if (!DISCORD_ENABLED || !DISCORD_WEBHOOK_URL_ADMIN) return;
 
   const message = {
     embeds: [{
@@ -81,7 +84,7 @@ export async function notifyAdminUserRejected(user: {
   nickname: string;
   rejectedBy: string;
 }) {
-  if (!DISCORD_WEBHOOK_URL_ADMIN) return;
+  if (!DISCORD_ENABLED || !DISCORD_WEBHOOK_URL_ADMIN) return;
 
   const message = {
     embeds: [{
@@ -110,9 +113,10 @@ export async function notifyUserWelcome(user: {
   discord_id?: string;
 }) {
   console.log('🔔 notifyUserWelcome called for:', user.nickname);
+  console.log('📍 DISCORD_ENABLED:', DISCORD_ENABLED);
   console.log('📍 DISCORD_WEBHOOK_URL_USERS configured:', !!DISCORD_WEBHOOK_URL_USERS);
-  if (!DISCORD_WEBHOOK_URL_USERS) {
-    console.warn('⚠️ DISCORD_WEBHOOK_URL_USERS not configured - skipping user welcome notification');
+  if (!DISCORD_ENABLED || !DISCORD_WEBHOOK_URL_USERS) {
+    console.warn('[DISCORD] Discord not enabled or webhook not configured - skipping user welcome notification');
     return;
   }
 
@@ -153,9 +157,10 @@ export async function notifyUserUnlocked(user: {
   discord_id?: string;
 }) {
   console.log('🔔 notifyUserUnlocked called for:', user.nickname);
+  console.log('📍 DISCORD_ENABLED:', DISCORD_ENABLED);
   console.log('📍 DISCORD_WEBHOOK_URL_USERS configured:', !!DISCORD_WEBHOOK_URL_USERS);
-  if (!DISCORD_WEBHOOK_URL_USERS) {
-    console.warn('⚠️ DISCORD_WEBHOOK_URL_USERS not configured - skipping user unlock notification');
+  if (!DISCORD_ENABLED || !DISCORD_WEBHOOK_URL_USERS) {
+    console.warn('[DISCORD] Discord not enabled or webhook not configured - skipping user unlock notification');
     return;
   }
 
