@@ -664,6 +664,91 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
   }
 });
 
+/**
+ * Preview replay file (decompress and extract data)
+ * Handles .gz and .bz2 files
+ * MUST be BEFORE generic /:id routes
+ */
+router.post('/preview-replay', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const fileName = req.file.originalname;
+    const fileExt = path.extname(fileName).toLowerCase();
+
+    console.log(`📂 Previewing replay file: ${fileName} (${fileBuffer.length} bytes)`);
+
+    let decompressed: Buffer;
+
+    if (fileExt === '.gz') {
+      // Handle gzip decompression
+      const { createReadStream } = await import('fs');
+      const { createGunzip } = await import('zlib');
+      const { Readable } = await import('stream');
+
+      const stream = Readable.from(fileBuffer);
+      const gunzip = createGunzip();
+      const chunks: Buffer[] = [];
+
+      await new Promise((resolve, reject) => {
+        stream
+          .pipe(gunzip)
+          .on('data', (chunk: Buffer) => chunks.push(chunk))
+          .on('end', resolve)
+          .on('error', reject);
+      });
+
+      decompressed = Buffer.concat(chunks);
+    } else if (fileExt === '.bz2') {
+      // Handle bzip2 decompression
+      const bz2 = await import('bz2');
+      const decompress = bz2.decompress;
+
+      if (typeof decompress !== 'function') {
+        throw new Error('bz2.decompress is not available');
+      }
+
+      const decompressedData = decompress(fileBuffer);
+      decompressed = Buffer.from(decompressedData);
+    } else {
+      return res.status(400).json({ error: 'Unsupported file format. Only .gz and .bz2 files are allowed.' });
+    }
+
+    // Convert to string and extract replay info
+    const xmlText = decompressed.toString('utf-8');
+
+    // Extract map name
+    const scenarioMatch = xmlText.match(/mp_scenario_name="([^"]+)"/);
+    const map = scenarioMatch ? scenarioMatch[1] : null;
+
+    // Extract players
+    const players: Array<{ id: string; name: string }> = [];
+    const playerMatches = xmlText.matchAll(/id="([^"]+)"[\s\S]*?name="([^"]+)"/g);
+    for (const match of playerMatches) {
+      const [, playerId, playerName] = match;
+      if (playerId && playerName && !playerId.startsWith('_')) {
+        players.push({ id: playerId, name: playerName });
+      }
+    }
+
+    res.json({
+      success: true,
+      map,
+      players,
+      fileName,
+    });
+  } catch (error: any) {
+    console.error('Error previewing replay file:', error);
+    res.status(400).json({
+      error: 'Failed to parse replay file',
+      details: error.message,
+    });
+  }
+});
+
 // Confirm/dispute match - MUST be BEFORE generic /:id routes
 router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -1171,90 +1256,6 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Error fetching matches:', error);
     res.status(500).json({ error: 'Failed to fetch matches' });
-  }
-});
-
-/**
- * Preview replay file (decompress and extract data)
- * Handles .gz and .bz2 files
- */
-router.post('/preview-replay', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    const fileBuffer = req.file.buffer;
-    const fileName = req.file.originalname;
-    const fileExt = path.extname(fileName).toLowerCase();
-
-    console.log(`📂 Previewing replay file: ${fileName} (${fileBuffer.length} bytes)`);
-
-    let decompressed: Buffer;
-
-    if (fileExt === '.gz') {
-      // Handle gzip decompression
-      const { createReadStream } = await import('fs');
-      const { createGunzip } = await import('zlib');
-      const { Readable } = await import('stream');
-
-      const stream = Readable.from(fileBuffer);
-      const gunzip = createGunzip();
-      const chunks: Buffer[] = [];
-
-      await new Promise((resolve, reject) => {
-        stream
-          .pipe(gunzip)
-          .on('data', (chunk: Buffer) => chunks.push(chunk))
-          .on('end', resolve)
-          .on('error', reject);
-      });
-
-      decompressed = Buffer.concat(chunks);
-    } else if (fileExt === '.bz2') {
-      // Handle bzip2 decompression
-      const bz2 = await import('bz2');
-      const decompress = bz2.decompress;
-
-      if (typeof decompress !== 'function') {
-        throw new Error('bz2.decompress is not available');
-      }
-
-      const decompressedData = decompress(fileBuffer);
-      decompressed = Buffer.from(decompressedData);
-    } else {
-      return res.status(400).json({ error: 'Unsupported file format. Only .gz and .bz2 files are allowed.' });
-    }
-
-    // Convert to string and extract replay info
-    const xmlText = decompressed.toString('utf-8');
-
-    // Extract map name
-    const scenarioMatch = xmlText.match(/mp_scenario_name="([^"]+)"/);
-    const map = scenarioMatch ? scenarioMatch[1] : null;
-
-    // Extract players
-    const players: Array<{ id: string; name: string }> = [];
-    const playerMatches = xmlText.matchAll(/id="([^"]+)"[\s\S]*?name="([^"]+)"/g);
-    for (const match of playerMatches) {
-      const [, playerId, playerName] = match;
-      if (playerId && playerName && !playerId.startsWith('_')) {
-        players.push({ id: playerId, name: playerName });
-      }
-    }
-
-    res.json({
-      success: true,
-      map,
-      players,
-      fileName,
-    });
-  } catch (error: any) {
-    console.error('Error previewing replay file:', error);
-    res.status(400).json({
-      error: 'Failed to parse replay file',
-      details: error.message,
-    });
   }
 });
 

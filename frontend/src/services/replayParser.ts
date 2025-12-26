@@ -88,11 +88,22 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to parse bzip2 file');
+        let errorMessage = 'Failed to parse bzip2 file';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = `Server error (${response.status}): ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
       
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (e) {
+        throw new Error('Invalid server response - could not parse JSON');
+      }
       
       // Return the parsed data directly from backend
       return {
