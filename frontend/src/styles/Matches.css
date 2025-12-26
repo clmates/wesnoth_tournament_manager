@@ -97,6 +97,21 @@
   border-bottom: 2px solid #34495e;
 }
 
+/* Center header text for sortable columns */
+.games-table th.date-col,
+.games-table th.winner-col,
+.games-table th.loser-col,
+.games-table th.map-col,
+.games-table th.status-actions-col {
+  text-align: center;
+}
+
+/* Indicate clickable headers visually */
+.games-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
 .games-table tbody tr {
   border-bottom: 1px solid #ecf0f1;
   transition: background-color 0.2s;

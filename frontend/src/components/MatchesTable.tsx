@@ -24,6 +24,9 @@ interface MatchesTableProps {
   onOpenConfirmation?: (match: any) => void;
 }
 
+type SortColumn = 'date' | 'winner' | 'loser' | 'map' | 'status' | '';
+type SortDirection = 'asc' | 'desc';
+
 const MatchesTable: React.FC<MatchesTableProps> = ({
   matches,
   currentPlayerId,
@@ -33,48 +36,74 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
 }) => {
   const { t } = useTranslation();
   const { isAuthenticated, userId } = useAuthStore();
-  
-  if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('MatchesTable rendered - isAuthenticated:', isAuthenticated, 'userId:', userId, 'onViewDetails:', !!onViewDetails);
+
+  const [sortColumn, setSortColumn] = React.useState<SortColumn>('');
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
 
   const winnerEloChange = (match: any) => (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
   const loserEloChange = (match: any) => (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
 
   const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
     try {
-      // Delegate to parent if it wants to handle the download (prevents double calls)
       if (onDownloadReplay) {
         await onDownloadReplay(matchId, replayFilePath);
         return;
       }
-
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
-        console.log('🔽 Starting download for match:', matchId);
-        console.log('🔽 Incrementing download count...');
-      }
       await matchService.incrementReplayDownloads(matchId);
-      
-      // Fetch signed URL from the backend
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Fetching signed URL from backend...');
       const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Download URL:', downloadUrl);
-      const response = await fetch(downloadUrl, {
-        method: 'GET'
-      });
-
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Response status:', response.status);
-      if (!response.ok) {
-        throw new Error(`Download failed with status ${response.status}`);
-      }
-
-      // Get signed URL from response and redirect
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Getting signed URL...');
-      const { signedUrl, filename } = await response.json();
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Redirecting to signed URL:', signedUrl);
+      const response = await fetch(downloadUrl, { method: 'GET' });
+      if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
+      const { signedUrl } = await response.json();
       window.location.href = signedUrl;
     } catch (err) {
       console.error('Error downloading replay:', err);
     }
   };
+
+  // Sorting logic for matches
+  const sortedMatches = React.useMemo(() => {
+    if (!sortColumn) return matches;
+    const sorted = [...matches].sort((a, b) => {
+      let aValue: any, bValue: any;
+      switch (sortColumn) {
+        case 'date':
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case 'winner':
+          aValue = a.winner_nickname?.toLowerCase?.() || '';
+          bValue = b.winner_nickname?.toLowerCase?.() || '';
+          break;
+        case 'loser':
+          aValue = a.loser_nickname?.toLowerCase?.() || '';
+          bValue = b.loser_nickname?.toLowerCase?.() || '';
+          break;
+        case 'map':
+          aValue = a.map?.toLowerCase?.() || '';
+          bValue = b.map?.toLowerCase?.() || '';
+          break;
+        case 'status':
+          aValue = a.status || '';
+          bValue = b.status || '';
+          break;
+        default:
+          return 0;
+      }
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [matches, sortColumn, sortDirection]);
 
   if (matches.length === 0) {
     return (
@@ -82,11 +111,11 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
         <table className="games-table">
           <thead>
             <tr>
-              <th>{t('label_date')}</th>
-              <th>{t('label_winner')}</th>
-              <th>{t('label_loser')}</th>
-              <th>{t('label_map')}</th>
-              <th>Status / Actions</th>
+              <th className="date-col sortable" onClick={() => handleSort('date')}>{t('label_date')}</th>
+              <th className="winner-col sortable" onClick={() => handleSort('winner')}>{t('label_winner')}</th>
+              <th className="loser-col sortable" onClick={() => handleSort('loser')}>{t('label_loser')}</th>
+              <th className="map-col sortable" onClick={() => handleSort('map')}>{t('label_map')}</th>
+              <th className="status-actions-col sortable" onClick={() => handleSort('status')}>Status / Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -104,15 +133,25 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
       <table className="games-table">
         <thead>
           <tr>
-            <th>{t('label_date')}</th>
-            <th>{t('label_winner')}</th>
-            <th>{t('label_loser')}</th>
-            <th>{t('label_map')}</th>
-            <th>Status / Actions</th>
+            <th className="date-col sortable" onClick={() => handleSort('date')}>
+              {t('label_date')}{sortColumn === 'date' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
+            <th className="winner-col sortable" onClick={() => handleSort('winner')}>
+              {t('label_winner')}{sortColumn === 'winner' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
+            <th className="loser-col sortable" onClick={() => handleSort('loser')}>
+              {t('label_loser')}{sortColumn === 'loser' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
+            <th className="map-col sortable" onClick={() => handleSort('map')}>
+              {t('label_map')}{sortColumn === 'map' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
+            <th className="status-actions-col sortable" onClick={() => handleSort('status')}>
+              Status / Actions{sortColumn === 'status' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
           </tr>
         </thead>
         <tbody>
-          {matches.map((match) => (
+          {sortedMatches.map((match) => (
             <tr key={match.id} className={`game-row`}>
               <td className="date-col">{new Date(match.created_at).toLocaleDateString()}</td>
 

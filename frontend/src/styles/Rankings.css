@@ -61,6 +61,22 @@
   border-bottom: 2px solid #2980b9;
 }
 
+/* Center header text for sortable columns */
+.rankings-table th.elo-col,
+.rankings-table th.matches-col,
+.rankings-table th.wins-col,
+.rankings-table th.losses-col,
+.rankings-table th.ratio-col,
+.rankings-table th.trend-col {
+  text-align: center;
+}
+
+/* Indicate clickable headers visually */
+.rankings-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
 .rankings-table tbody tr {
   border-bottom: 1px solid #e9ecef;
   transition: all 0.3s ease;
