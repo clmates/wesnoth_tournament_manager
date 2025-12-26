@@ -669,6 +669,10 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
  * Handles .gz and .bz2 files
  * MUST be BEFORE generic /:id routes
  */
+router.options('/preview-replay', (req, res) => {
+  res.status(200).end();
+});
+
 router.post('/preview-replay', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
   try {
     if (!req.file) {
