@@ -60,10 +60,10 @@ router.post('/registration-requests/:id/approve', authMiddleware, async (req: Au
     const regRequest = regResult.rows[0];
     const passwordHash = await hashPassword(password);
 
-    // New players start with elo_rating = 1200 (unrated status)
+    // New players start with elo_rating = 1400 (FIDE standard, unrated status)
     const userResult = await query(
       `INSERT INTO users (nickname, email, language, discord_id, password_hash, is_active, is_rated, elo_rating, matches_played)
-       VALUES ($1, $2, $3, $4, $5, true, false, 1200, 0)
+       VALUES ($1, $2, $3, $4, $5, true, false, 1400, 0)
        RETURNING id`,
       [regRequest.nickname, regRequest.email, regRequest.language, regRequest.discord_id, passwordHash]
     );
@@ -539,7 +539,7 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`Starting global stats recalculation by admin ${req.userId}`);
 
-    const defaultElo = 1600; // Standard baseline for new users
+    const defaultElo = 1400; // FIDE standard baseline for new users
 
     // Get ALL non-cancelled matches in chronological order
     const allNonCancelledMatches = await query(

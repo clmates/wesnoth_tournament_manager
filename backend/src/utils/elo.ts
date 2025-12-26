@@ -1,4 +1,4 @@
-/**
+  /**
  * ELO Rating Calculation System (FIDE compliant)
  * Implements the official FIDE ELO rating system
  */
