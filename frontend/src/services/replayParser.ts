@@ -3,22 +3,8 @@
  * Extracts map, players, and factions from Wesnoth replay (.gz and .bz2) and save files
  */
 
-// Cache for the bz2 module
-let bz2Module: any = null;
-
-async function getBz2() {
-  if (!bz2Module) {
-    try {
-      // Dynamic import of bz2 module
-      bz2Module = await import('bz2');
-      // Handle both ES module (with default export) and CommonJS exports
-      return bz2Module.default || bz2Module;
-    } catch (e: any) {
-      throw new Error(`Failed to load bz2 module: ${e.message}`);
-    }
-  }
-  return bz2Module.default || bz2Module;
-}
+// Import bz2 module - it exports { decompress }
+import * as bz2Lib from 'bz2';
 
 interface ReplayData {
   map: string | null;
@@ -32,8 +18,12 @@ interface ReplayData {
  */
 async function decompressBz2(data: Uint8Array): Promise<Uint8Array> {
   try {
-    const bz2Module = await getBz2();
-    const decompressed = bz2Module.decompress(data);
+    // bz2Lib should have a decompress property/function
+    const decompress = (bz2Lib as any).decompress;
+    if (typeof decompress !== 'function') {
+      throw new Error('decompress is not a function in bz2 module');
+    }
+    const decompressed = decompress(data);
     return new Uint8Array(decompressed);
   } catch (err: any) {
     throw new Error(`Failed to decompress bzip2 file: ${err.message}`);
