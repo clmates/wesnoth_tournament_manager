@@ -752,16 +752,65 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
 
     // Extract map name
     const scenarioMatch = xmlText.match(/mp_scenario_name="([^"]+)"/);
-    const map = scenarioMatch ? scenarioMatch[1] : null;
+    let map = scenarioMatch ? scenarioMatch[1] : null;
+    if (map) {
+      // Remove "2p — " prefix if present
+      map = map.replace(/^2p\s*—\s*/, '');
+    }
     console.log('[PREVIEW] Extracted map:', map);
 
-    // Extract players
+    // Extract players from global side_users attribute (e.g., id1:Nick1,id2:Nick2)
+    const sideUsersGlobal = xmlText.match(/side_users="([^"]+)"/);
+    const playerNames: string[] = [];
+    if (sideUsersGlobal && sideUsersGlobal[1]) {
+      const pairs = sideUsersGlobal[1].split(',');
+      for (const pair of pairs) {
+        const parts = pair.split(':');
+        const name = (parts[1] || parts[0]).trim();
+        if (name) playerNames.push(name);
+      }
+    }
+
+    // Extract factions in order of <side ...> blocks (fallback)
+    const factionsInOrder: string[] = [];
+    const factionRegex = /faction_name\s*=\s*_?"([^"]+)"/g;
+    let factionMatch;
+    while ((factionMatch = factionRegex.exec(xmlText)) !== null) {
+      const raw = factionMatch[1];
+      const clean = raw.replace(/^_/, '');
+      factionsInOrder.push(clean);
+    }
+
+    // Extract factions from [old_side*] blocks mapping current_player -> faction_name (preferred) or faction
+    const factionByPlayer: Record<string, string> = {};
+    const oldSideBlockRegex = /\[old_side[^\]]*\][\s\S]*?(?=\[old_side|\Z)/g;
+    let sideBlockMatch;
+    while ((sideBlockMatch = oldSideBlockRegex.exec(xmlText)) !== null) {
+      const text = sideBlockMatch[0];
+      const playerMatch = text.match(/current_player="([^"]+)"/);
+      if (!playerMatch) continue;
+      const player = playerMatch[1];
+      const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+      const factionMatchLocal = text.match(/faction="([^"]+)"/);
+      const rawFaction = (factionNameMatch?.[1] || factionMatchLocal?.[1] || '').trim();
+      if (!rawFaction) continue;
+      const cleanFaction = rawFaction.replace(/^_/, '');
+      factionByPlayer[player] = cleanFaction;
+    }
+
+    // Build players array by index mapping
     const players: Array<{ id: string; name: string }> = [];
-    const playerMatches = xmlText.matchAll(/id="([^"]+)"[\s\S]*?name="([^"]+)"/g);
-    for (const match of playerMatches) {
-      const [, playerId, playerName] = match;
-      if (playerId && playerName && !playerId.startsWith('_')) {
-        players.push({ id: playerId, name: playerName });
+    const count = Math.min(playerNames.length, factionsInOrder.length);
+    for (let i = 0; i < count; i++) {
+      const name = playerNames[i];
+      const faction = factionByPlayer[name] ?? factionsInOrder[i] ?? 'Unknown';
+      players.push({ id: name, name, faction });
+    }
+
+    // If playerNames are empty but old_side mapping exists, use it to populate players
+    if (playerNames.length === 0 && Object.keys(factionByPlayer).length > 0) {
+      for (const [name, faction] of Object.entries(factionByPlayer)) {
+        players.push({ id: name, name, faction });
       }
     }
     console.log('[PREVIEW] Extracted players:', players);
