@@ -24,11 +24,53 @@ interface FilterState {
   rated_only: boolean;
 }
 
+type SortColumn = 'nickname' | 'elo_rating' | 'is_rated' | 'matches_played' | 'total_wins' | 'total_losses' | 'winPercentage' | '';
+type SortDirection = 'asc' | 'desc';
+
 const Players: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { userId } = useAuthStore();
   const [players, setPlayers] = useState<PlayerStats[]>([]);
+  const [sortColumn, setSortColumn] = useState<SortColumn>('');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+    // Sorting logic
+    const handleSort = (column: SortColumn) => {
+      if (sortColumn === column) {
+        setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
+      } else {
+        setSortColumn(column);
+        setSortDirection('desc');
+      }
+    };
+
+    // Sort players before rendering
+    const sortedPlayers = React.useMemo(() => {
+      if (!sortColumn) return players;
+      const sorted = [...players].sort((a, b) => {
+        let aValue: any = a[sortColumn as keyof PlayerStats];
+        let bValue: any = b[sortColumn as keyof PlayerStats];
+        // For nickname, sort as string
+        if (sortColumn === 'nickname') {
+          aValue = aValue?.toLowerCase?.() || '';
+          bValue = bValue?.toLowerCase?.() || '';
+          if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+          return 0;
+        }
+        // For is_rated, sort true > false
+        if (sortColumn === 'is_rated') {
+          if (aValue === bValue) return 0;
+          return (aValue ? -1 : 1) * (sortDirection === 'asc' ? 1 : -1);
+        }
+        // For numbers
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        return 0;
+      });
+      return sorted;
+    }, [players, sortColumn, sortDirection]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -275,18 +317,39 @@ const Players: React.FC = () => {
         <table className="players-table">
           <thead>
               <tr>
-              <th className="rank-col">#</th>
-              <th className="nickname-col">{t('label_nickname')}</th>
-              <th className="elo-col">{t('label_elo')}</th>
-              <th className="status-col">{t('label_status')}</th>
-              <th className="matches-col">{t('label_total')}</th>
-              <th className="wins-col">{t('label_wins')}</th>
-              <th className="losses-col">{t('label_losses')}</th>
-              <th className="ratio-col">{t('label_win_pct')}</th>
-            </tr>
+                <th className="rank-col">#</th>
+                <th className="nickname-col sortable" onClick={() => handleSort('nickname')} style={{cursor:'pointer'}}>
+                  {t('label_nickname')}
+                  {sortColumn === 'nickname' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="elo-col sortable" onClick={() => handleSort('elo_rating')} style={{cursor:'pointer'}}>
+                  {t('label_elo')}
+                  {sortColumn === 'elo_rating' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="status-col sortable" onClick={() => handleSort('is_rated')} style={{cursor:'pointer'}}>
+                  {t('label_status')}
+                  {sortColumn === 'is_rated' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="matches-col sortable" onClick={() => handleSort('matches_played')} style={{cursor:'pointer'}}>
+                  {t('label_total')}
+                  {sortColumn === 'matches_played' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="wins-col sortable" onClick={() => handleSort('total_wins')} style={{cursor:'pointer'}}>
+                  {t('label_wins')}
+                  {sortColumn === 'total_wins' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="losses-col sortable" onClick={() => handleSort('total_losses')} style={{cursor:'pointer'}}>
+                  {t('label_losses')}
+                  {sortColumn === 'total_losses' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="ratio-col sortable" onClick={() => handleSort('winPercentage')} style={{cursor:'pointer'}}>
+                  {t('label_win_pct')}
+                  {sortColumn === 'winPercentage' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+              </tr>
           </thead>
           <tbody>
-            {players.map((player, index) => (
+            {sortedPlayers.map((player, index) => (
               <tr key={player.id} className={index % 2 === 0 ? 'even' : 'odd'}>
                 <td className="rank-col">
                   <span className="rank-badge">#{(currentPage - 1) * 20 + index + 1}</span>

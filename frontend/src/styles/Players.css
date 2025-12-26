@@ -162,7 +162,6 @@
 .players-table th.ratio-col {
   text-align: center;
 }
-}
 
 .players-table tbody tr {
   transition: background-color 0.2s ease;
