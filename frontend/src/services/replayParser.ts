@@ -3,7 +3,7 @@
  * Extracts map, players, and factions from Wesnoth replay (.gz and .bz2) and save files
  */
 
-import { decompress as decompressBz2Data } from 'bz2';
+import bz2 from 'bz2';
 
 interface ReplayData {
   map: string | null;
@@ -17,7 +17,7 @@ interface ReplayData {
  */
 async function decompressBz2(data: Uint8Array): Promise<Uint8Array> {
   try {
-    const decompressed = decompressBz2Data(data);
+    const decompressed = bz2.decompress(data);
     return new Uint8Array(decompressed);
   } catch (err: any) {
     throw new Error(`Failed to decompress bzip2 file: ${err.message}`);
