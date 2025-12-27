@@ -630,6 +630,15 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`Global stats recalculation completed: ${allNonCancelledMatches.rows.length} matches replayed, ${userStates.size} users updated`);
 
+    // Recalculate faction/map balance statistics
+    try {
+      await query('SELECT recalculate_faction_map_statistics()');
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Faction/map statistics recalculated successfully');
+    } catch (error) {
+      console.error('Error recalculating faction/map statistics:', error);
+      // Don't fail the entire operation if balance stats fail
+    }
+
     res.json({
       message: 'Global stats recalculation completed successfully',
       matchesProcessed: allNonCancelledMatches.rows.length,

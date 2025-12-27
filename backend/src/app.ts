@@ -8,6 +8,7 @@ import matchRoutes from './routes/matches.js';
 import tournamentRoutes from './routes/tournaments.js';
 import adminRoutes from './routes/admin.js';
 import publicRoutes from './routes/public.js';
+import statisticsRoutes from './routes/statistics.js';
 import { generalLimiter } from './middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -54,6 +55,7 @@ app.use('/api/matches', matchRoutes);
 app.use('/api/tournaments', tournamentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/statistics', statisticsRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });

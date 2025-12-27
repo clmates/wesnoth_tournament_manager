@@ -1,0 +1,125 @@
+/* Statistics Page */
+
+.statistics-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  min-height: calc(100vh - 80px);
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.statistics-container h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+
+.statistics-intro {
+  text-align: center;
+  color: #555;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.statistics-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.statistics-tabs .tab-button {
+  padding: 0.8rem 2rem;
+  border: 2px solid #e0e0e0;
+  background: white;
+  color: #555;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.statistics-tabs .tab-button:hover {
+  color: #3498db;
+  border-color: #3498db;
+  background-color: #f0f7ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.15);
+}
+
+.statistics-tabs .tab-button.active {
+  color: white;
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  border-color: #2980b9;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.statistics-content {
+  animation: slideInUp 0.3s ease;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .statistics-container {
+    padding: 1rem;
+  }
+
+  .statistics-container h1 {
+    font-size: 1.8rem;
+  }
+
+  .statistics-intro {
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .statistics-tabs {
+    padding: 0.75rem;
+    gap: 0.4rem;
+  }
+
+  .statistics-tabs .tab-button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .statistics-container {
+    padding: 0.75rem;
+  }
+
+  .statistics-container h1 {
+    font-size: 1.5rem;
+  }
+
+  .statistics-tabs {
+    flex-direction: column;
+  }
+
+  .statistics-tabs .tab-button {
+    width: 100%;
+  }
+}

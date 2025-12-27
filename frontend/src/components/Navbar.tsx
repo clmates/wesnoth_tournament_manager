@@ -75,6 +75,7 @@ const Navbar: React.FC = () => {
           <Link to="/">{t('navbar_home')}</Link>
           <Link to="/players">{t('navbar_players')}</Link>
           <Link to="/rankings">{t('navbar_ranking')}</Link>
+          <Link to="/statistics">{t('statistics') || 'Statistics'}</Link>
           <Link to="/tournaments">{t('navbar_tournaments')}</Link>
           <Link to="/matches">{t('navbar_matches')}</Link>
           <Link to="/faq">{t('navbar_faq')}</Link>

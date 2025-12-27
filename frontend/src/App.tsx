@@ -17,6 +17,7 @@ import Admin from './pages/Admin';
 import MyStats from './pages/MyStats';
 import MyTournaments from './pages/MyTournaments';
 import Rankings from './pages/Rankings';
+import Statistics from './pages/Statistics';
 import Players from './pages/Players';
 import ReportMatch from './pages/ReportMatch';
 import AdminAnnouncements from './pages/AdminAnnouncements';
@@ -58,6 +59,7 @@ const App: React.FC = () => {
             <Route path="/my-matches" element={<MyMatches />} />
             <Route path="/players" element={<Players />} />
             <Route path="/rankings" element={<Rankings />} />
+            <Route path="/statistics" element={<Statistics />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/tournaments" element={<Tournaments />} />
             <Route path="/tournament/:id" element={<TournamentDetail />} />
