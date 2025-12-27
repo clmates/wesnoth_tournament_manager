@@ -36,6 +36,7 @@ router.get('/faction-by-map', async (req, res) => {
 /**
  * Get matchup statistics (faction A vs faction B)
  * Shows which matchups are most unbalanced
+ * Only shows one direction (faction_id < opponent_faction_id) to avoid duplicates
  */
 router.get('/matchups', async (req, res) => {
   try {
@@ -61,6 +62,7 @@ router.get('/matchups', async (req, res) => {
       JOIN factions f1 ON fms.faction_id = f1.id
       JOIN factions f2 ON fms.opponent_faction_id = f2.id
       WHERE fms.total_games >= $1
+      AND fms.faction_id < fms.opponent_faction_id
       ORDER BY imbalance DESC, gm.name, fms.faction_id`,
       [minGames]
     );
