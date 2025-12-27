@@ -19,6 +19,7 @@ import MyTournaments from './pages/MyTournaments';
 import Rankings from './pages/Rankings';
 import Statistics from './pages/Statistics';
 import Players from './pages/Players';
+import PlayerStatsPage from './pages/PlayerStatsPage';
 import ReportMatch from './pages/ReportMatch';
 import AdminAnnouncements from './pages/AdminAnnouncements';
 import AdminFAQ from './pages/AdminFAQ';
@@ -54,6 +55,7 @@ const App: React.FC = () => {
             <Route path="/user" element={<User />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/player/:id" element={<PlayerProfile />} />
+            <Route path="/player/:playerId/stats" element={<PlayerStatsPage />} />
             <Route path="/force-password-change" element={<ForcePasswordChange />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/my-matches" element={<MyMatches />} />
