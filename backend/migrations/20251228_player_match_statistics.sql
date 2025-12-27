@@ -2,14 +2,8 @@
 -- Single flexible table that supports multiple query patterns via NULL values
 
 CREATE TABLE IF NOT EXISTS player_match_statistics (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  
-  -- Player dimensions
   player_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   opponent_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  -- NULL opponent_id = global stats for player
-  
-  -- Match context (all can be NULL for global stats)
   map_id UUID REFERENCES game_maps(id) ON DELETE CASCADE,
   faction_id UUID REFERENCES factions(id) ON DELETE CASCADE,
   opponent_faction_id UUID REFERENCES factions(id) ON DELETE CASCADE,
@@ -19,20 +13,14 @@ CREATE TABLE IF NOT EXISTS player_match_statistics (
   wins INT DEFAULT 0,
   losses INT DEFAULT 0,
   winrate DECIMAL(5, 2),
-  avg_elo_change DECIMAL(8, 2),  -- Average ELO gained/lost per game
+  avg_elo_change DECIMAL(8, 2),
   
   -- Metadata
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   
-  -- Unique constraint: one row per combination
-  CONSTRAINT unique_player_match_stats UNIQUE(
-    player_id, 
-    COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'),
-    COALESCE(map_id, '00000000-0000-0000-0000-000000000000'),
-    COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'),
-    COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000')
-  )
+  -- Primary key and unique constraint
+  PRIMARY KEY (player_id, opponent_id, map_id, faction_id, opponent_faction_id)
 );
 
 -- Create indices for common query patterns
@@ -103,12 +91,11 @@ BEGIN
     (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
   VALUES 
     (NEW.winner_id, NULL, NULL, NULL, NULL, 1, 1, 0, 100.00, COALESCE(NEW.elo_change, 0))
-  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'))
-  DO UPDATE SET 
+  ON CONFLICT (player_id, opponent_id, map_id, faction_id, opponent_faction_id) DO UPDATE SET
     total_games = player_match_statistics.total_games + 1,
     wins = player_match_statistics.wins + 1,
-    winrate = ROUND(100.0 * (player_match_statistics.wins + 1) / (player_match_statistics.total_games + 1), 2)::NUMERIC(5,2),
-    avg_elo_change = ROUND((player_match_statistics.avg_elo_change * player_match_statistics.total_games + COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2)::NUMERIC(8,2),
+    winrate = ROUND(100.0 * (player_match_statistics.wins + 1)::NUMERIC / (player_match_statistics.total_games + 1), 2),
+    avg_elo_change = ROUND(((player_match_statistics.avg_elo_change * player_match_statistics.total_games) + COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2),
     last_updated = CURRENT_TIMESTAMP;
   
   -- Update loser player stats (global)
@@ -116,12 +103,11 @@ BEGIN
     (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
   VALUES 
     (NEW.loser_id, NULL, NULL, NULL, NULL, 1, 0, 1, 0.00, -COALESCE(NEW.elo_change, 0))
-  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'))
-  DO UPDATE SET 
+  ON CONFLICT (player_id, opponent_id, map_id, faction_id, opponent_faction_id) DO UPDATE SET
     total_games = player_match_statistics.total_games + 1,
     losses = player_match_statistics.losses + 1,
-    winrate = ROUND(100.0 * player_match_statistics.wins / (player_match_statistics.total_games + 1), 2)::NUMERIC(5,2),
-    avg_elo_change = ROUND((player_match_statistics.avg_elo_change * player_match_statistics.total_games - COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2)::NUMERIC(8,2),
+    winrate = ROUND(100.0 * player_match_statistics.wins::NUMERIC / (player_match_statistics.total_games + 1), 2),
+    avg_elo_change = ROUND(((player_match_statistics.avg_elo_change * player_match_statistics.total_games) - COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2),
     last_updated = CURRENT_TIMESTAMP;
   
   -- Update head-to-head stats (winner vs loser)
@@ -129,12 +115,11 @@ BEGIN
     (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
   VALUES 
     (NEW.winner_id, NEW.loser_id, v_map_id, v_winner_faction_id, v_loser_faction_id, 1, 1, 0, 100.00, COALESCE(NEW.elo_change, 0))
-  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'))
-  DO UPDATE SET 
+  ON CONFLICT (player_id, opponent_id, map_id, faction_id, opponent_faction_id) DO UPDATE SET
     total_games = player_match_statistics.total_games + 1,
     wins = player_match_statistics.wins + 1,
-    winrate = ROUND(100.0 * (player_match_statistics.wins + 1) / (player_match_statistics.total_games + 1), 2)::NUMERIC(5,2),
-    avg_elo_change = ROUND((player_match_statistics.avg_elo_change * player_match_statistics.total_games + COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2)::NUMERIC(8,2),
+    winrate = ROUND(100.0 * (player_match_statistics.wins + 1)::NUMERIC / (player_match_statistics.total_games + 1), 2),
+    avg_elo_change = ROUND(((player_match_statistics.avg_elo_change * player_match_statistics.total_games) + COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2),
     last_updated = CURRENT_TIMESTAMP;
   
   -- Update head-to-head stats (loser vs winner)
@@ -142,12 +127,11 @@ BEGIN
     (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
   VALUES 
     (NEW.loser_id, NEW.winner_id, v_map_id, v_loser_faction_id, v_winner_faction_id, 1, 0, 1, 0.00, -COALESCE(NEW.elo_change, 0))
-  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'))
-  DO UPDATE SET 
+  ON CONFLICT (player_id, opponent_id, map_id, faction_id, opponent_faction_id) DO UPDATE SET
     total_games = player_match_statistics.total_games + 1,
     losses = player_match_statistics.losses + 1,
-    winrate = ROUND(100.0 * player_match_statistics.wins / (player_match_statistics.total_games + 1), 2)::NUMERIC(5,2),
-    avg_elo_change = ROUND((player_match_statistics.avg_elo_change * player_match_statistics.total_games - COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2)::NUMERIC(8,2),
+    winrate = ROUND(100.0 * player_match_statistics.wins::NUMERIC / (player_match_statistics.total_games + 1), 2),
+    avg_elo_change = ROUND(((player_match_statistics.avg_elo_change * player_match_statistics.total_games) - COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2),
     last_updated = CURRENT_TIMESTAMP;
   
   RETURN NEW;
@@ -170,48 +154,44 @@ BEGIN
   -- Clear existing statistics
   TRUNCATE TABLE player_match_statistics;
   
-  -- Insert global player stats
-  WITH player_global AS (
-    SELECT
-      CASE 
-        WHEN m.status = 'confirmed' OR NOT (m.admin_reviewed = true AND m.status = 'cancelled') THEN m.winner_id
-      END as player_id,
-      COUNT(CASE WHEN m.status = 'confirmed' OR NOT (m.admin_reviewed = true AND m.status = 'cancelled') THEN 1 END) as wins,
-      NULL::UUID as opponent_id,
-      NULL::UUID as map_id,
-      NULL::UUID as faction_id,
-      NULL::UUID as opponent_faction_id
-    FROM matches m
-    WHERE m.status = 'confirmed' OR NOT (m.admin_reviewed = true AND m.status = 'cancelled')
-    GROUP BY m.winner_id
-    
-    UNION ALL
-    
-    SELECT
-      m.loser_id,
-      0,
-      NULL::UUID,
-      NULL::UUID,
-      NULL::UUID,
-      NULL::UUID
-    FROM matches m
-    WHERE m.status = 'confirmed' OR NOT (m.admin_reviewed = true AND m.status = 'cancelled')
-  )
-  INSERT INTO player_match_statistics (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
-  SELECT 
-    player_id,
-    opponent_id,
-    map_id,
-    faction_id,
-    opponent_faction_id,
+  -- Insert all player statistics
+  INSERT INTO player_match_statistics 
+    (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change, created_at, last_updated)
+  SELECT
+    m.winner_id as player_id,
+    NULL::UUID as opponent_id,
+    NULL::UUID as map_id,
+    NULL::UUID as faction_id,
+    NULL::UUID as opponent_faction_id,
     COUNT(*) as total_games,
-    SUM(CASE WHEN player_id = (SELECT winner_id FROM matches m WHERE (m.winner_id = player_global.player_id OR m.loser_id = player_global.player_id) LIMIT 1) THEN 1 ELSE 0 END) as wins,
-    COUNT(*) - SUM(CASE WHEN player_id = (SELECT winner_id FROM matches m WHERE (m.winner_id = player_global.player_id OR m.loser_id = player_global.player_id) LIMIT 1) THEN 1 ELSE 0 END) as losses,
-    ROUND(100.0 * SUM(CASE WHEN player_id = (SELECT winner_id FROM matches m WHERE (m.winner_id = player_global.player_id OR m.loser_id = player_global.player_id) LIMIT 1) THEN 1 ELSE 0 END) / COUNT(*), 2) as winrate,
-    NULL::NUMERIC
-  FROM player_global
-  WHERE player_id IS NOT NULL
-  GROUP BY player_id, opponent_id, map_id, faction_id, opponent_faction_id;
+    COUNT(*) as wins,
+    0 as losses,
+    100.00 as winrate,
+    AVG(COALESCE(m.elo_change, 0)) as avg_elo_change,
+    NOW(),
+    NOW()
+  FROM matches m
+  WHERE m.status = 'confirmed' AND NOT (m.admin_reviewed = true AND m.status = 'cancelled')
+  GROUP BY m.winner_id
+  
+  UNION ALL
+  
+  SELECT
+    m.loser_id as player_id,
+    NULL::UUID as opponent_id,
+    NULL::UUID as map_id,
+    NULL::UUID as faction_id,
+    NULL::UUID as opponent_faction_id,
+    COUNT(*) as total_games,
+    0 as wins,
+    COUNT(*) as losses,
+    0.00 as winrate,
+    AVG(-COALESCE(m.elo_change, 0)) as avg_elo_change,
+    NOW(),
+    NOW()
+  FROM matches m
+  WHERE m.status = 'confirmed' AND NOT (m.admin_reviewed = true AND m.status = 'cancelled')
+  GROUP BY m.loser_id;
   
   RAISE NOTICE 'Player match statistics recalculated successfully';
 END;
