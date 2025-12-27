@@ -7,7 +7,7 @@ const router = Router();
  * Get faction statistics by map
  * Returns winrates for each faction on each map
  */
-router.get('/statistics/faction-by-map', async (req, res) => {
+router.get('/faction-by-map', async (req, res) => {
   try {
     const result = await query(
       `SELECT 
@@ -37,7 +37,7 @@ router.get('/statistics/faction-by-map', async (req, res) => {
  * Get matchup statistics (faction A vs faction B)
  * Shows which matchups are most unbalanced
  */
-router.get('/statistics/matchups', async (req, res) => {
+router.get('/matchups', async (req, res) => {
   try {
     const minGames = parseInt(req.query.minGames as string) || 5;
     
@@ -74,7 +74,7 @@ router.get('/statistics/matchups', async (req, res) => {
 /**
  * Get faction winrates across all maps (global stats)
  */
-router.get('/statistics/faction-global', async (req, res) => {
+router.get('/faction-global', async (req, res) => {
   try {
     const result = await query(
       `SELECT 
@@ -102,7 +102,7 @@ router.get('/statistics/faction-global', async (req, res) => {
 /**
  * Get map statistics (which maps have best balance)
  */
-router.get('/statistics/map-balance', async (req, res) => {
+router.get('/map-balance', async (req, res) => {
   try {
     const result = await query(
       `SELECT 
@@ -130,7 +130,7 @@ router.get('/statistics/map-balance', async (req, res) => {
 /**
  * Get statistics for a specific faction across all maps
  */
-router.get('/statistics/faction/:factionId', async (req, res) => {
+router.get('/faction/:factionId', async (req, res) => {
   try {
     const { factionId } = req.params;
     
@@ -163,7 +163,7 @@ router.get('/statistics/faction/:factionId', async (req, res) => {
 /**
  * Get statistics for a specific map
  */
-router.get('/statistics/map/:mapId', async (req, res) => {
+router.get('/map/:mapId', async (req, res) => {
   try {
     const { mapId } = req.params;
     
