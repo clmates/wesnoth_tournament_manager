@@ -2,6 +2,7 @@
 -- Single flexible table that supports multiple query patterns via NULL values
 
 CREATE TABLE IF NOT EXISTS player_match_statistics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   player_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   opponent_id UUID REFERENCES users(id) ON DELETE CASCADE,
   map_id UUID REFERENCES game_maps(id) ON DELETE CASCADE,
@@ -17,11 +18,18 @@ CREATE TABLE IF NOT EXISTS player_match_statistics (
   
   -- Metadata
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  -- Primary key and unique constraint
-  PRIMARY KEY (player_id, opponent_id, map_id, faction_id, opponent_faction_id)
+  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Create unique index that handles NULL values correctly
+CREATE UNIQUE INDEX IF NOT EXISTS idx_player_stats_unique 
+  ON player_match_statistics(
+    player_id,
+    COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID),
+    COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID),
+    COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID),
+    COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)
+  );
 
 -- Create indices for common query patterns
 CREATE INDEX IF NOT EXISTS idx_player_stats_player 
@@ -62,6 +70,7 @@ DECLARE
   v_map_id UUID;
   v_winner_faction_id UUID;
   v_loser_faction_id UUID;
+  v_existing_id UUID;
 BEGIN
   -- Skip matches that are admin-reviewed as disputed and cancelled
   IF NEW.admin_reviewed = true AND NEW.status = 'cancelled' THEN
@@ -86,53 +95,101 @@ BEGIN
     RETURN NEW;
   END IF;
   
-  -- Update winner player stats (global)
-  INSERT INTO player_match_statistics 
-    (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
-  VALUES 
-    (NEW.winner_id, NULL, NULL, NULL, NULL, 1, 1, 0, 100.00, COALESCE(NEW.elo_change, 0))
-  ON CONFLICT (player_id, opponent_id, map_id, faction_id, opponent_faction_id) DO UPDATE SET
-    total_games = player_match_statistics.total_games + 1,
-    wins = player_match_statistics.wins + 1,
-    winrate = ROUND(100.0 * (player_match_statistics.wins + 1)::NUMERIC / (player_match_statistics.total_games + 1), 2),
-    avg_elo_change = ROUND(((player_match_statistics.avg_elo_change * player_match_statistics.total_games) + COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2),
-    last_updated = CURRENT_TIMESTAMP;
+  -- Update winner player stats (global) - check if exists first
+  SELECT id INTO v_existing_id FROM player_match_statistics 
+  WHERE player_id = NEW.winner_id 
+    AND opponent_id IS NULL 
+    AND map_id IS NULL 
+    AND faction_id IS NULL 
+    AND opponent_faction_id IS NULL 
+  LIMIT 1;
+  
+  IF v_existing_id IS NOT NULL THEN
+    UPDATE player_match_statistics SET
+      total_games = total_games + 1,
+      wins = wins + 1,
+      winrate = ROUND(100.0 * (wins + 1)::NUMERIC / (total_games + 1), 2),
+      avg_elo_change = ROUND(((avg_elo_change * total_games) + COALESCE(NEW.elo_change, 0)) / (total_games + 1), 2),
+      last_updated = CURRENT_TIMESTAMP
+    WHERE id = v_existing_id;
+  ELSE
+    INSERT INTO player_match_statistics 
+      (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
+    VALUES 
+      (NEW.winner_id, NULL, NULL, NULL, NULL, 1, 1, 0, 100.00, COALESCE(NEW.elo_change, 0));
+  END IF;
   
   -- Update loser player stats (global)
-  INSERT INTO player_match_statistics 
-    (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
-  VALUES 
-    (NEW.loser_id, NULL, NULL, NULL, NULL, 1, 0, 1, 0.00, -COALESCE(NEW.elo_change, 0))
-  ON CONFLICT (player_id, opponent_id, map_id, faction_id, opponent_faction_id) DO UPDATE SET
-    total_games = player_match_statistics.total_games + 1,
-    losses = player_match_statistics.losses + 1,
-    winrate = ROUND(100.0 * player_match_statistics.wins::NUMERIC / (player_match_statistics.total_games + 1), 2),
-    avg_elo_change = ROUND(((player_match_statistics.avg_elo_change * player_match_statistics.total_games) - COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2),
-    last_updated = CURRENT_TIMESTAMP;
+  SELECT id INTO v_existing_id FROM player_match_statistics 
+  WHERE player_id = NEW.loser_id 
+    AND opponent_id IS NULL 
+    AND map_id IS NULL 
+    AND faction_id IS NULL 
+    AND opponent_faction_id IS NULL 
+  LIMIT 1;
+  
+  IF v_existing_id IS NOT NULL THEN
+    UPDATE player_match_statistics SET
+      total_games = total_games + 1,
+      losses = losses + 1,
+      winrate = ROUND(100.0 * wins::NUMERIC / (total_games + 1), 2),
+      avg_elo_change = ROUND(((avg_elo_change * total_games) - COALESCE(NEW.elo_change, 0)) / (total_games + 1), 2),
+      last_updated = CURRENT_TIMESTAMP
+    WHERE id = v_existing_id;
+  ELSE
+    INSERT INTO player_match_statistics 
+      (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
+    VALUES 
+      (NEW.loser_id, NULL, NULL, NULL, NULL, 1, 0, 1, 0.00, -COALESCE(NEW.elo_change, 0));
+  END IF;
   
   -- Update head-to-head stats (winner vs loser)
-  INSERT INTO player_match_statistics 
-    (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
-  VALUES 
-    (NEW.winner_id, NEW.loser_id, v_map_id, v_winner_faction_id, v_loser_faction_id, 1, 1, 0, 100.00, COALESCE(NEW.elo_change, 0))
-  ON CONFLICT (player_id, opponent_id, map_id, faction_id, opponent_faction_id) DO UPDATE SET
-    total_games = player_match_statistics.total_games + 1,
-    wins = player_match_statistics.wins + 1,
-    winrate = ROUND(100.0 * (player_match_statistics.wins + 1)::NUMERIC / (player_match_statistics.total_games + 1), 2),
-    avg_elo_change = ROUND(((player_match_statistics.avg_elo_change * player_match_statistics.total_games) + COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2),
-    last_updated = CURRENT_TIMESTAMP;
+  SELECT id INTO v_existing_id FROM player_match_statistics 
+  WHERE player_id = NEW.winner_id 
+    AND opponent_id = NEW.loser_id 
+    AND map_id = v_map_id 
+    AND faction_id = v_winner_faction_id 
+    AND opponent_faction_id = v_loser_faction_id 
+  LIMIT 1;
+  
+  IF v_existing_id IS NOT NULL THEN
+    UPDATE player_match_statistics SET
+      total_games = total_games + 1,
+      wins = wins + 1,
+      winrate = ROUND(100.0 * (wins + 1)::NUMERIC / (total_games + 1), 2),
+      avg_elo_change = ROUND(((avg_elo_change * total_games) + COALESCE(NEW.elo_change, 0)) / (total_games + 1), 2),
+      last_updated = CURRENT_TIMESTAMP
+    WHERE id = v_existing_id;
+  ELSE
+    INSERT INTO player_match_statistics 
+      (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
+    VALUES 
+      (NEW.winner_id, NEW.loser_id, v_map_id, v_winner_faction_id, v_loser_faction_id, 1, 1, 0, 100.00, COALESCE(NEW.elo_change, 0));
+  END IF;
   
   -- Update head-to-head stats (loser vs winner)
-  INSERT INTO player_match_statistics 
-    (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
-  VALUES 
-    (NEW.loser_id, NEW.winner_id, v_map_id, v_loser_faction_id, v_winner_faction_id, 1, 0, 1, 0.00, -COALESCE(NEW.elo_change, 0))
-  ON CONFLICT (player_id, opponent_id, map_id, faction_id, opponent_faction_id) DO UPDATE SET
-    total_games = player_match_statistics.total_games + 1,
-    losses = player_match_statistics.losses + 1,
-    winrate = ROUND(100.0 * player_match_statistics.wins::NUMERIC / (player_match_statistics.total_games + 1), 2),
-    avg_elo_change = ROUND(((player_match_statistics.avg_elo_change * player_match_statistics.total_games) - COALESCE(NEW.elo_change, 0)) / (player_match_statistics.total_games + 1), 2),
-    last_updated = CURRENT_TIMESTAMP;
+  SELECT id INTO v_existing_id FROM player_match_statistics 
+  WHERE player_id = NEW.loser_id 
+    AND opponent_id = NEW.winner_id 
+    AND map_id = v_map_id 
+    AND faction_id = v_loser_faction_id 
+    AND opponent_faction_id = v_winner_faction_id 
+  LIMIT 1;
+  
+  IF v_existing_id IS NOT NULL THEN
+    UPDATE player_match_statistics SET
+      total_games = total_games + 1,
+      losses = losses + 1,
+      winrate = ROUND(100.0 * wins::NUMERIC / (total_games + 1), 2),
+      avg_elo_change = ROUND(((avg_elo_change * total_games) - COALESCE(NEW.elo_change, 0)) / (total_games + 1), 2),
+      last_updated = CURRENT_TIMESTAMP
+    WHERE id = v_existing_id;
+  ELSE
+    INSERT INTO player_match_statistics 
+      (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
+    VALUES 
+      (NEW.loser_id, NEW.winner_id, v_map_id, v_loser_faction_id, v_winner_faction_id, 1, 0, 1, 0.00, -COALESCE(NEW.elo_change, 0));
+  END IF;
   
   RETURN NEW;
 END;
