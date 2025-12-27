@@ -9,7 +9,7 @@
   min-height: 60px;
   display: flex;
   align-items: center;
-  contain: layout style paint;
+  position: relative;
 }
 
 .navbar-container {
@@ -40,6 +40,7 @@
   align-items: center;
   flex-wrap: wrap;
   min-width: 0;
+  overflow: visible;
 }
 
 .navbar-links a,
@@ -51,6 +52,9 @@
   background: none;
   cursor: pointer;
   transition: background-color 0.3s;
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
 }
 
 .navbar-links a:hover,
@@ -100,6 +104,7 @@
 
 .user-menu {
   position: relative;
+  align-self: center;
 }
 
 .user-btn {
