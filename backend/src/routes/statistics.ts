@@ -73,6 +73,7 @@ router.get('/matchups', async (req, res) => {
 
 /**
  * Get faction winrates across all maps (global stats)
+ * Sums wins from both perspectives (when faction_id is winner or when winning against opponent)
  */
 router.get('/faction-global', async (req, res) => {
   try {
@@ -88,8 +89,8 @@ router.get('/faction-global', async (req, res) => {
         MAX(fms.last_updated) as last_updated
       FROM faction_map_statistics fms
       JOIN factions f ON fms.faction_id = f.id
-      WHERE fms.total_games >= 2
       GROUP BY f.id, f.name
+      HAVING SUM(fms.total_games) >= 5
       ORDER BY global_winrate DESC`
     );
     res.json(result.rows);
@@ -101,6 +102,7 @@ router.get('/faction-global', async (req, res) => {
 
 /**
  * Get map statistics (which maps have best balance)
+ * Groups by map only to avoid duplicates from bidirectional matchups
  */
 router.get('/map-balance', async (req, res) => {
   try {
@@ -109,8 +111,8 @@ router.get('/map-balance', async (req, res) => {
         gm.id as map_id,
         gm.name as map_name,
         COUNT(DISTINCT fms.faction_id) as factions_used,
-        SUM(fms.total_games) as total_games,
-        ROUND(AVG(ABS(fms.winrate - 50)), 2) as avg_imbalance,
+        SUM(fms.total_games) / 2 as total_games,
+        ROUND(STDDEV(fms.winrate), 2) as avg_imbalance,
         MIN(fms.winrate) as lowest_winrate,
         MAX(fms.winrate) as highest_winrate,
         MAX(fms.last_updated) as last_updated
