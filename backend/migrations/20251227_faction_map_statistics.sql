@@ -48,8 +48,8 @@ DECLARE
   v_winner_faction_id UUID;
   v_loser_faction_id UUID;
 BEGIN
-  -- Only process confirmed matches
-  IF NEW.status != 'confirmed' THEN
+  -- Skip matches that are admin-reviewed as disputed and cancelled
+  IF NEW.admin_reviewed = true AND NEW.status = 'cancelled' THEN
     RETURN NEW;
   END IF;
   
@@ -132,7 +132,7 @@ BEGIN
     JOIN game_maps gm ON gm.name = m.map
     JOIN factions f_winner ON f_winner.name = m.winner_faction
     JOIN factions f_loser ON f_loser.name = m.loser_faction
-    WHERE m.status = 'confirmed'
+    WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
     GROUP BY gm.id, f_winner.id, f_loser.id
   )
   INSERT INTO faction_map_statistics (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
@@ -159,7 +159,7 @@ BEGIN
     JOIN game_maps gm ON gm.name = m.map
     JOIN factions f_winner ON f_winner.name = m.winner_faction
     JOIN factions f_loser ON f_loser.name = m.loser_faction
-    WHERE m.status = 'confirmed'
+    WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
     GROUP BY gm.id, f_loser.id, f_winner.id
   )
   INSERT INTO faction_map_statistics (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
