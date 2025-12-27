@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '../services/supabaseService';
+import { publicService } from '../services/api';
 import PlayerStatsOverview from '../components/PlayerStatsOverview';
 import PlayerStatsByMap from '../components/PlayerStatsByMap';
 import PlayerStatsByFaction from '../components/PlayerStatsByFaction';
@@ -36,13 +36,9 @@ const PlayerStatsPage: React.FC = () => {
           return;
         }
 
-        const { data, error: fetchError } = await supabase
-          .from('players')
-          .select('id, username, email, elo_rating')
-          .eq('id', playerId)
-          .single();
+        const response = await publicService.getPlayerProfile(playerId);
+        const data = response.data;
 
-        if (fetchError) throw fetchError;
         if (!data) {
           setError('Player not found');
           return;
