@@ -78,13 +78,19 @@
   padding: 0.6rem 1.2rem !important;
   border-radius: 6px !important;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-  transition: all 0.3s ease;
+  /* Use inset shadow to avoid CLS - no layout shift */
+  box-shadow: inset 0 0 0 2px transparent;
+  transition: background-color 0.3s ease, opacity 0.3s ease;
+  /* Reserve space for hover effect to prevent CLS */
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 .report-match-link:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+  /* Use opacity or background change instead of transform to avoid CLS */
+  opacity: 0.9;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3);
   background: linear-gradient(135deg, #764ba2 0%, #667eea 100%) !important;
 }
 
