@@ -42,6 +42,7 @@ type TabType = 'rankings' | 'faction-balance' | 'map-balance' | 'matchup-balance
 
 const Rankings: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const [players, setPlayers] = useState<PlayerStats[]>([]);
   const [sortColumn, setSortColumn] = useState<SortColumn>('');
@@ -357,8 +358,7 @@ const Rankings: React.FC = () => {
                 <th className="trend-col sortable" onClick={() => handleSort('trend')}>
                   {t('label_trend')}
                   {sortColumn === 'trend' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                </th>
-              </tr>
+                </th>                <th className="stats-col">{t('label_stats') || 'Stats'}</th>              </tr>
             </thead>
             <tbody>
               {sortedPlayers.map((player, index) => (
@@ -386,6 +386,15 @@ const Rankings: React.FC = () => {
                     <span className={`trend trend-${player.trend.charAt(0) || '-'}`}>
                       {player.trend}
                     </span>
+                  </td>
+                  <td className="stats-col">
+                    <button 
+                      className="stats-btn"
+                      onClick={() => navigate(`/player/${player.id}/stats`)}
+                      title="View player statistics"
+                    >
+                      {t('view_stats') || 'View'}
+                    </button>
                   </td>
                 </tr>
               ))}
