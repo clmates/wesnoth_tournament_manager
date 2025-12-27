@@ -22,7 +22,12 @@ const FactionBalanceTab: React.FC = () => {
       try {
         setLoading(true);
         const data = await statisticsService.getGlobalFactionStats();
-        setStats(data);
+        // Convert string winrates to numbers
+        const converted = data.map((item: any) => ({
+          ...item,
+          global_winrate: typeof item.global_winrate === 'string' ? parseFloat(item.global_winrate) : item.global_winrate,
+        }));
+        setStats(converted);
       } catch (err) {
         console.error('Error fetching faction balance stats:', err);
         setError('Error loading faction statistics');

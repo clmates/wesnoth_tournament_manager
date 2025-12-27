@@ -24,7 +24,14 @@ const MapBalanceTab: React.FC = () => {
       try {
         setLoading(true);
         const data = await statisticsService.getMapBalanceStats();
-        setStats(data);
+        // Convert string numbers to actual numbers
+        const converted = data.map((item: any) => ({
+          ...item,
+          avg_imbalance: typeof item.avg_imbalance === 'string' ? parseFloat(item.avg_imbalance) : item.avg_imbalance,
+          lowest_winrate: typeof item.lowest_winrate === 'string' ? parseFloat(item.lowest_winrate) : item.lowest_winrate,
+          highest_winrate: typeof item.highest_winrate === 'string' ? parseFloat(item.highest_winrate) : item.highest_winrate,
+        }));
+        setStats(converted);
       } catch (err) {
         console.error('Error fetching map balance stats:', err);
         setError('Error loading map statistics');

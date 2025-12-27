@@ -29,7 +29,13 @@ const MatchupBalanceTab: React.FC = () => {
       try {
         setLoading(true);
         const data = await statisticsService.getMatchupStats(minGames);
-        setStats(data);
+        // Convert string numbers to actual numbers
+        const converted = data.map((item: any) => ({
+          ...item,
+          faction_1_winrate: typeof item.faction_1_winrate === 'string' ? parseFloat(item.faction_1_winrate) : item.faction_1_winrate,
+          imbalance: typeof item.imbalance === 'string' ? parseFloat(item.imbalance) : item.imbalance,
+        }));
+        setStats(converted);
       } catch (err) {
         console.error('Error fetching matchup stats:', err);
         setError('Error loading matchup statistics');
