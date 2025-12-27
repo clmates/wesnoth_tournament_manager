@@ -7,11 +7,15 @@
   min-height: calc(100vh - 80px);
   box-sizing: border-box;
   overflow: hidden;
+  /* Optimize LCP by deferring background gradient paint */
+  contain: size layout;
 }
 
 .home-header {
   margin-bottom: 2rem;
   text-align: center;
+  /* Optimize rendering - prevent layout thrashing */
+  contain: content;
 }
 
 .home-header h1 {
@@ -19,6 +23,16 @@
   font-size: 2.5rem;
   margin-bottom: 1rem;
   font-weight: 700;
+  /* Optimize LCP */
+  contain: layout style paint;
+  /* Prevent font loading issues */
+  font-display: swap;
+  /* Prevent text reflow */
+  line-height: 1.2;
+  /* Avoid layout shift */
+  min-height: 3.5rem;
+  /* Tell browser to prioritize rendering */
+  will-change: auto;
 }
 
 .error-message {
