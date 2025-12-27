@@ -78,9 +78,9 @@ BEGIN
     (v_map_id, v_winner_faction_id, v_loser_faction_id, 1, 1, 0, 100.00)
   ON CONFLICT (map_id, faction_id, opponent_faction_id)
   DO UPDATE SET 
-    total_games = total_games + 1,
-    wins = wins + 1,
-    winrate = ROUND(100.0 * (excluded.wins + 1) / (excluded.total_games + 1), 2)::NUMERIC(5,2),
+    total_games = faction_map_statistics.total_games + 1,
+    wins = faction_map_statistics.wins + 1,
+    winrate = ROUND(100.0 * (faction_map_statistics.wins + 1) / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
     last_updated = CURRENT_TIMESTAMP;
   
   -- Insert or update for loser faction (reverse perspective)
@@ -90,9 +90,9 @@ BEGIN
     (v_map_id, v_loser_faction_id, v_winner_faction_id, 1, 0, 1, 0.00)
   ON CONFLICT (map_id, faction_id, opponent_faction_id)
   DO UPDATE SET 
-    total_games = total_games + 1,
-    losses = losses + 1,
-    winrate = ROUND(100.0 * excluded.wins / (excluded.total_games + 1), 2)::NUMERIC(5,2),
+    total_games = faction_map_statistics.total_games + 1,
+    losses = faction_map_statistics.losses + 1,
+    winrate = ROUND(100.0 * faction_map_statistics.wins / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
     last_updated = CURRENT_TIMESTAMP;
   
   RETURN NEW;
