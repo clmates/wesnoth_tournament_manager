@@ -70,81 +70,51 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
       {opponents.length === 0 ? (
         <p style={{ color: '#999', fontStyle: 'italic' }}>{t('no_data') || 'No data available'}</p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            backgroundColor: 'white',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-            borderRadius: '8px',
-            overflow: 'hidden'
-          }}>
+        <div className="stats-table-wrapper">
+          <table className="stats-table">
             <thead>
-              <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #e0e0e0' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
-                  {t('player') || 'Player'}
-                </th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
-                  {t('games') || 'Games'}
-                </th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
-                  {t('wins') || 'Wins'}
-                </th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
-                  {t('losses') || 'Losses'}
-                </th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
-                  {t('winrate') || 'W/R %'}
-                </th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
-                  ELO Gained
-                </th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
-                  ELO Lost
-                </th>
+              <tr>
+                <th>{t('player') || 'Player'}</th>
+                <th>{t('games') || 'Games'}</th>
+                <th>{t('wins') || 'Wins'}</th>
+                <th>{t('losses') || 'Losses'}</th>
+                <th>{t('winrate') || 'W/R %'}</th>
+                <th>ELO Gained</th>
+                <th>ELO Lost</th>
               </tr>
             </thead>
             <tbody>
               {opponents.map((opponent) => (
-                <tr 
-                  key={opponent.opponent_id}
-                  style={{
-                    borderBottom: '1px solid #e0e0e0',
-                    transition: 'background-color 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9f9f9'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <td style={{ padding: '12px 16px', fontWeight: '600', color: '#1a73e8' }}>
+                <tr key={opponent.opponent_id}>
+                  <td className="opponent-name">
                     {opponent.opponent_name}
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500' }}>
+                  <td style={{ textAlign: 'center' }}>
                     {opponent.total_games}
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500', color: '#4caf50' }}>
+                  <td className="winning" style={{ textAlign: 'center' }}>
                     {opponent.wins}
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500', color: '#f44336' }}>
+                  <td className="losing" style={{ textAlign: 'center' }}>
                     {opponent.losses}
                   </td>
-                  <td style={{
-                    padding: '12px 16px',
-                    textAlign: 'center',
-                    fontWeight: '600',
-                    color: typeof opponent.winrate === 'number' 
-                      ? (opponent.winrate > 55 ? '#4caf50' : opponent.winrate < 45 ? '#f44336' : '#ff9800')
-                      : (parseFloat(opponent.winrate as string) > 55 ? '#4caf50' : parseFloat(opponent.winrate as string) < 45 ? '#f44336' : '#ff9800')
-                  }}>
-                    {typeof opponent.winrate === 'number' 
-                      ? opponent.winrate.toFixed(1)
-                      : parseFloat(opponent.winrate as string).toFixed(1)}%
+                  <td style={{ textAlign: 'center' }}>
+                    <span className={`winrate ${
+                      typeof opponent.winrate === 'number' 
+                        ? (opponent.winrate > 55 ? 'high' : opponent.winrate < 45 ? 'low' : 'balanced')
+                        : (parseFloat(opponent.winrate as string) > 55 ? 'high' : parseFloat(opponent.winrate as string) < 45 ? 'low' : 'balanced')
+                    }`}>
+                      {typeof opponent.winrate === 'number' 
+                        ? opponent.winrate.toFixed(1)
+                        : parseFloat(opponent.winrate as string).toFixed(1)}%
+                    </span>
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500', color: '#4caf50' }}>
+                  <td style={{ textAlign: 'center', color: '#4caf50', fontWeight: '600' }}>
                     +{typeof opponent.elo_gained === 'number' 
                       ? opponent.elo_gained.toFixed(2)
                       : parseFloat(opponent.elo_gained as string).toFixed(2)}
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500', color: '#f44336' }}>
+                  <td style={{ textAlign: 'center', color: '#f44336', fontWeight: '600' }}>
                     -{typeof opponent.elo_lost === 'number' 
                       ? opponent.elo_lost.toFixed(2)
                       : parseFloat(opponent.elo_lost as string).toFixed(2)}
