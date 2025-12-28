@@ -45,6 +45,8 @@ router.get('/player/:playerId/by-map', async (req, res) => {
     const { playerId } = req.params;
     const minGames = parseInt(req.query.minGames as string) || 2;
     
+    console.log('Fetching by-map stats for player:', playerId, 'minGames:', minGames);
+    
     const result = await query(
       `SELECT 
         gm.id as map_id,
@@ -64,6 +66,7 @@ router.get('/player/:playerId/by-map', async (req, res) => {
       ORDER BY pms.winrate DESC`,
       [playerId, minGames]
     );
+    console.log('By-map result rows:', result.rows);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching player map statistics:', error);
@@ -79,6 +82,8 @@ router.get('/player/:playerId/by-faction', async (req, res) => {
   try {
     const { playerId } = req.params;
     const minGames = parseInt(req.query.minGames as string) || 2;
+    
+    console.log('Fetching by-faction stats for player:', playerId, 'minGames:', minGames);
     
     const result = await query(
       `SELECT 
@@ -99,6 +104,7 @@ router.get('/player/:playerId/by-faction', async (req, res) => {
       ORDER BY pms.winrate DESC`,
       [playerId, minGames]
     );
+    console.log('By-faction result rows:', result.rows);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching player faction statistics:', error);
