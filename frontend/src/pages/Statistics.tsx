@@ -53,4 +53,4 @@ const Statistics: React.FC = () => {
   );
 };
 
-export default Statistics;export default Statistics;
+export default Statistics;
