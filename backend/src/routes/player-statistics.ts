@@ -262,6 +262,7 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
     console.log('Fetching recent opponents for player:', playerId, 'limit:', limit);
     
     // Get opponents with aggregated stats from player_match_statistics
+    // Aggregates all h2h stats across all maps and factions for each opponent
     const result = await query(
       `SELECT
         pms.opponent_id,
@@ -282,9 +283,6 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
       JOIN users u ON pms.opponent_id = u.id
       WHERE pms.player_id = $1
       AND pms.opponent_id IS NOT NULL
-      AND pms.map_id IS NULL
-      AND pms.faction_id IS NULL
-      AND pms.opponent_faction_id IS NULL
       GROUP BY pms.opponent_id, u.nickname, u.elo_rating
       HAVING SUM(pms.total_games) >= 1
       ORDER BY MAX(pms.last_match_date) DESC NULLS LAST
