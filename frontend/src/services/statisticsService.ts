@@ -45,4 +45,50 @@ export const statisticsService = {
     const response = await apiClient.get(`/statistics/map/${mapId}`);
     return response.data;
   },
+
+  // ===== BALANCE HISTORY =====
+  
+  // Get balance events with optional filters
+  getBalanceEvents: async (filters?: { factionId?: string; mapId?: string; eventType?: string; limit?: number; offset?: number }) => {
+    const response = await apiClient.get('/statistics/history/events', { params: filters });
+    return response.data;
+  },
+
+  // Get balance trend for a specific matchup over date range
+  getBalanceTrend: async (mapId: string, factionId: string, opponentFactionId: string, dateFrom: string, dateTo: string) => {
+    const response = await apiClient.get('/statistics/history/trend', {
+      params: { mapId, factionId, opponentFactionId, dateFrom, dateTo },
+    });
+    return response.data;
+  },
+
+  // Get balance event impact (before/after comparison)
+  getEventImpact: async (eventId: string, daysBefore = 30, daysAfter = 30) => {
+    const response = await apiClient.get(`/statistics/history/events/${eventId}/impact`, {
+      params: { daysBefore, daysAfter },
+    });
+    return response.data;
+  },
+
+  // Create a new balance event (admin only)
+  createBalanceEvent: async (event: {
+    event_date: string;
+    event_type: 'BUFF' | 'NERF' | 'REWORK' | 'HOTFIX' | 'GENERAL_BALANCE_CHANGE';
+    description: string;
+    faction_id?: string;
+    map_id?: string;
+    patch_version?: string;
+    notes?: string;
+  }) => {
+    const response = await apiClient.post('/statistics/history/events', event);
+    return response.data;
+  },
+
+  // Get snapshot for a specific date
+  getSnapshot: async (date: string, minGames = 2) => {
+    const response = await apiClient.get('/statistics/history/snapshot', {
+      params: { date, minGames },
+    });
+    return response.data;
+  },
 };
