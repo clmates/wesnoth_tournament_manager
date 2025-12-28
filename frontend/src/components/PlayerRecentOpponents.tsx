@@ -29,10 +29,15 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
         setLoading(true);
         const data = await playerStatisticsService.getRecentOpponents(playerId, limit);
         console.log('PlayerRecentOpponents raw data:', data);
+        console.log('Data length:', data?.length);
+        console.log('Data is array:', Array.isArray(data));
         // Convert string numbers to actual numbers
         const converted = data.map((item: any) => ({
           ...item,
           winrate: typeof item.winrate === 'string' ? parseFloat(item.winrate) : item.winrate,
+          total_games: typeof item.total_games === 'string' ? parseInt(item.total_games) : item.total_games,
+          wins: typeof item.wins === 'string' ? parseInt(item.wins) : item.wins,
+          losses: typeof item.losses === 'string' ? parseInt(item.losses) : item.losses,
         }));
         console.log('PlayerRecentOpponents converted data:', converted);
         setOpponents(converted);
@@ -47,39 +52,76 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
     fetchOpponents();
   }, [playerId, limit]);
 
+  console.log('Rendering PlayerRecentOpponents with opponents:', opponents);
+  console.log('Loading:', loading, 'Error:', error);
+
   if (loading) return <div className="stats-container"><p>{t('loading')}</p></div>;
   if (error) return <div className="stats-container error"><p>{error}</p></div>;
 
   return (
-    <div className="player-stats-section">
-      <h3>{t('recent_opponents') || 'Recent Opponents'}</h3>
+    <div style={{ width: '100%', padding: '20px 0' }}>
+      <h3 style={{ marginBottom: '20px' }}>{t('recent_opponents') || 'Recent Opponents'}</h3>
       
       {opponents.length === 0 ? (
-        <p className="no-data">{t('no_data')}</p>
+        <p style={{ color: '#999', fontStyle: 'italic' }}>{t('no_data') || 'No data available'}</p>
       ) : (
-        <div className="stats-table-wrapper">
-          <table className="stats-table">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            backgroundColor: 'white',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            borderRadius: '8px',
+            overflow: 'hidden'
+          }}>
             <thead>
-              <tr>
-                <th>{t('player') || 'Player'}</th>
-                <th>{t('games') || 'Games'}</th>
-                <th>{t('wins') || 'Wins'}</th>
-                <th>{t('losses') || 'Losses'}</th>
-                <th>{t('winrate') || 'W/R %'}</th>
+              <tr style={{ backgroundColor: '#f5f5f5', borderBottom: '2px solid #e0e0e0' }}>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
+                  {t('player') || 'Player'}
+                </th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
+                  {t('games') || 'Games'}
+                </th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
+                  {t('wins') || 'Wins'}
+                </th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
+                  {t('losses') || 'Losses'}
+                </th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
+                  {t('winrate') || 'W/R %'}
+                </th>
               </tr>
             </thead>
             <tbody>
               {opponents.map((opponent) => (
-                <tr key={opponent.opponent_id}>
-                  <td className="opponent-name-cell">{opponent.opponent_name}</td>
-                  <td className="centered">{opponent.total_games}</td>
-                  <td className="centered winning">{opponent.wins}</td>
-                  <td className="centered losing">{opponent.losses}</td>
-                  <td className={`centered ${
-                    opponent.winrate > 55 ? 'high' : 
-                    opponent.winrate < 45 ? 'low' : 
-                    'balanced'
-                  }`}>
+                <tr 
+                  key={opponent.opponent_id}
+                  style={{
+                    borderBottom: '1px solid #e0e0e0',
+                    transition: 'background-color 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9f9f9'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <td style={{ padding: '12px 16px', fontWeight: '600', color: '#1a73e8' }}>
+                    {opponent.opponent_name}
+                  </td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500' }}>
+                    {opponent.total_games}
+                  </td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500', color: '#4caf50' }}>
+                    {opponent.wins}
+                  </td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500', color: '#f44336' }}>
+                    {opponent.losses}
+                  </td>
+                  <td style={{
+                    padding: '12px 16px',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    color: opponent.winrate > 55 ? '#4caf50' : opponent.winrate < 45 ? '#f44336' : '#ff9800'
+                  }}>
                     {opponent.winrate.toFixed(1)}%
                   </td>
                 </tr>
