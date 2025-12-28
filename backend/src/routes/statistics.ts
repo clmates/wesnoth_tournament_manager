@@ -353,7 +353,7 @@ router.get('/history/snapshot', async (req, res) => {
 router.post('/history/events', async (req, res) => {
   try {
     const { event_date, patch_version, event_type, description, faction_id, map_id, notes } = req.body;
-    const userId = req.user?.id;
+    const userId = (req as any).userId;
     
     if (!event_date || !event_type || !description) {
       return res.status(400).json({ error: 'Missing required fields: event_date, event_type, description' });
