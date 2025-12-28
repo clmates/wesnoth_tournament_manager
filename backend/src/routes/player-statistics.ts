@@ -259,27 +259,30 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
     const { playerId } = req.params;
     const limit = parseInt(req.query.limit as string) || 10;
     
+    console.log('Fetching recent opponents for player:', playerId, 'limit:', limit);
+    
+    // Get all unique opponents from any records (no need to filter by map/faction null)
     const result = await query(
-      `SELECT 
+      `SELECT DISTINCT
         pms.opponent_id,
         u.nickname as opponent_name,
-        pms.total_games,
-        pms.wins,
-        pms.losses,
-        pms.winrate,
-        pms.last_updated,
-        CASE WHEN pms.wins > pms.losses THEN 'Winning' WHEN pms.wins < pms.losses THEN 'Losing' ELSE 'Tied' END as record
+        SUM(pms.total_games) as total_games,
+        SUM(pms.wins) as wins,
+        SUM(pms.losses) as losses,
+        ROUND(100.0 * SUM(pms.wins)::NUMERIC / SUM(pms.total_games), 2) as winrate,
+        MAX(pms.last_updated) as last_updated,
+        CASE WHEN SUM(pms.wins) > SUM(pms.losses) THEN 'Winning' WHEN SUM(pms.wins) < SUM(pms.losses) THEN 'Losing' ELSE 'Tied' END as record
       FROM player_match_statistics pms
       JOIN users u ON pms.opponent_id = u.id
       WHERE pms.player_id = $1
       AND pms.opponent_id IS NOT NULL
-      AND pms.map_id IS NULL
-      AND pms.faction_id IS NULL
-      AND pms.total_games >= 2
-      ORDER BY pms.last_updated DESC
+      GROUP BY pms.opponent_id, u.nickname
+      HAVING SUM(pms.total_games) >= 1
+      ORDER BY MAX(pms.last_updated) DESC
       LIMIT $2`,
       [playerId, limit]
     );
+    console.log('Recent opponents result rows:', result.rows);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching recent opponents:', error);
