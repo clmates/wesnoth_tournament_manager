@@ -9,7 +9,12 @@ interface RecentOpponent {
   total_games: number;
   wins: number;
   losses: number;
-  winrate: number;
+  winrate: number | string;
+  current_elo: number;
+  elo_gained: number | string;
+  elo_lost: number | string;
+  last_elo_against_me: number | string;
+  last_match_date: string;
 }
 
 interface Props {
@@ -91,6 +96,12 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
                 <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
                   {t('winrate') || 'W/R %'}
                 </th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
+                  ELO Gained
+                </th>
+                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '600', color: '#333', fontSize: '0.9em' }}>
+                  ELO Lost
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -120,9 +131,23 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
                     padding: '12px 16px',
                     textAlign: 'center',
                     fontWeight: '600',
-                    color: opponent.winrate > 55 ? '#4caf50' : opponent.winrate < 45 ? '#f44336' : '#ff9800'
+                    color: typeof opponent.winrate === 'number' 
+                      ? (opponent.winrate > 55 ? '#4caf50' : opponent.winrate < 45 ? '#f44336' : '#ff9800')
+                      : (parseFloat(opponent.winrate as string) > 55 ? '#4caf50' : parseFloat(opponent.winrate as string) < 45 ? '#f44336' : '#ff9800')
                   }}>
-                    {opponent.winrate.toFixed(1)}%
+                    {typeof opponent.winrate === 'number' 
+                      ? opponent.winrate.toFixed(1)
+                      : parseFloat(opponent.winrate as string).toFixed(1)}%
+                  </td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500', color: '#4caf50' }}>
+                    +{typeof opponent.elo_gained === 'number' 
+                      ? opponent.elo_gained.toFixed(2)
+                      : parseFloat(opponent.elo_gained as string).toFixed(2)}
+                  </td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center', fontWeight: '500', color: '#f44336' }}>
+                    -{typeof opponent.elo_lost === 'number' 
+                      ? opponent.elo_lost.toFixed(2)
+                      : parseFloat(opponent.elo_lost as string).toFixed(2)}
                   </td>
                 </tr>
               ))}
