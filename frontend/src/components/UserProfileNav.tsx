@@ -113,6 +113,15 @@ const UserProfileNav: React.FC = () => {
                 <span className="nav-icon">🔒</span>
                 <span className="nav-text">Audit Logs</span>
               </button>
+
+              <button 
+                className="nav-link admin-link"
+                onClick={() => handleNavigate('/admin/balance-events')}
+                title={t('admin_balance_events') || 'Balance Events'}
+              >
+                <span className="nav-icon">⚖️</span>
+                <span className="nav-text">{t('admin_balance_events') || 'Balance Events'}</span>
+              </button>
             </>
           )}
         </div>
