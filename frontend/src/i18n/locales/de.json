@@ -403,5 +403,14 @@
     "error_change_password_failed": "Fehler beim Ändern des Passworts"
   },
   "tournaments.player_abandoned": "Spieler Aufgegeben",
-  "tournaments.abandonment_note": "Wählen Sie den Gewinner. Wenn ein Spieler aufgegeben hat, gewinnt sein Gegner automatisch alle verbleibenden Spiele (keine ELO-Auswirkung, Turnierpunkte vergeben)."
+  "tournaments.abandonment_note": "Wählen Sie den Gewinner. Wenn ein Spieler aufgegeben hat, gewinnt sein Gegner automatisch alle verbleibenden Spiele (keine ELO-Auswirkung, Turnierpunkte vergeben).",
+  "overall_statistics": "Gesamt",
+  "matches_label": "Spiele",
+  "all_matches": "Alle Spiele",
+  "filter_by_opponent": "Nach Gegner filtern...",
+  "performance_by_map": "Nach Karte",
+  "performance_by_faction": "Nach Fraktion",
+  "back_to_players": "Zurück zu Spielern",
+  "total_games": "Spiele",
+  "avg_elo_change": "Durchschnitt ELO/Spiel"
 }

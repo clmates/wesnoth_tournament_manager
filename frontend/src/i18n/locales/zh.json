@@ -402,7 +402,15 @@
     "error_change_password_failed": "更改密码失败"
   },
   "tournaments.player_abandoned": "玩家弃权",
-  "tournaments.abandonment_note": "选择获胜者。如果玩家弃权，其对手自动赢得所有剩余比赛（不影响ELO，分配赛事积分）。"
+  "tournaments.abandonment_note": "选择获胜者。如果玩家弃权，其对手自动赢得所有剩余比赛（不影响ELO，分配赛事积分）。",
+  "overall_statistics": "总体",
+  "matches_label": "比赛",
+  "all_matches": "所有比赛",
+  "filter_by_opponent": "按对手筛选...",
+  "performance_by_map": "按地图",
+  "performance_by_faction": "按阵营",
+  "back_to_players": "返回玩家",
+  "total_games": "游戏",
+  "avg_elo_change": "平均 ELO/游戏"
 }
-
 

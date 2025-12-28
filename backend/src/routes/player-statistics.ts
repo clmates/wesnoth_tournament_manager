@@ -261,24 +261,31 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
     
     console.log('Fetching recent opponents for player:', playerId, 'limit:', limit);
     
-    // Get all unique opponents from any records (no need to filter by map/faction null)
+    // Get opponents with aggregated stats from player_match_statistics
     const result = await query(
-      `SELECT DISTINCT
+      `SELECT
         pms.opponent_id,
         u.nickname as opponent_name,
-        SUM(pms.total_games) as total_games,
-        SUM(pms.wins) as wins,
-        SUM(pms.losses) as losses,
-        ROUND(100.0 * SUM(pms.wins)::NUMERIC / SUM(pms.total_games), 2) as winrate,
-        MAX(pms.last_updated) as last_updated,
-        CASE WHEN SUM(pms.wins) > SUM(pms.losses) THEN 'Winning' WHEN SUM(pms.wins) < SUM(pms.losses) THEN 'Losing' ELSE 'Tied' END as record
+        u.elo_rating as current_elo,
+        SUM(pms.total_games)::INT as total_matches,
+        SUM(pms.wins)::INT as wins_against_me,
+        SUM(pms.losses)::INT as losses_against_me,
+        ROUND(100.0 * SUM(pms.wins)::NUMERIC / SUM(pms.total_games), 2) as win_percentage,
+        ROUND(100.0 * SUM(pms.losses)::NUMERIC / SUM(pms.total_games), 2) as loss_percentage,
+        COALESCE(SUM(CASE WHEN pms.elo_gained > 0 THEN pms.elo_gained ELSE 0 END), 0)::NUMERIC(8,2) as elo_gained,
+        COALESCE(SUM(CASE WHEN pms.elo_lost > 0 THEN pms.elo_lost ELSE 0 END), 0)::NUMERIC(8,2) as elo_lost,
+        MAX(pms.last_match_date)::TEXT as last_match_date,
+        MAX(pms.last_elo_against_me)::NUMERIC(8,2) as last_elo_against_me
       FROM player_match_statistics pms
       JOIN users u ON pms.opponent_id = u.id
       WHERE pms.player_id = $1
       AND pms.opponent_id IS NOT NULL
-      GROUP BY pms.opponent_id, u.nickname
+      AND pms.map_id IS NULL
+      AND pms.faction_id IS NULL
+      AND pms.opponent_faction_id IS NULL
+      GROUP BY pms.opponent_id, u.nickname, u.elo_rating
       HAVING SUM(pms.total_games) >= 1
-      ORDER BY MAX(pms.last_updated) DESC
+      ORDER BY MAX(pms.last_match_date) DESC NULLS LAST
       LIMIT $2`,
       [playerId, limit]
     );

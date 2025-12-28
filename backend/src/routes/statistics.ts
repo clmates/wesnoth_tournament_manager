@@ -194,4 +194,217 @@ router.get('/map/:mapId', async (req, res) => {
   }
 });
 
+// ===== BALANCE HISTORY ENDPOINTS =====
+
+/**
+ * Get balance history for a specific faction/map matchup
+ * Returns daily snapshots of winrate over a date range
+ */
+router.get('/history/trend', async (req, res) => {
+  try {
+    const { mapId, factionId, opponentFactionId, dateFrom, dateTo } = req.query;
+    
+    if (!mapId || !factionId || !opponentFactionId || !dateFrom || !dateTo) {
+      return res.status(400).json({ error: 'Missing required parameters: mapId, factionId, opponentFactionId, dateFrom, dateTo' });
+    }
+    
+    const result = await query(
+      `SELECT * FROM get_balance_trend($1, $2, $3, $4::DATE, $5::DATE)`,
+      [mapId, factionId, opponentFactionId, dateFrom, dateTo]
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching balance trend:', error);
+    res.status(500).json({ error: 'Failed to fetch balance trend' });
+  }
+});
+
+/**
+ * Get all balance events with optional filtering
+ * Used to mark balance patches and changes
+ */
+router.get('/history/events', async (req, res) => {
+  try {
+    const { factionId, mapId, eventType, limit = '50', offset = '0' } = req.query;
+    
+    let whereClause = '';
+    const params = [];
+    let paramIndex = 1;
+    
+    if (factionId) {
+      whereClause += `faction_id = $${paramIndex++} `;
+      params.push(factionId);
+    }
+    
+    if (mapId) {
+      if (whereClause) whereClause += 'AND ';
+      whereClause += `map_id = $${paramIndex++} `;
+      params.push(mapId);
+    }
+    
+    if (eventType) {
+      if (whereClause) whereClause += 'AND ';
+      whereClause += `event_type = $${paramIndex++} `;
+      params.push(eventType);
+    }
+    
+    if (whereClause) whereClause = 'WHERE ' + whereClause;
+    
+    params.push(parseInt(limit as string));
+    params.push(parseInt(offset as string));
+    
+    const result = await query(
+      `SELECT 
+        be.id,
+        be.event_date,
+        be.patch_version,
+        be.event_type,
+        be.description,
+        f.name as faction_name,
+        gm.name as map_name,
+        u.username as created_by_name
+      FROM balance_events be
+      LEFT JOIN factions f ON be.faction_id = f.id
+      LEFT JOIN game_maps gm ON be.map_id = gm.id
+      LEFT JOIN users u ON be.created_by = u.id
+      ${whereClause}
+      ORDER BY be.event_date DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      params
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching balance events:', error);
+    res.status(500).json({ error: 'Failed to fetch balance events' });
+  }
+});
+
+/**
+ * Get balance event impact (before/after comparison)
+ * Compares stats before and after a specific balance patch
+ */
+router.get('/history/events/:eventId/impact', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { daysBefore = '30', daysAfter = '30' } = req.query;
+    
+    const result = await query(
+      `SELECT * FROM get_balance_event_impact($1, $2::INT, $3::INT)`,
+      [eventId, parseInt(daysBefore as string), parseInt(daysAfter as string)]
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching event impact:', error);
+    res.status(500).json({ error: 'Failed to fetch event impact' });
+  }
+});
+
+/**
+ * Get snapshot data for a specific date (admin only)
+ * Shows all faction/map combinations as they were on that date
+ */
+router.get('/history/snapshot', async (req, res) => {
+  try {
+    const { date, minGames = '2' } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Missing required parameter: date' });
+    }
+    
+    const result = await query(
+      `SELECT 
+        gm.id as map_id,
+        gm.name as map_name,
+        f1.id as faction_id,
+        f1.name as faction_name,
+        f2.id as opponent_faction_id,
+        f2.name as opponent_faction_name,
+        fms.total_games,
+        fms.wins,
+        fms.losses,
+        fms.winrate,
+        fms.sample_size_category,
+        fms.confidence_level,
+        fms.snapshot_date
+      FROM faction_map_statistics_history fms
+      JOIN game_maps gm ON fms.map_id = gm.id
+      JOIN factions f1 ON fms.faction_id = f1.id
+      JOIN factions f2 ON fms.opponent_faction_id = f2.id
+      WHERE fms.snapshot_date = $1::DATE
+      AND fms.total_games >= $2::INT
+      ORDER BY gm.name, fms.winrate DESC`,
+      [date, parseInt(minGames as string)]
+    );
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching snapshot:', error);
+    res.status(500).json({ error: 'Failed to fetch snapshot' });
+  }
+});
+
+/**
+ * Create a new balance event (admin only)
+ * Records a patch or balance change
+ */
+router.post('/history/events', async (req, res) => {
+  try {
+    const { event_date, patch_version, event_type, description, faction_id, map_id, notes } = req.body;
+    const userId = req.user?.id;
+    
+    if (!event_date || !event_type || !description) {
+      return res.status(400).json({ error: 'Missing required fields: event_date, event_type, description' });
+    }
+    
+    if (!['BUFF', 'NERF', 'REWORK', 'HOTFIX', 'GENERAL_BALANCE_CHANGE'].includes(event_type)) {
+      return res.status(400).json({ error: 'Invalid event_type' });
+    }
+    
+    const result = await query(
+      `INSERT INTO balance_events (event_date, patch_version, event_type, description, faction_id, map_id, notes, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, event_date, patch_version, event_type, description, created_at`,
+      [event_date, patch_version, event_type, description, faction_id || null, map_id || null, notes || null, userId]
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating balance event:', error);
+    res.status(500).json({ error: 'Failed to create balance event' });
+  }
+});
+
+/**
+ * Manually create a snapshot for a specific date (admin only)
+ * Useful for backfilling historical data
+ */
+router.post('/history/snapshot', async (req, res) => {
+  try {
+    const { date } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Missing required field: date' });
+    }
+    
+    const result = await query(
+      `SELECT * FROM create_faction_map_statistics_snapshot($1::DATE)`,
+      [date]
+    );
+    
+    const { snapshots_created, snapshots_skipped } = result.rows[0];
+    res.json({ 
+      message: 'Snapshot created successfully',
+      snapshots_created,
+      snapshots_skipped,
+      date
+    });
+  } catch (error) {
+    console.error('Error creating snapshot:', error);
+    res.status(500).json({ error: 'Failed to create snapshot' });
+  }
+});
+
 export default router;

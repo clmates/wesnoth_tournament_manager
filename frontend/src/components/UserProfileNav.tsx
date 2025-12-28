@@ -29,15 +29,6 @@ const UserProfileNav: React.FC = () => {
 
           <button 
             className="nav-link"
-            onClick={() => handleNavigate('/my-matches')}
-            title={t('sidebar.my_matches')}
-          >
-            <span className="nav-icon">⚔️</span>
-            <span className="nav-text">{t('sidebar.my_matches')}</span>
-          </button>
-
-          <button 
-            className="nav-link"
             onClick={() => handleNavigate('/my-tournaments')}
             title={t('sidebar.my_tournaments')}
           >

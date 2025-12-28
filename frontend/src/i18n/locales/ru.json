@@ -401,5 +401,14 @@
     "error_change_password_failed": "Не удалось изменить пароль"
   },
   "tournaments.player_abandoned": "Игрок отказался",
-  "tournaments.abandonment_note": "Выберите победителя. Если игрок отказался, его противник автоматически выигрывает все оставшиеся матчи (без влияния на ELO, присуждаются очки турнира)."
+  "tournaments.abandonment_note": "Выберите победителя. Если игрок отказался, его противник автоматически выигрывает все оставшиеся матчи (без влияния на ELO, присуждаются очки турнира).",
+  "overall_statistics": "Общая статистика",
+  "matches_label": "Матчи",
+  "all_matches": "Все матчи",
+  "filter_by_opponent": "Фильтр по оппоненту...",
+  "performance_by_map": "По карте",
+  "performance_by_faction": "По фракции",
+  "back_to_players": "Вернуться к игрокам",
+  "total_games": "Игры",
+  "avg_elo_change": "Среднее изменение ELO/игра"
 }

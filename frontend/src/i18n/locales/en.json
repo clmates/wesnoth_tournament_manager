@@ -409,5 +409,14 @@
   "btn_accept": "Accept",
   "btn_reject": "Reject",
   "tournaments.player_abandoned": "Player Abandoned",
-  "tournaments.abandonment_note": "Select the winner. If a player abandoned, their opponent automatically wins all remaining matches (no ELO impact, tournament points awarded)."
+  "tournaments.abandonment_note": "Select the winner. If a player abandoned, their opponent automatically wins all remaining matches (no ELO impact, tournament points awarded).",
+  "overall_statistics": "Overall",
+  "matches_label": "Matches",
+  "all_matches": "All Matches",
+  "filter_by_opponent": "Filter by opponent...",
+  "performance_by_map": "By Map",
+  "performance_by_faction": "By Faction",
+  "back_to_players": "Back to Players",
+  "total_games": "Games",
+  "avg_elo_change": "Avg ELO/Game"
 }

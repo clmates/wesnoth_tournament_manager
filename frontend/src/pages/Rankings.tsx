@@ -1,22 +1,10 @@
-import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { userService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import PlayerLink from '../components/PlayerLink';
 import '../styles/Rankings.css';
-
-// Lazy load balance components for better performance
-const FactionBalanceTab = lazy(() => import('../components/FactionBalanceTab'));
-const MapBalanceTab = lazy(() => import('../components/MapBalanceTab'));
-const MatchupBalanceTab = lazy(() => import('../components/MatchupBalanceTab'));
-
-// Loading component for lazy-loaded tabs
-const TabLoading: React.FC = () => (
-  <div className="tab-loading">
-    <p>Loading statistics...</p>
-  </div>
-);
 
 interface PlayerStats {
   id: string;
@@ -38,7 +26,6 @@ interface FilterState {
 
 type SortColumn = 'nickname' | 'elo_rating' | 'matches_played' | 'total_wins' | 'total_losses' | 'winPercentage' | 'trend' | '';
 type SortDirection = 'asc' | 'desc';
-type TabType = 'rankings' | 'faction-balance' | 'map-balance' | 'matchup-balance';
 
 const Rankings: React.FC = () => {
   const { t } = useTranslation();
@@ -47,7 +34,6 @@ const Rankings: React.FC = () => {
   const [players, setPlayers] = useState<PlayerStats[]>([]);
   const [sortColumn, setSortColumn] = useState<SortColumn>('');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [activeTab, setActiveTab] = useState<TabType>('rankings');
     // Sorting logic
     const handleSort = (column: SortColumn) => {
       if (sortColumn === column) {
@@ -206,37 +192,8 @@ const Rankings: React.FC = () => {
     <div className="rankings-container">
       <h1>{t('navbar_rankings') || 'Rankings'}</h1>
 
-      {/* Tabs Navigation */}
-      <div className="rankings-tabs">
-        <button 
-          className={`tab-button ${activeTab === 'rankings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('rankings')}
-        >
-          {t('players_ranking') || 'Players'}
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'faction-balance' ? 'active' : ''}`}
-          onClick={() => setActiveTab('faction-balance')}
-        >
-          {t('faction_balance') || 'Faction Balance'}
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'map-balance' ? 'active' : ''}`}
-          onClick={() => setActiveTab('map-balance')}
-        >
-          {t('map_balance') || 'Map Balance'}
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'matchup-balance' ? 'active' : ''}`}
-          onClick={() => setActiveTab('matchup-balance')}
-        >
-          {t('matchup_balance') || 'Matchups'}
-        </button>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'rankings' && (
-        <div className="tab-content rankings-content">
+      {/* Rankings Content */}
+      <div className="rankings-content">
           {error && <p className="error-message">{error}</p>}
 
           {/* Pagination Controls - Top */}
@@ -358,7 +315,8 @@ const Rankings: React.FC = () => {
                 <th className="trend-col sortable" onClick={() => handleSort('trend')}>
                   {t('label_trend')}
                   {sortColumn === 'trend' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                </th>                <th className="stats-col">{t('label_stats') || 'Stats'}</th>              </tr>
+                </th>
+              </tr>
             </thead>
             <tbody>
               {sortedPlayers.map((player, index) => (
@@ -386,15 +344,6 @@ const Rankings: React.FC = () => {
                     <span className={`trend trend-${player.trend.charAt(0) || '-'}`}>
                       {player.trend}
                     </span>
-                  </td>
-                  <td className="stats-col">
-                    <button 
-                      className="stats-btn"
-                      onClick={() => navigate(`/player/${player.id}/stats`)}
-                      title="View player statistics"
-                    >
-                      {t('view_stats') || 'View'}
-                    </button>
                   </td>
                 </tr>
               ))}
@@ -444,34 +393,6 @@ const Rankings: React.FC = () => {
         </div>
       )}
         </div>
-      )}
-
-      {/* Faction Balance Tab */}
-      {activeTab === 'faction-balance' && (
-        <div className="tab-content">
-          <Suspense fallback={<TabLoading />}>
-            <FactionBalanceTab />
-          </Suspense>
-        </div>
-      )}
-
-      {/* Map Balance Tab */}
-      {activeTab === 'map-balance' && (
-        <div className="tab-content">
-          <Suspense fallback={<TabLoading />}>
-            <MapBalanceTab />
-          </Suspense>
-        </div>
-      )}
-
-      {/* Matchup Balance Tab */}
-      {activeTab === 'matchup-balance' && (
-        <div className="tab-content">
-          <Suspense fallback={<TabLoading />}>
-            <MatchupBalanceTab />
-          </Suspense>
-        </div>
-      )}
     </div>
   );
 };

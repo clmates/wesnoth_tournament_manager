@@ -399,5 +399,14 @@
   "btn_accept": "Aceptar",
   "btn_reject": "Rechazar",
   "tournaments.player_abandoned": "Jugador Abandonó",
-  "tournaments.abandonment_note": "Selecciona el ganador. Si un jugador abandonó, su oponente gana automáticamente todos los partidos restantes (sin impacto en ELO, puntos del torneo otorgados)."
+  "tournaments.abandonment_note": "Selecciona el ganador. Si un jugador abandonó, su oponente gana automáticamente todos los partidos restantes (sin impacto en ELO, puntos del torneo otorgados).",
+  "overall_statistics": "General",
+  "matches_label": "Partidas",
+  "all_matches": "Todas las Partidas",
+  "filter_by_opponent": "Filtrar por oponente...",
+  "performance_by_map": "Por Mapa",
+  "performance_by_faction": "Por Facción",
+  "back_to_players": "Volver a Jugadores",
+  "total_games": "Juegos",
+  "avg_elo_change": "ELO Promedio/Juego"
 }
