@@ -73,6 +73,17 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
+.player-stats-section .explanation {
+  color: #555;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin: 0 0 1.2rem 0;
+  padding: 0.75rem;
+  background: #f0f4f8;
+  border-left: 4px solid #3498db;
+  border-radius: 4px;
+}
+
 /* Overview Stats */
 .player-overview {
   display: grid;

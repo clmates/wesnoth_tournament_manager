@@ -11,6 +11,7 @@ import PlayerStatsByMap from '../components/PlayerStatsByMap';
 import PlayerStatsByFaction from '../components/PlayerStatsByFaction';
 import PlayerLink from '../components/PlayerLink';
 import '../styles/UserProfile.css';
+import '../styles/OpponentStats.css';
 
 type ProfileTab = 'overall' | 'matches' | 'opponents' | 'by-map' | 'by-faction';
 

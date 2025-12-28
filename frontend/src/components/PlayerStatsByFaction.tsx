@@ -55,6 +55,7 @@ const PlayerStatsByFaction: React.FC<Props> = ({ playerId }) => {
   return (
     <div className="player-stats-section">
       <h3>{t('performance_by_faction') || 'Performance by Faction'}</h3>
+      <p className="explanation">{t('performance_by_faction_explanation') || 'Your win rate and ELO change with each faction'}</p>
       
       <div className="filter-controls">
         <label>

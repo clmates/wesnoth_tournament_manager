@@ -49,6 +49,7 @@ const MapBalanceTab: React.FC = () => {
   return (
     <div className="balance-stats">
       <h3>{t('map_balance_title') || 'Map Balance Analysis'}</h3>
+      <p className="explanation">{t('map_balance_explanation') || 'Analysis of map balance across all factions'}</p>
       <p className="stats-info">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
       
       <div className="stats-table-container">

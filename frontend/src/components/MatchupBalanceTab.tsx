@@ -53,6 +53,7 @@ const MatchupBalanceTab: React.FC = () => {
   return (
     <div className="balance-stats">
       <h3>{t('unbalanced_matchups') || 'Unbalanced Matchups'}</h3>
+      <p className="explanation">{t('matchup_balance_explanation') || 'Analysis of specific faction matchups showing imbalance'}</p>
       
       <div className="filter-controls">
         <label>

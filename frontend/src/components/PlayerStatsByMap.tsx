@@ -55,6 +55,7 @@ const PlayerStatsByMap: React.FC<Props> = ({ playerId }) => {
   return (
     <div className="player-stats-section">
       <h3>{t('performance_by_map') || 'Performance by Map'}</h3>
+      <p className="explanation">{t('performance_by_map_explanation') || 'Your win rate and ELO change on each map'}</p>
       
       <div className="filter-controls">
         <label>

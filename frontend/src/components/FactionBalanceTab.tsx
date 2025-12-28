@@ -45,6 +45,7 @@ const FactionBalanceTab: React.FC = () => {
   return (
     <div className="balance-stats">
       <h3>{t('faction_balance_title') || 'Global Faction Balance'}</h3>
+      <p className="explanation">{t('faction_balance_explanation') || 'Detailed analysis of faction balance across all tournaments'}</p>
       <div className="stats-table-container">
         <table className="stats-table">
           <thead>

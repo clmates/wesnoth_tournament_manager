@@ -14,6 +14,17 @@
   font-size: 1.3rem;
 }
 
+.explanation {
+  color: #555;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 1.2rem;
+  padding: 0.75rem;
+  background: #f0f4f8;
+  border-left: 4px solid #3498db;
+  border-radius: 4px;
+}
+
 .stats-info {
   color: #666;
   font-size: 0.9rem;

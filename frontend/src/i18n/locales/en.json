@@ -432,6 +432,14 @@
   "map_balance": "Map Balance",
   "map_balance_title": "Map Balance Analysis",
   "matchup_balance": "Matchup Analysis",
+  "unbalanced_matchups": "Unbalanced Matchups",
+  "minimum_games": "Minimum Games",
+  "faction_1": "Faction 1",
+  "vs": "VS",
+  "faction_2": "Faction 2",
+  "faction_1_wins": "F1 Wins",
+  "faction_2_wins": "F2 Wins",
+  "label_avg_elo_change": "Avg ELO Change",
   "faction": "Faction",
   "map": "Map",
   "winrate": "Win Rate",
@@ -440,5 +448,10 @@
   "factions_used": "Factions",
   "avg_imbalance": "Avg Imbalance",
   "winrate_range": "WR Range",
-  "balance_lower_better": "(Lower imbalance = better balance)"
+  "balance_lower_better": "(Lower imbalance = better balance)",
+  "faction_balance_explanation": "This tab shows the overall win rate of each faction across all matches. A balanced game has factions hovering around 50% win rate. Values above 55% indicate a faction may be too strong, while values below 45% suggest a faction may be underpowered.",
+  "map_balance_explanation": "This tab analyzes how balanced each map is across all matches. The Average Imbalance shows the variance in faction win rates on that map. Lower values indicate better balance. The Win Rate Range shows the difference between the strongest and weakest faction on that map.",
+  "matchup_balance_explanation": "This tab displays specific faction matchups that show imbalance on particular maps. It helps identify which faction combinations struggle or excel on specific maps, allowing you to focus balance efforts where needed most.",
+  "performance_by_map_explanation": "Shows your personal win rate and ELO change on each map. Higher win rates indicate maps where you perform better. Monitor your ELO change per game to see which maps gain you rating points.",
+  "performance_by_faction_explanation": "Displays your personal win rate and ELO change with each faction. This helps identify which factions you play best with and which may need more practice or strategy adjustment."
 }
