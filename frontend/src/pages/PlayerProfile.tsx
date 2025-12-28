@@ -14,6 +14,13 @@ import '../styles/UserProfile.css';
 
 type ProfileTab = 'overall' | 'matches' | 'opponents' | 'by-map' | 'by-faction';
 
+interface FilterState {
+  winner: string;
+  loser: string;
+  map: string;
+  status: string;
+}
+
 const PlayerProfile: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -22,6 +29,8 @@ const PlayerProfile: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [opponentStats, setOpponentStats] = useState<any[]>([]);
+  const [opponentStatsLoading, setOpponentStatsLoading] = useState(false);
+  const [opponentStatsError, setOpponentStatsError] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [matchDetailsModal, setMatchDetailsModal] = useState<any>(null);
@@ -29,6 +38,12 @@ const PlayerProfile: React.FC = () => {
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filterOpponent, setFilterOpponent] = useState<string>('');
+  const [filters, setFilters] = useState<FilterState>({
+    winner: '',
+    loser: '',
+    map: '',
+    status: '',
+  });
 
   useEffect(() => {
     if (!id) {
@@ -46,10 +61,6 @@ const PlayerProfile: React.FC = () => {
         const matchesRes = await userService.getRecentMatches(id);
         const matchesData = matchesRes.data?.data || matchesRes.data || [];
         setMatches(matchesData);
-
-        // Fetch opponent stats from backend (pre-calculated)
-        const opponentsRes = await playerStatisticsService.getRecentOpponents(id, 100);
-        setOpponentStats(opponentsRes);
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Error loading profile');
@@ -61,6 +72,29 @@ const PlayerProfile: React.FC = () => {
     fetchData();
   }, [id, navigate]);
 
+  // Fetch opponent stats when opponents tab is selected
+  useEffect(() => {
+    if (activeTab === 'opponents' && opponentStats.length === 0 && !opponentStatsLoading) {
+      const fetchOpponents = async () => {
+        try {
+          setOpponentStatsLoading(true);
+          setOpponentStatsError('');
+          console.log('Fetching recent opponents for player:', id);
+          const opponentsRes = await playerStatisticsService.getRecentOpponents(id || '', 100);
+          console.log('Opponents data received:', opponentsRes);
+          setOpponentStats(opponentsRes);
+        } catch (err) {
+          console.error('Error fetching opponents:', err);
+          setOpponentStatsError('Error loading opponent data');
+        } finally {
+          setOpponentStatsLoading(false);
+        }
+      };
+
+      fetchOpponents();
+    }
+  }, [activeTab, id, opponentStats.length, opponentStatsLoading]);
+
   const openMatchDetails = (match: any) => {
     setMatchDetailsModal(match);
   };
@@ -68,6 +102,40 @@ const PlayerProfile: React.FC = () => {
   const closeMatchDetails = () => {
     setMatchDetailsModal(null);
   };
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      winner: '',
+      loser: '',
+      map: '',
+      status: '',
+    });
+  };
+
+  // Filter matches based on active filters
+  const filteredMatches = matches.filter(match => {
+    if (filters.winner && !match.winner_nickname?.toLowerCase().includes(filters.winner.toLowerCase())) {
+      return false;
+    }
+    if (filters.loser && !match.loser_nickname?.toLowerCase().includes(filters.loser.toLowerCase())) {
+      return false;
+    }
+    if (filters.map && !match.map?.toLowerCase().includes(filters.map.toLowerCase())) {
+      return false;
+    }
+    if (filters.status && match.status !== filters.status) {
+      return false;
+    }
+    return true;
+  });
 
   // Filter and sort opponent stats
   const filteredOpponentStats = opponentStats
@@ -198,8 +266,66 @@ const PlayerProfile: React.FC = () => {
               <div className="tab-pane active">
                 <div className="matches-container">
                   <h2>{t('all_matches')}</h2>
+                  
+                  {/* Filters */}
+                  <div className="filters-section">
+                    <div className="filter-group">
+                      <label htmlFor="winner">{t('filter_winner')}</label>
+                      <input
+                        type="text"
+                        id="winner"
+                        name="winner"
+                        placeholder={t('filter_by_winner')}
+                        value={filters.winner}
+                        onChange={handleFilterChange}
+                      />
+                    </div>
+
+                    <div className="filter-group">
+                      <label htmlFor="loser">{t('filter_loser')}</label>
+                      <input
+                        type="text"
+                        id="loser"
+                        name="loser"
+                        placeholder={t('filter_by_loser')}
+                        value={filters.loser}
+                        onChange={handleFilterChange}
+                      />
+                    </div>
+
+                    <div className="filter-group">
+                      <label htmlFor="map">{t('filter_map')}</label>
+                      <input
+                        type="text"
+                        id="map"
+                        name="map"
+                        placeholder={t('filter_by_map')}
+                        value={filters.map}
+                        onChange={handleFilterChange}
+                      />
+                    </div>
+
+                    <div className="filter-group">
+                      <label htmlFor="status">{t('filter_match_status')}</label>
+                      <select
+                        id="status"
+                        name="status"
+                        value={filters.status}
+                        onChange={handleFilterChange}
+                      >
+                        <option value="">{t('all')}</option>
+                        <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
+                        <option value="confirmed">{t('match_status_confirmed')}</option>
+                        <option value="disputed">{t('match_status_disputed')}</option>
+                        <option value="cancelled">{t('match_status_cancelled')}</option>
+                      </select>
+                    </div>
+
+                    <button className="reset-btn" onClick={resetFilters}>{t('reset_filters')}</button>
+                  </div>
+
                   <MatchesTable 
-                    matches={matches}
+                    matches={filteredMatches}
                     currentPlayerId={id || ''}
                     onViewDetails={openMatchDetails}
                     onDownloadReplay={async (matchId, replayFilePath) => {
@@ -235,86 +361,98 @@ const PlayerProfile: React.FC = () => {
                 <div className="opponent-stats-container">
                   <h2>{t('my_opponents') || 'Opponents'}</h2>
                   
-                  <div className="filter-section">
-                    <input
-                      type="text"
-                      placeholder={t('filter_by_opponent') || 'Filter by opponent...'}
-                      value={filterOpponent}
-                      onChange={(e) => setFilterOpponent(e.target.value)}
-                      className="opponent-filter"
-                    />
-                  </div>
+                  {opponentStatsLoading && (
+                    <div className="loading-message">{t('loading')}</div>
+                  )}
 
-                  {opponentStats.length === 0 ? (
+                  {opponentStatsError && (
+                    <div className="error-message">{opponentStatsError}</div>
+                  )}
+
+                  {!opponentStatsLoading && !opponentStatsError && opponentStats.length === 0 && (
                     <div className="no-data-message">{t('no_opponent_data') || 'No opponent data available'}</div>
-                  ) : (
-                    <div className="opponent-stats-wrapper">
-                      <table className="opponent-stats-table">
-                        <thead>
-                          <tr>
-                            <th 
-                              className="sortable"
-                              onClick={() => handleSort('opponent_name')}
-                            >
-                              {t('opponent_name') || 'Opponent'}
-                              {sortColumn === 'opponent_name' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                            </th>
-                            <th className="numeric sortable" onClick={() => handleSort('current_elo')}>
-                              {t('current_elo') || 'Current ELO'}
-                              {sortColumn === 'current_elo' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                            </th>
-                            <th className="numeric sortable" onClick={() => handleSort('total_matches')}>
-                              {t('total_matches_label') || 'Total'}
-                              {sortColumn === 'total_matches' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                            </th>
-                            <th className="numeric">{t('wins') || 'Wins'}</th>
-                            <th className="numeric">{t('losses') || 'Losses'}</th>
-                            <th className="numeric sortable" onClick={() => handleSort('win_percentage')}>
-                              {t('win_percentage') || 'Win %'}
-                              {sortColumn === 'win_percentage' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                            </th>
-                            <th className="numeric">{t('elo_gained') || 'ELO Gained'}</th>
-                            <th className="numeric">{t('elo_lost') || 'ELO Lost'}</th>
-                            <th>{t('last_match') || 'Last Match'}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredOpponentStats.map((stat) => (
-                            <tr key={stat.opponent_id} className="opponent-row">
-                              <td className="opponent-name">
-                                <span className="name">
-                                  <PlayerLink nickname={stat.opponent_name} userId={stat.opponent_id} />
-                                </span>
-                              </td>
-                              <td className="numeric">
-                                <span className="elo-badge">{stat.current_elo}</span>
-                              </td>
-                              <td className="numeric">
-                                <strong>{stat.total_matches}</strong>
-                              </td>
-                              <td className="numeric">
-                                <span className="wins-badge">{stat.wins_against_me}</span>
-                              </td>
-                              <td className="numeric">
-                                <span className="losses-badge">{stat.losses_against_me}</span>
-                              </td>
-                              <td className="numeric">
-                                <span className="percentage-badge positive">{Number(stat.win_percentage).toFixed(1)}%</span>
-                              </td>
-                              <td className="numeric">
-                                <span className="elo-positive">+{Number(stat.elo_gained).toFixed(0)}</span>
-                              </td>
-                              <td className="numeric">
-                                <span className="elo-negative">-{Number(stat.elo_lost).toFixed(0)}</span>
-                              </td>
-                              <td>
-                                <span className="date">{stat.last_match_date ? new Date(stat.last_match_date).toLocaleDateString() : 'N/A'}</span>
-                              </td>
+                  )}
+
+                  {!opponentStatsLoading && !opponentStatsError && opponentStats.length > 0 && (
+                    <>
+                      <div className="filter-section">
+                        <input
+                          type="text"
+                          placeholder={t('filter_by_opponent') || 'Filter by opponent...'}
+                          value={filterOpponent}
+                          onChange={(e) => setFilterOpponent(e.target.value)}
+                          className="opponent-filter"
+                        />
+                      </div>
+
+                      <div className="opponent-stats-wrapper">
+                        <table className="opponent-stats-table">
+                          <thead>
+                            <tr>
+                              <th 
+                                className="sortable"
+                                onClick={() => handleSort('opponent_name')}
+                              >
+                                {t('opponent_name') || 'Opponent'}
+                                {sortColumn === 'opponent_name' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                              </th>
+                              <th className="numeric sortable" onClick={() => handleSort('current_elo')}>
+                                {t('current_elo') || 'Current ELO'}
+                                {sortColumn === 'current_elo' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                              </th>
+                              <th className="numeric sortable" onClick={() => handleSort('total_matches')}>
+                                {t('total_matches_label') || 'Total'}
+                                {sortColumn === 'total_matches' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                              </th>
+                              <th className="numeric">{t('wins') || 'Wins'}</th>
+                              <th className="numeric">{t('losses') || 'Losses'}</th>
+                              <th className="numeric sortable" onClick={() => handleSort('win_percentage')}>
+                                {t('win_percentage') || 'Win %'}
+                                {sortColumn === 'win_percentage' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                              </th>
+                              <th className="numeric">{t('elo_gained') || 'ELO Gained'}</th>
+                              <th className="numeric">{t('elo_lost') || 'ELO Lost'}</th>
+                              <th>{t('last_match') || 'Last Match'}</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {filteredOpponentStats.map((stat) => (
+                              <tr key={stat.opponent_id} className="opponent-row">
+                                <td className="opponent-name">
+                                  <span className="name">
+                                    <PlayerLink nickname={stat.opponent_name} userId={stat.opponent_id} />
+                                  </span>
+                                </td>
+                                <td className="numeric">
+                                  <span className="elo-badge">{stat.current_elo}</span>
+                                </td>
+                                <td className="numeric">
+                                  <strong>{stat.total_matches}</strong>
+                                </td>
+                                <td className="numeric">
+                                  <span className="wins-badge">{stat.wins_against_me}</span>
+                                </td>
+                                <td className="numeric">
+                                  <span className="losses-badge">{stat.losses_against_me}</span>
+                                </td>
+                                <td className="numeric">
+                                  <span className="percentage-badge positive">{Number(stat.win_percentage).toFixed(1)}%</span>
+                                </td>
+                                <td className="numeric">
+                                  <span className="elo-positive">+{Number(stat.elo_gained).toFixed(0)}</span>
+                                </td>
+                                <td className="numeric">
+                                  <span className="elo-negative">-{Number(stat.elo_lost).toFixed(0)}</span>
+                                </td>
+                                <td>
+                                  <span className="date">{stat.last_match_date ? new Date(stat.last_match_date).toLocaleDateString() : 'N/A'}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

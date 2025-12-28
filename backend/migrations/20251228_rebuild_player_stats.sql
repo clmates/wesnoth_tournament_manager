@@ -22,6 +22,12 @@ CREATE TABLE player_match_statistics (
   winrate DECIMAL(5, 2),
   avg_elo_change DECIMAL(8, 2),
   
+  -- Additional opponent-related fields for recent opponents endpoint
+  last_elo_against_me DECIMAL(8, 2),
+  elo_gained DECIMAL(8, 2) DEFAULT 0,
+  elo_lost DECIMAL(8, 2) DEFAULT 0,
+  last_match_date TIMESTAMP,
+  
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
