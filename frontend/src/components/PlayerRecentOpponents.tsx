@@ -28,11 +28,13 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
       try {
         setLoading(true);
         const data = await playerStatisticsService.getRecentOpponents(playerId, limit);
+        console.log('PlayerRecentOpponents raw data:', data);
         // Convert string numbers to actual numbers
         const converted = data.map((item: any) => ({
           ...item,
           winrate: typeof item.winrate === 'string' ? parseFloat(item.winrate) : item.winrate,
         }));
+        console.log('PlayerRecentOpponents converted data:', converted);
         setOpponents(converted);
       } catch (err) {
         console.error('Error fetching recent opponents:', err);
