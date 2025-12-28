@@ -222,28 +222,12 @@ BEGIN
   TRUNCATE TABLE player_match_statistics;
   
   -- ===== GLOBAL STATS (per player, aggregated from all matches) =====
-  WITH player_totals AS (
-    SELECT
-      m.winner_id as player_id,
-      COUNT(*) FILTER (WHERE m.winner_id = m.winner_id)::INT as wins,
-      COUNT(*) FILTER (WHERE m.loser_id = m.winner_id)::INT as losses,
-      SUM(CASE WHEN m.winner_id = m.winner_id THEN m.winner_elo_after - m.winner_elo_before ELSE m.loser_elo_after - m.loser_elo_before END)::NUMERIC(8,2) / 
-      COUNT(*) as avg_elo_change
-    FROM matches m
-    WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
-    GROUP BY m.winner_id
-    
+  WITH all_player_games AS (
+    SELECT m.winner_id as player_id, COUNT(*) as wins, 0 as losses, AVG(m.winner_elo_after - m.winner_elo_before) as avg_elo_change
+    FROM matches m WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled') GROUP BY m.winner_id
     UNION ALL
-    
-    SELECT
-      m.loser_id as player_id,
-      COUNT(*) FILTER (WHERE m.winner_id = m.loser_id)::INT as wins,
-      COUNT(*) FILTER (WHERE m.loser_id = m.loser_id)::INT as losses,
-      SUM(CASE WHEN m.winner_id = m.loser_id THEN m.winner_elo_after - m.winner_elo_before ELSE m.loser_elo_after - m.loser_elo_before END)::NUMERIC(8,2) / 
-      COUNT(*) as avg_elo_change
-    FROM matches m
-    WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
-    GROUP BY m.loser_id
+    SELECT m.loser_id as player_id, 0 as wins, COUNT(*) as losses, AVG(m.loser_elo_after - m.loser_elo_before) as avg_elo_change
+    FROM matches m WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled') GROUP BY m.loser_id
   )
   INSERT INTO player_match_statistics (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
   SELECT
@@ -257,13 +241,7 @@ BEGIN
     SUM(losses)::INT as losses,
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
     AVG(avg_elo_change)::NUMERIC(8,2)
-  FROM (
-    SELECT player_id, COUNT(*) as wins, 0 as losses, SUM(winner_elo_after - winner_elo_before)::NUMERIC(8,2) / COUNT(*) as avg_elo_change
-    FROM matches WHERE winner_id IS NOT NULL AND NOT (admin_reviewed = true AND status = 'cancelled') GROUP BY winner_id
-    UNION ALL
-    SELECT player_id, 0 as wins, COUNT() as losses, SUM(loser_elo_after - loser_elo_before)::NUMERIC(8,2) / COUNT(*) as avg_elo_change
-    FROM matches WHERE loser_id IS NOT NULL AND NOT (admin_reviewed = true AND status = 'cancelled') GROUP BY loser_id
-  ) player_agg
+  FROM all_player_games
   GROUP BY player_id;
 
   -- ===== HEAD-TO-HEAD WINNER PERSPECTIVE =====
@@ -389,7 +367,7 @@ BEGIN
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
     AVG(avg_elo_change)::NUMERIC(8,2)
   FROM map_stats
-  GROUP BY player_id, map_id;
+  GROUP BY player_id, map_id, opponent_id, faction_id, opponent_faction_id;
 
   -- ===== PER-FACTION STATS =====
   WITH faction_stats AS (
@@ -434,7 +412,7 @@ BEGIN
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
     AVG(avg_elo_change)::NUMERIC(8,2)
   FROM faction_stats
-  GROUP BY player_id, faction_id;
+  GROUP BY player_id, faction_id, opponent_id, map_id, opponent_faction_id;
 
   RAISE NOTICE 'Player match statistics recalculated successfully with all record types';
 END;

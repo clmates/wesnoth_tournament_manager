@@ -94,7 +94,7 @@ const PlayerProfile: React.FC = () => {
 
       fetchOpponents();
     }
-  }, [activeTab, id, opponentStats.length, opponentStatsLoading]);
+  }, [activeTab, id]);
 
   const openMatchDetails = (match: any) => {
     setMatchDetailsModal(match);

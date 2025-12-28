@@ -267,13 +267,15 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
         pms.opponent_id,
         u.nickname as opponent_name,
         u.elo_rating as current_elo,
-        SUM(pms.total_games)::INT as total_matches,
-        SUM(pms.wins)::INT as wins_against_me,
-        SUM(pms.losses)::INT as losses_against_me,
-        ROUND(100.0 * SUM(pms.wins)::NUMERIC / SUM(pms.total_games), 2) as win_percentage,
-        ROUND(100.0 * SUM(pms.losses)::NUMERIC / SUM(pms.total_games), 2) as loss_percentage,
-        COALESCE(SUM(CASE WHEN pms.elo_gained > 0 THEN pms.elo_gained ELSE 0 END), 0)::NUMERIC(8,2) as elo_gained,
-        COALESCE(SUM(CASE WHEN pms.elo_lost > 0 THEN pms.elo_lost ELSE 0 END), 0)::NUMERIC(8,2) as elo_lost,
+        SUM(pms.total_games)::INT as total_games,
+        SUM(pms.wins)::INT as wins,
+        SUM(pms.losses)::INT as losses,
+        CASE 
+          WHEN SUM(pms.total_games) > 0 THEN ROUND(100.0 * SUM(pms.wins)::NUMERIC / SUM(pms.total_games), 2)::NUMERIC(5,2)
+          ELSE 0::NUMERIC(5,2)
+        END as winrate,
+        COALESCE(SUM(pms.elo_gained), 0)::NUMERIC(8,2) as elo_gained,
+        COALESCE(SUM(pms.elo_lost), 0)::NUMERIC(8,2) as elo_lost,
         MAX(pms.last_match_date)::TEXT as last_match_date,
         MAX(pms.last_elo_against_me)::NUMERIC(8,2) as last_elo_against_me
       FROM player_match_statistics pms

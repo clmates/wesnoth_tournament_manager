@@ -107,7 +107,7 @@ const User: React.FC = () => {
 
       fetchOpponents();
     }
-  }, [activeTab, userId, opponentStats.length, opponentStatsLoading]);
+  }, [activeTab, userId]);
 
   const refetchMatches = async () => {
     try {
