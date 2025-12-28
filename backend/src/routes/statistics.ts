@@ -263,7 +263,7 @@ router.get('/history/events', async (req, res) => {
         be.description,
         f.name as faction_name,
         gm.name as map_name,
-        u.username as created_by_name
+        u.nickname as created_by_name
       FROM balance_events be
       LEFT JOIN factions f ON be.faction_id = f.id
       LEFT JOIN game_maps gm ON be.map_id = gm.id
