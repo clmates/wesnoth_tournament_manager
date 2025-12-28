@@ -438,6 +438,7 @@ BEGIN
     elo_gained,
     elo_lost,
     last_match_date
+  FROM h2h_loser_agg;
 
   -- ===== PER-MAP STATS =====
   WITH map_stats AS (

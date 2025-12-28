@@ -57,35 +57,35 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
       {opponents.length === 0 ? (
         <p className="no-data">{t('no_data')}</p>
       ) : (
-        <div className="opponents-grid">
-          {opponents.map((opponent) => (
-            <div key={opponent.opponent_id} className="opponent-card">
-              <div className="opponent-name">{opponent.opponent_name}</div>
-              <div className="opponent-stats">
-                <div className="stat">
-                  <span className="label">{t('games') || 'Games'}:</span>
-                  <span className="value">{opponent.total_games}</span>
-                </div>
-                <div className="stat">
-                  <span className="label">{t('record') || 'Record'}:</span>
-                  <span className="value">
-                    <span className="winning">{opponent.wins}W</span>
-                    <span className="losing">{opponent.losses}L</span>
-                  </span>
-                </div>
-                <div className="stat">
-                  <span className="label">{t('winrate') || 'W/R'}:</span>
-                  <span className={`value ${
+        <div className="stats-table-wrapper">
+          <table className="stats-table">
+            <thead>
+              <tr>
+                <th>{t('player') || 'Player'}</th>
+                <th>{t('games') || 'Games'}</th>
+                <th>{t('wins') || 'Wins'}</th>
+                <th>{t('losses') || 'Losses'}</th>
+                <th>{t('winrate') || 'W/R %'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {opponents.map((opponent) => (
+                <tr key={opponent.opponent_id}>
+                  <td className="opponent-name-cell">{opponent.opponent_name}</td>
+                  <td className="centered">{opponent.total_games}</td>
+                  <td className="centered winning">{opponent.wins}</td>
+                  <td className="centered losing">{opponent.losses}</td>
+                  <td className={`centered ${
                     opponent.winrate > 55 ? 'high' : 
                     opponent.winrate < 45 ? 'low' : 
                     'balanced'
                   }`}>
                     {opponent.winrate.toFixed(1)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
