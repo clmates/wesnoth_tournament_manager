@@ -9,17 +9,12 @@ BEGIN
   TRUNCATE TABLE player_match_statistics;
   
   -- ===== GLOBAL STATS (per player, aggregated from all matches) =====
-  WITH player_totals AS (
-    SELECT
-      COALESCE(m.winner_id, m.loser_id) as player_id,
-      COUNT(*) FILTER (WHERE m.winner_id = player_id)::INT as wins,
-      COUNT(*) FILTER (WHERE m.loser_id = player_id)::INT as losses,
-      SUM(CASE WHEN m.winner_id = player_id THEN m.winner_elo_after - m.winner_elo_before ELSE m.loser_elo_after - m.loser_elo_before END)::NUMERIC(8,2) / 
-      COUNT(*) as avg_elo_change
-    FROM matches m
-    WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
-    AND (m.winner_id = player_id OR m.loser_id = player_id)
-    GROUP BY player_id
+  WITH all_player_games AS (
+    SELECT m.winner_id as player_id, COUNT(*) as wins, 0 as losses, AVG(m.winner_elo_after - m.winner_elo_before) as avg_elo_change
+    FROM matches m WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled') GROUP BY m.winner_id
+    UNION ALL
+    SELECT m.loser_id as player_id, 0 as wins, COUNT(*) as losses, AVG(m.loser_elo_after - m.loser_elo_before) as avg_elo_change
+    FROM matches m WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled') GROUP BY m.loser_id
   )
   INSERT INTO player_match_statistics (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change)
   SELECT
@@ -28,12 +23,13 @@ BEGIN
     NULL,
     NULL,
     NULL,
-    wins + losses,
-    wins,
-    losses,
-    CASE WHEN (wins + losses) > 0 THEN ROUND(100.0 * wins / (wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
-    avg_elo_change
-  FROM player_totals;
+    SUM(wins + losses)::INT as total_games,
+    SUM(wins)::INT as wins,
+    SUM(losses)::INT as losses,
+    CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
+    AVG(avg_elo_change)::NUMERIC(8,2)
+  FROM all_player_games
+  GROUP BY player_id;
 
   -- ===== HEAD-TO-HEAD WINNER PERSPECTIVE =====
   WITH h2h_winner AS (
