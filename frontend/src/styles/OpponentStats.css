@@ -8,10 +8,12 @@
 
 .opponent-stats-container h3 {
   margin-top: 0;
-  margin-bottom: 1rem;
-  color: #333;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
   font-size: 1.3rem;
   font-weight: 600;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 .no-data-message {
@@ -24,16 +26,18 @@
 .opponent-stats-wrapper {
   overflow-x: auto;
   border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .opponent-stats-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
+  background: white;
 }
 
 .opponent-stats-table thead {
-  background: #2c3e50;
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
   color: white;
   font-weight: 600;
 }
@@ -41,9 +45,12 @@
 .opponent-stats-table th {
   padding: 1rem 0.75rem;
   text-align: left;
-  border-bottom: 2px solid #34495e;
+  border-bottom: 2px solid #1a252f;
   white-space: nowrap;
   color: white;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .opponent-stats-table th.numeric {
@@ -52,16 +59,25 @@
 
 .opponent-stats-table tbody tr {
   border-bottom: 1px solid #ecf0f1;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s ease;
 }
 
 .opponent-stats-table tbody tr:hover {
   background-color: #f8f9fa;
 }
 
+.opponent-stats-table tbody tr:nth-child(even) {
+  background-color: #f5f7fa;
+}
+
+.opponent-stats-table tbody tr:nth-child(even):hover {
+  background-color: #eef1f6;
+}
+
 .opponent-stats-table td {
   padding: 0.75rem;
-  vertical-align: center;
+  vertical-align: middle;
+  color: #555;
 }
 
 .opponent-stats-table td.numeric {
@@ -82,51 +98,55 @@
 .elo-badge {
   display: inline-block;
   padding: 0.4rem 0.8rem;
-  background: #e3f2fd;
-  color: #1976d2;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1565c0;
   border-radius: 4px;
   font-weight: 700;
+  box-shadow: 0 1px 3px rgba(21, 101, 192, 0.1);
 }
 
 .elo-value {
-  color: #555;
-  font-weight: 500;
+  color: #2c3e50;
+  font-weight: 600;
 }
 
 .wins-badge {
   display: inline-block;
-  padding: 0.3rem 0.6rem;
-  background: #d4edda;
+  padding: 0.35rem 0.7rem;
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
   color: #155724;
-  border-radius: 3px;
+  border-radius: 4px;
   font-weight: 600;
+  box-shadow: 0 1px 3px rgba(21, 87, 36, 0.1);
 }
 
 .losses-badge {
   display: inline-block;
-  padding: 0.3rem 0.6rem;
-  background: #f8d7da;
+  padding: 0.35rem 0.7rem;
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
   color: #721c24;
-  border-radius: 3px;
+  border-radius: 4px;
   font-weight: 600;
+  box-shadow: 0 1px 3px rgba(114, 28, 36, 0.1);
 }
 
 .percentage-badge {
   display: inline-block;
-  padding: 0.3rem 0.6rem;
-  border-radius: 3px;
+  padding: 0.35rem 0.7rem;
+  border-radius: 4px;
   font-weight: 600;
   font-size: 0.85rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .percentage-badge.positive {
-  background: #c8e6c9;
-  color: #2e7d32;
+  background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+  color: #1b5e20;
 }
 
 .percentage-badge.negative {
-  background: #ffcdd2;
-  color: #c62828;
+  background: linear-gradient(135deg, #ffcdd2 0%, #ef9a9a 100%);
+  color: #b71c1c;
 }
 
 .elo-positive {
@@ -140,8 +160,13 @@
 }
 
 .date {
-  color: #555;
+  color: #2c3e50;
   font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.opponent-row:hover {
+  box-shadow: inset 0 0 0 1px rgba(52, 152, 219, 0.1);
 }
 
 /* Responsive */
@@ -154,6 +179,10 @@
 
   .opponent-stats-table th.numeric {
     font-size: 0.8rem;
+  }
+
+  .opponent-stats-table th {
+    font-size: 0.75rem;
   }
 }
 

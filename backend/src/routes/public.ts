@@ -489,16 +489,8 @@ router.get('/players/:id', async (req, res) => {
         u.total_losses, 
         u.level, 
         u.created_at,
-        CASE 
-          WHEN pms.avg_elo_change IS NOT NULL THEN (pms.avg_elo_change::numeric)::text
-          ELSE '0'
-        END as avg_elo_change,
-        CASE 
-          WHEN pms.avg_elo_change IS NULL THEN '-'
-          WHEN pms.avg_elo_change > 0 THEN '+' || ROUND(pms.avg_elo_change::numeric, 1)::text
-          WHEN pms.avg_elo_change < 0 THEN ROUND(pms.avg_elo_change::numeric, 1)::text
-          ELSE '0'
-        END as trend
+        u.trend,
+        pms.avg_elo_change
       FROM users u
       LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
         AND pms.opponent_id IS NULL 

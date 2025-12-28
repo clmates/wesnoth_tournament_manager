@@ -424,5 +424,21 @@
   "label_current_elo": "Current ELO",
   "label_elo_range": "ELO Range",
   "label_status_actions": "Status / Actions",
-  "no_data_available": "No match data available"
+  "no_data_available": "No match data available",
+  "statistics": "Statistics",
+  "statistics_intro": "Detailed analysis of faction and map balance across all tournaments",
+  "faction_balance": "Faction Balance",
+  "faction_balance_title": "Global Faction Balance",
+  "map_balance": "Map Balance",
+  "map_balance_title": "Map Balance Analysis",
+  "matchup_balance": "Matchup Analysis",
+  "faction": "Faction",
+  "map": "Map",
+  "winrate": "Win Rate",
+  "balance_indicator": "Balance",
+  "maps_played": "Maps",
+  "factions_used": "Factions",
+  "avg_imbalance": "Avg Imbalance",
+  "winrate_range": "WR Range",
+  "balance_lower_better": "(Lower imbalance = better balance)"
 }
