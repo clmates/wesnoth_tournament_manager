@@ -29,6 +29,7 @@ const PlayerStatsOverview: React.FC<Props> = ({ playerId }) => {
       try {
         setLoading(true);
         const data = await playerStatisticsService.getGlobalStats(playerId);
+        console.log('PlayerStatsOverview raw data:', data);
         setStats(data);
       } catch (err) {
         console.error('Error fetching player stats:', err);

@@ -29,12 +29,14 @@ const PlayerStatsByFaction: React.FC<Props> = ({ playerId }) => {
       try {
         setLoading(true);
         const data = await playerStatisticsService.getStatsByFaction(playerId, minGames);
+        console.log('PlayerStatsByFaction raw data:', data);
         // Convert string numbers to actual numbers
         const converted = data.map((item: any) => ({
           ...item,
           winrate: typeof item.winrate === 'string' ? parseFloat(item.winrate) : item.winrate,
           avg_elo_change: typeof item.avg_elo_change === 'string' ? parseFloat(item.avg_elo_change) : item.avg_elo_change,
         }));
+        console.log('PlayerStatsByFaction converted data:', converted);
         setStats(converted);
       } catch (err) {
         console.error('Error fetching faction stats:', err);
