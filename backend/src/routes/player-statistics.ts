@@ -261,31 +261,29 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
     
     console.log('Fetching recent opponents for player:', playerId, 'limit:', limit);
     
-    // Get opponents with aggregated stats from player_match_statistics
-    // Aggregates all h2h stats across all maps and factions for each opponent
+    // Get opponents from pre-calculated aggregated h2h records (map_id and faction_id NULL)
+    // These are pre-calculated during statistics recalculation for O(1) query performance
     const result = await query(
       `SELECT
         pms.opponent_id,
         u.nickname as opponent_name,
         u.elo_rating as current_elo,
-        SUM(pms.total_games)::INT as total_games,
-        SUM(pms.wins)::INT as wins,
-        SUM(pms.losses)::INT as losses,
-        CASE 
-          WHEN SUM(pms.total_games) > 0 THEN ROUND(100.0 * SUM(pms.wins)::NUMERIC / SUM(pms.total_games), 2)::NUMERIC(5,2)
-          ELSE 0::NUMERIC(5,2)
-        END as winrate,
-        COALESCE(SUM(pms.elo_gained), 0)::NUMERIC(8,2) as elo_gained,
-        COALESCE(SUM(pms.elo_lost), 0)::NUMERIC(8,2) as elo_lost,
-        MAX(pms.last_match_date)::TEXT as last_match_date,
-        MAX(pms.last_elo_against_me)::NUMERIC(8,2) as last_elo_against_me
+        pms.total_games,
+        pms.wins,
+        pms.losses,
+        pms.winrate,
+        COALESCE(pms.elo_gained, 0)::NUMERIC(8,2) as elo_gained,
+        COALESCE(pms.elo_lost, 0)::NUMERIC(8,2) as elo_lost,
+        pms.last_match_date::TEXT as last_match_date,
+        pms.last_elo_against_me
       FROM player_match_statistics pms
       JOIN users u ON pms.opponent_id = u.id
       WHERE pms.player_id = $1
       AND pms.opponent_id IS NOT NULL
-      GROUP BY pms.opponent_id, u.nickname, u.elo_rating
-      HAVING SUM(pms.total_games) >= 1
-      ORDER BY MAX(pms.last_match_date) DESC NULLS LAST
+      AND pms.map_id IS NULL
+      AND pms.faction_id IS NULL
+      AND pms.opponent_faction_id IS NULL
+      ORDER BY pms.last_match_date DESC NULLS LAST
       LIMIT $2`,
       [playerId, limit]
     );

@@ -111,7 +111,78 @@ BEGIN
     last_match_date
   FROM h2h_loser;
 
-  -- ===== PER-MAP STATS (aggregated across all opponents and factions) =====
+  -- ===== HEAD-TO-HEAD WINNER AGGREGATED (no map/faction) =====
+  WITH h2h_winner_agg AS (
+    SELECT
+      m.winner_id as player_id,
+      m.loser_id as opponent_id,
+      NULL::UUID as map_id,
+      NULL::UUID as faction_id,
+      NULL::UUID as opponent_faction_id,
+      COUNT(*)::INT as wins,
+      0::INT as losses,
+      MAX(m.loser_elo_after)::DECIMAL(8,2) as last_elo_against_me,
+      SUM(m.winner_elo_after - m.winner_elo_before)::NUMERIC(8,2) / COUNT(*) as avg_elo_change,
+      SUM(CASE WHEN m.winner_elo_after - m.winner_elo_before > 0 THEN m.winner_elo_after - m.winner_elo_before ELSE 0 END)::NUMERIC(8,2) as elo_gained,
+      0::NUMERIC(8,2) as elo_lost,
+      MAX(m.created_at)::TIMESTAMP as last_match_date
+    FROM matches m
+    WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
+    GROUP BY m.winner_id, m.loser_id
+  )
+  INSERT INTO player_match_statistics (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change, last_elo_against_me, elo_gained, elo_lost, last_match_date)
+  SELECT
+    player_id,
+    opponent_id,
+    map_id,
+    faction_id,
+    opponent_faction_id,
+    wins,
+    wins,
+    losses,
+    100.00::NUMERIC(5,2),
+    avg_elo_change,
+    last_elo_against_me,
+    elo_gained,
+    elo_lost,
+    last_match_date
+  FROM h2h_winner_agg;
+
+  -- ===== HEAD-TO-HEAD LOSER AGGREGATED (no map/faction) =====
+  WITH h2h_loser_agg AS (
+    SELECT
+      m.loser_id as player_id,
+      m.winner_id as opponent_id,
+      NULL::UUID as map_id,
+      NULL::UUID as faction_id,
+      NULL::UUID as opponent_faction_id,
+      0::INT as wins,
+      COUNT(*)::INT as losses,
+      MAX(m.winner_elo_after)::DECIMAL(8,2) as last_elo_against_me,
+      SUM(m.loser_elo_after - m.loser_elo_before)::NUMERIC(8,2) / COUNT(*) as avg_elo_change,
+      0::NUMERIC(8,2) as elo_gained,
+      SUM(CASE WHEN m.loser_elo_after - m.loser_elo_before < 0 THEN ABS(m.loser_elo_after - m.loser_elo_before) ELSE 0 END)::NUMERIC(8,2) as elo_lost,
+      MAX(m.created_at)::TIMESTAMP as last_match_date
+    FROM matches m
+    WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
+    GROUP BY m.loser_id, m.winner_id
+  )
+  INSERT INTO player_match_statistics (player_id, opponent_id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate, avg_elo_change, last_elo_against_me, elo_gained, elo_lost, last_match_date)
+  SELECT
+    player_id,
+    opponent_id,
+    map_id,
+    faction_id,
+    opponent_faction_id,
+    losses,
+    wins,
+    losses,
+    0.00::NUMERIC(5,2),
+    avg_elo_change,
+    last_elo_against_me,
+    elo_gained,
+    elo_lost,
+    last_match_date
   WITH map_stats AS (
     SELECT
       m.winner_id as player_id,
