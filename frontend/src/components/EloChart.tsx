@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import '../styles/EloChart.css';
 
@@ -8,6 +9,7 @@ interface EloChartProps {
 }
 
 const EloChart: React.FC<EloChartProps> = ({ matches, currentPlayerId }) => {
+  const { t } = useTranslation();
   const chartData = useMemo(() => {
     if (!matches || matches.length === 0) return [];
 
@@ -41,8 +43,8 @@ const EloChart: React.FC<EloChartProps> = ({ matches, currentPlayerId }) => {
   if (!chartData || chartData.length === 0) {
     return (
       <div className="elo-chart-container">
-        <h3>ELO Evolution</h3>
-        <div className="no-data-message">No match data available</div>
+        <h3>{t('label_elo_evolution') || 'ELO Evolution'}</h3>
+        <div className="no-data-message">{t('no_data_available') || 'No match data available'}</div>
       </div>
     );
   }
@@ -52,7 +54,7 @@ const EloChart: React.FC<EloChartProps> = ({ matches, currentPlayerId }) => {
 
   return (
     <div className="elo-chart-container">
-      <h3>ELO Evolution</h3>
+      <h3>{t('label_elo_evolution') || 'ELO Evolution'}</h3>
       <div className="chart-wrapper">
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
@@ -69,7 +71,7 @@ const EloChart: React.FC<EloChartProps> = ({ matches, currentPlayerId }) => {
               stroke="#666"
               domain={[Math.max(minElo, 800), maxElo]}
               tick={{ fontSize: 12 }}
-              label={{ value: 'ELO Rating', angle: -90, position: 'insideLeft' }}
+              label={{ value: t('label_elo_rating') || 'ELO Rating', angle: -90, position: 'insideLeft' }}
             />
             <Tooltip 
               contentStyle={{ 
@@ -95,15 +97,15 @@ const EloChart: React.FC<EloChartProps> = ({ matches, currentPlayerId }) => {
       </div>
       <div className="chart-info">
         <div className="info-item">
-          <span className="label">Total Matches:</span>
+          <span className="label">{t('label_total_matches') || 'Total Matches'}:</span>
           <span className="value">{chartData.length}</span>
         </div>
         <div className="info-item">
-          <span className="label">Current ELO:</span>
+          <span className="label">{t('label_current_elo') || 'Current ELO'}:</span>
           <span className="value">{chartData[chartData.length - 1]?.elo || 'N/A'}</span>
         </div>
         <div className="info-item">
-          <span className="label">ELO Range:</span>
+          <span className="label">{t('label_elo_range') || 'ELO Range'}:</span>
           <span className="value">{Math.min(...chartData.map(d => d.elo))} - {Math.max(...chartData.map(d => d.elo))}</span>
         </div>
       </div>

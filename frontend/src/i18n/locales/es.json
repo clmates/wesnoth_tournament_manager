@@ -408,5 +408,11 @@
   "performance_by_faction": "Por Facción",
   "back_to_players": "Volver a Jugadores",
   "total_games": "Juegos",
-  "avg_elo_change": "ELO Promedio/Juego"
+  "avg_elo_change": "ELO Promedio/Juego",
+  "label_elo_evolution": "Evolución de ELO",
+  "label_elo_rating": "Rating de ELO",
+  "label_current_elo": "ELO Actual",
+  "label_elo_range": "Rango de ELO",
+  "label_status_actions": "Estado / Acciones",
+  "no_data_available": "No hay datos disponibles"
 }

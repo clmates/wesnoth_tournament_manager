@@ -115,7 +115,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
               <th className="winner-col sortable" onClick={() => handleSort('winner')}>{t('label_winner')}</th>
               <th className="loser-col sortable" onClick={() => handleSort('loser')}>{t('label_loser')}</th>
               <th className="map-col sortable" onClick={() => handleSort('map')}>{t('label_map')}</th>
-              <th className="status-actions-col sortable" onClick={() => handleSort('status')}>Status / Actions</th>
+              <th className="status-actions-col sortable" onClick={() => handleSort('status')}>{t('label_status_actions') || 'Status / Actions'}</th>
             </tr>
           </thead>
           <tbody>
@@ -146,7 +146,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
               {t('label_map')}{sortColumn === 'map' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
             </th>
             <th className="status-actions-col sortable" onClick={() => handleSort('status')}>
-              Status / Actions{sortColumn === 'status' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+              {t('label_status_actions') || 'Status / Actions'}{sortColumn === 'status' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
             </th>
           </tr>
         </thead>

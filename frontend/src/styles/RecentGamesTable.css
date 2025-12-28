@@ -25,8 +25,8 @@
 }
 
 .games-table thead {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-bottom: 2px solid #e0e0e0;
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+  border-bottom: 2px solid #1a252f;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -35,7 +35,7 @@
 .games-table th {
   padding: 14px 12px;
   text-align: center;
-  color: #2c3e50;
+  color: white;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -72,7 +72,7 @@
 }
 
 .date-col {
-  color: #7f8c8d;
+  color: #555;
   font-size: 0.9rem;
   width: 10%;
   padding-right: 0.025rem;

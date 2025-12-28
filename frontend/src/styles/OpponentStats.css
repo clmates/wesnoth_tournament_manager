@@ -43,6 +43,7 @@
   text-align: left;
   border-bottom: 2px solid #34495e;
   white-space: nowrap;
+  color: white;
 }
 
 .opponent-stats-table th.numeric {
@@ -139,7 +140,7 @@
 }
 
 .date {
-  color: #7f8c8d;
+  color: #555;
   font-size: 0.85rem;
 }
 

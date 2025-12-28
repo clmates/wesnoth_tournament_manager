@@ -9,9 +9,28 @@ const router = Router();
 router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const result = await query(
-      `SELECT id, nickname, email, language, discord_id, elo_rating, level, is_admin, created_at, 
-              is_rated, matches_played, total_wins, total_losses, trend 
-       FROM users WHERE id = $1`,
+      `SELECT 
+        u.id, 
+        u.nickname, 
+        u.email, 
+        u.language, 
+        u.discord_id, 
+        u.elo_rating, 
+        u.level, 
+        u.is_admin, 
+        u.created_at, 
+        u.is_rated, 
+        u.matches_played, 
+        u.total_wins, 
+        u.total_losses, 
+        u.trend,
+        pms.avg_elo_change
+      FROM users u
+      LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
+        AND pms.opponent_id IS NULL 
+        AND pms.map_id IS NULL 
+        AND pms.faction_id IS NULL
+      WHERE u.id = $1`,
       [req.userId]
     );
 

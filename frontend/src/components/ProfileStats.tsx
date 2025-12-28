@@ -13,6 +13,7 @@ interface ProfileStatsProps {
     total_wins: number;
     total_losses: number;
     trend?: string;
+    avg_elo_change?: number;
   };
 }
 
@@ -74,6 +75,13 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
           <div className="stat-label">{t('label_record')}</div>
           <div className="stat-value record">
             {player.total_wins || 0}-{player.total_losses || 0}
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-label">{t('label_avg_elo_change') || 'Avg ELO Change'}</div>
+          <div className={`stat-value ${(player.avg_elo_change || 0) >= 0 ? 'positive-change' : 'negative-change'}`}>
+            {(player.avg_elo_change || 0) >= 0 ? '+' : ''}{Number(player.avg_elo_change || 0).toFixed(1)}
           </div>
         </div>
       </div>

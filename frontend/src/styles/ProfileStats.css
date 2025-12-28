@@ -123,6 +123,14 @@
   color: #2c3e50;
 }
 
+.positive-change {
+  color: #27ae60;
+}
+
+.negative-change {
+  color: #e74c3c;
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
   .stats-grid {

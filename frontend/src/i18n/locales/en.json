@@ -418,5 +418,11 @@
   "performance_by_faction": "By Faction",
   "back_to_players": "Back to Players",
   "total_games": "Games",
-  "avg_elo_change": "Avg ELO/Game"
+  "avg_elo_change": "Avg ELO/Game",
+  "label_elo_evolution": "ELO Evolution",
+  "label_elo_rating": "ELO Rating",
+  "label_current_elo": "Current ELO",
+  "label_elo_range": "ELO Range",
+  "label_status_actions": "Status / Actions",
+  "no_data_available": "No match data available"
 }

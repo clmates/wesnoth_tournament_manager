@@ -479,9 +479,32 @@ router.get('/players/:id', async (req, res) => {
     const { id } = req.params;
 
     const result = await query(
-      `SELECT id, nickname, elo_rating, is_rated, matches_played, total_wins, total_losses, level, created_at
-       FROM users
-       WHERE id = $1 AND is_active = true AND is_blocked = false`,
+      `SELECT 
+        u.id, 
+        u.nickname, 
+        u.elo_rating, 
+        u.is_rated, 
+        u.matches_played, 
+        u.total_wins, 
+        u.total_losses, 
+        u.level, 
+        u.created_at,
+        CASE 
+          WHEN pms.avg_elo_change IS NOT NULL THEN (pms.avg_elo_change::numeric)::text
+          ELSE '0'
+        END as avg_elo_change,
+        CASE 
+          WHEN pms.avg_elo_change IS NULL THEN '-'
+          WHEN pms.avg_elo_change > 0 THEN '+' || ROUND(pms.avg_elo_change::numeric, 1)::text
+          WHEN pms.avg_elo_change < 0 THEN ROUND(pms.avg_elo_change::numeric, 1)::text
+          ELSE '0'
+        END as trend
+      FROM users u
+      LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
+        AND pms.opponent_id IS NULL 
+        AND pms.map_id IS NULL 
+        AND pms.faction_id IS NULL
+      WHERE u.id = $1 AND u.is_active = true AND u.is_blocked = false`,
       [id]
     );
 
