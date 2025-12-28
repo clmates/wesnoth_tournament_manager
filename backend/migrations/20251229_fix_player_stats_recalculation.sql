@@ -154,7 +154,7 @@ BEGIN
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
     AVG(avg_elo_change)::NUMERIC(8,2)
   FROM map_stats
-  GROUP BY player_id, map_id;
+  GROUP BY player_id, map_id, opponent_id, faction_id, opponent_faction_id;
 
   -- ===== PER-FACTION STATS (aggregated across all opponents and maps) =====
   WITH faction_stats AS (
@@ -199,7 +199,7 @@ BEGIN
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
     AVG(avg_elo_change)::NUMERIC(8,2)
   FROM faction_stats
-  GROUP BY player_id, faction_id;
+  GROUP BY player_id, faction_id, opponent_id, map_id, opponent_faction_id;
 
   RAISE NOTICE 'Player match statistics recalculated successfully with all record types';
 END;
