@@ -354,16 +354,17 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
     }
 
     const user = userResult.rows[0];
+    
     console.log('[PASSWORD-RESET] User found:', {
       userId: user.id,
       nickname: nickname,
       storedDiscordId: user.discord_id,
-      providedDiscordId: resolvedDiscordId,
-      match: user.discord_id === resolvedDiscordId
+      providedDiscordId: discord_id,
+      match: user.discord_id === discord_id
     });
 
-    // Verify Discord ID matches
-    if (user.discord_id !== resolvedDiscordId) {
+    // Verify Discord username matches what's stored in DB
+    if (user.discord_id !== discord_id) {
       console.log('[PASSWORD-RESET] Discord ID mismatch for user:', nickname);
       // Don't reveal the mismatch for security
       return res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord thread' });
