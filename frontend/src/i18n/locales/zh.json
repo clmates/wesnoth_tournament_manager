@@ -31,6 +31,7 @@
   "auth.login": "在这里登录",
   "auth.error_all_fields_required": "所有字段都是必需的",
   "auth.loading": "加载中...",
+  "auth.discord_not_available": "此服务器未启用 Discord 集成。请联系管理员以获取密码重置帮助。",
   "register_title": "注册",
   "register_nickname": "昵称",
   "register_email": "电子邮件",

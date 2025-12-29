@@ -31,6 +31,7 @@
   "auth.login": "Inicia sesión aquí",
   "auth.error_all_fields_required": "Todos los campos son requeridos",
   "auth.loading": "Cargando...",
+  "auth.discord_not_available": "La integración con Discord no está habilitada en este servidor. Por favor contacta a un administrador para ayuda con el reinicio de contraseña.",
   "register_title": "Registrarse",
   "register_nickname": "Nick",
   "register_email": "Email",

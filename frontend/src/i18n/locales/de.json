@@ -31,6 +31,7 @@
   "auth.login": "Hier anmelden",
   "auth.error_all_fields_required": "Alle Felder sind erforderlich",
   "auth.loading": "Wird geladen...",
+  "auth.discord_not_available": "Die Discord-Integration ist auf diesem Server nicht aktiviert. Wenden Sie sich bitte an einen Administrator, um Hilfe beim Zurücksetzen des Passworts zu erhalten.",
   "register_title": "Registrieren",
   "register_nickname": "Spitzname",
   "register_email": "E-Mail",

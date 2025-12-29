@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
@@ -15,6 +15,25 @@ const ForgotPassword: React.FC = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [discordAvailable, setDiscordAvailable] = useState(true);
+  const [checkingDiscord, setCheckingDiscord] = useState(true);
+
+  // Check if Discord password reset is available
+  useEffect(() => {
+    const checkDiscord = async () => {
+      try {
+        const response = await authService.checkDiscordPasswordResetAvailable();
+        setDiscordAvailable(response.data.available);
+      } catch (err) {
+        console.error('Error checking Discord availability:', err);
+        setDiscordAvailable(false);
+      } finally {
+        setCheckingDiscord(false);
+      }
+    };
+
+    checkDiscord();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +77,21 @@ const ForgotPassword: React.FC = () => {
         <div className="auth-card">
           <h1>{t('auth.forgot_password') || 'Forgot Password?'}</h1>
           
-          {!submitted ? (
+          {checkingDiscord ? (
+            <p className="loading-message">{t('auth.loading') || 'Loading...'}</p>
+          ) : !discordAvailable ? (
+            <>
+              <p className="error-message">
+                ❌ {t('auth.discord_not_available') || 'Discord integration is not enabled on this server. Please contact an administrator for password reset assistance.'}
+              </p>
+              <button
+                onClick={() => navigate('/login')}
+                className="auth-button"
+              >
+                {t('auth.return_to_login')}
+              </button>
+            </>
+          ) : !submitted ? (
             <>
               <p className="auth-description">
                 {t('auth.forgot_password_description') || 'Enter your nickname and Discord ID to receive a temporary password via Discord DM. You will be required to change it after logging in.'}

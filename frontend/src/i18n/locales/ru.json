@@ -31,6 +31,7 @@
   "auth.login": "Войдите здесь",
   "auth.error_all_fields_required": "Все поля обязательны",
   "auth.loading": "Загрузка...",
+  "auth.discord_not_available": "Интеграция Discord не включена на этом сервере. Пожалуйста, обратитесь к администратору для помощи с восстановлением пароля.",
   "register_title": "Регистрация",
   "register_nickname": "Ник",
   "register_email": "Электронная почта",

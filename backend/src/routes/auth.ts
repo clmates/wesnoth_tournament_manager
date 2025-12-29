@@ -289,6 +289,15 @@ router.post('/force-change-password', authMiddleware, async (req: AuthRequest, r
   }
 });
 
+// Check if password reset via Discord is available
+router.get('/discord-password-reset-available', async (req, res) => {
+  try {
+    res.json({ available: DISCORD_ENABLED });
+  } catch (error) {
+    res.status(500).json({ error: 'Check failed' });
+  }
+});
+
 // Request Password Reset via Discord - User provides nickname and Discord ID for validation
 router.post('/request-password-reset', registerLimiter, async (req, res) => {
   try {

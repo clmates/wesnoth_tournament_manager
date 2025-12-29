@@ -94,6 +94,8 @@ export const authService = {
     api.post('/auth/change-password', { oldPassword, newPassword }),
   requestPasswordReset: (data: { nickname: string; discord_id: string }) =>
     api.post('/auth/request-password-reset', data),
+  checkDiscordPasswordResetAvailable: () =>
+    api.get('/auth/discord-password-reset-available'),
 };
 
 export const userService = {

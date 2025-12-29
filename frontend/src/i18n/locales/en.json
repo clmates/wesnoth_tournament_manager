@@ -31,6 +31,7 @@
   "auth.login": "Log in here",
   "auth.error_all_fields_required": "All fields are required",
   "auth.loading": "Loading...",
+  "auth.discord_not_available": "Discord integration is not enabled on this server. Please contact an administrator for password reset assistance.",
   "register_title": "Register",
   "register_nickname": "Nickname",
   "register_email": "Email",
