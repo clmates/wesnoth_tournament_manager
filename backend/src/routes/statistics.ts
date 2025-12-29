@@ -4,6 +4,24 @@ import { query } from '../config/database.js';
 const router = Router();
 
 /**
+ * Get statistics configuration
+ * Returns settings like minimum games threshold for comparisons
+ */
+router.get('/config', async (req, res) => {
+  try {
+    // Get config from environment variables or use defaults
+    const minGamesThreshold = parseInt(process.env.BALANCE_MIN_GAMES_THRESHOLD || '5');
+    
+    res.json({
+      minGamesThreshold,
+    });
+  } catch (error) {
+    console.error('Error fetching statistics config:', error);
+    res.status(500).json({ error: 'Failed to fetch statistics configuration' });
+  }
+});
+
+/**
  * Get faction statistics by map
  * Returns winrates for each faction on each map
  */

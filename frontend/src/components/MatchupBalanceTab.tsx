@@ -30,8 +30,6 @@ interface ComparisonData {
   losses: number;
 }
 
-const MIN_GAMES_THRESHOLD = 10; // Minimum games to include a matchup in comparison
-
 const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ beforeData = null, afterData = null }) => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<MatchupStats[]>([]);
@@ -40,6 +38,7 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [minGames, setMinGames] = useState(5);
+  const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
 
   const aggregateMatchupData = (data: ComparisonData[]): MatchupStats[] => {
     const matchupMap = new Map<string, ComparisonData[]>();
@@ -91,9 +90,24 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
     });
     
     return results
-      .filter(m => m.total_games >= MIN_GAMES_THRESHOLD) // Apply minimum games filter
+      .filter(m => m.total_games >= minGamesThreshold) // Apply minimum games filter
       .sort((a, b) => b.imbalance - a.imbalance);
   };
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const config = await statisticsService.getConfig();
+        if (config.minGamesThreshold) {
+          setMinGamesThreshold(config.minGamesThreshold);
+        }
+      } catch (err) {
+        console.warn('Could not load config, using default threshold');
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -171,8 +185,8 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       <div className="balance-stats">
         <h3>{t('unbalanced_matchups_comparison') || 'Unbalanced Matchups - Before & After'}</h3>
         <p className="block-info">
-          {t('before_event') || 'Before'}: {beforeData.reduce((sum, d) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'} | 
-          {t('after_event') || 'After'}: {afterData.reduce((sum, d) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'}
+          {t('before_event') || 'Before'}: {beforeData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'}
         </p>
 
         <div className="stats-table-container">

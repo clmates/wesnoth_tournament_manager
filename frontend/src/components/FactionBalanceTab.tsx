@@ -29,13 +29,28 @@ interface FactionBalanceTabProps {
   afterData?: ComparisonData[] | null;
 }
 
-const MIN_GAMES_THRESHOLD = 10; // Minimum games to include a faction in comparison
-
 const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null, afterData = null }) => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<FactionStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const config = await statisticsService.getConfig();
+        if (config.minGamesThreshold) {
+          setMinGamesThreshold(config.minGamesThreshold);
+        }
+      } catch (err) {
+        console.warn('Could not load config, using default threshold');
+        // Use default value on error
+      }
+    };
+
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -86,7 +101,7 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
     });
 
     return Array.from(factionMap.values())
-      .filter(stat => stat.total_games >= MIN_GAMES_THRESHOLD) // Apply minimum games filter
+      .filter(stat => stat.total_games >= minGamesThreshold) // Apply minimum games filter
       .map(stat => ({
         faction_id: stat.faction_id,
         faction_name: stat.faction_name,

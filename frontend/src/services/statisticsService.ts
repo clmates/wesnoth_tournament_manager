@@ -8,6 +8,12 @@ const apiClient = axios.create({
 });
 
 export const statisticsService = {
+  // Get configuration (including min games threshold)
+  getConfig: async () => {
+    const response = await apiClient.get('/statistics/config');
+    return response.data;
+  },
+
   // Get faction statistics by map
   getFactionByMapStats: async () => {
     const response = await apiClient.get('/statistics/faction-by-map');
