@@ -8,17 +8,30 @@
 
 .profile-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 24px;
   flex-wrap: wrap;
   gap: 16px;
 }
 
+.nickname-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .profile-header h1 {
   margin: 0;
   color: #2c3e50;
   font-size: 2rem;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .rating-status {
@@ -141,6 +154,33 @@
   font-weight: 700;
 }
 
+.activity-status {
+  padding: 0.4rem 0.8rem;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.activity-status.active {
+  background-color: #d5f4e6;
+  color: #27ae60;
+}
+
+.activity-status.inactive {
+  background-color: #fadbd8;
+  color: #e74c3c;
+}
+
+.last-activity-text {
+  font-size: 0.85rem;
+  color: #666;
+  padding: 0.4rem 0.8rem;
+  background-color: #f0f0f0;
+  border-radius: 16px;
+  white-space: nowrap;
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
   .stats-grid {
@@ -163,6 +203,15 @@
 
   .profile-header h1 {
     font-size: 1.5rem;
+  }
+
+  .header-meta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .last-activity-text {
+    white-space: normal;
   }
 
   .stats-grid {

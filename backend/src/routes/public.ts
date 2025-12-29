@@ -478,7 +478,7 @@ router.get('/players/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await query(
+    const playerResult = await query(
       `SELECT 
         u.id, 
         u.nickname, 
@@ -491,8 +491,7 @@ router.get('/players/:id', async (req, res) => {
         u.created_at,
         u.trend,
         u.is_active,
-        pms.avg_elo_change,
-        (SELECT MAX(m.created_at) FROM matches m WHERE (m.winner_id = u.id OR m.loser_id = u.id) AND m.status = 'confirmed') as last_activity
+        pms.avg_elo_change
       FROM users u
       LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
         AND pms.opponent_id IS NULL 
@@ -502,11 +501,24 @@ router.get('/players/:id', async (req, res) => {
       [id]
     );
 
-    if (result.rows.length === 0) {
+    if (playerResult.rows.length === 0) {
       return res.status(404).json({ error: 'Player not found' });
     }
 
-    res.json(result.rows[0]);
+    const player = playerResult.rows[0];
+
+    // Get last activity from most recent confirmed match
+    const lastActivityResult = await query(
+      `SELECT created_at FROM matches WHERE (winner_id = $1 OR loser_id = $1) AND status = 'confirmed' ORDER BY created_at DESC LIMIT 1`,
+      [id]
+    );
+
+    const result = {
+      ...player,
+      last_activity: lastActivityResult.rows[0]?.created_at || null
+    };
+
+    res.json(result);
   } catch (error) {
     console.error('Error fetching player:', error);
     res.status(500).json({ error: 'Failed to fetch player' });

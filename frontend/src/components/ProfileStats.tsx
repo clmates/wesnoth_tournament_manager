@@ -20,7 +20,7 @@ interface ProfileStatsProps {
 }
 
 const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const totalMatches = player.matches_played || 0;
   const decidedMatches = (player.total_wins || 0) + (player.total_losses || 0);
   const winPercentage = decidedMatches > 0 ? Math.round(((player.total_wins || 0) / decidedMatches) * 100) : 0;
@@ -31,10 +31,24 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
   return (
     <div className="profile-stats-container">
       <div className="profile-header">
-        <h1>{player.nickname}</h1>
-        <span className={`rating-status ${player.is_rated ? 'rated' : 'unrated'}`}>
-          {player.is_rated ? `★ ${t('rated')}` : `☆ ${t('unrated')}`}
-        </span>
+        <div className="nickname-section">
+          <h1>{player.nickname}</h1>
+          <div className="header-meta">
+            <span className={`rating-status ${player.is_rated ? 'rated' : 'unrated'}`}>
+              {player.is_rated ? `★ ${t('rated')}` : `☆ ${t('unrated')}`}
+            </span>
+            {player.is_active !== undefined && (
+              <span className={`activity-status ${player.is_active ? 'active' : 'inactive'}`}>
+                {player.is_active ? t('status_active') : t('status_inactive')}
+              </span>
+            )}
+            {player.last_activity && (
+              <span className="last-activity-text">
+                {t('last_activity')}: {new Date(player.last_activity).toLocaleDateString(i18n.language, { year: 'numeric', month: 'short', day: 'numeric' })}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="stats-grid">
@@ -86,20 +100,6 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
             {(player.avg_elo_change || 0) >= 0 ? '+' : ''}{Number(player.avg_elo_change || 0).toFixed(1)}
           </div>
         </div>
-
-        <div className="stat-card">
-          <div className="stat-label">{t('status_active')}</div>
-          <div className={`stat-value ${player.is_active ? 'active-status' : 'inactive-status'}`}>
-            {player.is_active ? t('status_active') : t('status_inactive')}
-          </div>
-        </div>
-
-        {player.last_activity && (
-          <div className="stat-card">
-            <div className="stat-label">{t('last_activity')}</div>
-            <div className="stat-value">{new Date(player.last_activity).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
-          </div>
-        )}
       </div>
     </div>
   );

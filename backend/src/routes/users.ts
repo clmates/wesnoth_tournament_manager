@@ -8,7 +8,7 @@ const router = Router();
 // Get user profile
 router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const result = await query(
+    const userResult = await query(
       `SELECT 
         u.id, 
         u.nickname, 
@@ -25,8 +25,7 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
         u.total_losses, 
         u.trend,
         u.is_active,
-        pms.avg_elo_change,
-        (SELECT MAX(m.created_at) FROM matches m WHERE (m.winner_id = u.id OR m.loser_id = u.id) AND m.status = 'confirmed') as last_activity
+        pms.avg_elo_change
       FROM users u
       LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
         AND pms.opponent_id IS NULL 
@@ -36,11 +35,24 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
       [req.userId]
     );
 
-    if (result.rows.length === 0) {
+    if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(result.rows[0]);
+    const user = userResult.rows[0];
+
+    // Get last activity from most recent confirmed match
+    const lastActivityResult = await query(
+      `SELECT created_at FROM matches WHERE (winner_id = $1 OR loser_id = $1) AND status = 'confirmed' ORDER BY created_at DESC LIMIT 1`,
+      [req.userId]
+    );
+
+    const result = {
+      ...user,
+      last_activity: lastActivityResult.rows[0]?.created_at || null
+    };
+
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch profile' });
   }

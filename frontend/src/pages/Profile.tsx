@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { authService, userService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import MainLayout from '../components/MainLayout';
+import ProfileStats from '../components/ProfileStats';
 import '../styles/UserProfile.css';
 
 const Profile: React.FC = () => {
@@ -184,53 +185,14 @@ const Profile: React.FC = () => {
 
         {profile && (
           <>
+            <ProfileStats player={profile} />
+
             <section className="profile-info">
               <h2>{t('profile.info_title')}</h2>
-              <div className="info-group">
-                <label>{t('profile.label_nickname')}</label>
-                <p>{profile?.nickname}</p>
-              </div>
               <div className="info-group">
                 <label>{t('profile.label_email')}</label>
                 <p>{profile?.email}</p>
               </div>
-              <div className="info-group">
-                <label>{t('profile.label_elo')}</label>
-                <p>
-                  {profile?.is_rated ? (
-                    <>
-                      {profile?.elo_rating || 1200}
-                    </>
-                  ) : (
-                    <>
-                      <span style={{ color: '#e67e22', fontWeight: 'bold' }}>{t('unrated')}</span>
-                      {profile?.matches_played > 0 && (
-                        <span style={{ marginLeft: '10px', fontSize: '0.9em' }}>
-                          ({profile?.matches_played}/5 {t('matches_label')})
-                        </span>
-                      )}
-                    </>
-                  )}
-                </p>
-              </div>
-              <div className="info-group">
-                <label>{t('profile.label_level')}</label>
-                <p>{profile?.level || t('level_novice')}</p>
-              </div>
-              <div className="info-group">
-                <label>{t('status_active')}</label>
-                <p>
-                  <span style={{ color: profile?.is_active ? '#27ae60' : '#e74c3c', fontWeight: 'bold' }}>
-                    {profile?.is_active ? t('status_active') : t('status_inactive')}
-                  </span>
-                </p>
-              </div>
-              {profile?.last_activity && (
-                <div className="info-group">
-                  <label>{t('last_activity')}</label>
-                  <p>{new Date(profile.last_activity).toLocaleDateString(i18n.language, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                </div>
-              )}
             </section>
 
             <section className="discord-settings">
