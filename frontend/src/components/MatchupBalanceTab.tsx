@@ -205,36 +205,74 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
                 const stat = item.after || item.before;
                 if (!stat) return null;
                 return (
-                  <tr key={`${stat.map_id}-${idx}`}>
-                    <td className="map-name">{stat.map_name}</td>
+                  <tr key={`${stat.map_id}-${idx}`} className="comparison-row">
+                    <td className="map-name">
+                      <div className="comparison-cell">
+                        <div className="after-value">{stat.map_name}</div>
+                      </div>
+                    </td>
                     <td className="matchup-name">
-                      <span className="faction">{stat.faction_1_name}</span>
-                      <span className="vs"> vs </span>
-                      <span className="faction">{stat.faction_2_name}</span>
+                      <div className="comparison-cell">
+                        <div className="after-value">
+                          <span className="faction">{stat.faction_1_name}</span>
+                          <span className="vs"> vs </span>
+                          <span className="faction">{stat.faction_2_name}</span>
+                        </div>
+                      </div>
                     </td>
                     <td>
-                      {item.after?.total_games || '-'}
-                      {item.before && <span className="before-value">({item.before.total_games})</span>}
+                      <div className="comparison-cell">
+                        <div className="after-value">{item.after?.total_games || '-'}</div>
+                        {item.before && <div className="before-value">{item.before.total_games}</div>}
+                      </div>
                     </td>
                     <td>
-                      <span className={`winrate ${
-                        (item.after?.faction_1_winrate || 50) > 55 ? 'high' : 
-                        (item.after?.faction_1_winrate || 50) < 45 ? 'low' : 
-                        'balanced'
-                      }`}>
-                        {item.after?.faction_1_winrate.toFixed(1) || '-'}%
-                      </span>
-                      {item.before && <span className="before-value">({item.before.faction_1_winrate.toFixed(1)}%)</span>}
+                      <div className="comparison-cell">
+                        <div className="after-value">
+                          <span className={`winrate ${
+                            (item.after?.faction_1_winrate || 50) > 55 ? 'high' : 
+                            (item.after?.faction_1_winrate || 50) < 45 ? 'low' : 
+                            'balanced'
+                          }`}>
+                            {item.after?.faction_1_winrate.toFixed(1) || '-'}%
+                          </span>
+                        </div>
+                        {item.before && (
+                          <div className="before-value">
+                            <span className={`winrate ${
+                              item.before.faction_1_winrate > 55 ? 'high' : 
+                              item.before.faction_1_winrate < 45 ? 'low' : 
+                              'balanced'
+                            }`}>
+                              {item.before.faction_1_winrate.toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td>
-                      <span className={`imbalance-badge ${
-                        (item.after?.imbalance || 0) > 10 ? 'severe' : 
-                        (item.after?.imbalance || 0) > 5 ? 'high' : 
-                        'moderate'
-                      }`}>
-                        {item.after?.imbalance.toFixed(1) || '-'}%
-                      </span>
-                      {item.before && <span className="before-value">({item.before.imbalance.toFixed(1)}%)</span>}
+                      <div className="comparison-cell">
+                        <div className="after-value">
+                          <span className={`imbalance-badge ${
+                            (item.after?.imbalance || 0) > 10 ? 'severe' : 
+                            (item.after?.imbalance || 0) > 5 ? 'high' : 
+                            'moderate'
+                          }`}>
+                            {item.after?.imbalance.toFixed(1) || '-'}%
+                          </span>
+                        </div>
+                        {item.before && (
+                          <div className="before-value">
+                            <span className={`imbalance-badge ${
+                              item.before.imbalance > 10 ? 'severe' : 
+                              item.before.imbalance > 5 ? 'high' : 
+                              'moderate'
+                            }`}>
+                              {item.before.imbalance.toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

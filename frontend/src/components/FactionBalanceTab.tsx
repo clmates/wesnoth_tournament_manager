@@ -153,7 +153,7 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
           {t('after_event') || 'After'}: {afterData.reduce((sum, d) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'}
         </p>
         <div className="stats-table-container">
-          <table className="stats-table compact-comparison">
+          <table className="stats-table comparison-mode">
             <thead>
               <tr>
                 <th>{t('faction') || 'Faction'}</th>
@@ -163,17 +163,33 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
             </thead>
             <tbody>
               {combined.map((item) => (
-                <tr key={item.faction_id}>
-                  <td className="faction-name">{item.faction_name}</td>
-                  <td>
-                    {item.after?.total_games || '-'}
-                    {item.before && <span className="before-value">({item.before.total_games})</span>}
+                <tr key={item.faction_id} className="comparison-row">
+                  <td className="faction-name">
+                    <div className="comparison-cell">
+                      <div className="after-value">{item.faction_name}</div>
+                    </div>
                   </td>
                   <td>
-                    <span className={`winrate ${getWinrateColorClass(item.after?.winrate || 50)}`}>
-                      {item.after?.winrate.toFixed(1) || '-'}%
-                    </span>
-                    {item.before && <span className="before-value">({item.before.winrate.toFixed(1)}%)</span>}
+                    <div className="comparison-cell">
+                      <div className="after-value">{item.after?.total_games || '-'}</div>
+                      {item.before && <div className="before-value">{item.before.total_games}</div>}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="comparison-cell">
+                      <div className="after-value">
+                        <span className={`winrate ${getWinrateColorClass(item.after?.winrate || 50)}`}>
+                          {item.after?.winrate.toFixed(1) || '-'}%
+                        </span>
+                      </div>
+                      {item.before && (
+                        <div className="before-value">
+                          <span className={`winrate ${getWinrateColorClass(item.before.winrate)}`}>
+                            {item.before.winrate.toFixed(1)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

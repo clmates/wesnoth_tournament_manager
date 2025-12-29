@@ -415,3 +415,63 @@
   font-size: 0.85rem;
   font-weight: normal;
 }
+
+/* Comparison mode styling for double-height rows */
+.stats-table.comparison-mode {
+  margin-top: 1rem;
+}
+
+.stats-table.comparison-mode tbody tr.comparison-row {
+  height: auto;
+}
+
+.stats-table.comparison-mode td {
+  padding: 0;
+  vertical-align: top;
+}
+
+.comparison-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 60px;
+  padding: 0.5rem 1rem;
+  gap: 4px;
+}
+
+.comparison-cell .after-value {
+  font-weight: 600;
+  color: #2c3e50;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.comparison-cell .before-value {
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  font-weight: normal;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 2px;
+  border-top: 1px solid #ecf0f1;
+}
+
+.single-balance-bar {
+  height: 16px;
+  background: #ecf0f1;
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.single-balance-bar .imbalance-fill {
+  height: 100%;
+  background-color: #e74c3c;
+  transition: width 0.3s ease;
+}
+
+.single-balance-bar.before-bar .imbalance-fill {
+  background-color: #bdc3c7;
+}
