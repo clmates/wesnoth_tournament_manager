@@ -504,5 +504,12 @@
   "faction_balance_comparison": "Fraktionsbalance - Vorher und Nachher",
   "map_balance_comparison": "Kartenbalance - Vorher und Nachher",
   "unbalanced_matchups_comparison": "Unausgeglichene Matchups - Vorher und Nachher",
-  "matches_evaluated": "Spiele"
+  "matches_evaluated": "Spiele",
+  "ranking_criteria_title": "Ranking-Kriterien",
+  "ranking_min_elo": "Minimum ELO Rating",
+  "ranking_min_elo_desc": "Spieler müssen ein Minimum ELO Rating haben, um in der Rangliste zu erscheinen",
+  "ranking_min_matches": "Mindestanzahl der Spiele",
+  "ranking_min_matches_desc": "Spieler müssen eine Mindestanzahl bewerteter Spiele abgeschlossen haben",
+  "ranking_active_days": "Letzte Aktivität",
+  "ranking_active_days_desc": "Spieler müssen in den letzten 30 Tagen aktiv gewesen sein, um in der Rangliste zu erscheinen"
 }

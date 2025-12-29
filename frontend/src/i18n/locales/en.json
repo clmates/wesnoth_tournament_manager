@@ -514,5 +514,12 @@
   "faction_balance_comparison": "Faction Balance - Before & After",
   "map_balance_comparison": "Map Balance - Before & After",
   "unbalanced_matchups_comparison": "Unbalanced Matchups - Before & After",
-  "matches_evaluated": "matches"
+  "matches_evaluated": "matches",
+  "ranking_criteria_title": "Ranking Criteria",
+  "ranking_min_elo": "Minimum ELO Rating",
+  "ranking_min_elo_desc": "Players must have a minimum ELO rating to appear in the ranking",
+  "ranking_min_matches": "Minimum Matches",
+  "ranking_min_matches_desc": "Players must have completed a minimum number of rated matches",
+  "ranking_active_days": "Recent Activity",
+  "ranking_active_days_desc": "Players must have been active within the last 30 days to appear in the ranking"
 }

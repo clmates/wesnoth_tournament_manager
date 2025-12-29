@@ -192,6 +192,22 @@ const Rankings: React.FC = () => {
     <div className="rankings-container">
       <h1>{t('navbar_rankings') || 'Rankings'}</h1>
 
+      {/* Ranking Criteria Info */}
+      <div className="ranking-criteria-info">
+        <h3>{t('ranking_criteria_title') || 'Ranking Criteria'}</h3>
+        <ul>
+          <li>
+            <strong>{t('ranking_min_elo') || 'Minimum ELO Rating'}:</strong> {t('ranking_min_elo_desc') || 'Players must have a minimum ELO rating to appear in the ranking'}
+          </li>
+          <li>
+            <strong>{t('ranking_min_matches') || 'Minimum Matches'}:</strong> {t('ranking_min_matches_desc') || 'Players must have completed a minimum number of rated matches'}
+          </li>
+          <li>
+            <strong>{t('ranking_active_days') || 'Recent Activity'}:</strong> {t('ranking_active_days_desc') || 'Players must have been active within the last 30 days to appear in the ranking'}
+          </li>
+        </ul>
+      </div>
+
       {/* Rankings Content */}
       <div className="rankings-content">
           {error && <p className="error-message">{error}</p>}

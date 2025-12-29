@@ -502,5 +502,12 @@
   "faction_balance_comparison": "Баланс фракций - до и после",
   "map_balance_comparison": "Баланс карт - до и после",
   "unbalanced_matchups_comparison": "Несбалансированные поединки - до и после",
-  "matches_evaluated": "матчи"
+  "matches_evaluated": "матчи",
+  "ranking_criteria_title": "Критерии рейтинга",
+  "ranking_min_elo": "Минимальный рейтинг ELO",
+  "ranking_min_elo_desc": "Игроки должны иметь минимальный рейтинг ELO для отображения в рейтинге",
+  "ranking_min_matches": "Минимальное количество матчей",
+  "ranking_min_matches_desc": "Игроки должны завершить минимальное количество рейтинговых матчей",
+  "ranking_active_days": "Последняя активность",
+  "ranking_active_days_desc": "Игроки должны быть активны в течение последних 30 дней, чтобы отображаться в рейтинге"
 }

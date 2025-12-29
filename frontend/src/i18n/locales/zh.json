@@ -503,6 +503,13 @@
   "faction_balance_comparison": "派系平衡 - 前后对比",
   "map_balance_comparison": "地图平衡 - 前后对比",
   "unbalanced_matchups_comparison": "不平衡的对阵 - 前后对比",
-  "matches_evaluated": "场比赛"
+  "matches_evaluated": "场比赛",
+  "ranking_criteria_title": "排名标准",
+  "ranking_min_elo": "最低 ELO 等级",
+  "ranking_min_elo_desc": "玩家必须具有最低 ELO 等级才能在排名中出现",
+  "ranking_min_matches": "最少比赛数",
+  "ranking_min_matches_desc": "玩家必须完成最少数量的评级比赛",
+  "ranking_active_days": "最近活动",
+  "ranking_active_days_desc": "玩家必须在过去 30 天内活跃才能出现在排名中"
 }
 
