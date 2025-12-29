@@ -4,6 +4,7 @@ import { runMigrations } from './scripts/migrate.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import cron from 'node-cron';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +44,19 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
+
+    // Schedule daily balance snapshot at 00:30 UTC
+    cron.schedule('30 0 * * *', async () => {
+      try {
+        console.log('⏰ Running scheduled daily balance snapshot...');
+        await query('SELECT daily_snapshot_faction_map_statistics()');
+        console.log('✅ Daily balance snapshot created successfully');
+      } catch (error) {
+        console.error('❌ Failed to create daily snapshot:', error);
+      }
+    });
+    
+    console.log('📅 Daily snapshot scheduler initialized (runs at 00:30 UTC)');
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
