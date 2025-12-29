@@ -67,59 +67,77 @@ router.get('/matchups', async (req, res) => {
     );
     console.log(`[MATCHUPS] Total rows in faction_map_statistics: ${countResult.rows[0].total_rows}, Total games: ${countResult.rows[0].total_games_sum}`);
     
-    // Get data with minimum games threshold
-    const filteredResult = await query(
-      `SELECT COUNT(*) as filtered_rows
-       FROM faction_map_statistics
-       WHERE total_games >= $1`,
-      [minGames]
-    );
-    console.log(`[MATCHUPS] Rows with >= ${minGames} games: ${filteredResult.rows[0].filtered_rows}`);
-    
-    // Now get the actual matchups - use DISTINCT to avoid duplicates instead of UUID comparison
+    // Group matchups and aggregate: for each map + faction pair, sum across both directions
+    // We need to normalize the matchup order and sum the wins/losses
     const result = await query(
-      `SELECT 
-        gm.id as map_id,
-        gm.name as map_name,
+      `WITH normalized_matchups AS (
+        SELECT 
+          fms.map_id,
+          gm.name as map_name,
+          CASE WHEN fms.faction_id < fms.opponent_faction_id 
+               THEN fms.faction_id 
+               ELSE fms.opponent_faction_id 
+          END as f1_id,
+          CASE WHEN fms.faction_id < fms.opponent_faction_id 
+               THEN fms.opponent_faction_id 
+               ELSE fms.faction_id 
+          END as f2_id,
+          CASE WHEN fms.faction_id < fms.opponent_faction_id 
+               THEN fms.wins 
+               ELSE fms.losses 
+          END as f1_wins_val,
+          CASE WHEN fms.faction_id < fms.opponent_faction_id 
+               THEN fms.losses 
+               ELSE fms.wins 
+          END as f2_wins_val,
+          fms.total_games
+        FROM faction_map_statistics fms
+        JOIN game_maps gm ON fms.map_id = gm.id
+      ),
+      aggregated AS (
+        SELECT 
+          map_id,
+          map_name,
+          f1_id,
+          f2_id,
+          SUM(total_games) as total_games,
+          SUM(f1_wins_val) as f1_wins,
+          SUM(f2_wins_val) as f2_wins,
+          MAX(CURRENT_TIMESTAMP) as last_updated
+        FROM normalized_matchups
+        GROUP BY map_id, map_name, f1_id, f2_id
+        HAVING SUM(total_games) >= $1
+      )
+      SELECT 
+        a.map_id,
+        a.map_name,
         f1.id as faction_1_id,
         f1.name as faction_1_name,
         f2.id as faction_2_id,
         f2.name as faction_2_name,
-        fms.total_games,
-        fms.wins as faction_1_wins,
-        fms.losses as faction_2_wins,
-        fms.winrate as faction_1_winrate,
-        (100 - fms.winrate) as faction_2_winrate,
-        ABS(fms.wins - fms.losses) as imbalance,
-        fms.last_updated
-      FROM faction_map_statistics fms
-      JOIN game_maps gm ON fms.map_id = gm.id
-      JOIN factions f1 ON fms.faction_id = f1.id
-      JOIN factions f2 ON fms.opponent_faction_id = f2.id
-      WHERE fms.total_games >= $1
-      AND fms.faction_id < fms.opponent_faction_id
-      ORDER BY imbalance DESC, gm.name, fms.faction_id`,
+        a.total_games,
+        a.f1_wins as faction_1_wins,
+        a.f2_wins as faction_2_wins,
+        ROUND(100.0 * a.f1_wins / a.total_games, 2) as faction_1_winrate,
+        ROUND(100.0 * a.f2_wins / a.total_games, 2) as faction_2_winrate,
+        ABS(a.f1_wins - a.f2_wins) as imbalance,
+        a.last_updated
+      FROM aggregated a
+      JOIN factions f1 ON a.f1_id = f1.id
+      JOIN factions f2 ON a.f2_id = f2.id
+      ORDER BY imbalance DESC, a.map_name, f1.name`,
       [minGames]
     );
     
-    console.log(`[MATCHUPS] Final result rows: ${result.rows.length}`);
+    console.log(`[MATCHUPS] Aggregated matchups found: ${result.rows.length}`);
     if (result.rows.length > 0) {
       console.log('[MATCHUPS] Sample rows:', JSON.stringify(result.rows.slice(0, 2), null, 2));
     } else {
-      console.log('[MATCHUPS] ⚠️  WARNING: No matchups found! Checking why...');
-      // Debug: check if the UUID comparison is the issue
-      const debugResult = await query(
-        `SELECT f1.id as f1_id, f1.name as f1_name, f2.id as f2_id, f2.name as f2_name,
-                f1.id < f2.id as f1_less_f2, 
-                fms.total_games
-         FROM faction_map_statistics fms
-         JOIN factions f1 ON fms.faction_id = f1.id
-         JOIN factions f2 ON fms.opponent_faction_id = f2.id
-         WHERE fms.total_games >= $1
-         LIMIT 10`,
-        [minGames]
+      console.log('[MATCHUPS] ⚠️  Still no matchups. Checking data distribution...');
+      const distResult = await query(
+        `SELECT total_games, COUNT(*) as count FROM faction_map_statistics GROUP BY total_games ORDER BY total_games DESC`
       );
-      console.log('[MATCHUPS] Debug - UUID comparison results:', JSON.stringify(debugResult.rows, null, 2));
+      console.log('[MATCHUPS] Games distribution:', JSON.stringify(distResult.rows, null, 2));
     }
     
     res.json(result.rows);
