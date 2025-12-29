@@ -93,8 +93,8 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
     
     const results: MatchupStats[] = Array.from(matchupMap.values()).map(matchup => {
       const totalGames = matchup.total_games / 2; // Divide by 2 because each game counted twice
-      const f1Wins = matchup.f1_wins;
-      const f2Wins = matchup.f2_wins;
+      const f1Wins = matchup.f1_wins / 2; // Divide wins by 2 as well since they're counted twice
+      const f2Wins = matchup.f2_wins / 2;
       const f1Winrate = totalGames > 0 ? (f1Wins / totalGames) * 100 : 0;
       const imbalance = Math.abs(f1Winrate - 50);
       
