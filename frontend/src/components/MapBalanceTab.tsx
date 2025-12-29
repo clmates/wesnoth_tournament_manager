@@ -185,7 +185,7 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
         <p className="stats-info">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
         
         <div className="stats-table-container">
-          <table className="stats-table compact-comparison">
+          <table className="stats-table comparison-mode">
             <thead>
               <tr>
                 <th>{t('map') || 'Map'}</th>
@@ -196,37 +196,61 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
             </thead>
             <tbody>
               {combined.map((item) => (
-                <tr key={item.map_id}>
-                  <td className="map-name">{item.map_name}</td>
-                  <td>
-                    {item.after?.total_games || '-'}
-                    {item.before && <span className="before-value">({item.before.total_games})</span>}
+                <tr key={item.map_id} className="comparison-row">
+                  <td className="map-name">
+                    <div className="comparison-cell">
+                      <div className="after-value">{item.map_name}</div>
+                    </div>
                   </td>
                   <td>
-                    <span className={`imbalance ${
-                      (item.after?.avg_imbalance || 0) < 5 ? 'excellent' : 
-                      (item.after?.avg_imbalance || 0) < 10 ? 'good' : 
-                      'needs-balance'
-                    }`}>
-                      {item.after?.avg_imbalance.toFixed(1) || '-'}%
-                    </span>
-                    {item.before && <span className="before-value">({item.before.avg_imbalance.toFixed(1)}%)</span>}
+                    <div className="comparison-cell">
+                      <div className="after-value">{item.after?.total_games || '-'}</div>
+                      {item.before && <div className="before-value">{item.before.total_games}</div>}
+                    </div>
                   </td>
                   <td>
-                    <div className="stacked-balance-bar">
+                    <div className="comparison-cell">
+                      <div className="after-value">
+                        <span className={`imbalance ${
+                          (item.after?.avg_imbalance || 0) < 5 ? 'excellent' : 
+                          (item.after?.avg_imbalance || 0) < 10 ? 'good' : 
+                          'needs-balance'
+                        }`}>
+                          {item.after?.avg_imbalance.toFixed(1) || '-'}%
+                        </span>
+                      </div>
                       {item.before && (
-                        <div 
-                          className="balance-fill before"
-                          style={{ width: `${Math.min((item.before.avg_imbalance / 20) * 100, 100)}%` }}
-                          title={`Before: ${item.before.avg_imbalance.toFixed(1)}%`}
-                        ></div>
+                        <div className="before-value">
+                          <span className={`imbalance ${
+                            (item.before?.avg_imbalance || 0) < 5 ? 'excellent' : 
+                            (item.before?.avg_imbalance || 0) < 10 ? 'good' : 
+                            'needs-balance'
+                          }`}>
+                            {item.before.avg_imbalance.toFixed(1)}%
+                          </span>
+                        </div>
                       )}
-                      {item.after && (
-                        <div 
-                          className="balance-fill after"
-                          style={{ width: `${Math.min((item.after.avg_imbalance / 20) * 100, 100)}%` }}
-                          title={`After: ${item.after.avg_imbalance.toFixed(1)}%`}
-                        ></div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="comparison-cell">
+                      <div className="after-value">
+                        <div className="single-balance-bar">
+                          <div 
+                            className="imbalance-fill"
+                            style={{ width: `${Math.min((item.after?.avg_imbalance || 0) / 20 * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      {item.before && (
+                        <div className="before-value">
+                          <div className="single-balance-bar">
+                            <div 
+                              className="imbalance-fill before"
+                              style={{ width: `${Math.min((item.before.avg_imbalance / 20) * 100, 100)}%` }}
+                            ></div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   </td>
