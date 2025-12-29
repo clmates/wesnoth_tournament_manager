@@ -41,7 +41,17 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
   const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
 
   const aggregateMatchupData = (data: ComparisonData[]): MatchupStats[] => {
-    const matchupMap = new Map<string, ComparisonData[]>();
+    const matchupMap = new Map<string, {
+      map_id: string;
+      map_name: string;
+      faction_1_id: string;
+      faction_1_name: string;
+      faction_2_id: string;
+      faction_2_name: string;
+      total_games: number;
+      wins: number;
+      losses: number;
+    }>();
     
     data.forEach(item => {
       // Create a normalized key (always same order for consistency)
@@ -50,43 +60,49 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       const ordered = [f1, f2].sort();
       const key = `${item.map_id}|${ordered[0]}|${ordered[1]}`;
       
-      if (!matchupMap.has(key)) {
-        matchupMap.set(key, []);
+      const existing = matchupMap.get(key);
+      
+      if (!existing) {
+        // First occurrence - store the original matchup
+        matchupMap.set(key, {
+          map_id: item.map_id || '',
+          map_name: item.map_name || '',
+          faction_1_id: item.faction_id || '',
+          faction_1_name: item.faction_name || '',
+          faction_2_id: item.opponent_faction_id || '',
+          faction_2_name: item.opponent_faction_name || '',
+          total_games: item.total_games,
+          wins: item.wins,
+          losses: item.losses,
+        });
+      } else {
+        // Aggregate - sum games and wins
+        existing.total_games += item.total_games;
+        existing.wins += item.wins;
+        existing.losses += item.losses;
       }
-      matchupMap.get(key)!.push(item);
     });
     
-    const results: MatchupStats[] = [];
-    
-    matchupMap.forEach((matchups, key) => {
-      matchups.forEach(item => {
-        const mapId = item.map_id || '';
-        const mapName = item.map_name || '';
-        const f1Id = item.faction_id || '';
-        const f1Name = item.faction_name || '';
-        const f2Id = item.opponent_faction_id || '';
-        const f2Name = item.opponent_faction_name || '';
-        
-        const totalGames = item.total_games;
-        const f1Wins = item.wins;
-        const f2Wins = item.losses;
-        const f1Winrate = totalGames > 0 ? (f1Wins / totalGames) * 100 : 0;
-        const imbalance = Math.abs(f1Winrate - 50);
-        
-        results.push({
-          map_id: mapId,
-          map_name: mapName,
-          faction_1_id: f1Id,
-          faction_1_name: f1Name,
-          faction_2_id: f2Id,
-          faction_2_name: f2Name,
-          total_games: totalGames,
-          faction_1_wins: f1Wins,
-          faction_2_wins: f2Wins,
-          faction_1_winrate: f1Winrate,
-          imbalance,
-        });
-      });
+    const results: MatchupStats[] = Array.from(matchupMap.values()).map(matchup => {
+      const totalGames = matchup.total_games;
+      const f1Wins = matchup.wins;
+      const f2Wins = matchup.losses;
+      const f1Winrate = totalGames > 0 ? (f1Wins / totalGames) * 100 : 0;
+      const imbalance = Math.abs(f1Winrate - 50);
+      
+      return {
+        map_id: matchup.map_id,
+        map_name: matchup.map_name,
+        faction_1_id: matchup.faction_1_id,
+        faction_1_name: matchup.faction_1_name,
+        faction_2_id: matchup.faction_2_id,
+        faction_2_name: matchup.faction_2_name,
+        total_games: totalGames,
+        faction_1_wins: f1Wins,
+        faction_2_wins: f2Wins,
+        faction_1_winrate: f1Winrate,
+        imbalance,
+      };
     });
     
     return results
@@ -185,8 +201,8 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       <div className="balance-stats">
         <h3>{t('unbalanced_matchups_comparison') || 'Unbalanced Matchups - Before & After'}</h3>
         <p className="block-info">
-          {t('before_event') || 'Before'}: {beforeData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'} | 
-          {t('after_event') || 'After'}: {afterData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'}
+          {t('before_event') || 'Before'}: {beforeData ? beforeData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterData ? afterData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'}
         </p>
 
         <div className="stats-table-container">

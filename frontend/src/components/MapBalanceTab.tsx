@@ -36,34 +36,39 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
   const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
 
   const aggregateMapData = (data: ComparisonData[]): MapBalanceStats[] => {
-    const mapMap = new Map<string, ComparisonData[]>();
+    const mapMap = new Map<string, {
+      map_id: string;
+      map_name: string;
+      factionStats: Map<string, { wins: number; losses: number; total: number }>;
+    }>();
     
     data.forEach(item => {
       const key = item.map_id || '';
+      const mapName = item.map_name || '';
+      
       if (!mapMap.has(key)) {
-        mapMap.set(key, []);
+        mapMap.set(key, {
+          map_id: key,
+          map_name: mapName,
+          factionStats: new Map(),
+        });
       }
-      mapMap.get(key)!.push(item);
+      
+      const mapData = mapMap.get(key)!;
+      const factionKey = item.faction_id || '';
+      
+      if (!mapData.factionStats.has(factionKey)) {
+        mapData.factionStats.set(factionKey, { wins: 0, losses: 0, total: 0 });
+      }
+      
+      const stats = mapData.factionStats.get(factionKey)!;
+      stats.wins += item.wins;
+      stats.losses += item.losses;
+      stats.total += item.total_games;
     });
     
-    return Array.from(mapMap.entries()).map(([mapId, mapItems]) => {
-      // Get unique map name from first item
-      const mapName = mapItems[0]?.map_name || '';
-      
-      // Calculate imbalance per faction on this map, then average
-      const factionStats = new Map<string, { wins: number; losses: number; total: number }>();
-      
-      mapItems.forEach(item => {
-        const factionKey = item.faction_id || '';
-        if (!factionStats.has(factionKey)) {
-          factionStats.set(factionKey, { wins: 0, losses: 0, total: 0 });
-        }
-        const stats = factionStats.get(factionKey)!;
-        stats.wins += item.wins;
-        stats.losses += item.losses;
-        stats.total += item.total_games;
-      });
-      
+    return Array.from(mapMap.values()).map(mapData => {
+      const factionStats = mapData.factionStats;
       const totalGames = Array.from(factionStats.values()).reduce((sum, f) => sum + f.total, 0);
       const winrates = Array.from(factionStats.values())
         .filter(f => f.total > 0)
@@ -74,13 +79,13 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
         : 0;
       
       return {
-        map_id: mapId,
-        map_name: mapName,
+        map_id: mapData.map_id,
+        map_name: mapData.map_name,
         total_games: totalGames,
         factions_used: factionStats.size,
         avg_imbalance: avgImbalance,
-        lowest_winrate: Math.min(...winrates, 50),
-        highest_winrate: Math.max(...winrates, 50),
+        lowest_winrate: winrates.length > 0 ? Math.min(...winrates) : 50,
+        highest_winrate: winrates.length > 0 ? Math.max(...winrates) : 50,
       };
     })
     .filter(map => map.total_games >= minGamesThreshold) // Apply minimum games filter
@@ -179,8 +184,8 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
       <div className="balance-stats">
         <h3>{t('map_balance_comparison') || 'Map Balance - Before & After'}</h3>
         <p className="block-info">
-          {t('before_event') || 'Before'}: {beforeData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'} | 
-          {t('after_event') || 'After'}: {afterData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'}
+          {t('before_event') || 'Before'}: {beforeData ? beforeData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterData ? afterData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'}
         </p>
         <p className="stats-info">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
         
