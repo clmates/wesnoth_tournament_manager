@@ -260,8 +260,52 @@ EXECUTE FUNCTION update_player_match_statistics();
 CREATE OR REPLACE FUNCTION recalculate_player_match_statistics()
 RETURNS void AS $$
 BEGIN
-  -- Clear existing statistics
-  TRUNCATE TABLE player_match_statistics;
+  -- Drop and recreate table to ensure clean state
+  DROP TABLE IF EXISTS player_match_statistics CASCADE;
+  
+  CREATE TABLE player_match_statistics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    player_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    opponent_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    map_id UUID REFERENCES game_maps(id) ON DELETE CASCADE,
+    faction_id UUID REFERENCES factions(id) ON DELETE CASCADE,
+    opponent_faction_id UUID REFERENCES factions(id) ON DELETE CASCADE,
+    
+    -- Metrics
+    total_games INT DEFAULT 0,
+    wins INT DEFAULT 0,
+    losses INT DEFAULT 0,
+    winrate DECIMAL(5, 2),
+    avg_elo_change DECIMAL(8, 2),
+    last_elo_against_me DECIMAL(8, 2),
+    elo_gained DECIMAL(8, 2) DEFAULT 0,
+    elo_lost DECIMAL(8, 2) DEFAULT 0,
+    last_match_date TIMESTAMP,
+    
+    -- Metadata
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Create unique index
+  CREATE UNIQUE INDEX idx_player_stats_unique 
+    ON player_match_statistics(
+      player_id,
+      COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID),
+      COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID),
+      COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID),
+      COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)
+    );
+
+  -- Create indices
+  CREATE INDEX idx_player_stats_player ON player_match_statistics(player_id);
+  CREATE INDEX idx_player_stats_opponent ON player_match_statistics(opponent_id) WHERE opponent_id IS NOT NULL;
+  CREATE INDEX idx_player_stats_map ON player_match_statistics(map_id) WHERE map_id IS NOT NULL;
+  CREATE INDEX idx_player_stats_faction ON player_match_statistics(faction_id) WHERE faction_id IS NOT NULL;
+  CREATE INDEX idx_player_stats_player_opponent ON player_match_statistics(player_id, opponent_id) WHERE opponent_id IS NOT NULL;
+  CREATE INDEX idx_player_stats_player_map ON player_match_statistics(player_id, map_id) WHERE map_id IS NOT NULL;
+  CREATE INDEX idx_player_stats_player_faction ON player_match_statistics(player_id, faction_id) WHERE faction_id IS NOT NULL;
+  CREATE INDEX idx_player_stats_global ON player_match_statistics(player_id) WHERE opponent_id IS NULL AND map_id IS NULL AND faction_id IS NULL;
   
   -- ===== GLOBAL STATS (per player, aggregated from all matches) =====
   WITH all_player_games AS (
@@ -284,7 +328,14 @@ BEGIN
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
     AVG(avg_elo_change)::NUMERIC(8,2)
   FROM all_player_games
-  GROUP BY player_id;
+  GROUP BY player_id
+  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)) DO UPDATE SET
+    total_games = EXCLUDED.total_games,
+    wins = EXCLUDED.wins,
+    losses = EXCLUDED.losses,
+    winrate = EXCLUDED.winrate,
+    avg_elo_change = EXCLUDED.avg_elo_change,
+    last_updated = CURRENT_TIMESTAMP;
 
   -- ===== HEAD-TO-HEAD WINNER PERSPECTIVE =====
   WITH h2h_winner AS (
@@ -324,7 +375,18 @@ BEGIN
     elo_gained,
     elo_lost,
     last_match_date
-  FROM h2h_winner;
+  FROM h2h_winner
+  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)) DO UPDATE SET
+    total_games = EXCLUDED.total_games,
+    wins = EXCLUDED.wins,
+    losses = EXCLUDED.losses,
+    winrate = EXCLUDED.winrate,
+    avg_elo_change = EXCLUDED.avg_elo_change,
+    last_elo_against_me = EXCLUDED.last_elo_against_me,
+    elo_gained = EXCLUDED.elo_gained,
+    elo_lost = EXCLUDED.elo_lost,
+    last_match_date = EXCLUDED.last_match_date,
+    last_updated = CURRENT_TIMESTAMP;
 
   -- ===== HEAD-TO-HEAD LOSER PERSPECTIVE =====
   WITH h2h_loser AS (
@@ -364,7 +426,18 @@ BEGIN
     elo_gained,
     elo_lost,
     last_match_date
-  FROM h2h_loser;
+  FROM h2h_loser
+  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)) DO UPDATE SET
+    total_games = EXCLUDED.total_games,
+    wins = EXCLUDED.wins,
+    losses = EXCLUDED.losses,
+    winrate = EXCLUDED.winrate,
+    avg_elo_change = EXCLUDED.avg_elo_change,
+    last_elo_against_me = EXCLUDED.last_elo_against_me,
+    elo_gained = EXCLUDED.elo_gained,
+    elo_lost = EXCLUDED.elo_lost,
+    last_match_date = EXCLUDED.last_match_date,
+    last_updated = CURRENT_TIMESTAMP;
 
   -- ===== HEAD-TO-HEAD WINNER AGGREGATED (no map/faction) =====
   WITH h2h_winner_agg AS (
@@ -401,7 +474,18 @@ BEGIN
     elo_gained,
     elo_lost,
     last_match_date
-  FROM h2h_winner_agg;
+  FROM h2h_winner_agg
+  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)) DO UPDATE SET
+    total_games = EXCLUDED.total_games,
+    wins = EXCLUDED.wins,
+    losses = EXCLUDED.losses,
+    winrate = EXCLUDED.winrate,
+    avg_elo_change = EXCLUDED.avg_elo_change,
+    last_elo_against_me = EXCLUDED.last_elo_against_me,
+    elo_gained = EXCLUDED.elo_gained,
+    elo_lost = EXCLUDED.elo_lost,
+    last_match_date = EXCLUDED.last_match_date,
+    last_updated = CURRENT_TIMESTAMP;
 
   -- ===== HEAD-TO-HEAD LOSER AGGREGATED (no map/faction) =====
   WITH h2h_loser_agg AS (
@@ -438,7 +522,18 @@ BEGIN
     elo_gained,
     elo_lost,
     last_match_date
-  FROM h2h_loser_agg;
+  FROM h2h_loser_agg
+  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)) DO UPDATE SET
+    total_games = EXCLUDED.total_games,
+    wins = EXCLUDED.wins,
+    losses = EXCLUDED.losses,
+    winrate = EXCLUDED.winrate,
+    avg_elo_change = EXCLUDED.avg_elo_change,
+    last_elo_against_me = EXCLUDED.last_elo_against_me,
+    elo_gained = EXCLUDED.elo_gained,
+    elo_lost = EXCLUDED.elo_lost,
+    last_match_date = EXCLUDED.last_match_date,
+    last_updated = CURRENT_TIMESTAMP;
 
   -- ===== PER-MAP STATS =====
   WITH map_stats AS (
@@ -483,7 +578,14 @@ BEGIN
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
     AVG(avg_elo_change)::NUMERIC(8,2)
   FROM map_stats
-  GROUP BY player_id, map_id, opponent_id, faction_id, opponent_faction_id;
+  GROUP BY player_id, map_id, opponent_id, faction_id, opponent_faction_id
+  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)) DO UPDATE SET
+    total_games = EXCLUDED.total_games,
+    wins = EXCLUDED.wins,
+    losses = EXCLUDED.losses,
+    winrate = EXCLUDED.winrate,
+    avg_elo_change = EXCLUDED.avg_elo_change,
+    last_updated = CURRENT_TIMESTAMP;
 
   -- ===== PER-FACTION STATS =====
   WITH faction_stats AS (
@@ -528,7 +630,14 @@ BEGIN
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
     AVG(avg_elo_change)::NUMERIC(8,2)
   FROM faction_stats
-  GROUP BY player_id, faction_id, opponent_id, map_id, opponent_faction_id;
+  GROUP BY player_id, faction_id, opponent_id, map_id, opponent_faction_id
+  ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)) DO UPDATE SET
+    total_games = EXCLUDED.total_games,
+    wins = EXCLUDED.wins,
+    losses = EXCLUDED.losses,
+    winrate = EXCLUDED.winrate,
+    avg_elo_change = EXCLUDED.avg_elo_change,
+    last_updated = CURRENT_TIMESTAMP;
 
   RAISE NOTICE 'Player match statistics recalculated successfully with all record types';
 END;
