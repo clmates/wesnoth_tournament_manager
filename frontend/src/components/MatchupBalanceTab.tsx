@@ -174,6 +174,7 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       const aggregated = aggregateMatchupData(beforeData);
       setBeforeStats(aggregated);
     } else {
+      console.log('[MatchupBalanceTab] Before data: EMPTY or NULL', { beforeData: beforeData?.length || 'null' });
       setBeforeStats([]);
     }
   }, [beforeData]);
@@ -185,6 +186,7 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       const aggregated = aggregateMatchupData(afterData);
       setAfterStats(aggregated);
     } else {
+      console.log('[MatchupBalanceTab] After data: EMPTY or NULL', { afterData: afterData?.length || 'null' });
       setAfterStats([]);
     }
   }, [afterData]);
