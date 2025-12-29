@@ -84,6 +84,8 @@ router.get('/matchups', async (req, res) => {
       ORDER BY imbalance DESC, gm.name, fms.faction_id`,
       [minGames]
     );
+    
+    console.log('[MATCHUPS] Raw data received:', JSON.stringify(result.rows, null, 2));
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching matchup statistics:', error);
@@ -126,6 +128,24 @@ router.get('/faction-global', async (req, res) => {
  */
 router.get('/map-balance', async (req, res) => {
   try {
+    // First get raw data to show what we're calculating
+    const rawResult = await query(
+      `SELECT 
+        gm.id as map_id,
+        gm.name as map_name,
+        f.id as faction_id,
+        f.name as faction_name,
+        fms.winrate,
+        fms.total_games,
+        fms.wins,
+        fms.losses
+      FROM faction_map_statistics fms
+      JOIN game_maps gm ON fms.map_id = gm.id
+      JOIN factions f ON fms.faction_id = f.id
+      ORDER BY gm.name, fms.winrate`
+    );
+    console.log('[MAP-BALANCE] Raw faction_map_statistics data:', JSON.stringify(rawResult.rows, null, 2));
+    
     const result = await query(
       `SELECT 
         gm.id as map_id,
@@ -135,13 +155,15 @@ router.get('/map-balance', async (req, res) => {
         ROUND(STDDEV(fms.winrate), 2) as avg_imbalance,
         MIN(fms.winrate) as lowest_winrate,
         MAX(fms.winrate) as highest_winrate,
-        MAX(fms.last_updated) as last_updated
+        MAX(fms.last_updated) as last_updated,
+        STDDEV(fms.winrate) as stddev_full_precision
       FROM faction_map_statistics fms
       JOIN game_maps gm ON fms.map_id = gm.id
       GROUP BY gm.id, gm.name
       HAVING SUM(fms.total_games) >= 10
       ORDER BY avg_imbalance ASC`
     );
+    console.log('[MAP-BALANCE] Calculated results:', JSON.stringify(result.rows, null, 2));
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching map balance statistics:', error);

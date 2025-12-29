@@ -41,6 +41,9 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
   const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
 
   const aggregateMatchupData = (data: ComparisonData[]): MatchupStats[] => {
+    console.log('[MatchupBalanceTab] Input data count:', data.length);
+    console.log('[MatchupBalanceTab] Raw input sample:', JSON.stringify(data.slice(0, 3), null, 2));
+    
     // Group by normalized matchup (map + normalized faction order)
     // Each match appears twice in data (once for each faction), but we need to aggregate them
     const matchupMap = new Map<string, {
@@ -94,11 +97,17 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
     const results: MatchupStats[] = Array.from(matchupMap.values()).map(matchup => {
       const totalGames = matchup.total_games / 2; // Divide by 2 because each game counted twice
       const f1Wins = matchup.f1_wins / 2; // Divide wins by 2 as well since they're counted twice
+    
+    const results = Array.from(matchupMap.values()).map(matchup => {
+      const totalGames = matchup.total_games / 2;
+      const f1Wins = matchup.f1_wins / 2;
       const f2Wins = matchup.f2_wins / 2;
       const f1Winrate = totalGames > 0 ? (f1Wins / totalGames) * 100 : 0;
       // Imbalance as percentage: (|wins - losses| / total_games) * 100
       // For 7-0: (7/7)*100 = 100%, for 4-3: (1/7)*100 = 14.3%, for 3.5-3.5: 0%
       const imbalance = totalGames > 0 ? (Math.abs(f1Wins - f2Wins) / totalGames) * 100 : 0;
+      
+      console.log(`[MatchupBalanceTab] ${matchup.f1_name} vs ${matchup.f2_name}: f1_wins=${f1Wins}, f2_wins=${f2Wins}, total=${totalGames}, imbalance=${imbalance.toFixed(2)}%`);
       
       return {
         map_id: matchup.map_id,
@@ -114,6 +123,8 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
         imbalance,
       };
     });
+    
+    console.log('[MatchupBalanceTab] Final aggregated result:', JSON.stringify(results, null, 2));
     
     return results
       .filter(m => m.total_games >= minGamesThreshold) // Apply minimum games filter
@@ -140,12 +151,14 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       try {
         setLoading(true);
         const data = await statisticsService.getMatchupStats(minGames);
+        console.log('[MatchupBalanceTab] Backend data received:', JSON.stringify(data.slice(0, 3), null, 2));
         // Convert string numbers to actual numbers
         const converted = data.map((item: any) => ({
           ...item,
           faction_1_winrate: typeof item.faction_1_winrate === 'string' ? parseFloat(item.faction_1_winrate) : item.faction_1_winrate,
           imbalance: typeof item.imbalance === 'string' ? parseFloat(item.imbalance) : item.imbalance,
         }));
+        console.log('[MatchupBalanceTab] Backend data converted:', JSON.stringify(converted.slice(0, 3), null, 2));
         setStats(converted);
       } catch (err) {
         console.error('Error fetching matchup stats:', err);
@@ -160,7 +173,10 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
 
   useEffect(() => {
     if (beforeData && beforeData.length > 0) {
-      setBeforeStats(aggregateMatchupData(beforeData));
+      console.log('[MatchupBalanceTab] Before data received, item count:', beforeData.length);
+      console.log('[MatchupBalanceTab] Before data sample:', JSON.stringify(beforeData.slice(0, 2), null, 2));
+      const aggregated = aggregateMatchupData(beforeData);
+      setBeforeStats(aggregated);
     } else {
       setBeforeStats([]);
     }
@@ -168,7 +184,10 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
 
   useEffect(() => {
     if (afterData && afterData.length > 0) {
-      setAfterStats(aggregateMatchupData(afterData));
+      console.log('[MatchupBalanceTab] After data received, item count:', afterData.length);
+      console.log('[MatchupBalanceTab] After data sample:', JSON.stringify(afterData.slice(0, 2), null, 2));
+      const aggregated = aggregateMatchupData(afterData);
+      setAfterStats(aggregated);
     } else {
       setAfterStats([]);
     }

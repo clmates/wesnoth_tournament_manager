@@ -36,6 +36,9 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
   const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
 
   const aggregateMapData = (data: ComparisonData[]): MapBalanceStats[] => {
+    console.log('[MapBalanceTab.aggregateMapData] Input data count:', data.length);
+    console.log('[MapBalanceTab.aggregateMapData] Raw input:', JSON.stringify(data.slice(0, 3), null, 2));
+    
     // Group by map and aggregate faction stats
     const mapMap = new Map<string, {
       map_id: string;
@@ -91,7 +94,7 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
       oppStats.total += item.total_games;
     });
     
-    return Array.from(mapMap.values()).map(mapData => {
+    const result = Array.from(mapMap.values()).map(mapData => {
       const factionStats = mapData.factionStats;
       const totalGames = Array.from(factionStats.values()).reduce((sum, f) => sum + f.total, 0) / 2; // Divide by 2 because each game counted twice
       // For winrate calculation, use the actual wins/total from each faction (don't divide by 2)
@@ -100,12 +103,16 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
         .filter(f => f.total > 0)
         .map(f => (f.wins / f.total) * 100);
       
+      console.log(`[MapBalanceTab] Map ${mapData.map_name}: winrates = [${winrates.map(w => w.toFixed(1)).join(', ')}]`);
+      
       // Calculate standard deviation like the backend does
       const avgWinrate = winrates.length > 0 ? winrates.reduce((sum, wr) => sum + wr, 0) / winrates.length : 50;
       const variance = winrates.length > 0 
         ? winrates.reduce((sum, wr) => sum + Math.pow(wr - avgWinrate, 2), 0) / winrates.length 
         : 0;
       const avgImbalance = Math.sqrt(variance);
+      
+      console.log(`[MapBalanceTab] Map ${mapData.map_name}: avgWinrate=${avgWinrate.toFixed(2)}, variance=${variance.toFixed(2)}, stddev=${avgImbalance.toFixed(2)}`);
       
       return {
         map_id: mapData.map_id,
@@ -119,6 +126,9 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
     })
     .filter(map => map.total_games >= minGamesThreshold) // Apply minimum games filter
     .sort((a, b) => b.total_games - a.total_games);
+    
+    console.log('[MapBalanceTab.aggregateMapData] Final result:', JSON.stringify(result, null, 2));
+    return result;
   };
 
   useEffect(() => {
@@ -141,6 +151,7 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
       try {
         setLoading(true);
         const data = await statisticsService.getMapBalanceStats();
+        console.log('[MapBalanceTab] Backend data received:', JSON.stringify(data, null, 2));
         // Convert string numbers to actual numbers
         const converted = data.map((item: any) => ({
           ...item,
@@ -148,6 +159,7 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
           lowest_winrate: typeof item.lowest_winrate === 'string' ? parseFloat(item.lowest_winrate) : item.lowest_winrate,
           highest_winrate: typeof item.highest_winrate === 'string' ? parseFloat(item.highest_winrate) : item.highest_winrate,
         }));
+        console.log('[MapBalanceTab] Backend data converted:', JSON.stringify(converted, null, 2));
         setStats(converted);
       } catch (err) {
         console.error('Error fetching map balance stats:', err);
@@ -162,7 +174,10 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
 
   useEffect(() => {
     if (beforeData && beforeData.length > 0) {
-      setBeforeStats(aggregateMapData(beforeData));
+      console.log('[MapBalanceTab] Before data received, item count:', beforeData.length);
+      console.log('[MapBalanceTab] Before data sample:', JSON.stringify(beforeData.slice(0, 2), null, 2));
+      const aggregated = aggregateMapData(beforeData);
+      setBeforeStats(aggregated);
     } else {
       setBeforeStats([]);
     }
@@ -170,7 +185,10 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
 
   useEffect(() => {
     if (afterData && afterData.length > 0) {
-      setAfterStats(aggregateMapData(afterData));
+      console.log('[MapBalanceTab] After data received, item count:', afterData.length);
+      console.log('[MapBalanceTab] After data sample:', JSON.stringify(afterData.slice(0, 2), null, 2));
+      const aggregated = aggregateMapData(afterData);
+      setAfterStats(aggregated);
     } else {
       setAfterStats([]);
     }
