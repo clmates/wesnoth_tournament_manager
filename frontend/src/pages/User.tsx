@@ -96,7 +96,25 @@ const User: React.FC = () => {
           console.log('Fetching recent opponents for user:', userId);
           const opponentsRes = await playerStatisticsService.getRecentOpponents(userId, 100);
           console.log('Opponents data received:', opponentsRes);
-          setOpponentStats(opponentsRes);
+          
+          // Normalize API response to match expected format
+          const normalized = opponentsRes?.map((opponent: any) => ({
+            opponent_id: opponent.opponent_id,
+            opponent_name: opponent.opponent_name,
+            total_matches: opponent.total_games,
+            total_games: opponent.total_games,
+            wins: opponent.wins,
+            losses: opponent.losses,
+            winrate: typeof opponent.winrate === 'string' ? parseFloat(opponent.winrate) : opponent.winrate,
+            current_elo: opponent.current_elo,
+            elo_gained: typeof opponent.elo_gained === 'string' ? parseFloat(opponent.elo_gained) : opponent.elo_gained,
+            elo_lost: typeof opponent.elo_lost === 'string' ? parseFloat(opponent.elo_lost) : opponent.elo_lost,
+            last_elo_against_me: typeof opponent.last_elo_against_me === 'string' ? parseFloat(opponent.last_elo_against_me) : opponent.last_elo_against_me,
+            last_match_date: opponent.last_match_date
+          })) || [];
+          
+          console.log('Normalized opponents data:', normalized);
+          setOpponentStats(normalized);
         } catch (err) {
           console.error('Error fetching opponents:', err);
           setOpponentStatsError('Error loading opponent data');
@@ -466,39 +484,47 @@ const User: React.FC = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {filteredOpponentStats.map((stat) => (
-                                <tr key={stat.opponent_id} className="opponent-row">
-                                  <td className="opponent-name">
-                                    <span className="name">
-                                      <PlayerLink nickname={stat.opponent_name} userId={stat.opponent_id} />
-                                    </span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="elo-badge">{stat.current_elo}</span>
-                                  </td>
-                                  <td className="numeric">
-                                    <strong>{stat.total_matches}</strong>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="wins-badge">{stat.wins_against_me}</span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="losses-badge">{stat.losses_against_me}</span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="percentage-badge positive">{Number(stat.win_percentage).toFixed(1)}%</span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="elo-positive">+{Number(stat.elo_gained).toFixed(0)}</span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="elo-negative">-{Number(stat.elo_lost).toFixed(0)}</span>
-                                  </td>
-                                  <td>
-                                    <span className="date">{stat.last_match_date ? new Date(stat.last_match_date).toLocaleDateString() : 'N/A'}</span>
-                                  </td>
-                                </tr>
-                              ))}
+                              {filteredOpponentStats.map((stat) => {
+                                const winPercentage = stat.total_games > 0 
+                                  ? (stat.wins / stat.total_games) * 100 
+                                  : 0;
+                                
+                                return (
+                                  <tr key={stat.opponent_id} className="opponent-row">
+                                    <td className="opponent-name">
+                                      <span className="name">
+                                        <PlayerLink nickname={stat.opponent_name} userId={stat.opponent_id} />
+                                      </span>
+                                    </td>
+                                    <td className="numeric">
+                                      <span className="elo-badge">{stat.current_elo}</span>
+                                    </td>
+                                    <td className="numeric">
+                                      <strong>{stat.total_matches}</strong>
+                                    </td>
+                                    <td className="numeric">
+                                      <span className="wins-badge">{stat.wins}</span>
+                                    </td>
+                                    <td className="numeric">
+                                      <span className="losses-badge">{stat.losses}</span>
+                                    </td>
+                                    <td className="numeric">
+                                      <span className={`percentage-badge ${winPercentage > 55 ? 'positive' : winPercentage < 45 ? 'negative' : ''}`}>
+                                        {winPercentage.toFixed(1)}%
+                                      </span>
+                                    </td>
+                                    <td className="numeric">
+                                      <span className="elo-positive">+{Number(stat.elo_gained).toFixed(2)}</span>
+                                    </td>
+                                    <td className="numeric">
+                                      <span className="elo-negative">-{Number(stat.elo_lost).toFixed(2)}</span>
+                                    </td>
+                                    <td>
+                                      <span className="date">{stat.last_match_date ? new Date(stat.last_match_date).toLocaleDateString() : 'N/A'}</span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
