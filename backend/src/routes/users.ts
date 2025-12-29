@@ -41,9 +41,9 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
 
     const user = userResult.rows[0];
 
-    // Get last activity from most recent confirmed match
+    // Get last activity from most recent match (any status except cancelled)
     const lastActivityResult = await query(
-      `SELECT created_at FROM matches WHERE (winner_id = $1 OR loser_id = $1) AND status = 'confirmed' ORDER BY created_at DESC LIMIT 1`,
+      `SELECT created_at FROM matches WHERE (winner_id = $1 OR loser_id = $1) AND status != 'cancelled' ORDER BY created_at DESC LIMIT 1`,
       [req.userId]
     );
 
