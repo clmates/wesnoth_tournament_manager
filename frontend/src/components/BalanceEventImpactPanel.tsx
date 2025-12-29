@@ -5,6 +5,7 @@ import { statisticsService } from '../services/statisticsService';
 interface BalanceEventImpactProps {
   eventId?: string;
   onEventChange?: (eventId: string | null) => void;
+  onComparisonDataChange?: (before: AggregatedData[], after: AggregatedData[]) => void;
 }
 
 interface BalanceEvent {
@@ -34,8 +35,11 @@ interface ImpactData {
 }
 
 interface AggregatedData {
+  map_id?: string;
   map_name: string;
+  faction_id?: string;
   faction_name: string;
+  opponent_faction_id?: string;
   opponent_faction_name: string;
   winrate: number;
   total_games: number;
@@ -43,7 +47,7 @@ interface AggregatedData {
   losses: number;
 }
 
-const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, onEventChange }) => {
+const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, onEventChange, onComparisonDataChange }) => {
   const { t } = useTranslation();
   const [events, setEvents] = useState<BalanceEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<BalanceEvent | null>(null);
@@ -109,6 +113,9 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
         // Aggregate after data
         const afterAgg = aggregateData(after);
         setAfterData(afterAgg);
+        
+        // Notify parent component
+        onComparisonDataChange?.(beforeAgg, afterAgg);
       }
     } catch (err: any) {
       setError(err.response?.data?.error || t('error_loading_impact') || 'Error loading impact data');
@@ -121,25 +128,33 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
   };
 
   const aggregateData = (snapshots: ImpactData[]): AggregatedData[] => {
-    const aggregated = new Map<string, { wins: number; losses: number; total: number }>();
+    const aggregated = new Map<string, { wins: number; losses: number; total: number; map_id: string; faction_id: string; opponent_id: string }>();
     
     snapshots.forEach(snapshot => {
-      const key = `${snapshot.map_name}|${snapshot.faction_name}|${snapshot.opponent_faction_name}`;
-      const current = aggregated.get(key) || { wins: 0, losses: 0, total: 0 };
+      const key = `${snapshot.map_id}|${snapshot.faction_id}|${snapshot.opponent_faction_id}`;
+      const current = aggregated.get(key) || { wins: 0, losses: 0, total: 0, map_id: snapshot.map_id, faction_id: snapshot.faction_id, opponent_id: snapshot.opponent_faction_id };
       
       aggregated.set(key, {
         wins: current.wins + snapshot.wins,
         losses: current.losses + snapshot.losses,
         total: current.total + snapshot.total_games,
+        map_id: current.map_id,
+        faction_id: current.faction_id,
+        opponent_id: current.opponent_id,
       });
     });
     
     return Array.from(aggregated.entries()).map(([key, stats]) => {
-      const [mapName, factionName, opponentName] = key.split('|');
+      const [mapId, factionId, opponentId] = key.split('|');
+      const snapshot = snapshots.find(s => s.map_id === mapId && s.faction_id === factionId && s.opponent_faction_id === opponentId);
+      
       return {
-        map_name: mapName,
-        faction_name: factionName,
-        opponent_faction_name: opponentName,
+        map_id: mapId,
+        map_name: snapshot?.map_name || '',
+        faction_id: factionId,
+        faction_name: snapshot?.faction_name || '',
+        opponent_faction_id: opponentId,
+        opponent_faction_name: snapshot?.opponent_faction_name || '',
         winrate: stats.total > 0 ? (stats.wins / stats.total) * 100 : 0,
         total_games: stats.total,
         wins: stats.wins,
@@ -235,92 +250,6 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
 
           {loading && <div className="loading-message">{t('loading') || 'Loading...'}</div>}
           {error && <div className="error-message">{error}</div>}
-
-          {!loading && !error && (beforeData.length > 0 || afterData.length > 0) && (
-            <div className="impact-comparison-section">
-              {/* BEFORE Block */}
-              <div className="comparison-block before-block">
-                <h5 className="block-title">📊 {t('before') || 'Before'}</h5>
-                <p className="block-subtitle">{t('matches_evaluated') || 'Matches'}: {beforeData.reduce((sum, d) => sum + d.total_games, 0)}</p>
-                
-                {beforeData.length > 0 ? (
-                  <div className="comparison-table-wrapper">
-                    <table className="comparison-table">
-                      <thead>
-                        <tr>
-                          <th>{t('map') || 'Map'}</th>
-                          <th>{t('faction') || 'Faction'}</th>
-                          <th colSpan={3} style={{ textAlign: 'center' }}>{t('matchup') || 'Matchup'}</th>
-                          <th>{t('winrate') || 'Win Rate'}</th>
-                          <th>{t('games') || 'Games'}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {beforeData.map((data, idx) => (
-                          <tr key={`before-${idx}`}>
-                            <td className="map-name">{data.map_name}</td>
-                            <td className="faction-name">{data.faction_name}</td>
-                            <td style={{ textAlign: 'right' }}>{data.faction_name}</td>
-                            <td style={{ textAlign: 'center' }}>{t('vs') || 'vs'}</td>
-                            <td style={{ textAlign: 'left' }}>{data.opponent_faction_name}</td>
-                            <td className={`winrate ${getChangeColorClass(data.winrate)}`}>
-                              {data.winrate.toFixed(1)}%
-                            </td>
-                            <td className="games">{data.total_games}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="no-data">{t('no_data_available') || 'No data available'}</p>
-                )}
-              </div>
-
-              {/* AFTER Block */}
-              <div className="comparison-block after-block">
-                <h5 className="block-title">📈 {t('after') || 'After'}</h5>
-                <p className="block-subtitle">{t('matches_evaluated') || 'Matches'}: {afterData.reduce((sum, d) => sum + d.total_games, 0)}</p>
-                
-                {afterData.length > 0 ? (
-                  <div className="comparison-table-wrapper">
-                    <table className="comparison-table">
-                      <thead>
-                        <tr>
-                          <th>{t('map') || 'Map'}</th>
-                          <th>{t('faction') || 'Faction'}</th>
-                          <th colSpan={3} style={{ textAlign: 'center' }}>{t('matchup') || 'Matchup'}</th>
-                          <th>{t('winrate') || 'Win Rate'}</th>
-                          <th>{t('games') || 'Games'}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {afterData.map((data, idx) => (
-                          <tr key={`after-${idx}`}>
-                            <td className="map-name">{data.map_name}</td>
-                            <td className="faction-name">{data.faction_name}</td>
-                            <td style={{ textAlign: 'right' }}>{data.faction_name}</td>
-                            <td style={{ textAlign: 'center' }}>{t('vs') || 'vs'}</td>
-                            <td style={{ textAlign: 'left' }}>{data.opponent_faction_name}</td>
-                            <td className={`winrate ${getChangeColorClass(data.winrate)}`}>
-                              {data.winrate.toFixed(1)}%
-                            </td>
-                            <td className="games">{data.total_games}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="no-data">{t('no_data_available') || 'No data available'}</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {!loading && !error && beforeData.length === 0 && afterData.length === 0 && (
-            <p className="no-data">{t('no_data_available') || 'No data available for the selected event'}</p>
-          )}
         </div>
       )}
     </div>

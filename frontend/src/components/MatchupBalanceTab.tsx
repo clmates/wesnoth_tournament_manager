@@ -17,7 +17,7 @@ interface MatchupStats {
   imbalance: number;
 }
 
-const MatchupBalanceTab: React.FC = () => {
+const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ beforeData = null, afterData = null }) => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<MatchupStats[]>([]);
   const [loading, setLoading] = useState(true);

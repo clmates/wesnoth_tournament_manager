@@ -13,7 +13,7 @@ interface MapBalanceStats {
   highest_winrate: number;
 }
 
-const MapBalanceTab: React.FC = () => {
+const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ beforeData = null, afterData = null }) => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<MapBalanceStats[]>([]);
   const [loading, setLoading] = useState(true);
