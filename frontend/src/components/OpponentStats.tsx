@@ -32,11 +32,15 @@ const OpponentStats: React.FC<OpponentStatsProps> = ({ matches, currentPlayerId 
   useEffect(() => {
     const fetchOpponents = async () => {
       try {
+        console.log('OpponentStats: Fetching opponents for playerId:', currentPlayerId);
         setLoading(true);
         const data = await playerStatisticsService.getRecentOpponents(currentPlayerId, 100);
+        console.log('OpponentStats: Raw data received:', data);
+        console.log('OpponentStats: Data length:', data?.length);
         setOpponents(data || []);
+        console.log('OpponentStats: State updated with opponents:', data);
       } catch (err) {
-        console.error('Error fetching recent opponents:', err);
+        console.error('OpponentStats: Error fetching recent opponents:', err);
         setError('Error loading opponent data');
       } finally {
         setLoading(false);
@@ -45,8 +49,12 @@ const OpponentStats: React.FC<OpponentStatsProps> = ({ matches, currentPlayerId 
 
     if (currentPlayerId) {
       fetchOpponents();
+    } else {
+      console.log('OpponentStats: No currentPlayerId provided');
     }
   }, [currentPlayerId]);
+
+  console.log('OpponentStats: Render with opponents:', opponents, 'loading:', loading, 'error:', error);
 
 
   if (loading) {
@@ -102,6 +110,19 @@ const OpponentStats: React.FC<OpponentStatsProps> = ({ matches, currentPlayerId 
               const eloGained = typeof opponent.elo_gained === 'string' ? parseFloat(opponent.elo_gained) : opponent.elo_gained;
               const eloLost = typeof opponent.elo_lost === 'string' ? parseFloat(opponent.elo_lost) : opponent.elo_lost;
               const lastEloAgainstMe = typeof opponent.last_elo_against_me === 'string' ? parseFloat(opponent.last_elo_against_me) : opponent.last_elo_against_me;
+
+              console.log('OpponentStats: Rendering opponent row:', {
+                opponent_name: opponent.opponent_name,
+                total_games: opponent.total_games,
+                wins: opponent.wins,
+                losses: opponent.losses,
+                winrate,
+                current_elo: opponent.current_elo,
+                eloGained,
+                eloLost,
+                lastEloAgainstMe,
+                last_match_date: opponent.last_match_date
+              });
 
               return (
                 <tr key={opponent.opponent_id} className="opponent-row">
