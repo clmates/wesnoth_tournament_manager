@@ -72,7 +72,16 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
     setError('');
     try {
       const data = await statisticsService.getEventImpact(id);
-      setImpactData(data);
+      // Convert string values to numbers if needed
+      const convertedData = data.map((item: any) => ({
+        ...item,
+        winrate: typeof item.winrate === 'string' ? parseFloat(item.winrate) : item.winrate,
+        total_games: typeof item.total_games === 'string' ? parseInt(item.total_games) : item.total_games,
+        wins: typeof item.wins === 'string' ? parseInt(item.wins) : item.wins,
+        losses: typeof item.losses === 'string' ? parseInt(item.losses) : item.losses,
+        days_since_event: typeof item.days_since_event === 'string' ? parseInt(item.days_since_event) : item.days_since_event,
+      }));
+      setImpactData(convertedData);
     } catch (err: any) {
       setError(err.response?.data?.error || t('error_loading_impact') || 'Error loading impact data');
       setImpactData([]);
