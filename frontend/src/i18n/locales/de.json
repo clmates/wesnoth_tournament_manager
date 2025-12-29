@@ -496,5 +496,7 @@
   "cancel": "Abbrechen",
   "update_event": "Ereignis aktualisieren",
   "updating": "Wird aktualisiert...",
-  "actions": "Aktionen"
+  "actions": "Aktionen",
+  "before": "Vorher",
+  "after": "Nachher"
 }

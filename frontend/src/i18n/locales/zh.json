@@ -495,6 +495,8 @@
   "cancel": "取消",
   "update_event": "更新事件",
   "updating": "更新中...",
-  "actions": "操作"
+  "actions": "操作",
+  "before": "之前",
+  "after": "之后"
 }
 

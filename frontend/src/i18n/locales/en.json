@@ -506,5 +506,7 @@
   "cancel": "Cancel",
   "update_event": "Update Event",
   "updating": "Updating...",
-  "actions": "Actions"
+  "actions": "Actions",
+  "before": "Before",
+  "after": "After"
 }

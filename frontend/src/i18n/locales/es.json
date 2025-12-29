@@ -492,5 +492,7 @@
   "cancel": "Cancelar",
   "update_event": "Actualizar Evento",
   "updating": "Actualizando...",
-  "actions": "Acciones"
+  "actions": "Acciones",
+  "before": "Antes",
+  "after": "Después"
 }

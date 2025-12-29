@@ -33,11 +33,23 @@ interface ImpactData {
   days_since_event: number;
 }
 
+interface AggregatedData {
+  map_name: string;
+  faction_name: string;
+  opponent_faction_name: string;
+  winrate: number;
+  total_games: number;
+  wins: number;
+  losses: number;
+}
+
 const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, onEventChange }) => {
   const { t } = useTranslation();
   const [events, setEvents] = useState<BalanceEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<BalanceEvent | null>(null);
   const [impactData, setImpactData] = useState<ImpactData[]>([]);
+  const [beforeData, setBeforeData] = useState<AggregatedData[]>([]);
+  const [afterData, setAfterData] = useState<AggregatedData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -82,12 +94,58 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
         days_since_event: typeof item.days_since_event === 'string' ? parseInt(item.days_since_event) : item.days_since_event,
       }));
       setImpactData(convertedData);
+      
+      // Aggregate data before and after event
+      if (selectedEvent) {
+        const eventDate = new Date(selectedEvent.event_date).getTime();
+        
+        const before = convertedData.filter((d: ImpactData) => new Date(d.snapshot_date).getTime() < eventDate);
+        const after = convertedData.filter((d: ImpactData) => new Date(d.snapshot_date).getTime() >= eventDate);
+        
+        // Aggregate before data
+        const beforeAgg = aggregateData(before);
+        setBeforeData(beforeAgg);
+        
+        // Aggregate after data
+        const afterAgg = aggregateData(after);
+        setAfterData(afterAgg);
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || t('error_loading_impact') || 'Error loading impact data');
       setImpactData([]);
+      setBeforeData([]);
+      setAfterData([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const aggregateData = (snapshots: ImpactData[]): AggregatedData[] => {
+    const aggregated = new Map<string, { wins: number; losses: number; total: number }>();
+    
+    snapshots.forEach(snapshot => {
+      const key = `${snapshot.map_name}|${snapshot.faction_name}|${snapshot.opponent_faction_name}`;
+      const current = aggregated.get(key) || { wins: 0, losses: 0, total: 0 };
+      
+      aggregated.set(key, {
+        wins: current.wins + snapshot.wins,
+        losses: current.losses + snapshot.losses,
+        total: current.total + snapshot.total_games,
+      });
+    });
+    
+    return Array.from(aggregated.entries()).map(([key, stats]) => {
+      const [mapName, factionName, opponentName] = key.split('|');
+      return {
+        map_name: mapName,
+        faction_name: factionName,
+        opponent_faction_name: opponentName,
+        winrate: stats.total > 0 ? (stats.wins / stats.total) * 100 : 0,
+        total_games: stats.total,
+        wins: stats.wins,
+        losses: stats.losses,
+      };
+    }).sort((a, b) => b.total_games - a.total_games);
   };
 
   const handleEventSelect = (event: BalanceEvent | null) => {
@@ -178,47 +236,90 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
           {loading && <div className="loading-message">{t('loading') || 'Loading...'}</div>}
           {error && <div className="error-message">{error}</div>}
 
-          {impactData.length > 0 && (
-            <div className="impact-data-section">
-              <h5>{t('impact_analysis') || 'Balance Statistics from Event Date'}</h5>
-              
-              <div className="impact-table-wrapper">
-                <table className="impact-table">
-                  <thead>
-                    <tr>
-                      <th>{t('date') || 'Date'}</th>
-                      <th>{t('days_since') || 'Days'}</th>
-                      <th>{t('map') || 'Map'}</th>
-                      <th>{t('faction') || 'Faction'}</th>
-                      <th colSpan={3} style={{ textAlign: 'center' }}>{t('matchup') || 'Matchup'}</th>
-                      <th>{t('winrate') || 'Win Rate'}</th>
-                      <th>{t('games') || 'Games'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {impactData.map((impact, idx) => (
-                      <tr key={`${impact.map_id}-${impact.faction_id}-${impact.opponent_faction_id}-${impact.snapshot_date}-${idx}`}>
-                        <td className="date">{new Date(impact.snapshot_date).toLocaleDateString()}</td>
-                        <td className="days">{impact.days_since_event}</td>
-                        <td className="map-name">{impact.map_name}</td>
-                        <td className="faction-name">{impact.faction_name}</td>
-                        <td style={{ textAlign: 'right' }}>{impact.faction_name}</td>
-                        <td style={{ textAlign: 'center' }}>{t('vs') || 'vs'}</td>
-                        <td style={{ textAlign: 'left' }}>{impact.opponent_faction_name}</td>
-                        <td className={`winrate ${getChangeColorClass(impact.winrate)}`}>
-                          {impact.winrate.toFixed(1)}%
-                        </td>
-                        <td className="games">{impact.total_games}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {!loading && !error && (beforeData.length > 0 || afterData.length > 0) && (
+            <div className="impact-comparison-section">
+              {/* BEFORE Block */}
+              <div className="comparison-block before-block">
+                <h5 className="block-title">📊 {t('before') || 'Before'}</h5>
+                <p className="block-subtitle">{t('matches_evaluated') || 'Matches'}: {beforeData.reduce((sum, d) => sum + d.total_games, 0)}</p>
+                
+                {beforeData.length > 0 ? (
+                  <div className="comparison-table-wrapper">
+                    <table className="comparison-table">
+                      <thead>
+                        <tr>
+                          <th>{t('map') || 'Map'}</th>
+                          <th>{t('faction') || 'Faction'}</th>
+                          <th colSpan={3} style={{ textAlign: 'center' }}>{t('matchup') || 'Matchup'}</th>
+                          <th>{t('winrate') || 'Win Rate'}</th>
+                          <th>{t('games') || 'Games'}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {beforeData.map((data, idx) => (
+                          <tr key={`before-${idx}`}>
+                            <td className="map-name">{data.map_name}</td>
+                            <td className="faction-name">{data.faction_name}</td>
+                            <td style={{ textAlign: 'right' }}>{data.faction_name}</td>
+                            <td style={{ textAlign: 'center' }}>{t('vs') || 'vs'}</td>
+                            <td style={{ textAlign: 'left' }}>{data.opponent_faction_name}</td>
+                            <td className={`winrate ${getChangeColorClass(data.winrate)}`}>
+                              {data.winrate.toFixed(1)}%
+                            </td>
+                            <td className="games">{data.total_games}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="no-data">{t('no_data_available') || 'No data available'}</p>
+                )}
               </div>
 
-              {impactData.length === 0 && (
-                <p className="no-data">{t('no_data_available') || 'No data available for the selected event'}</p>
-              )}
+              {/* AFTER Block */}
+              <div className="comparison-block after-block">
+                <h5 className="block-title">📈 {t('after') || 'After'}</h5>
+                <p className="block-subtitle">{t('matches_evaluated') || 'Matches'}: {afterData.reduce((sum, d) => sum + d.total_games, 0)}</p>
+                
+                {afterData.length > 0 ? (
+                  <div className="comparison-table-wrapper">
+                    <table className="comparison-table">
+                      <thead>
+                        <tr>
+                          <th>{t('map') || 'Map'}</th>
+                          <th>{t('faction') || 'Faction'}</th>
+                          <th colSpan={3} style={{ textAlign: 'center' }}>{t('matchup') || 'Matchup'}</th>
+                          <th>{t('winrate') || 'Win Rate'}</th>
+                          <th>{t('games') || 'Games'}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {afterData.map((data, idx) => (
+                          <tr key={`after-${idx}`}>
+                            <td className="map-name">{data.map_name}</td>
+                            <td className="faction-name">{data.faction_name}</td>
+                            <td style={{ textAlign: 'right' }}>{data.faction_name}</td>
+                            <td style={{ textAlign: 'center' }}>{t('vs') || 'vs'}</td>
+                            <td style={{ textAlign: 'left' }}>{data.opponent_faction_name}</td>
+                            <td className={`winrate ${getChangeColorClass(data.winrate)}`}>
+                              {data.winrate.toFixed(1)}%
+                            </td>
+                            <td className="games">{data.total_games}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="no-data">{t('no_data_available') || 'No data available'}</p>
+                )}
+              </div>
             </div>
+          )}
+
+          {!loading && !error && beforeData.length === 0 && afterData.length === 0 && (
+            <p className="no-data">{t('no_data_available') || 'No data available for the selected event'}</p>
           )}
         </div>
       )}
