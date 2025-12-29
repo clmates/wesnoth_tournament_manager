@@ -30,7 +30,7 @@
   "auth.back_to_login": "Remember your password?",
   "auth.login": "Log in here",
   "auth.error_all_fields_required": "All fields are required",
-  "auth.loading": "Loading..."
+  "auth.loading": "Loading...",
   "register_title": "Register",
   "register_nickname": "Nickname",
   "register_email": "Email",
