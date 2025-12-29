@@ -25,6 +25,7 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
         u.total_losses, 
         u.trend,
         u.is_active,
+        COALESCE(u.password_must_change, false) as password_must_change,
         pms.avg_elo_change
       FROM users u
       LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 

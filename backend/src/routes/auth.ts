@@ -102,7 +102,8 @@ router.post('/login', loginLimiter, async (req, res) => {
     const result = await query(
       `SELECT id, password_hash, is_blocked, 
               COALESCE(failed_login_attempts, 0) as failed_login_attempts,
-              locked_until
+              locked_until,
+              COALESCE(password_must_change, false) as password_must_change
        FROM public.users WHERE nickname = $1`,
       [nickname]
     );
@@ -208,7 +209,11 @@ router.post('/login', loginLimiter, async (req, res) => {
       details: { success: true }
     });
 
-    res.json({ token, userId: user.id });
+    res.json({ 
+      token, 
+      userId: user.id,
+      password_must_change: user.password_must_change
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
