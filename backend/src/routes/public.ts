@@ -492,7 +492,7 @@ router.get('/players/:id', async (req, res) => {
         u.trend,
         u.is_active,
         pms.avg_elo_change,
-        (SELECT MAX(m.reported_at) FROM matches m WHERE (m.winner_id = u.id OR m.loser_id = u.id) AND m.status = 'confirmed') as last_activity
+        (SELECT MAX(m.created_at) FROM matches m WHERE (m.winner_id = u.id OR m.loser_id = u.id) AND m.status = 'confirmed') as last_activity
       FROM users u
       LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
         AND pms.opponent_id IS NULL 
