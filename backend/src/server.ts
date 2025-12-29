@@ -56,7 +56,35 @@ const startServer = async () => {
       }
     });
     
+    // Schedule daily inactive player check at 01:00 UTC
+    // Marks players as inactive if they have no confirmed matches in the last 30 days
+    cron.schedule('0 1 * * *', async () => {
+      try {
+        console.log('👤 Running daily inactive player check...');
+        const result = await query(
+          `UPDATE users 
+           SET is_active = false, updated_at = CURRENT_TIMESTAMP
+           WHERE is_active = true 
+             AND is_blocked = false
+             AND id NOT IN (
+               SELECT DISTINCT u.id
+               FROM users u
+               INNER JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id)
+               WHERE m.status = 'confirmed' 
+                 AND m.created_at >= CURRENT_DATE - INTERVAL '30 days'
+             )
+           RETURNING id`
+        );
+        if (result.rows.length > 0) {
+          console.log(`✅ Marked ${result.rows.length} players as inactive (no activity in 30 days)`);
+        }
+      } catch (error) {
+        console.error('❌ Failed to check inactive players:', error);
+      }
+    });
+    
     console.log('📅 Daily snapshot scheduler initialized (runs at 00:30 UTC)');
+    console.log('👤 Daily inactive player checker initialized (runs at 01:00 UTC)');
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

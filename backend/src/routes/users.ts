@@ -226,8 +226,7 @@ router.get('/ranking/global', async (req, res) => {
       'u.is_blocked = false',
       'u.is_rated = true',
       'u.elo_rating >= 1400',
-      'u.matches_played >= 10',
-      'u.last_match_date >= CURRENT_DATE - INTERVAL \'30 days\''
+      'u.matches_played >= 10'
     ];
     let params: any[] = [];
     let paramCount = 1;
@@ -290,17 +289,13 @@ router.get('/ranking/global', async (req, res) => {
 router.get('/ranking/active', async (req, res) => {
   try {
     const result = await query(
-      `SELECT DISTINCT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, COALESCE(u.trend, '-') as trend,
-              MAX(m.created_at) as last_match_date
+      `SELECT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, COALESCE(u.trend, '-') as trend
        FROM users u
-       LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) AND m.status = 'confirmed'
        WHERE u.is_active = true 
          AND u.is_blocked = false
          AND u.is_rated = true
          AND u.elo_rating >= 1400
          AND u.matches_played >= 10
-       GROUP BY u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, u.trend
-       HAVING MAX(m.created_at) >= NOW() - INTERVAL '30 days' OR MAX(m.created_at) IS NULL
        ORDER BY u.elo_rating DESC
        LIMIT 100`
     );
