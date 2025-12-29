@@ -5,7 +5,7 @@ import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 import { registerLimiter, loginLimiter } from '../middleware/rateLimiter.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 import { isAccountLocked, recordFailedLoginAttempt, recordSuccessfulLogin, getRemainingLockoutTime } from '../services/accountLockout.js';
-import { notifyAdminNewRegistration, notifyUserWelcome, sendPasswordResetViaThread, DISCORD_ENABLED } from '../services/discord.js';
+import { notifyAdminNewRegistration, notifyUserWelcome, sendPasswordResetViaThread, DISCORD_ENABLED, resolveDiscordIdFromUsername } from '../services/discord.js';
 
 const router = Router();
 
@@ -316,11 +316,22 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Nickname and Discord ID are required' });
     }
 
-    // Validate Discord ID format - should be numeric only, not username#discriminator
+    // Try to resolve Discord ID if it's in username format
+    let resolvedDiscordId = discord_id;
     if (!/^\d+$/.test(discord_id)) {
-      console.warn('[PASSWORD-RESET] Invalid Discord ID format (contains non-numeric characters):', discord_id);
-      return res.status(400).json({ 
-        error: 'Invalid Discord ID format. Please use your numeric Discord ID (Settings > Advanced > Developer Mode > Copy User ID), not your username.' 
+      console.log('[PASSWORD-RESET] Discord ID not numeric, attempting to resolve from username:', discord_id);
+      resolvedDiscordId = await resolveDiscordIdFromUsername(discord_id);
+      
+      if (!resolvedDiscordId) {
+        console.warn('[PASSWORD-RESET] Failed to resolve Discord username:', discord_id);
+        return res.status(400).json({ 
+          error: 'Could not find Discord user with that username. Make sure you\'re in the server and the username is correct.' 
+        });
+      }
+      
+      console.log('[PASSWORD-RESET] Discord username resolved to ID:', {
+        original: discord_id,
+        resolved: resolvedDiscordId
       });
     }
 
@@ -347,15 +358,15 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
       userId: user.id,
       nickname: nickname,
       storedDiscordId: user.discord_id,
-      providedDiscordId: discord_id,
-      match: user.discord_id === discord_id
+      providedDiscordId: resolvedDiscordId,
+      match: user.discord_id === resolvedDiscordId
     });
 
     // Verify Discord ID matches
-    if (user.discord_id !== discord_id) {
+    if (user.discord_id !== resolvedDiscordId) {
       console.log('[PASSWORD-RESET] Discord ID mismatch for user:', nickname);
       // Don't reveal the mismatch for security
-      return res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord DM' });
+      return res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord thread' });
     }
 
     // Generate temporary password (8 characters)
@@ -365,7 +376,7 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
     console.log('[PASSWORD-RESET] Generated temporary password for user:', {
       userId: user.id,
       nickname: nickname,
-      discordId: user.discord_id,
+      discordId: resolvedDiscordId,
       tempPassword: `${tempPassword.substring(0, 2)}***`
     });
 
@@ -379,17 +390,17 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
 
     // Send password reset via Discord thread
     try {
-      console.log('[PASSWORD-RESET] Attempting to send password reset via thread to user:', user.discord_id);
+      console.log('[PASSWORD-RESET] Attempting to send password reset via thread to user:', resolvedDiscordId);
       await sendPasswordResetViaThread(
-        user.discord_id,
+        resolvedDiscordId,
         nickname,
         tempPassword
       );
-      console.log('[PASSWORD-RESET] Password reset sent via thread successfully to user:', user.discord_id);
+      console.log('[PASSWORD-RESET] Password reset sent via thread successfully to user:', resolvedDiscordId);
     } catch (threadError) {
       console.error('[PASSWORD-RESET] ❌ Failed to send password reset via thread to user:', {
         userId: user.id,
-        discordId: user.discord_id,
+        discordId: resolvedDiscordId,
         error: threadError instanceof Error ? threadError.message : String(threadError)
       });
       // Still return success since password was reset, thread creation failure will be logged
