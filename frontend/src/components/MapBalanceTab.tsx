@@ -308,7 +308,14 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
                   <td>
                     <div className="comparison-cell">
                       <div className="after-value">
-                        <div className="single-balance-bar">
+                        <div 
+                          className="single-balance-bar"
+                          title={`After: ${(item.after?.avg_imbalance || 0).toFixed(1)}% imbalance - ${
+                            (item.after?.avg_imbalance || 0) < 5 ? 'Excellent' : 
+                            (item.after?.avg_imbalance || 0) < 10 ? 'Good' : 
+                            'Needs work'
+                          }. Green = balanced, Red = needs attention`}
+                        >
                           <div 
                             className="imbalance-fill"
                             style={{ width: `${Math.min((item.after?.avg_imbalance || 0) / 20 * 100, 100)}%` }}
@@ -317,7 +324,14 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
                       </div>
                       {item.before && (
                         <div className="before-value">
-                          <div className="single-balance-bar">
+                          <div 
+                            className="single-balance-bar"
+                            title={`Before: ${item.before.avg_imbalance.toFixed(1)}% imbalance - ${
+                              item.before.avg_imbalance < 5 ? 'Excellent' : 
+                              item.before.avg_imbalance < 10 ? 'Good' : 
+                              'Needs work'
+                            }. Green = balanced, Red = needs attention`}
+                          >
                             <div 
                               className="imbalance-fill before"
                               style={{ width: `${Math.min((item.before.avg_imbalance / 20) * 100, 100)}%` }}
@@ -372,7 +386,14 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
                 </td>
                 <td>{stat.lowest_winrate.toFixed(1)}% - {stat.highest_winrate.toFixed(1)}%</td>
                 <td>
-                  <div className="balance-bar">
+                  <div 
+                    className="balance-bar"
+                    title={`Imbalance: ${stat.avg_imbalance.toFixed(1)}% - ${
+                      stat.avg_imbalance < 5 ? 'Excellent balance' : 
+                      stat.avg_imbalance < 10 ? 'Good balance' : 
+                      'Needs balance adjustment'
+                    }. Green = well balanced, Red = needs attention`}
+                  >
                     <div 
                       className="imbalance-fill"
                       style={{ width: `${Math.min(stat.avg_imbalance * 2, 100)}%` }}
