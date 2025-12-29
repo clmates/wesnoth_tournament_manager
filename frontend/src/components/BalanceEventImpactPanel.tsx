@@ -87,7 +87,10 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
     setLoading(true);
     setError('');
     try {
+      console.log(`[BalanceEventImpactPanel] Loading impact for event: ${id}`);
       const data = await statisticsService.getEventImpact(id);
+      console.log(`[BalanceEventImpactPanel] Received ${data.length} rows from backend`);
+      
       // Convert string values to numbers if needed
       const convertedData = data.map((item: any) => ({
         ...item,
@@ -97,14 +100,18 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
         losses: typeof item.losses === 'string' ? parseInt(item.losses) : item.losses,
         days_since_event: typeof item.days_since_event === 'string' ? parseInt(item.days_since_event) : item.days_since_event,
       }));
+      console.log(`[BalanceEventImpactPanel] Sample data:`, convertedData.slice(0, 2));
       setImpactData(convertedData);
       
       // Aggregate data before and after event
       if (selectedEvent) {
         const eventDate = new Date(selectedEvent.event_date).getTime();
+        console.log(`[BalanceEventImpactPanel] Event date: ${selectedEvent.event_date}`);
         
         const before = convertedData.filter((d: ImpactData) => new Date(d.snapshot_date).getTime() < eventDate);
         const after = convertedData.filter((d: ImpactData) => new Date(d.snapshot_date).getTime() >= eventDate);
+        
+        console.log(`[BalanceEventImpactPanel] Before: ${before.length} snapshots, After: ${after.length} snapshots`);
         
         // Aggregate before data
         const beforeAgg = aggregateData(before);
@@ -114,10 +121,13 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
         const afterAgg = aggregateData(after);
         setAfterData(afterAgg);
         
+        console.log(`[BalanceEventImpactPanel] Before aggregated: ${beforeAgg.length} records, After aggregated: ${afterAgg.length} records`);
+        
         // Notify parent component
         onComparisonDataChange?.(beforeAgg, afterAgg);
       }
     } catch (err: any) {
+      console.error(`[BalanceEventImpactPanel] Error loading impact:`, err);
       setError(err.response?.data?.error || t('error_loading_impact') || 'Error loading impact data');
       setImpactData([]);
       setBeforeData([]);

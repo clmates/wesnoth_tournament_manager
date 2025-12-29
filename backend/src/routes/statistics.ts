@@ -144,7 +144,11 @@ router.get('/map-balance', async (req, res) => {
       JOIN factions f ON fms.faction_id = f.id
       ORDER BY gm.name, fms.winrate`
     );
-    console.log('[MAP-BALANCE] Raw faction_map_statistics data:', JSON.stringify(rawResult.rows, null, 2));
+    console.log('\n=== MAP-BALANCE RAW DATA ===');
+    console.log(`Total rows: ${rawResult.rows.length}`);
+    rawResult.rows.forEach((row, idx) => {
+      console.log(`[${idx}] ${row.map_name} | ${row.faction_name}: WR=${row.winrate}% | Games=${row.total_games} | W=${row.wins} L=${row.losses}`);
+    });
     
     const result = await query(
       `SELECT 
@@ -163,7 +167,11 @@ router.get('/map-balance', async (req, res) => {
       HAVING SUM(fms.total_games) >= 10
       ORDER BY avg_imbalance ASC`
     );
-    console.log('[MAP-BALANCE] Calculated results:', JSON.stringify(result.rows, null, 2));
+    console.log('\n=== MAP-BALANCE CALCULATED RESULTS ===');
+    result.rows.forEach((row, idx) => {
+      console.log(`[${idx}] ${row.map_name}: ${row.factions_used} factions, ${row.total_games} games, STDDEV=${row.stddev_full_precision}`);
+    });
+    console.log('');
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching map balance statistics:', error);
@@ -328,11 +336,65 @@ router.get('/history/events', async (req, res) => {
 router.get('/history/events/:eventId/impact', async (req, res) => {
   try {
     const { eventId } = req.params;
+    console.log(`\n=== EVENT IMPACT REQUEST === EventID: ${eventId}`);
     
+    // First, verify the event exists
+    const eventCheck = await query(
+      `SELECT id, event_date, event_type, description, faction_id, map_id 
+       FROM balance_events WHERE id = $1`,
+      [eventId]
+    );
+    
+    if (eventCheck.rows.length === 0) {
+      console.log(`❌ ERROR: Event not found with ID: ${eventId}`);
+      return res.status(404).json({ error: 'Balance event not found' });
+    }
+    
+    const event = eventCheck.rows[0];
+    console.log(`✅ Event found: Date=${event.event_date}, Type=${event.event_type}`);
+    
+    // Check how many snapshots exist for this date range
+    const countCheck = await query(
+      `SELECT COUNT(*) as total_snapshots, 
+              MIN(snapshot_date) as earliest_date,
+              MAX(snapshot_date) as latest_date
+       FROM faction_map_statistics_history`
+    );
+    
+    console.log(`📊 Total snapshots in DB: ${countCheck.rows[0].total_snapshots}`);
+    console.log(`   Date range: ${countCheck.rows[0].earliest_date} to ${countCheck.rows[0].latest_date}`);
+    
+    // Now get the actual impact data
     const result = await query(
       `SELECT * FROM get_balance_event_forward_impact($1)`,
       [eventId]
     );
+    
+    console.log(`⚡ Event impact function returned: ${result.rows.length} rows`);
+    if (result.rows.length > 0) {
+      console.log(`   First row: ${JSON.stringify(result.rows[0])}`);
+      console.log(`   Last row: ${JSON.stringify(result.rows[result.rows.length - 1])}`);
+    } else {
+      console.log(`   ⚠️  WARNING: No data returned from function for event ${eventId}`);
+      
+      // Debug: Check what the function would do manually
+      const eventDates = await query(
+        `SELECT 
+          e1.event_date as current_event_date,
+          (SELECT e2.event_date FROM balance_events e2 
+           WHERE e2.event_date > e1.event_date 
+           ORDER BY e2.event_date ASC LIMIT 1) as next_event_date
+         FROM balance_events e1 WHERE e1.id = $1`,
+        [eventId]
+      );
+      
+      if (eventDates.rows.length > 0) {
+        console.log(`   Debug: Event date logic:`);
+        console.log(`   - Current event date: ${eventDates.rows[0].current_event_date}`);
+        console.log(`   - Next event date: ${eventDates.rows[0].next_event_date}`);
+      }
+    }
+    console.log('');
     
     res.json(result.rows);
   } catch (error) {
