@@ -370,7 +370,7 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
                     stat.imbalance > 5 ? 'high' : 
                     'moderate'
                   }`}>
-                    {stat.imbalance.toFixed(1)}%
+                    {stat.total_games > 0 ? ((stat.imbalance / stat.total_games) * 100).toFixed(1) : stat.imbalance.toFixed(1)}%
                   </span>
                 </td>
               </tr>
