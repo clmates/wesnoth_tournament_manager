@@ -32,28 +32,40 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
     const fetchOpponents = async () => {
       try {
         setLoading(true);
+        console.log('PlayerRecentOpponents: Fetching for playerId:', playerId, 'limit:', limit);
         const data = await playerStatisticsService.getRecentOpponents(playerId, limit);
-        console.log('PlayerRecentOpponents raw data:', data);
-        console.log('Data length:', data?.length);
-        console.log('Data is array:', Array.isArray(data));
+        console.log('PlayerRecentOpponents: Raw data received:', data);
+        console.log('PlayerRecentOpponents: Data length:', data?.length);
+        console.log('PlayerRecentOpponents: Data is array:', Array.isArray(data));
+        
         // Convert string numbers to actual numbers
-        const converted = data.map((item: any) => ({
-          ...item,
-          winrate: typeof item.winrate === 'string' ? parseFloat(item.winrate) : item.winrate,
-          total_games: typeof item.total_games === 'string' ? parseInt(item.total_games) : item.total_games,
-          wins: typeof item.wins === 'string' ? parseInt(item.wins) : item.wins,
-          losses: typeof item.losses === 'string' ? parseInt(item.losses) : item.losses,
-        }));
-        console.log('PlayerRecentOpponents converted data:', converted);
+        console.log('PlayerRecentOpponents: Starting conversion...');
+        const converted = (data || []).map((item: any) => {
+          console.log('PlayerRecentOpponents: Converting item:', item);
+          const result = {
+            ...item,
+            winrate: typeof item.winrate === 'string' ? parseFloat(item.winrate) : item.winrate,
+            total_games: typeof item.total_games === 'string' ? parseInt(item.total_games) : item.total_games,
+            wins: typeof item.wins === 'string' ? parseInt(item.wins) : item.wins,
+            losses: typeof item.losses === 'string' ? parseInt(item.losses) : item.losses,
+          };
+          console.log('PlayerRecentOpponents: Converted item:', result);
+          return result;
+        });
+        console.log('PlayerRecentOpponents: All converted data:', converted);
+        console.log('PlayerRecentOpponents: About to setOpponents');
         setOpponents(converted);
+        console.log('PlayerRecentOpponents: setOpponents called successfully');
       } catch (err) {
-        console.error('Error fetching recent opponents:', err);
+        console.error('PlayerRecentOpponents: Error in catch block:', err);
         setError('Error loading recent opponents');
       } finally {
+        console.log('PlayerRecentOpponents: Finally block, setting loading to false');
         setLoading(false);
       }
     };
 
+    console.log('PlayerRecentOpponents: useEffect triggered with playerId:', playerId);
     fetchOpponents();
   }, [playerId, limit]);
 
