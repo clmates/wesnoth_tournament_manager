@@ -105,14 +105,15 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
       
       console.log(`[MapBalanceTab] Map ${mapData.map_name}: winrates = [${winrates.map(w => w.toFixed(1)).join(', ')}]`);
       
-      // Calculate standard deviation like the backend does
+      // Calculate SAMPLE standard deviation (like PostgreSQL STDDEV uses n-1)
       const avgWinrate = winrates.length > 0 ? winrates.reduce((sum, wr) => sum + wr, 0) / winrates.length : 50;
-      const variance = winrates.length > 0 
-        ? winrates.reduce((sum, wr) => sum + Math.pow(wr - avgWinrate, 2), 0) / winrates.length 
+      const variance = winrates.length > 1 
+        ? winrates.reduce((sum, wr) => sum + Math.pow(wr - avgWinrate, 2), 0) / (winrates.length - 1) 
         : 0;
       const avgImbalance = Math.sqrt(variance);
       
-      console.log(`[MapBalanceTab] Map ${mapData.map_name}: avgWinrate=${avgWinrate.toFixed(2)}, variance=${variance.toFixed(2)}, stddev=${avgImbalance.toFixed(2)}`);
+      console.log(`[MapBalanceTab] Map ${mapData.map_name}: avgWinrate=${avgWinrate.toFixed(2)}, variance=${variance.toFixed(2)}, stddev=${avgImbalance.toFixed(2)} (sample STDDEV with n-1)`);
+
       
       return {
         map_id: mapData.map_id,

@@ -152,6 +152,9 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
       }
     });
     
+    console.log(`[BalanceEventImpactPanel.aggregateData] Received ${snapshots.length} snapshots, aggregated to ${aggregated.size} unique matchups`);
+    console.log(`   Date range: ${snapshots.length > 0 ? snapshots[0].snapshot_date + ' to ' + snapshots[snapshots.length - 1].snapshot_date : 'N/A'}`);
+    
     return Array.from(aggregated.values()).map(snapshot => ({
       map_id: snapshot.map_id,
       map_name: snapshot.map_name,
