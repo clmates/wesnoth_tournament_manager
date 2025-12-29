@@ -22,7 +22,6 @@
   "auth.placeholder_nickname": "Введите ваш никнейм",
   "auth.label_discord_id": "Discord ID",
   "auth.placeholder_discord_id": "Введите ваш Discord ID",
-  "auth.discord_id_hint": "Ваш Discord ID можно найти в настройках пользователя Discord, когда включен режим разработчика",
   "auth.send_reset": "Отправить ссылку сброса",
   "auth.password_reset_sent": "Если ваш аккаунт и Discord ID совпадают, вы получите временный пароль через личное сообщение Discord",
   "auth.redirecting_to_login": "Перенаправление на страницу входа через несколько секунд...",

@@ -22,7 +22,6 @@
   "auth.placeholder_nickname": "Geben Sie Ihren Benutzernamen ein",
   "auth.label_discord_id": "Discord ID",
   "auth.placeholder_discord_id": "Geben Sie Ihre Discord-ID ein",
-  "auth.discord_id_hint": "Ihre Discord-ID finden Sie in den Discord-Benutzereinstellungen, wenn der Entwicklermodus aktiviert ist",
   "auth.send_reset": "Zurücksetzen-Link senden",
   "auth.password_reset_sent": "Wenn Ihr Konto und Ihre Discord-ID übereinstimmen, erhalten Sie ein temporäres Passwort per Discord-Direktnachricht",
   "auth.redirecting_to_login": "Leitet in wenigen Sekunden zur Anmeldung weiter...",

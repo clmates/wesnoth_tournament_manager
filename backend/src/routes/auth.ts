@@ -5,7 +5,7 @@ import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 import { registerLimiter, loginLimiter } from '../middleware/rateLimiter.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 import { isAccountLocked, recordFailedLoginAttempt, recordSuccessfulLogin, getRemainingLockoutTime } from '../services/accountLockout.js';
-import { notifyAdminNewRegistration, notifyUserWelcome, sendDirectMessage, DISCORD_ENABLED } from '../services/discord.js';
+import { notifyAdminNewRegistration, notifyUserWelcome, sendPasswordResetViaThread, DISCORD_ENABLED } from '../services/discord.js';
 
 const router = Router();
 
@@ -316,6 +316,14 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Nickname and Discord ID are required' });
     }
 
+    // Validate Discord ID format - should be numeric only, not username#discriminator
+    if (!/^\d+$/.test(discord_id)) {
+      console.warn('[PASSWORD-RESET] Invalid Discord ID format (contains non-numeric characters):', discord_id);
+      return res.status(400).json({ 
+        error: 'Invalid Discord ID format. Please use your numeric Discord ID (Settings > Advanced > Developer Mode > Copy User ID), not your username.' 
+      });
+    }
+
     // Discord is required for this feature
     if (!DISCORD_ENABLED) {
       console.warn('[PASSWORD-RESET] Discord is not enabled');
@@ -369,24 +377,22 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
 
     console.log('[PASSWORD-RESET] Password updated in database for user:', nickname);
 
-    // Send Discord DM with temporary password
+    // Send password reset via Discord thread
     try {
-      console.log('[PASSWORD-RESET] Attempting to send Discord DM to user:', user.discord_id);
-      await sendDirectMessage(
+      console.log('[PASSWORD-RESET] Attempting to send password reset via thread to user:', user.discord_id);
+      await sendPasswordResetViaThread(
         user.discord_id,
-        `🔐 **Password Reset Request**\n\n` +
-        `Your temporary password is: \`${tempPassword}\`\n\n` +
-        `Use this password to log in. You will be required to change it on your next login.\n\n` +
-        `If you didn't request this, contact an administrator.`
+        nickname,
+        tempPassword
       );
-      console.log('[PASSWORD-RESET] Discord DM sent successfully to user:', user.discord_id);
-    } catch (dmError) {
-      console.error('[PASSWORD-RESET] ❌ Failed to send Discord DM to user:', {
+      console.log('[PASSWORD-RESET] Password reset sent via thread successfully to user:', user.discord_id);
+    } catch (threadError) {
+      console.error('[PASSWORD-RESET] ❌ Failed to send password reset via thread to user:', {
         userId: user.id,
         discordId: user.discord_id,
-        error: dmError instanceof Error ? dmError.message : String(dmError)
+        error: threadError instanceof Error ? threadError.message : String(threadError)
       });
-      // Still return success since password was reset, DM failure will be logged
+      // Still return success since password was reset, thread creation failure will be logged
     }
 
     // Log the request

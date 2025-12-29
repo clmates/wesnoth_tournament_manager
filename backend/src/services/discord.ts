@@ -199,80 +199,174 @@ export async function notifyUserUnlocked(user: {
 }
 
 /**
- * Send a direct message to a Discord user via DM
+ * Send password reset via private thread in a dedicated channel
+ * Creates a private thread visible only to the user and admins
  */
-export async function sendDirectMessage(discordId: string, message: string): Promise<void> {
-  console.log('[DISCORD DM] Starting sendDirectMessage', {
+export async function sendPasswordResetViaThread(
+  discordId: string,
+  nickname: string,
+  tempPassword: string
+): Promise<void> {
+  console.log('[PASSWORD-RESET-THREAD] Starting sendPasswordResetViaThread', {
     discordId,
+    nickname,
     discordEnabled: DISCORD_ENABLED,
-    botTokenConfigured: !!process.env.DISCORD_BOT_TOKEN
+    botTokenConfigured: !!process.env.DISCORD_BOT_TOKEN,
+    channelIdConfigured: !!process.env.DISCORD_PASSWORD_RESET_CHANNEL_ID
   });
 
   if (!DISCORD_ENABLED) {
-    console.warn('[DISCORD DM] Discord not enabled, skipping DM');
+    console.warn('[PASSWORD-RESET-THREAD] Discord not enabled, skipping thread creation');
     return;
   }
 
   if (!process.env.DISCORD_BOT_TOKEN) {
-    console.error('[DISCORD DM] Bot token not configured in environment');
+    console.error('[PASSWORD-RESET-THREAD] Bot token not configured in environment');
     return;
   }
 
-  if (!discordId) {
-    console.warn('[DISCORD DM] No Discord ID provided, cannot send DM');
+  if (!process.env.DISCORD_PASSWORD_RESET_CHANNEL_ID) {
+    console.error('[PASSWORD-RESET-THREAD] Password reset channel ID not configured');
+    return;
+  }
+
+  if (!discordId || !nickname) {
+    console.warn('[PASSWORD-RESET-THREAD] Missing required parameters', { discordId, nickname });
     return;
   }
 
   try {
     const DISCORD_API_URL = 'https://discord.com/api/v10';
+    const channelId = process.env.DISCORD_PASSWORD_RESET_CHANNEL_ID;
     const headers = {
       Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
       'Content-Type': 'application/json',
     };
 
-    console.log('[DISCORD DM] Creating DM channel for user:', discordId);
+    const threadName = `${nickname} - Password Reset`;
 
-    // First, create a DM channel
-    const dmChannelResponse = await axios.post(
-      `${DISCORD_API_URL}/users/@me/channels`,
-      { recipient_id: discordId },
+    console.log('[PASSWORD-RESET-THREAD] Creating private thread', {
+      channelId,
+      threadName
+    });
+
+    // Create private thread (type 12 = private thread)
+    const threadResponse = await axios.post(
+      `${DISCORD_API_URL}/channels/${channelId}/threads`,
+      {
+        name: threadName,
+        type: 12, // PRIVATE_THREAD
+        auto_archive_duration: 1440, // 24 hours
+        invitable: false
+      },
       { headers }
     );
 
-    const dmChannelId = dmChannelResponse.data.id;
-    console.log('[DISCORD DM] DM channel created successfully:', dmChannelId);
-    console.log('[DISCORD DM] DM Channel Response Status:', dmChannelResponse.status);
+    const threadId = threadResponse.data.id;
+    console.log('[PASSWORD-RESET-THREAD] Private thread created successfully', {
+      threadId,
+      threadName
+    });
 
-    console.log('[DISCORD DM] Sending message to DM channel:', dmChannelId);
+    // Set thread permissions: only the user and admins can see it
+    // Remove permissions for @everyone (ID "0" is @everyone)
+    console.log('[PASSWORD-RESET-THREAD] Setting thread permissions');
 
-    // Then send the message to that channel
+    try {
+      // Remove @everyone access
+      await axios.put(
+        `${DISCORD_API_URL}/channels/${threadId}/permissions/0`,
+        {
+          allow: '0',
+          deny: '1024', // VIEW_CHANNEL permission
+          type: 'role'
+        },
+        { headers }
+      );
+      console.log('[PASSWORD-RESET-THREAD] @everyone permission removed');
+    } catch (permError) {
+      console.warn('[PASSWORD-RESET-THREAD] Could not modify @everyone permissions:', permError instanceof Error ? permError.message : String(permError));
+      // Continue anyway, thread is still private
+    }
+
+    // Allow the user to see the thread
+    try {
+      await axios.put(
+        `${DISCORD_API_URL}/channels/${threadId}/permissions/${discordId}`,
+        {
+          allow: '1024', // VIEW_CHANNEL permission
+          deny: '0',
+          type: 'member'
+        },
+        { headers }
+      );
+      console.log('[PASSWORD-RESET-THREAD] User permission granted for thread');
+    } catch (permError) {
+      console.warn('[PASSWORD-RESET-THREAD] Could not grant user permissions:', permError instanceof Error ? permError.message : String(permError));
+      // Continue anyway
+    }
+
+    // Send the password reset message
+    console.log('[PASSWORD-RESET-THREAD] Sending password reset message to thread');
+
+    const message = {
+      content: `<@${discordId}>`,
+      embeds: [{
+        title: '🔐 Password Reset',
+        description: `Your temporary password has been generated.`,
+        color: 0x3498db,
+        fields: [
+          {
+            name: 'Temporary Password',
+            value: `\`${tempPassword}\``,
+            inline: false
+          },
+          {
+            name: 'Instructions',
+            value: 'Use this password to log in. You will be required to change it on your next login.',
+            inline: false
+          },
+          {
+            name: 'Security',
+            value: 'If you didn\'t request this, contact an administrator immediately.',
+            inline: false
+          }
+        ],
+        footer: {
+          text: 'Wesnoth Tournament Manager'
+        },
+        timestamp: new Date().toISOString()
+      }]
+    };
+
     const messageResponse = await axios.post(
-      `${DISCORD_API_URL}/channels/${dmChannelId}/messages`,
-      { content: message },
+      `${DISCORD_API_URL}/channels/${threadId}/messages`,
+      message,
       { headers }
     );
 
-    console.log('[DISCORD DM] Message sent successfully', {
+    console.log('[PASSWORD-RESET-THREAD] Password reset message sent successfully', {
       discordId,
-      channelId: dmChannelId,
+      nickname,
+      threadId,
       messageId: messageResponse.data.id,
       status: messageResponse.status
     });
   } catch (error: any) {
-    console.error('[DISCORD DM] ❌ Error sending Discord DM:', {
+    console.error('[PASSWORD-RESET-THREAD] ❌ Error sending password reset via thread:', {
       discordId,
+      nickname,
       httpStatus: error.response?.status,
       statusText: error.response?.statusText,
       errorData: error.response?.data,
       errorMessage: error.message,
       errorCode: error.code
     });
-    
-    // Log specific Discord error codes
+
     if (error.response?.data?.code) {
-      console.error('[DISCORD DM] Discord API Error Code:', error.response.data.code);
+      console.error('[PASSWORD-RESET-THREAD] Discord API Error Code:', error.response.data.code);
     }
-    
+
     throw error;
   }
 }

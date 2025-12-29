@@ -22,7 +22,6 @@
   "auth.placeholder_nickname": "输入你的昵称",
   "auth.label_discord_id": "Discord ID",
   "auth.placeholder_discord_id": "输入你的Discord ID",
-  "auth.discord_id_hint": "你的Discord ID可以在启用开发者模式的Discord用户设置中找到",
   "auth.send_reset": "发送重置链接",
   "auth.password_reset_sent": "如果你的账户和Discord ID匹配，你将通过Discord私信接收临时密码",
   "auth.redirecting_to_login": "几秒钟内重定向到登录页面...",

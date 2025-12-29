@@ -124,9 +124,6 @@ const ForgotPassword: React.FC = () => {
                     onChange={(e) => setDiscordId(e.target.value)}
                     disabled={loading}
                   />
-                  <small className="form-hint">
-                    {t('auth.discord_id_hint') || 'Your Discord ID can be found in Discord user settings when Developer Mode is enabled'}
-                  </small>
                 </div>
 
                 <button type="submit" disabled={loading} className="auth-button">
