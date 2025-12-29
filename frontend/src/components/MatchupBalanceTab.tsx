@@ -96,7 +96,9 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       const f1Wins = matchup.f1_wins / 2; // Divide wins by 2 as well since they're counted twice
       const f2Wins = matchup.f2_wins / 2;
       const f1Winrate = totalGames > 0 ? (f1Wins / totalGames) * 100 : 0;
-      const imbalance = Math.abs(f1Winrate - 50);
+      // Imbalance as percentage: (|wins - losses| / total_games) * 100
+      // For 7-0: (7/7)*100 = 100%, for 4-3: (1/7)*100 = 14.3%, for 3.5-3.5: 0%
+      const imbalance = totalGames > 0 ? (Math.abs(f1Wins - f2Wins) / totalGames) * 100 : 0;
       
       return {
         map_id: matchup.map_id,
