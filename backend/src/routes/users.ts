@@ -225,7 +225,9 @@ router.get('/ranking/global', async (req, res) => {
       'u.is_active = true',
       'u.is_blocked = false',
       'u.is_rated = true',
-      'u.elo_rating >= 1400'
+      'u.elo_rating >= 1400',
+      'u.matches_played >= 10',
+      'u.last_match_date >= CURRENT_DATE - INTERVAL \'30 days\''
     ];
     let params: any[] = [];
     let paramCount = 1;
@@ -296,6 +298,7 @@ router.get('/ranking/active', async (req, res) => {
          AND u.is_blocked = false
          AND u.is_rated = true
          AND u.elo_rating >= 1400
+         AND u.matches_played >= 10
        GROUP BY u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, u.trend
        HAVING MAX(m.created_at) >= NOW() - INTERVAL '30 days' OR MAX(m.created_at) IS NULL
        ORDER BY u.elo_rating DESC

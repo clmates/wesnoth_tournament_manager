@@ -31,25 +31,11 @@
   font-weight: 600;
 }
 
-.ranking-criteria-info ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.ranking-criteria-info li {
+.ranking-criteria-info p {
   color: #34495e;
   font-size: 0.95rem;
-  line-height: 1.4;
-  padding: 0.25rem 0;
-}
-
-.ranking-criteria-info li strong {
-  color: #2c3e50;
-  font-weight: 600;
+  line-height: 1.5;
+  margin: 0;
 }
 
 /* Tabs Navigation */

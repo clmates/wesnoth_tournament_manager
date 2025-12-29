@@ -195,17 +195,7 @@ const Rankings: React.FC = () => {
       {/* Ranking Criteria Info */}
       <div className="ranking-criteria-info">
         <h3>{t('ranking_criteria_title') || 'Ranking Criteria'}</h3>
-        <ul>
-          <li>
-            <strong>{t('ranking_min_elo') || 'Minimum ELO Rating'}:</strong> {t('ranking_min_elo_desc') || 'Players must have a minimum ELO rating to appear in the ranking'}
-          </li>
-          <li>
-            <strong>{t('ranking_min_matches') || 'Minimum Matches'}:</strong> {t('ranking_min_matches_desc') || 'Players must have completed a minimum number of rated matches'}
-          </li>
-          <li>
-            <strong>{t('ranking_active_days') || 'Recent Activity'}:</strong> {t('ranking_active_days_desc') || 'Players must have been active within the last 30 days to appear in the ranking'}
-          </li>
-        </ul>
+        <p>{t('ranking_criteria_description') || 'Players must have a minimum ELO of 1400, have played a minimum of 10 games and have activity in the last 30 days.'}</p>
       </div>
 
       {/* Rankings Content */}
