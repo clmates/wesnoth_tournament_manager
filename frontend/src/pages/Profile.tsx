@@ -217,6 +217,20 @@ const Profile: React.FC = () => {
                 <label>{t('profile.label_level')}</label>
                 <p>{profile?.level || t('level_novice')}</p>
               </div>
+              <div className="info-group">
+                <label>{t('status_active')}</label>
+                <p>
+                  <span style={{ color: profile?.is_active ? '#27ae60' : '#e74c3c', fontWeight: 'bold' }}>
+                    {profile?.is_active ? t('status_active') : t('status_inactive')}
+                  </span>
+                </p>
+              </div>
+              {profile?.last_activity && (
+                <div className="info-group">
+                  <label>{t('last_activity')}</label>
+                  <p>{new Date(profile.last_activity).toLocaleDateString(i18n.language, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+              )}
             </section>
 
             <section className="discord-settings">

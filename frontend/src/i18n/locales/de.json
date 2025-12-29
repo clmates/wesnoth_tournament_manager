@@ -506,5 +506,8 @@
   "unbalanced_matchups_comparison": "Unausgeglichene Matchups - Vorher und Nachher",
   "matches_evaluated": "Spiele",
   "ranking_criteria_title": "Ranking-Kriterien",
-  "ranking_criteria_description": "Spieler müssen ein Minimum-ELO von 1400 haben, mindestens 10 Spiele gespielt haben und in den letzten 30 Tagen aktiv gewesen sein."
+  "ranking_criteria_description": "Spieler müssen ein Minimum-ELO von 1400 haben, mindestens 10 Spiele gespielt haben und in den letzten 30 Tagen aktiv gewesen sein.",
+  "status_active": "Aktiv",
+  "status_inactive": "Inaktiv",
+  "last_activity": "Letzte Aktivität"
 }

@@ -504,5 +504,8 @@
   "unbalanced_matchups_comparison": "Несбалансированные поединки - до и после",
   "matches_evaluated": "матчи",
   "ranking_criteria_title": "Критерии рейтинга",
-  "ranking_criteria_description": "Игроки должны иметь минимальный рейтинг ELO 1400, сыграть минимум 10 игр и быть активными в течение последних 30 дней."
+  "ranking_criteria_description": "Игроки должны иметь минимальный рейтинг ELO 1400, сыграть минимум 10 игр и быть активными в течение последних 30 дней.",
+  "status_active": "Активен",
+  "status_inactive": "Неактивен",
+  "last_activity": "Последняя активность"
 }

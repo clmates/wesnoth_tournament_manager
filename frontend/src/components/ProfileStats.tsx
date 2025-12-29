@@ -14,6 +14,8 @@ interface ProfileStatsProps {
     total_losses: number;
     trend?: string;
     avg_elo_change?: number;
+    is_active?: boolean;
+    last_activity?: string;
   };
 }
 
@@ -84,6 +86,20 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
             {(player.avg_elo_change || 0) >= 0 ? '+' : ''}{Number(player.avg_elo_change || 0).toFixed(1)}
           </div>
         </div>
+
+        <div className="stat-card">
+          <div className="stat-label">{t('status_active')}</div>
+          <div className={`stat-value ${player.is_active ? 'active-status' : 'inactive-status'}`}>
+            {player.is_active ? t('status_active') : t('status_inactive')}
+          </div>
+        </div>
+
+        {player.last_activity && (
+          <div className="stat-card">
+            <div className="stat-label">{t('last_activity')}</div>
+            <div className="stat-value">{new Date(player.last_activity).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
+          </div>
+        )}
       </div>
     </div>
   );

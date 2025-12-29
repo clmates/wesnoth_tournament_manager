@@ -516,5 +516,8 @@
   "unbalanced_matchups_comparison": "Unbalanced Matchups - Before & After",
   "matches_evaluated": "matches",
   "ranking_criteria_title": "Ranking Criteria",
-  "ranking_criteria_description": "Players must have a minimum ELO of 1400, have played a minimum of 10 games and have activity in the last 30 days."
+  "ranking_criteria_description": "Players must have a minimum ELO of 1400, have played a minimum of 10 games and have activity in the last 30 days.",
+  "status_active": "Active",
+  "status_inactive": "Inactive",
+  "last_activity": "Last Activity"
 }

@@ -131,6 +131,16 @@
   color: #e74c3c;
 }
 
+.active-status {
+  color: #27ae60;
+  font-weight: 700;
+}
+
+.inactive-status {
+  color: #e74c3c;
+  font-weight: 700;
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
   .stats-grid {

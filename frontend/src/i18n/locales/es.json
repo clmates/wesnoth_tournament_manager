@@ -502,5 +502,8 @@
   "unbalanced_matchups_comparison": "Enfrentamientos Desbalanceados - Antes y Después",
   "matches_evaluated": "partidas",
   "ranking_criteria_title": "Criterios del Ranking",
-  "ranking_criteria_description": "Los jugadores deben tener un ELO mínimo de 1400, haber jugado un mínimo de 10 partidas y tener actividad en los últimos 30 días."
+  "ranking_criteria_description": "Los jugadores deben tener un ELO mínimo de 1400, haber jugado un mínimo de 10 partidas y tener actividad en los últimos 30 días.",
+  "status_active": "Activo",
+  "status_inactive": "Inactivo",
+  "last_activity": "Última Actividad"
 }

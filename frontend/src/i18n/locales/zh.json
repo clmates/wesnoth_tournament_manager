@@ -505,6 +505,9 @@
   "unbalanced_matchups_comparison": "不平衡的对阵 - 前后对比",
   "matches_evaluated": "场比赛",
   "ranking_criteria_title": "排名标准",
-  "ranking_criteria_description": "玩家必须拥有1400的最低ELO，至少玩过10场比赛，且在过去30天内有活动。"
+  "ranking_criteria_description": "玩家必须拥有1400的最低ELO，至少玩过10场比赛，且在过去30天内有活动。",
+  "status_active": "活跃",
+  "status_inactive": "不活跃",
+  "last_activity": "最后活动"
 }
 
