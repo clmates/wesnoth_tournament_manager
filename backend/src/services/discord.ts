@@ -3,8 +3,10 @@ import axios from 'axios';
 const DISCORD_WEBHOOK_URL_ADMIN = process.env.DISCORD_WEBHOOK_URL_ADMIN || 'https://discord.com/api/webhooks/1451903758408614021/YZsof0mktnEB_C7GcpFcIyD7Tc6v2g63dR_bqFQJYqrZRrlzNw6LPYBFfCAOHOurHZRt';
 const DISCORD_WEBHOOK_URL_USERS = process.env.DISCORD_WEBHOOK_URL_USERS || 'https://discord.com/api/webhooks/1451906911900274791/HLp96wiBX5AkZe4A86dSAz5rbJMddDDNM1SVzHGN0h8ekoWdZJ7_Sg0d4x_di54gaMyw';
 
-// Check if Discord is enabled (at least one webhook URL is properly configured)
-export const DISCORD_ENABLED = !!(process.env.DISCORD_WEBHOOK_URL_ADMIN || process.env.DISCORD_WEBHOOK_URL_USERS);
+// Check if Discord is explicitly enabled via environment variable AND at least one webhook URL is configured
+export const DISCORD_ENABLED = 
+  process.env.DISCORD_ENABLED === 'true' && 
+  !!(process.env.DISCORD_WEBHOOK_URL_ADMIN || process.env.DISCORD_WEBHOOK_URL_USERS);
 
 export async function notifyAdminNewRegistration(user: {
   nickname: string;

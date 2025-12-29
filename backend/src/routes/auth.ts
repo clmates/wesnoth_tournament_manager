@@ -5,7 +5,7 @@ import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 import { registerLimiter, loginLimiter } from '../middleware/rateLimiter.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 import { isAccountLocked, recordFailedLoginAttempt, recordSuccessfulLogin, getRemainingLockoutTime } from '../services/accountLockout.js';
-import { notifyAdminNewRegistration, notifyUserWelcome } from '../services/discord.js';
+import { notifyAdminNewRegistration, notifyUserWelcome, sendDirectMessage, DISCORD_ENABLED } from '../services/discord.js';
 
 const router = Router();
 
@@ -286,6 +286,80 @@ router.post('/force-change-password', authMiddleware, async (req: AuthRequest, r
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Password change failed' });
+  }
+});
+
+// Request Password Reset via Discord - User provides nickname and Discord ID for validation
+router.post('/request-password-reset', registerLimiter, async (req, res) => {
+  try {
+    const { nickname, discord_id } = req.body;
+    const ip = getUserIP(req);
+
+    if (!nickname || !discord_id) {
+      return res.status(400).json({ error: 'Nickname and Discord ID are required' });
+    }
+
+    // Discord is required for this feature
+    if (!DISCORD_ENABLED) {
+      return res.status(403).json({ error: 'Password reset via Discord is not enabled on this server' });
+    }
+
+    // Find user
+    const userResult = await query(
+      'SELECT id, discord_id, email FROM public.users WHERE LOWER(nickname) = LOWER($1)',
+      [nickname]
+    );
+
+    if (userResult.rows.length === 0) {
+      // Don't reveal if user exists (security)
+      return res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord DM' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Verify Discord ID matches
+    if (user.discord_id !== discord_id) {
+      // Don't reveal the mismatch for security
+      return res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord DM' });
+    }
+
+    // Generate temporary password (8 characters)
+    const tempPassword = Math.random().toString(36).slice(-8);
+    const passwordHash = await hashPassword(tempPassword);
+
+    // Update user password and set password_must_change flag
+    await query(
+      'UPDATE users SET password_hash = $1, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [passwordHash, user.id]
+    );
+
+    // Send Discord DM with temporary password
+    try {
+      await sendDirectMessage(
+        user.discord_id,
+        `🔐 **Password Reset Request**\n\n` +
+        `Your temporary password is: \`${tempPassword}\`\n\n` +
+        `Use this password to log in. You will be required to change it on your next login.\n\n` +
+        `If you didn't request this, contact an administrator.`
+      );
+    } catch (dmError) {
+      console.error('Failed to send Discord DM:', dmError);
+      // Still return success since password was reset, DM failure will be logged
+    }
+
+    // Log the request
+    await logAuditEvent({
+      event_type: 'PASSWORD_RESET_REQUESTED',
+      user_id: user.id,
+      username: nickname,
+      ip_address: ip,
+      details: { method: 'user_request_via_discord' }
+    });
+
+    res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord DM' });
+  } catch (error) {
+    console.error('Password reset request error:', error);
+    res.status(500).json({ error: 'Request failed' });
   }
 });
 

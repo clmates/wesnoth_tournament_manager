@@ -92,6 +92,8 @@ export const authService = {
   login: (nickname: string, password: string) => api.post('/auth/login', { nickname, password }),
   changePassword: (oldPassword: string, newPassword: string) =>
     api.post('/auth/change-password', { oldPassword, newPassword }),
+  requestPasswordReset: (data: { nickname: string; discord_id: string }) =>
+    api.post('/auth/request-password-reset', data),
 };
 
 export const userService = {

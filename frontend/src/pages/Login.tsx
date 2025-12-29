@@ -84,6 +84,9 @@ const Login: React.FC = () => {
       <p>
         {t('login_register')} <a href="/register">Register</a>
       </p>
+      <p>
+        {t('login_forgot_password')} <a href="/forgot-password">Forgot Password?</a>
+      </p>
     </div>
   );
 };
