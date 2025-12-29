@@ -26,6 +26,8 @@ interface ComparisonData {
   losses: number;
 }
 
+const MIN_GAMES_THRESHOLD = 10; // Minimum games to include a map in comparison
+
 const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ beforeData = null, afterData = null }) => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<MapBalanceStats[]>([]);
@@ -81,7 +83,9 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
         lowest_winrate: Math.min(...winrates, 50),
         highest_winrate: Math.max(...winrates, 50),
       };
-    }).sort((a, b) => b.total_games - a.total_games);
+    })
+    .filter(map => map.total_games >= MIN_GAMES_THRESHOLD) // Apply minimum games filter
+    .sort((a, b) => b.total_games - a.total_games);
   };
 
   useEffect(() => {
@@ -127,146 +131,89 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
   if (loading) return <div className="stats-container"><p>{t('loading')}</p></div>;
   if (error) return <div className="stats-container error"><p>{error}</p></div>;
 
-  const displayStats = beforeStats.length > 0 || afterStats.length > 0 ? stats : stats;
   const showComparison = beforeStats.length > 0 || afterStats.length > 0;
 
-  return (
-    <div className="balance-stats">
-      <h3>{t('map_balance_title') || 'Map Balance Analysis'}</h3>
-      <p className="explanation">{t('map_balance_explanation') || 'Analysis of map balance across all factions'}</p>
-      <p className="stats-info">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
-      
-      {showComparison ? (
-        <div className="comparison-blocks">
-          {beforeStats.length > 0 && (
-            <div className="before-block">
-              <h4>{t('before_event') || 'Before Event'}</h4>
-              <div className="stats-table-container">
-                <table className="stats-table">
-                  <thead>
-                    <tr>
-                      <th>{t('map') || 'Map'}</th>
-                      <th>{t('total_games') || 'Games'}</th>
-                      <th>{t('factions_used') || 'Factions'}</th>
-                      <th>{t('avg_imbalance') || 'Avg Imbalance'}</th>
-                      <th>{t('winrate_range') || 'WR Range'}</th>
-                      <th>{t('balance_indicator') || 'Balance'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {beforeStats.map((stat) => (
-                      <tr key={stat.map_id}>
-                        <td className="map-name">{stat.map_name}</td>
-                        <td>{stat.total_games}</td>
-                        <td>{stat.factions_used}</td>
-                        <td>
-                          <span className={`imbalance ${
-                            stat.avg_imbalance < 5 ? 'excellent' : 
-                            stat.avg_imbalance < 10 ? 'good' : 
-                            'needs-balance'
-                          }`}>
-                            {stat.avg_imbalance.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td>{stat.lowest_winrate.toFixed(1)}% - {stat.highest_winrate.toFixed(1)}%</td>
-                        <td>
-                          <div className="balance-bar">
-                            <div 
-                              className="imbalance-fill"
-                              style={{ width: `${Math.min(stat.avg_imbalance * 2, 100)}%` }}
-                            ></div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          
-          {afterStats.length > 0 && (
-            <div className="after-block">
-              <h4>{t('after_event') || 'After Event'}</h4>
-              <div className="stats-table-container">
-                <table className="stats-table">
-                  <thead>
-                    <tr>
-                      <th>{t('map') || 'Map'}</th>
-                      <th>{t('total_games') || 'Games'}</th>
-                      <th>{t('factions_used') || 'Factions'}</th>
-                      <th>{t('avg_imbalance') || 'Avg Imbalance'}</th>
-                      <th>{t('winrate_range') || 'WR Range'}</th>
-                      <th>{t('balance_indicator') || 'Balance'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {afterStats.map((stat) => (
-                      <tr key={stat.map_id}>
-                        <td className="map-name">{stat.map_name}</td>
-                        <td>{stat.total_games}</td>
-                        <td>{stat.factions_used}</td>
-                        <td>
-                          <span className={`imbalance ${
-                            stat.avg_imbalance < 5 ? 'excellent' : 
-                            stat.avg_imbalance < 10 ? 'good' : 
-                            'needs-balance'
-                          }`}>
-                            {stat.avg_imbalance.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td>{stat.lowest_winrate.toFixed(1)}% - {stat.highest_winrate.toFixed(1)}%</td>
-                        <td>
-                          <div className="balance-bar">
-                            <div 
-                              className="imbalance-fill"
-                              style={{ width: `${Math.min(stat.avg_imbalance * 2, 100)}%` }}
-                            ></div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
+  if (showComparison) {
+    // Create combined view
+    const allMapIds = new Set([
+      ...beforeStats.map(m => m.map_id),
+      ...afterStats.map(m => m.map_id)
+    ]);
+    
+    const beforeMap = new Map(beforeStats.map(m => [m.map_id, m]));
+    const afterMap = new Map(afterStats.map(m => [m.map_id, m]));
+    
+    const combined = Array.from(allMapIds)
+      .map(mapId => {
+        const before = beforeMap.get(mapId);
+        const after = afterMap.get(mapId);
+        return {
+          map_id: mapId,
+          map_name: after?.map_name || before?.map_name || '',
+          before,
+          after,
+        };
+      })
+      .filter(item => item.after || item.before)
+      .sort((a, b) => {
+        const aGames = (a.after?.total_games || 0) + (a.before?.total_games || 0);
+        const bGames = (b.after?.total_games || 0) + (b.before?.total_games || 0);
+        return bGames - aGames;
+      });
+
+    return (
+      <div className="balance-stats">
+        <h3>{t('map_balance_comparison') || 'Map Balance - Before & After'}</h3>
+        <p className="block-info">
+          {t('before_event') || 'Before'}: {beforeData.reduce((sum, d) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterData.reduce((sum, d) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'}
+        </p>
+        <p className="stats-info">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
+        
         <div className="stats-table-container">
-          <table className="stats-table">
+          <table className="stats-table compact-comparison">
             <thead>
               <tr>
                 <th>{t('map') || 'Map'}</th>
                 <th>{t('total_games') || 'Games'}</th>
-                <th>{t('factions_used') || 'Factions'}</th>
                 <th>{t('avg_imbalance') || 'Avg Imbalance'}</th>
-                <th>{t('winrate_range') || 'WR Range'}</th>
                 <th>{t('balance_indicator') || 'Balance'}</th>
               </tr>
             </thead>
             <tbody>
-              {stats.map((stat) => (
-                <tr key={stat.map_id}>
-                  <td className="map-name">{stat.map_name}</td>
-                  <td>{stat.total_games}</td>
-                  <td>{stat.factions_used}</td>
+              {combined.map((item) => (
+                <tr key={item.map_id}>
+                  <td className="map-name">{item.map_name}</td>
+                  <td>
+                    {item.after?.total_games || '-'}
+                    {item.before && <span className="before-value">({item.before.total_games})</span>}
+                  </td>
                   <td>
                     <span className={`imbalance ${
-                      stat.avg_imbalance < 5 ? 'excellent' : 
-                      stat.avg_imbalance < 10 ? 'good' : 
+                      (item.after?.avg_imbalance || 0) < 5 ? 'excellent' : 
+                      (item.after?.avg_imbalance || 0) < 10 ? 'good' : 
                       'needs-balance'
                     }`}>
-                      {stat.avg_imbalance.toFixed(1)}%
+                      {item.after?.avg_imbalance.toFixed(1) || '-'}%
                     </span>
+                    {item.before && <span className="before-value">({item.before.avg_imbalance.toFixed(1)}%)</span>}
                   </td>
-                  <td>{stat.lowest_winrate.toFixed(1)}% - {stat.highest_winrate.toFixed(1)}%</td>
                   <td>
-                    <div className="balance-bar">
-                      <div 
-                        className="imbalance-fill"
-                        style={{ width: `${Math.min(stat.avg_imbalance * 2, 100)}%` }}
-                      ></div>
+                    <div className="stacked-balance-bar">
+                      {item.before && (
+                        <div 
+                          className="balance-fill before"
+                          style={{ width: `${Math.min((item.before.avg_imbalance / 20) * 100, 100)}%` }}
+                          title={`Before: ${item.before.avg_imbalance.toFixed(1)}%`}
+                        ></div>
+                      )}
+                      {item.after && (
+                        <div 
+                          className="balance-fill after"
+                          style={{ width: `${Math.min((item.after.avg_imbalance / 20) * 100, 100)}%` }}
+                          title={`After: ${item.after.avg_imbalance.toFixed(1)}%`}
+                        ></div>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -274,7 +221,58 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
             </tbody>
           </table>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  // Default global view
+  return (
+    <div className="balance-stats">
+      <h3>{t('map_balance_title') || 'Map Balance Analysis'}</h3>
+      <p className="explanation">{t('map_balance_explanation') || 'Analysis of map balance across all factions'}</p>
+      <p className="stats-info">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
+      
+      <div className="stats-table-container">
+        <table className="stats-table">
+          <thead>
+            <tr>
+              <th>{t('map') || 'Map'}</th>
+              <th>{t('total_games') || 'Games'}</th>
+              <th>{t('factions_used') || 'Factions'}</th>
+              <th>{t('avg_imbalance') || 'Avg Imbalance'}</th>
+              <th>{t('winrate_range') || 'WR Range'}</th>
+              <th>{t('balance_indicator') || 'Balance'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.map((stat) => (
+              <tr key={stat.map_id}>
+                <td className="map-name">{stat.map_name}</td>
+                <td>{stat.total_games}</td>
+                <td>{stat.factions_used}</td>
+                <td>
+                  <span className={`imbalance ${
+                    stat.avg_imbalance < 5 ? 'excellent' : 
+                    stat.avg_imbalance < 10 ? 'good' : 
+                    'needs-balance'
+                  }`}>
+                    {stat.avg_imbalance.toFixed(1)}%
+                  </span>
+                </td>
+                <td>{stat.lowest_winrate.toFixed(1)}% - {stat.highest_winrate.toFixed(1)}%</td>
+                <td>
+                  <div className="balance-bar">
+                    <div 
+                      className="imbalance-fill"
+                      style={{ width: `${Math.min(stat.avg_imbalance * 2, 100)}%` }}
+                    ></div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

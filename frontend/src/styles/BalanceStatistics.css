@@ -350,3 +350,68 @@
     }
   }
 }
+
+/* Compact comparison table styles */
+.stats-table.compact-comparison {
+  margin-top: 1rem;
+}
+
+.stats-table.compact-comparison td {
+  position: relative;
+  white-space: nowrap;
+}
+
+.before-value {
+  display: block;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+  font-weight: normal;
+  margin-top: 2px;
+}
+
+/* Stacked balance bar for before/after */
+.stacked-balance-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 40px;
+  justify-content: center;
+}
+
+.stacked-balance-bar .balance-fill {
+  height: 16px;
+  border-radius: 3px;
+  position: relative;
+  min-width: 2px;
+}
+
+.stacked-balance-bar .balance-fill.before {
+  background-color: #e74c3c;
+  opacity: 0.6;
+}
+
+.stacked-balance-bar .balance-fill.after {
+  background-color: #27ae60;
+  opacity: 0.8;
+}
+
+.stacked-balance-bar .balance-fill:hover {
+  opacity: 1;
+}
+
+.matchup-name {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.matchup-name .faction {
+  min-width: 80px;
+}
+
+.matchup-name .vs {
+  color: #bdc3c7;
+  font-size: 0.85rem;
+  font-weight: normal;
+}

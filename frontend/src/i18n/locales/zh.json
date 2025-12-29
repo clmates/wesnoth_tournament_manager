@@ -497,6 +497,12 @@
   "updating": "更新中...",
   "actions": "操作",
   "before": "之前",
-  "after": "之后"
+  "after": "之后",
+  "before_event": "事件前",
+  "after_event": "事件后",
+  "faction_balance_comparison": "派系平衡 - 前后对比",
+  "map_balance_comparison": "地图平衡 - 前后对比",
+  "unbalanced_matchups_comparison": "不平衡的对阵 - 前后对比",
+  "matches_evaluated": "场比赛"
 }
 

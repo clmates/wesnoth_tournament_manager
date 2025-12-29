@@ -498,5 +498,11 @@
   "updating": "Wird aktualisiert...",
   "actions": "Aktionen",
   "before": "Vorher",
-  "after": "Nachher"
+  "after": "Nachher",
+  "before_event": "Vor dem Ereignis",
+  "after_event": "Nach dem Ereignis",
+  "faction_balance_comparison": "Fraktionsbalance - Vorher und Nachher",
+  "map_balance_comparison": "Kartenbalance - Vorher und Nachher",
+  "unbalanced_matchups_comparison": "Unausgeglichene Matchups - Vorher und Nachher",
+  "matches_evaluated": "Spiele"
 }

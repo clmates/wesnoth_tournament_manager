@@ -29,6 +29,8 @@ interface FactionBalanceTabProps {
   afterData?: ComparisonData[] | null;
 }
 
+const MIN_GAMES_THRESHOLD = 10; // Minimum games to include a faction in comparison
+
 const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null, afterData = null }) => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<FactionStats[]>([]);
@@ -83,12 +85,14 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
       }
     });
 
-    return Array.from(factionMap.values()).map(stat => ({
-      faction_id: stat.faction_id,
-      faction_name: stat.faction_name,
-      total_games: stat.total_games,
-      winrate: stat.winrate,
-    })).sort((a, b) => b.total_games - a.total_games);
+    return Array.from(factionMap.values())
+      .filter(stat => stat.total_games >= MIN_GAMES_THRESHOLD) // Apply minimum games filter
+      .map(stat => ({
+        faction_id: stat.faction_id,
+        faction_name: stat.faction_name,
+        total_games: stat.total_games,
+        winrate: stat.winrate,
+      })).sort((a, b) => b.total_games - a.total_games);
   };
 
   if (loading) return <div className="stats-container"><p>{t('loading')}</p></div>;
@@ -98,69 +102,68 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
   if (beforeData && afterData) {
     const beforeAgg = aggregateFactionData(beforeData);
     const afterAgg = aggregateFactionData(afterData);
+    
+    // Create a combined view: merge before and after by faction_id
+    const allFactionIds = new Set([
+      ...beforeAgg.map(f => f.faction_id),
+      ...afterAgg.map(f => f.faction_id)
+    ]);
+    
+    const beforeMap = new Map(beforeAgg.map(f => [f.faction_id, f]));
+    const afterMap = new Map(afterAgg.map(f => [f.faction_id, f]));
+    
+    const combined = Array.from(allFactionIds)
+      .map(factionId => {
+        const before = beforeMap.get(factionId);
+        const after = afterMap.get(factionId);
+        return {
+          faction_id: factionId,
+          faction_name: after?.faction_name || before?.faction_name || '',
+          before,
+          after,
+        };
+      })
+      .filter(item => item.after || item.before) // Keep items with data in either period
+      .sort((a, b) => {
+        const aGames = (a.after?.total_games || 0) + (a.before?.total_games || 0);
+        const bGames = (b.after?.total_games || 0) + (b.before?.total_games || 0);
+        return bGames - aGames;
+      });
 
     return (
       <div className="balance-stats">
-        <div className="comparison-blocks">
-          {/* BEFORE Block */}
-          <div className="comparison-block before-block">
-            <h3>{t('before') || 'Before'}</h3>
-            <p className="block-info">{t('matches_evaluated') || 'Matches'}: {beforeData.reduce((sum, d) => sum + d.total_games, 0)}</p>
-            <div className="stats-table-container">
-              <table className="stats-table">
-                <thead>
-                  <tr>
-                    <th>{t('faction') || 'Faction'}</th>
-                    <th>{t('total_games') || 'Games'}</th>
-                    <th>{t('winrate') || 'Win Rate'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {beforeAgg.map((stat) => (
-                    <tr key={stat.faction_id}>
-                      <td className="faction-name">{stat.faction_name}</td>
-                      <td>{stat.total_games}</td>
-                      <td>
-                        <span className={`winrate ${getWinrateColorClass(stat.winrate)}`}>
-                          {stat.winrate.toFixed(1)}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* AFTER Block */}
-          <div className="comparison-block after-block">
-            <h3>{t('after') || 'After'}</h3>
-            <p className="block-info">{t('matches_evaluated') || 'Matches'}: {afterData.reduce((sum, d) => sum + d.total_games, 0)}</p>
-            <div className="stats-table-container">
-              <table className="stats-table">
-                <thead>
-                  <tr>
-                    <th>{t('faction') || 'Faction'}</th>
-                    <th>{t('total_games') || 'Games'}</th>
-                    <th>{t('winrate') || 'Win Rate'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {afterAgg.map((stat) => (
-                    <tr key={stat.faction_id}>
-                      <td className="faction-name">{stat.faction_name}</td>
-                      <td>{stat.total_games}</td>
-                      <td>
-                        <span className={`winrate ${getWinrateColorClass(stat.winrate)}`}>
-                          {stat.winrate.toFixed(1)}%
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <h3>{t('faction_balance_comparison') || 'Faction Balance - Before & After'}</h3>
+        <p className="block-info">
+          {t('before_event') || 'Before'}: {beforeData.reduce((sum, d) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterData.reduce((sum, d) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'}
+        </p>
+        <div className="stats-table-container">
+          <table className="stats-table compact-comparison">
+            <thead>
+              <tr>
+                <th>{t('faction') || 'Faction'}</th>
+                <th>{t('total_games') || 'Games'}</th>
+                <th>{t('winrate') || 'Win Rate'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {combined.map((item) => (
+                <tr key={item.faction_id}>
+                  <td className="faction-name">{item.faction_name}</td>
+                  <td>
+                    {item.after?.total_games || '-'}
+                    {item.before && <span className="before-value">({item.before.total_games})</span>}
+                  </td>
+                  <td>
+                    <span className={`winrate ${getWinrateColorClass(item.after?.winrate || 50)}`}>
+                      {item.after?.winrate.toFixed(1) || '-'}%
+                    </span>
+                    {item.before && <span className="before-value">({item.before.winrate.toFixed(1)}%)</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );

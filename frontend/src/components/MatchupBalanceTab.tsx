@@ -30,6 +30,8 @@ interface ComparisonData {
   losses: number;
 }
 
+const MIN_GAMES_THRESHOLD = 10; // Minimum games to include a matchup in comparison
+
 const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ beforeData = null, afterData = null }) => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<MatchupStats[]>([]);
@@ -88,7 +90,9 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       });
     });
     
-    return results.sort((a, b) => b.imbalance - a.imbalance);
+    return results
+      .filter(m => m.total_games >= MIN_GAMES_THRESHOLD) // Apply minimum games filter
+      .sort((a, b) => b.imbalance - a.imbalance);
   };
 
   useEffect(() => {
@@ -136,198 +140,169 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
   const showComparison = beforeStats.length > 0 || afterStats.length > 0;
   const filteredStats = stats.filter(s => s.total_games >= minGames);
 
+  if (showComparison) {
+    // Create combined view
+    const allMatchupIds = new Set([
+      ...beforeStats.map(m => `${m.map_id}|${m.faction_1_id}|${m.faction_2_id}`),
+      ...afterStats.map(m => `${m.map_id}|${m.faction_1_id}|${m.faction_2_id}`)
+    ]);
+    
+    const beforeMap = new Map(beforeStats.map(m => [`${m.map_id}|${m.faction_1_id}|${m.faction_2_id}`, m]));
+    const afterMap = new Map(afterStats.map(m => [`${m.map_id}|${m.faction_1_id}|${m.faction_2_id}`, m]));
+    
+    const combined = Array.from(allMatchupIds)
+      .map(matchupId => {
+        const before = beforeMap.get(matchupId);
+        const after = afterMap.get(matchupId);
+        return {
+          matchup_id: matchupId,
+          before,
+          after,
+        };
+      })
+      .filter(item => item.after || item.before)
+      .sort((a, b) => {
+        const aImbalance = Math.max(a.after?.imbalance || 0, a.before?.imbalance || 0);
+        const bImbalance = Math.max(b.after?.imbalance || 0, b.before?.imbalance || 0);
+        return bImbalance - aImbalance;
+      });
+
+    return (
+      <div className="balance-stats">
+        <h3>{t('unbalanced_matchups_comparison') || 'Unbalanced Matchups - Before & After'}</h3>
+        <p className="block-info">
+          {t('before_event') || 'Before'}: {beforeData.reduce((sum, d) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterData.reduce((sum, d) => sum + d.total_games, 0)} {t('matches_evaluated') || 'matches'}
+        </p>
+
+        <div className="stats-table-container">
+          <table className="stats-table compact-comparison">
+            <thead>
+              <tr>
+                <th>{t('map') || 'Map'}</th>
+                <th>{t('matchup') || 'Matchup'}</th>
+                <th>{t('total_games') || 'Games'}</th>
+                <th>{t('faction_1_winrate') || 'Faction 1 WR'}</th>
+                <th>{t('imbalance') || 'Imbalance'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {combined.map((item, idx) => {
+                const stat = item.after || item.before;
+                if (!stat) return null;
+                return (
+                  <tr key={`${stat.map_id}-${idx}`}>
+                    <td className="map-name">{stat.map_name}</td>
+                    <td className="matchup-name">
+                      <span className="faction">{stat.faction_1_name}</span>
+                      <span className="vs"> vs </span>
+                      <span className="faction">{stat.faction_2_name}</span>
+                    </td>
+                    <td>
+                      {item.after?.total_games || '-'}
+                      {item.before && <span className="before-value">({item.before.total_games})</span>}
+                    </td>
+                    <td>
+                      <span className={`winrate ${
+                        (item.after?.faction_1_winrate || 50) > 55 ? 'high' : 
+                        (item.after?.faction_1_winrate || 50) < 45 ? 'low' : 
+                        'balanced'
+                      }`}>
+                        {item.after?.faction_1_winrate.toFixed(1) || '-'}%
+                      </span>
+                      {item.before && <span className="before-value">({item.before.faction_1_winrate.toFixed(1)}%)</span>}
+                    </td>
+                    <td>
+                      <span className={`imbalance-badge ${
+                        (item.after?.imbalance || 0) > 10 ? 'severe' : 
+                        (item.after?.imbalance || 0) > 5 ? 'high' : 
+                        'moderate'
+                      }`}>
+                        {item.after?.imbalance.toFixed(1) || '-'}%
+                      </span>
+                      {item.before && <span className="before-value">({item.before.imbalance.toFixed(1)}%)</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // Default global view
   return (
     <div className="balance-stats">
       <h3>{t('unbalanced_matchups') || 'Unbalanced Matchups'}</h3>
       <p className="explanation">{t('matchup_balance_explanation') || 'Analysis of specific faction matchups showing imbalance'}</p>
       
-      {!showComparison && (
-        <div className="filter-controls">
-          <label>
-            {t('minimum_games') || 'Minimum Games'}:
-            <input 
-              type="number" 
-              min="1" 
-              max="100" 
-              value={minGames}
-              onChange={(e) => setMinGames(Math.max(1, parseInt(e.target.value) || 1))}
-            />
-          </label>
-        </div>
-      )}
+      <div className="filter-controls">
+        <label>
+          {t('minimum_games') || 'Minimum Games'}:
+          <input 
+            type="number" 
+            min="1" 
+            max="100" 
+            value={minGames}
+            onChange={(e) => setMinGames(Math.max(1, parseInt(e.target.value) || 1))}
+          />
+        </label>
+      </div>
 
-      {showComparison ? (
-        <div className="comparison-blocks">
-          {beforeStats.length > 0 && (
-            <div className="before-block">
-              <h4>{t('before_event') || 'Before Event'}</h4>
-              <div className="stats-table-container">
-                <table className="stats-table">
-                  <thead>
-                    <tr>
-                      <th>{t('map') || 'Map'}</th>
-                      <th>{t('faction_1') || 'Faction 1'}</th>
-                      <th>{t('vs')}</th>
-                      <th>{t('faction_2') || 'Faction 2'}</th>
-                      <th>{t('total_games') || 'Games'}</th>
-                      <th>{t('faction_1_wins') || 'F1 Wins'}</th>
-                      <th>{t('faction_2_wins') || 'F2 Wins'}</th>
-                      <th>{t('imbalance') || 'Imbalance'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {beforeStats.map((stat, idx) => (
-                      <tr key={`${stat.map_id}-${stat.faction_1_id}-${stat.faction_2_id}-${idx}`}>
-                        <td className="map-name">{stat.map_name}</td>
-                        <td className="faction-name faction-1">
-                          {stat.faction_1_name}
-                          <span className="winrate-small">({stat.faction_1_winrate.toFixed(1)}%)</span>
-                        </td>
-                        <td className="vs">vs</td>
-                        <td className="faction-name faction-2">
-                          {stat.faction_2_name}
-                          <span className="winrate-small">({(100 - stat.faction_1_winrate).toFixed(1)}%)</span>
-                        </td>
-                        <td>{stat.total_games}</td>
-                        <td className="win-count">
-                          <span className={stat.faction_1_wins > stat.faction_2_wins ? 'higher' : ''}>
-                            {stat.faction_1_wins}
-                          </span>
-                        </td>
-                        <td className="win-count">
-                          <span className={stat.faction_2_wins > stat.faction_1_wins ? 'higher' : ''}>
-                            {stat.faction_2_wins}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`imbalance-badge ${
-                            stat.imbalance > 10 ? 'severe' : 
-                            stat.imbalance > 5 ? 'high' : 
-                            'moderate'
-                          }`}>
-                            {stat.imbalance.toFixed(1)}%
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          
-          {afterStats.length > 0 && (
-            <div className="after-block">
-              <h4>{t('after_event') || 'After Event'}</h4>
-              <div className="stats-table-container">
-                <table className="stats-table">
-                  <thead>
-                    <tr>
-                      <th>{t('map') || 'Map'}</th>
-                      <th>{t('faction_1') || 'Faction 1'}</th>
-                      <th>{t('vs')}</th>
-                      <th>{t('faction_2') || 'Faction 2'}</th>
-                      <th>{t('total_games') || 'Games'}</th>
-                      <th>{t('faction_1_wins') || 'F1 Wins'}</th>
-                      <th>{t('faction_2_wins') || 'F2 Wins'}</th>
-                      <th>{t('imbalance') || 'Imbalance'}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {afterStats.map((stat, idx) => (
-                      <tr key={`${stat.map_id}-${stat.faction_1_id}-${stat.faction_2_id}-${idx}`}>
-                        <td className="map-name">{stat.map_name}</td>
-                        <td className="faction-name faction-1">
-                          {stat.faction_1_name}
-                          <span className="winrate-small">({stat.faction_1_winrate.toFixed(1)}%)</span>
-                        </td>
-                        <td className="vs">vs</td>
-                        <td className="faction-name faction-2">
-                          {stat.faction_2_name}
-                          <span className="winrate-small">({(100 - stat.faction_1_winrate).toFixed(1)}%)</span>
-                        </td>
-                        <td>{stat.total_games}</td>
-                        <td className="win-count">
-                          <span className={stat.faction_1_wins > stat.faction_2_wins ? 'higher' : ''}>
-                            {stat.faction_1_wins}
-                          </span>
-                        </td>
-                        <td className="win-count">
-                          <span className={stat.faction_2_wins > stat.faction_1_wins ? 'higher' : ''}>
-                            {stat.faction_2_wins}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`imbalance-badge ${
-                            stat.imbalance > 10 ? 'severe' : 
-                            stat.imbalance > 5 ? 'high' : 
-                            'moderate'
-                          }`}>
-                            {stat.imbalance.toFixed(1)}%
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="stats-table-container">
-          <table className="stats-table">
-            <thead>
-              <tr>
-                <th>{t('map') || 'Map'}</th>
-                <th>{t('faction_1') || 'Faction 1'}</th>
-                <th>{t('vs')}</th>
-                <th>{t('faction_2') || 'Faction 2'}</th>
-                <th>{t('total_games') || 'Games'}</th>
-                <th>{t('faction_1_wins') || 'F1 Wins'}</th>
-                <th>{t('faction_2_wins') || 'F2 Wins'}</th>
-                <th>{t('imbalance') || 'Imbalance'}</th>
+      <div className="stats-table-container">
+        <table className="stats-table">
+          <thead>
+            <tr>
+              <th>{t('map') || 'Map'}</th>
+              <th>{t('faction_1') || 'Faction 1'}</th>
+              <th>{t('vs')}</th>
+              <th>{t('faction_2') || 'Faction 2'}</th>
+              <th>{t('total_games') || 'Games'}</th>
+              <th>{t('faction_1_wins') || 'F1 Wins'}</th>
+              <th>{t('faction_2_wins') || 'F2 Wins'}</th>
+              <th>{t('imbalance') || 'Imbalance'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredStats.map((stat, idx) => (
+              <tr key={`${stat.map_id}-${stat.faction_1_id}-${stat.faction_2_id}-${idx}`}>
+                <td className="map-name">{stat.map_name}</td>
+                <td className="faction-name faction-1">
+                  {stat.faction_1_name}
+                  <span className="winrate-small">({stat.faction_1_winrate.toFixed(1)}%)</span>
+                </td>
+                <td className="vs">vs</td>
+                <td className="faction-name faction-2">
+                  {stat.faction_2_name}
+                  <span className="winrate-small">({(100 - stat.faction_1_winrate).toFixed(1)}%)</span>
+                </td>
+                <td>{stat.total_games}</td>
+                <td className="win-count">
+                  <span className={stat.faction_1_wins > stat.faction_2_wins ? 'higher' : ''}>
+                    {stat.faction_1_wins}
+                  </span>
+                </td>
+                <td className="win-count">
+                  <span className={stat.faction_2_wins > stat.faction_1_wins ? 'higher' : ''}>
+                    {stat.faction_2_wins}
+                  </span>
+                </td>
+                <td>
+                  <span className={`imbalance-badge ${
+                    stat.imbalance > 10 ? 'severe' : 
+                    stat.imbalance > 5 ? 'high' : 
+                    'moderate'
+                  }`}>
+                    {stat.imbalance.toFixed(1)}%
+                  </span>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredStats.map((stat, idx) => (
-                <tr key={`${stat.map_id}-${stat.faction_1_id}-${stat.faction_2_id}-${idx}`}>
-                  <td className="map-name">{stat.map_name}</td>
-                  <td className="faction-name faction-1">
-                    {stat.faction_1_name}
-                    <span className="winrate-small">({stat.faction_1_winrate.toFixed(1)}%)</span>
-                  </td>
-                  <td className="vs">vs</td>
-                  <td className="faction-name faction-2">
-                    {stat.faction_2_name}
-                    <span className="winrate-small">({(100 - stat.faction_1_winrate).toFixed(1)}%)</span>
-                  </td>
-                  <td>{stat.total_games}</td>
-                  <td className="win-count">
-                    <span className={stat.faction_1_wins > stat.faction_2_wins ? 'higher' : ''}>
-                      {stat.faction_1_wins}
-                    </span>
-                  </td>
-                  <td className="win-count">
-                    <span className={stat.faction_2_wins > stat.faction_1_wins ? 'higher' : ''}>
-                      {stat.faction_2_wins}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`imbalance-badge ${
-                      stat.imbalance > 10 ? 'severe' : 
-                      stat.imbalance > 5 ? 'high' : 
-                      'moderate'
-                    }`}>
-                      {stat.imbalance.toFixed(1)}%
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {!showComparison && stats.length === 0 && (
         <p className="no-data">{t('no_data_available') || 'No data available for the selected criteria'}</p>

@@ -494,5 +494,11 @@
   "updating": "Actualizando...",
   "actions": "Acciones",
   "before": "Antes",
-  "after": "Después"
+  "after": "Después",
+  "before_event": "Antes del Evento",
+  "after_event": "Después del Evento",
+  "faction_balance_comparison": "Balance de Facciones - Antes y Después",
+  "map_balance_comparison": "Balance de Mapas - Antes y Después",
+  "unbalanced_matchups_comparison": "Enfrentamientos Desbalanceados - Antes y Después",
+  "matches_evaluated": "partidas"
 }

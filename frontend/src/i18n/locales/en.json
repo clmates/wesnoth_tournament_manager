@@ -508,5 +508,11 @@
   "updating": "Updating...",
   "actions": "Actions",
   "before": "Before",
-  "after": "After"
+  "after": "After",
+  "before_event": "Before Event",
+  "after_event": "After Event",
+  "faction_balance_comparison": "Faction Balance - Before & After",
+  "map_balance_comparison": "Map Balance - Before & After",
+  "unbalanced_matchups_comparison": "Unbalanced Matchups - Before & After",
+  "matches_evaluated": "matches"
 }
