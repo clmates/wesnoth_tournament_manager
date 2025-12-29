@@ -57,7 +57,7 @@ const startServer = async () => {
     });
     
     // Schedule daily inactive player check at 01:00 UTC
-    // Marks players as inactive if they have no confirmed matches in the last 30 days
+    // Marks players as inactive if they have no matches (any status except cancelled) in the last 30 days
     cron.schedule('0 1 * * *', async () => {
       try {
         console.log('👤 Running daily inactive player check...');
@@ -70,7 +70,7 @@ const startServer = async () => {
                SELECT DISTINCT u.id
                FROM users u
                INNER JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id)
-               WHERE m.status = 'confirmed' 
+               WHERE m.status != 'cancelled' 
                  AND m.created_at >= CURRENT_DATE - INTERVAL '30 days'
              )
            RETURNING id`
