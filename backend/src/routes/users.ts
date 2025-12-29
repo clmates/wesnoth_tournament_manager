@@ -47,10 +47,14 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
       [req.userId]
     );
 
+    console.log(`[User ${req.userId}] Last activity query result:`, lastActivityResult.rows);
+
     const result = {
       ...user,
       last_activity: lastActivityResult.rows[0]?.created_at || null
     };
+
+    console.log(`[User ${req.userId}] Final result:`, result);
 
     res.json(result);
   } catch (error) {

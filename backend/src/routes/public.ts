@@ -513,10 +513,14 @@ router.get('/players/:id', async (req, res) => {
       [id]
     );
 
+    console.log(`[Player ${id}] Last activity query result:`, lastActivityResult.rows);
+
     const result = {
       ...player,
       last_activity: lastActivityResult.rows[0]?.created_at || null
     };
+
+    console.log(`[Player ${id}] Final result:`, result);
 
     res.json(result);
   } catch (error) {
