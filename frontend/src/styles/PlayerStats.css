@@ -640,15 +640,15 @@
 }
 
 .stats-table thead {
-  background-color: #f5f5f5;
-  border-bottom: 2px solid #e0e0e0;
+  background-color: #2c3e50;
+  border-bottom: 2px solid #1a252f;
 }
 
 .stats-table th {
   padding: 12px 16px;
   text-align: left;
   font-weight: 600;
-  color: #333;
+  color: white;
   font-size: 0.9em;
   text-transform: uppercase;
   letter-spacing: 0.5px;

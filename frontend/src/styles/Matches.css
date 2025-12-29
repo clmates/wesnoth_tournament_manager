@@ -95,6 +95,7 @@
   text-align: left;
   font-size: 0.95rem;
   border-bottom: 2px solid #34495e;
+  color: white;
 }
 
 /* Center header text for sortable columns */
@@ -104,6 +105,7 @@
 .games-table th.map-col,
 .games-table th.status-actions-col {
   text-align: center;
+  color: white;
 }
 
 /* Indicate clickable headers visually */
