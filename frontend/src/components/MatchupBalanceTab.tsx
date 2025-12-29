@@ -41,9 +41,8 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
   const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
 
   const aggregateMatchupData = (data: ComparisonData[]): MatchupStats[] => {
-    // Track processed matches to avoid double-counting
-    // Each match appears twice in data (once for each faction perspective)
-    const processedMatches = new Set<string>();
+    // Group by normalized matchup (map + normalized faction order)
+    // Each match appears twice in data (once for each faction), but we need to aggregate them
     const matchupMap = new Map<string, {
       map_id: string;
       map_name: string;
@@ -57,16 +56,8 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
     }>();
     
     data.forEach(item => {
-      // Create a normalized match key to track which matches we've seen
       const f1 = item.faction_id || '';
       const f2 = item.opponent_faction_id || '';
-      const matchKey = `${item.map_id}|${[f1, f2].sort().join('|')}`;
-      
-      // Skip if we've already processed this match
-      if (processedMatches.has(matchKey)) {
-        return;
-      }
-      processedMatches.add(matchKey);
       
       // Normalize faction order
       const ordered = [f1, f2].sort();
@@ -77,21 +68,31 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       
       const mapKey = `${item.map_id}|${ordered[0]}|${ordered[1]}`;
       
-      matchupMap.set(mapKey, {
-        map_id: item.map_id || '',
-        map_name: item.map_name || '',
-        f1_id: ordered[0],
-        f1_name: (isOriginalOrder ? item.faction_name : item.opponent_faction_name) || '',
-        f2_id: ordered[1],
-        f2_name: (isOriginalOrder ? item.opponent_faction_name : item.faction_name) || '',
-        f1_wins: f1Wins,
-        f2_wins: f2Wins,
-        total_games: item.total_games,
-      });
+      const existing = matchupMap.get(mapKey);
+      
+      if (!existing) {
+        // First occurrence - create entry
+        matchupMap.set(mapKey, {
+          map_id: item.map_id || '',
+          map_name: item.map_name || '',
+          f1_id: ordered[0],
+          f1_name: (isOriginalOrder ? item.faction_name : item.opponent_faction_name) || '',
+          f2_id: ordered[1],
+          f2_name: (isOriginalOrder ? item.opponent_faction_name : item.faction_name) || '',
+          f1_wins: f1Wins,
+          f2_wins: f2Wins,
+          total_games: item.total_games,
+        });
+      } else {
+        // Aggregate data from the duplicate entry (same matchup, opposite faction order)
+        existing.f1_wins += f1Wins;
+        existing.f2_wins += f2Wins;
+        existing.total_games += item.total_games;
+      }
     });
     
     const results: MatchupStats[] = Array.from(matchupMap.values()).map(matchup => {
-      const totalGames = matchup.total_games;
+      const totalGames = matchup.total_games / 2; // Divide by 2 because each game counted twice
       const f1Wins = matchup.f1_wins;
       const f2Wins = matchup.f2_wins;
       const f1Winrate = totalGames > 0 ? (f1Wins / totalGames) * 100 : 0;
