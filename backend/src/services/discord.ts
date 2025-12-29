@@ -389,44 +389,10 @@ export async function sendPasswordResetViaThread(
       threadName
     });
 
-    // Set thread permissions: only the user and admins can see it
-    // Remove permissions for @everyone (ID "0" is @everyone)
-    console.log('[PASSWORD-RESET-THREAD] Setting thread permissions');
-
-    try {
-      // Remove @everyone access
-      await axios.put(
-        `${DISCORD_API_URL}/channels/${threadId}/permissions/0`,
-        {
-          allow: '0',
-          deny: '1024', // VIEW_CHANNEL permission
-          type: 'role'
-        },
-        { headers }
-      );
-      console.log('[PASSWORD-RESET-THREAD] @everyone permission removed');
-    } catch (permError) {
-      console.warn('[PASSWORD-RESET-THREAD] Could not modify @everyone permissions:', permError instanceof Error ? permError.message : String(permError));
-      // Continue anyway, thread is still private
-    }
-
-    // Allow the user to see the thread
-    try {
-      await axios.put(
-        `${DISCORD_API_URL}/channels/${threadId}/permissions/${discordId}`,
-        {
-          allow: '1024', // VIEW_CHANNEL permission
-          deny: '0',
-          type: 'member'
-        },
-        { headers }
-      );
-      console.log('[PASSWORD-RESET-THREAD] User permission granted for thread');
-    } catch (permError) {
-      console.warn('[PASSWORD-RESET-THREAD] Could not grant user permissions:', permError instanceof Error ? permError.message : String(permError));
-      // Continue anyway
-    }
-
+    // Note: Private threads (type 12) are automatically private in Discord
+    // They don't need permission modifications - they're only visible to the thread creator
+    // and members who are invited to the thread
+    
     // Send the password reset message
     console.log('[PASSWORD-RESET-THREAD] Sending password reset message to thread');
 
