@@ -1,7 +1,10 @@
 -- ============================================================================
--- New function: Get balance event forward impact
--- Shows statistics from the event date onwards (until next event or today)
+-- Fix: get_balance_event_forward_impact - ambiguous column reference
 -- ============================================================================
+-- The function had ambiguous column references for faction_id and map_id
+-- This migration recreates the function with proper table aliases
+
+DROP FUNCTION IF EXISTS get_balance_event_forward_impact(UUID);
 
 CREATE OR REPLACE FUNCTION get_balance_event_forward_impact(
   event_id_param UUID
