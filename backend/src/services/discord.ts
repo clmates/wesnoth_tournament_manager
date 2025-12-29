@@ -197,3 +197,53 @@ export async function notifyUserUnlocked(user: {
     });
   }
 }
+
+/**
+ * Send a direct message to a Discord user via DM
+ */
+export async function sendDirectMessage(discordId: string, message: string): Promise<void> {
+  if (!DISCORD_ENABLED || !process.env.DISCORD_BOT_TOKEN) {
+    console.warn('[DISCORD] Discord not enabled or bot token not configured, skipping DM');
+    return;
+  }
+
+  if (!discordId) {
+    console.warn('[DISCORD] No Discord ID provided, cannot send DM');
+    return;
+  }
+
+  try {
+    const DISCORD_API_URL = 'https://discord.com/api/v10';
+    const headers = {
+      Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`,
+      'Content-Type': 'application/json',
+    };
+
+    // First, create a DM channel
+    const dmChannelResponse = await axios.post(
+      `${DISCORD_API_URL}/users/@me/channels`,
+      { recipient_id: discordId },
+      { headers }
+    );
+
+    const dmChannelId = dmChannelResponse.data.id;
+
+    // Then send the message to that channel
+    await axios.post(
+      `${DISCORD_API_URL}/channels/${dmChannelId}/messages`,
+      { content: message },
+      { headers }
+    );
+
+    console.log(`✅ Discord DM sent successfully to user ${discordId}`);
+  } catch (error: any) {
+    console.error('❌ Error sending Discord DM:', {
+      discordId,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    throw error;
+  }
+}

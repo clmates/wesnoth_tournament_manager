@@ -358,11 +358,11 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
 
     // Log the request
     await logAuditEvent({
-      event_type: 'PASSWORD_RESET_REQUESTED',
+      event_type: 'SECURITY_EVENT',
       user_id: user.id,
       username: nickname,
       ip_address: ip,
-      details: { method: 'user_request_via_discord' }
+      details: { method: 'user_request_via_discord', action: 'password_reset_requested' }
     });
 
     res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord DM' });
