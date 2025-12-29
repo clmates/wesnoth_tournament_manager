@@ -94,6 +94,8 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
     return Array.from(mapMap.values()).map(mapData => {
       const factionStats = mapData.factionStats;
       const totalGames = Array.from(factionStats.values()).reduce((sum, f) => sum + f.total, 0) / 2; // Divide by 2 because each game counted twice
+      // For winrate calculation, use the actual wins/total from each faction (don't divide by 2)
+      // because each faction's perspective counts the games they played correctly
       const winrates = Array.from(factionStats.values())
         .filter(f => f.total > 0)
         .map(f => (f.wins / f.total) * 100);
