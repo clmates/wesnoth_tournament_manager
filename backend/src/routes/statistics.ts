@@ -60,6 +60,23 @@ router.get('/matchups', async (req, res) => {
   try {
     const minGames = parseInt(req.query.minGames as string) || 5;
     
+    // First check how many rows we have in faction_map_statistics
+    const countResult = await query(
+      `SELECT COUNT(*) as total_rows, SUM(total_games) as total_games_sum
+       FROM faction_map_statistics`
+    );
+    console.log(`[MATCHUPS] Total rows in faction_map_statistics: ${countResult.rows[0].total_rows}, Total games: ${countResult.rows[0].total_games_sum}`);
+    
+    // Get data with minimum games threshold
+    const filteredResult = await query(
+      `SELECT COUNT(*) as filtered_rows
+       FROM faction_map_statistics
+       WHERE total_games >= $1`,
+      [minGames]
+    );
+    console.log(`[MATCHUPS] Rows with >= ${minGames} games: ${filteredResult.rows[0].filtered_rows}`);
+    
+    // Now get the actual matchups - use DISTINCT to avoid duplicates instead of UUID comparison
     const result = await query(
       `SELECT 
         gm.id as map_id,
@@ -85,7 +102,26 @@ router.get('/matchups', async (req, res) => {
       [minGames]
     );
     
-    console.log('[MATCHUPS] Raw data received:', JSON.stringify(result.rows, null, 2));
+    console.log(`[MATCHUPS] Final result rows: ${result.rows.length}`);
+    if (result.rows.length > 0) {
+      console.log('[MATCHUPS] Sample rows:', JSON.stringify(result.rows.slice(0, 2), null, 2));
+    } else {
+      console.log('[MATCHUPS] ⚠️  WARNING: No matchups found! Checking why...');
+      // Debug: check if the UUID comparison is the issue
+      const debugResult = await query(
+        `SELECT f1.id as f1_id, f1.name as f1_name, f2.id as f2_id, f2.name as f2_name,
+                f1.id < f2.id as f1_less_f2, 
+                fms.total_games
+         FROM faction_map_statistics fms
+         JOIN factions f1 ON fms.faction_id = f1.id
+         JOIN factions f2 ON fms.opponent_faction_id = f2.id
+         WHERE fms.total_games >= $1
+         LIMIT 10`,
+        [minGames]
+      );
+      console.log('[MATCHUPS] Debug - UUID comparison results:', JSON.stringify(debugResult.rows, null, 2));
+    }
+    
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching matchup statistics:', error);
