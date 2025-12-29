@@ -190,13 +190,16 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
         </p>
 
         <div className="stats-table-container">
-          <table className="stats-table compact-comparison">
+          <table className="stats-table comparison-mode">
             <thead>
               <tr>
                 <th>{t('map') || 'Map'}</th>
-                <th>{t('matchup') || 'Matchup'}</th>
+                <th>{t('faction_1') || 'Faction 1'}</th>
+                <th>{t('vs')}</th>
+                <th>{t('faction_2') || 'Faction 2'}</th>
                 <th>{t('total_games') || 'Games'}</th>
-                <th>{t('faction_1_winrate') || 'Faction 1 WR'}</th>
+                <th>{t('faction_1_wins') || 'F1 Wins'}</th>
+                <th>{t('faction_2_wins') || 'F2 Wins'}</th>
                 <th>{t('imbalance') || 'Imbalance'}</th>
               </tr>
             </thead>
@@ -211,13 +214,19 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
                         <div className="after-value">{stat.map_name}</div>
                       </div>
                     </td>
-                    <td className="matchup-name">
+                    <td className="faction-name faction-1">
                       <div className="comparison-cell">
-                        <div className="after-value">
-                          <span className="faction">{stat.faction_1_name}</span>
-                          <span className="vs"> vs </span>
-                          <span className="faction">{stat.faction_2_name}</span>
-                        </div>
+                        <div className="after-value">{stat.faction_1_name}</div>
+                      </div>
+                    </td>
+                    <td className="vs">
+                      <div className="comparison-cell">
+                        <div className="after-value">vs</div>
+                      </div>
+                    </td>
+                    <td className="faction-name faction-2">
+                      <div className="comparison-cell">
+                        <div className="after-value">{stat.faction_2_name}</div>
                       </div>
                     </td>
                     <td>
@@ -228,26 +237,14 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
                     </td>
                     <td>
                       <div className="comparison-cell">
-                        <div className="after-value">
-                          <span className={`winrate ${
-                            (item.after?.faction_1_winrate || 50) > 55 ? 'high' : 
-                            (item.after?.faction_1_winrate || 50) < 45 ? 'low' : 
-                            'balanced'
-                          }`}>
-                            {item.after?.faction_1_winrate.toFixed(1) || '-'}%
-                          </span>
-                        </div>
-                        {item.before && (
-                          <div className="before-value">
-                            <span className={`winrate ${
-                              item.before.faction_1_winrate > 55 ? 'high' : 
-                              item.before.faction_1_winrate < 45 ? 'low' : 
-                              'balanced'
-                            }`}>
-                              {item.before.faction_1_winrate.toFixed(1)}%
-                            </span>
-                          </div>
-                        )}
+                        <div className="after-value">{item.after?.faction_1_wins || '-'}</div>
+                        {item.before && <div className="before-value">{item.before.faction_1_wins}</div>}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="comparison-cell">
+                        <div className="after-value">{item.after?.faction_2_wins || '-'}</div>
+                        {item.before && <div className="before-value">{item.before.faction_2_wins}</div>}
                       </div>
                     </td>
                     <td>

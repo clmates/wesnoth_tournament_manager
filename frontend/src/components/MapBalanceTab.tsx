@@ -190,7 +190,9 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
               <tr>
                 <th>{t('map') || 'Map'}</th>
                 <th>{t('total_games') || 'Games'}</th>
+                <th>{t('factions_used') || 'Factions'}</th>
                 <th>{t('avg_imbalance') || 'Avg Imbalance'}</th>
+                <th>{t('winrate_range') || 'WR Range'}</th>
                 <th>{t('balance_indicator') || 'Balance'}</th>
               </tr>
             </thead>
@@ -206,6 +208,12 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
                     <div className="comparison-cell">
                       <div className="after-value">{item.after?.total_games || '-'}</div>
                       {item.before && <div className="before-value">{item.before.total_games}</div>}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="comparison-cell">
+                      <div className="after-value">{item.after?.factions_used || '-'}</div>
+                      {item.before && <div className="before-value">{item.before.factions_used}</div>}
                     </div>
                   </td>
                   <td>
@@ -228,6 +236,18 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
                           }`}>
                             {item.before.avg_imbalance.toFixed(1)}%
                           </span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="comparison-cell">
+                      <div className="after-value">
+                        {item.after?.lowest_winrate.toFixed(1) || '-'}% - {item.after?.highest_winrate.toFixed(1) || '-'}%
+                      </div>
+                      {item.before && (
+                        <div className="before-value">
+                          {item.before.lowest_winrate.toFixed(1)}% - {item.before.highest_winrate.toFixed(1)}%
                         </div>
                       )}
                     </div>

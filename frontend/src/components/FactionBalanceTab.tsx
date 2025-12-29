@@ -86,17 +86,37 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
   };
 
   const aggregateFactionData = (data: ComparisonData[]) => {
-    // Take the LATEST snapshot for each faction (don't sum historical snapshots)
-    // Group by faction, then find the last one by total_games (highest = most recent)
-    const factionMap = new Map<string, ComparisonData>();
+    // Group by faction to calculate maps_played and aggregate stats
+    const factionMap = new Map<string, { 
+      faction_id: string;
+      faction_name: string;
+      total_games: number;
+      wins: number;
+      losses: number;
+      maps: Set<string>;
+    }>();
     
     data.forEach(item => {
       const key = item.faction_id || '';
       const existing = factionMap.get(key);
       
-      // Keep the one with most games (latest snapshot)
-      if (!existing || item.total_games > existing.total_games) {
-        factionMap.set(key, item);
+      if (!existing) {
+        factionMap.set(key, {
+          faction_id: item.faction_id || '',
+          faction_name: item.faction_name || '',
+          total_games: 0,
+          wins: 0,
+          losses: 0,
+          maps: new Set<string>(),
+        });
+      }
+      
+      const stats = factionMap.get(key)!;
+      stats.total_games += item.total_games;
+      stats.wins += item.wins;
+      stats.losses += item.losses;
+      if (item.map_id) {
+        stats.maps.add(item.map_id);
       }
     });
 
@@ -106,7 +126,8 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
         faction_id: stat.faction_id,
         faction_name: stat.faction_name,
         total_games: stat.total_games,
-        winrate: stat.winrate,
+        winrate: stat.total_games > 0 ? (stat.wins / stat.total_games) * 100 : 0,
+        maps_played: stat.maps.size,
       })).sort((a, b) => b.total_games - a.total_games);
   };
 
@@ -159,6 +180,8 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
                 <th>{t('faction') || 'Faction'}</th>
                 <th>{t('total_games') || 'Games'}</th>
                 <th>{t('winrate') || 'Win Rate'}</th>
+                <th>{t('maps_played') || 'Maps'}</th>
+                <th>{t('balance_indicator') || 'Balance'}</th>
               </tr>
             </thead>
             <tbody>
@@ -187,6 +210,34 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
                           <span className={`winrate ${getWinrateColorClass(item.before.winrate)}`}>
                             {item.before.winrate.toFixed(1)}%
                           </span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="comparison-cell">
+                      <div className="after-value">{item.after?.maps_played || '-'}</div>
+                      {item.before && <div className="before-value">{item.before.maps_played}</div>}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="comparison-cell">
+                      <div className="after-value">
+                        <div className="balance-bar">
+                          <div 
+                            className="balance-fill"
+                            style={{ width: `${item.after?.winrate || 50}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      {item.before && (
+                        <div className="before-value">
+                          <div className="balance-bar">
+                            <div 
+                              className="balance-fill"
+                              style={{ width: `${item.before.winrate}%` }}
+                            ></div>
+                          </div>
                         </div>
                       )}
                     </div>
