@@ -282,17 +282,16 @@ router.get('/history/events', async (req, res) => {
 });
 
 /**
- * Get balance event impact (before/after comparison)
- * Compares stats before and after a specific balance patch
+ * Get balance event forward impact (from event onwards)
+ * Shows stats from the event date until next event or today
  */
 router.get('/history/events/:eventId/impact', async (req, res) => {
   try {
     const { eventId } = req.params;
-    const { daysBefore = '30', daysAfter = '30' } = req.query;
     
     const result = await query(
-      `SELECT * FROM get_balance_event_impact($1, $2::INT, $3::INT)`,
-      [eventId, parseInt(daysBefore as string), parseInt(daysAfter as string)]
+      `SELECT * FROM get_balance_event_forward_impact($1)`,
+      [eventId]
     );
     
     res.json(result.rows);
@@ -378,6 +377,42 @@ router.post('/history/events', async (req, res) => {
 });
 
 /**
+ * Update a balance event (admin only)
+ * Edit an existing balance event
+ */
+router.put('/history/events/:eventId', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { event_date, patch_version, event_type, description, faction_id, map_id, notes } = req.body;
+    
+    if (!event_date || !event_type || !description) {
+      return res.status(400).json({ error: 'Missing required fields: event_date, event_type, description' });
+    }
+    
+    if (!['BUFF', 'NERF', 'REWORK', 'HOTFIX', 'GENERAL_BALANCE_CHANGE'].includes(event_type)) {
+      return res.status(400).json({ error: 'Invalid event_type' });
+    }
+    
+    const result = await query(
+      `UPDATE balance_events 
+       SET event_date = $1, patch_version = $2, event_type = $3, description = $4, faction_id = $5, map_id = $6, notes = $7, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $8
+       RETURNING id, event_date, patch_version, event_type, description, updated_at`,
+      [event_date, patch_version, event_type, description, faction_id || null, map_id || null, notes || null, eventId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Balance event not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating balance event:', error);
+    res.status(500).json({ error: 'Failed to update balance event' });
+  }
+});
+
+/**
  * Manually create a snapshot for a specific date (admin only)
  * Useful for backfilling historical data
  */
@@ -404,6 +439,70 @@ router.post('/history/snapshot', async (req, res) => {
   } catch (error) {
     console.error('Error creating snapshot:', error);
     res.status(500).json({ error: 'Failed to create snapshot' });
+  }
+});
+
+/**
+ * Recalculate all historical snapshots (admin only)
+ * Creates snapshots for all dates from earliest match to today
+ * Useful when adding balance events retroactively
+ */
+router.post('/history/recalculate-snapshots', async (req, res) => {
+  try {
+    // First, get the date range from matches
+    const dateRangeResult = await query(
+      `SELECT 
+        MIN(DATE(created_at)) as earliest_date,
+        MAX(DATE(created_at)) as latest_date
+      FROM matches
+      WHERE created_at IS NOT NULL`
+    );
+    
+    if (!dateRangeResult.rows[0]?.earliest_date) {
+      return res.status(400).json({ error: 'No matches found to calculate snapshots' });
+    }
+    
+    const { earliest_date, latest_date } = dateRangeResult.rows[0];
+    
+    // Generate snapshots for each date in the range
+    let totalSnapshots = 0;
+    let totalSkipped = 0;
+    const currentDate = new Date(earliest_date);
+    const endDate = new Date(latest_date);
+    
+    while (currentDate <= endDate) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      
+      try {
+        const result = await query(
+          `SELECT snapshots_created, snapshots_skipped FROM create_faction_map_statistics_snapshot($1::DATE)`,
+          [dateStr]
+        );
+        
+        if (result.rows[0]) {
+          totalSnapshots += result.rows[0].snapshots_created || 0;
+          totalSkipped += result.rows[0].snapshots_skipped || 0;
+        }
+      } catch (err) {
+        console.error(`Error creating snapshot for ${dateStr}:`, err);
+        // Continue with next date even if one fails
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    res.json({
+      message: 'Historical snapshots recalculated successfully',
+      totalSnapshots,
+      totalSkipped,
+      dateRange: {
+        from: earliest_date,
+        to: latest_date
+      }
+    });
+  } catch (error) {
+    console.error('Error recalculating snapshots:', error);
+    res.status(500).json({ error: 'Failed to recalculate snapshots' });
   }
 });
 

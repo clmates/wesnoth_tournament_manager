@@ -25,13 +25,12 @@ interface ImpactData {
   faction_name: string;
   opponent_faction_id: string;
   opponent_faction_name: string;
-  winrate_before: number;
-  winrate_after: number;
-  winrate_change: number;
-  sample_size_before: number;
-  sample_size_after: number;
-  games_before: number;
-  games_after: number;
+  winrate: number;
+  total_games: number;
+  wins: number;
+  losses: number;
+  snapshot_date: string;
+  days_since_event: number;
 }
 
 const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, onEventChange }) => {
@@ -72,7 +71,7 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
     setLoading(true);
     setError('');
     try {
-      const data = await statisticsService.getEventImpact(id, 30, 30);
+      const data = await statisticsService.getEventImpact(id);
       setImpactData(data);
     } catch (err: any) {
       setError(err.response?.data?.error || t('error_loading_impact') || 'Error loading impact data');
@@ -86,10 +85,10 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
     setSelectedEvent(event);
   };
 
-  const getChangeColorClass = (change: number) => {
-    if (change > 5) return 'positive';
-    if (change < -5) return 'negative';
-    return 'neutral';
+  const getChangeColorClass = (winrate: number) => {
+    if (winrate > 55) return 'high';
+    if (winrate < 45) return 'low';
+    return 'balanced';
   };
 
   const eventTypeColor: { [key: string]: string } = {
@@ -105,29 +104,27 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
       <div className="event-selector-section">
         <h3>{t('select_balance_event') || 'Select Balance Event'}</h3>
         
-        <div className="event-selector">
-          <button 
-            className={`event-option ${!selectedEvent ? 'active' : ''}`}
-            onClick={() => handleEventSelect(null)}
-          >
-            {t('all_accumulated') || 'All (Accumulated)'}
-          </button>
-          
+        <select 
+          value={selectedEvent?.id || ''} 
+          onChange={(e) => {
+            if (e.target.value === '') {
+              handleEventSelect(null);
+            } else {
+              const event = events.find(ev => ev.id === e.target.value);
+              if (event) handleEventSelect(event);
+            }
+          }}
+          className="event-dropdown"
+        >
+          <option value="">{t('all_accumulated') || 'All (Accumulated)'}</option>
           {events.map(event => (
-            <button
-              key={event.id}
-              className={`event-option ${selectedEvent?.id === event.id ? 'active' : ''}`}
-              onClick={() => handleEventSelect(event)}
-              style={{
-                borderLeftColor: eventTypeColor[event.event_type] || '#3498db',
-              }}
-            >
-              <span className="event-date">{new Date(event.event_date).toLocaleDateString()}</span>
-              <span className="event-type">{event.event_type}</span>
-              {event.patch_version && <span className="patch">{event.patch_version}</span>}
-            </button>
+            <option key={event.id} value={event.id}>
+              {new Date(event.event_date).toLocaleDateString()} - {event.event_type}
+              {event.patch_version ? ` [${event.patch_version}]` : ''}
+              {event.description ? ` - ${event.description.substring(0, 30)}${event.description.length > 30 ? '...' : ''}` : ''}
+            </option>
           ))}
-        </div>
+        </select>
       </div>
 
       {selectedEvent && (
@@ -174,37 +171,35 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
 
           {impactData.length > 0 && (
             <div className="impact-data-section">
-              <h5>{t('impact_analysis') || 'Impact Analysis (30 days before/after)'}</h5>
+              <h5>{t('impact_analysis') || 'Balance Statistics from Event Date'}</h5>
               
               <div className="impact-table-wrapper">
                 <table className="impact-table">
                   <thead>
                     <tr>
+                      <th>{t('date') || 'Date'}</th>
+                      <th>{t('days_since') || 'Days'}</th>
                       <th>{t('map') || 'Map'}</th>
                       <th>{t('faction') || 'Faction'}</th>
-                      <th>{t('vs') || 'vs'}</th>
-                      <th>{t('winrate_before') || 'Before'}</th>
-                      <th>{t('winrate_after') || 'After'}</th>
-                      <th>{t('change') || 'Change'}</th>
+                      <th colSpan={3} style={{ textAlign: 'center' }}>{t('matchup') || 'Matchup'}</th>
+                      <th>{t('winrate') || 'Win Rate'}</th>
+                      <th>{t('games') || 'Games'}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {impactData.map((impact, idx) => (
-                      <tr key={`${impact.map_id}-${impact.faction_id}-${impact.opponent_faction_id}-${idx}`}>
+                      <tr key={`${impact.map_id}-${impact.faction_id}-${impact.opponent_faction_id}-${impact.snapshot_date}-${idx}`}>
+                        <td className="date">{new Date(impact.snapshot_date).toLocaleDateString()}</td>
+                        <td className="days">{impact.days_since_event}</td>
                         <td className="map-name">{impact.map_name}</td>
                         <td className="faction-name">{impact.faction_name}</td>
-                        <td className="vs">vs</td>
-                        <td className="winrate">
-                          {impact.winrate_before.toFixed(1)}%
-                          <span className="sample-size">({impact.games_before} games)</span>
+                        <td style={{ textAlign: 'right' }}>{impact.faction_name}</td>
+                        <td style={{ textAlign: 'center' }}>{t('vs') || 'vs'}</td>
+                        <td style={{ textAlign: 'left' }}>{impact.opponent_faction_name}</td>
+                        <td className={`winrate ${getChangeColorClass(impact.winrate)}`}>
+                          {impact.winrate.toFixed(1)}%
                         </td>
-                        <td className="winrate">
-                          {impact.winrate_after.toFixed(1)}%
-                          <span className="sample-size">({impact.games_after} games)</span>
-                        </td>
-                        <td className={`change ${getChangeColorClass(impact.winrate_change)}`}>
-                          {impact.winrate_change > 0 ? '+' : ''}{impact.winrate_change.toFixed(1)}%
-                        </td>
+                        <td className="games">{impact.total_games}</td>
                       </tr>
                     ))}
                   </tbody>

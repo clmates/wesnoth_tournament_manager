@@ -62,11 +62,9 @@ export const statisticsService = {
     return response.data;
   },
 
-  // Get balance event impact (before/after comparison)
-  getEventImpact: async (eventId: string, daysBefore = 30, daysAfter = 30) => {
-    const response = await apiClient.get(`/statistics/history/events/${eventId}/impact`, {
-      params: { daysBefore, daysAfter },
-    });
+  // Get balance event forward impact (from event date onwards)
+  getEventImpact: async (eventId: string) => {
+    const response = await apiClient.get(`/statistics/history/events/${eventId}/impact`);
     return response.data;
   },
 
@@ -81,6 +79,20 @@ export const statisticsService = {
     notes?: string;
   }) => {
     const response = await apiClient.post('/statistics/history/events', event);
+    return response.data;
+  },
+
+  // Update a balance event
+  updateBalanceEvent: async (eventId: string, event: {
+    event_date: string;
+    event_type: string;
+    description: string;
+    faction_id?: string;
+    map_id?: string;
+    patch_version?: string;
+    notes?: string;
+  }) => {
+    const response = await apiClient.put(`/statistics/history/events/${eventId}`, event);
     return response.data;
   },
 
