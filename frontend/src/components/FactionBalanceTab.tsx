@@ -87,6 +87,7 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
 
   const aggregateFactionData = (data: ComparisonData[]) => {
     // Group by faction to calculate maps_played and aggregate stats
+    // Note: each match appears twice in data (once for each faction), so we only process faction_id
     const factionMap = new Map<string, { 
       faction_id: string;
       faction_name: string;

@@ -41,62 +41,69 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
   const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
 
   const aggregateMatchupData = (data: ComparisonData[]): MatchupStats[] => {
+    // Track processed matches to avoid double-counting
+    // Each match appears twice in data (once for each faction perspective)
+    const processedMatches = new Set<string>();
     const matchupMap = new Map<string, {
       map_id: string;
       map_name: string;
-      faction_1_id: string;
-      faction_1_name: string;
-      faction_2_id: string;
-      faction_2_name: string;
+      f1_id: string;
+      f1_name: string;
+      f2_id: string;
+      f2_name: string;
+      f1_wins: number;
+      f2_wins: number;
       total_games: number;
-      wins: number;
-      losses: number;
     }>();
     
     data.forEach(item => {
-      // Create a normalized key (always same order for consistency)
+      // Create a normalized match key to track which matches we've seen
       const f1 = item.faction_id || '';
       const f2 = item.opponent_faction_id || '';
-      const ordered = [f1, f2].sort();
-      const key = `${item.map_id}|${ordered[0]}|${ordered[1]}`;
+      const matchKey = `${item.map_id}|${[f1, f2].sort().join('|')}`;
       
-      const existing = matchupMap.get(key);
-      
-      if (!existing) {
-        // First occurrence - store the original matchup
-        matchupMap.set(key, {
-          map_id: item.map_id || '',
-          map_name: item.map_name || '',
-          faction_1_id: item.faction_id || '',
-          faction_1_name: item.faction_name || '',
-          faction_2_id: item.opponent_faction_id || '',
-          faction_2_name: item.opponent_faction_name || '',
-          total_games: item.total_games,
-          wins: item.wins,
-          losses: item.losses,
-        });
-      } else {
-        // Aggregate - sum games and wins
-        existing.total_games += item.total_games;
-        existing.wins += item.wins;
-        existing.losses += item.losses;
+      // Skip if we've already processed this match
+      if (processedMatches.has(matchKey)) {
+        return;
       }
+      processedMatches.add(matchKey);
+      
+      // Normalize faction order
+      const ordered = [f1, f2].sort();
+      const isOriginalOrder = f1 === ordered[0];
+      
+      const f1Wins = isOriginalOrder ? item.wins : item.losses;
+      const f2Wins = isOriginalOrder ? item.losses : item.wins;
+      
+      const mapKey = `${item.map_id}|${ordered[0]}|${ordered[1]}`;
+      
+      matchupMap.set(mapKey, {
+        map_id: item.map_id || '',
+        map_name: item.map_name || '',
+        f1_id: ordered[0],
+        f1_name: (isOriginalOrder ? item.faction_name : item.opponent_faction_name) || '',
+        f2_id: ordered[1],
+        f2_name: (isOriginalOrder ? item.opponent_faction_name : item.faction_name) || '',
+        f1_wins: f1Wins,
+        f2_wins: f2Wins,
+        total_games: item.total_games,
+      });
     });
     
     const results: MatchupStats[] = Array.from(matchupMap.values()).map(matchup => {
       const totalGames = matchup.total_games;
-      const f1Wins = matchup.wins;
-      const f2Wins = matchup.losses;
+      const f1Wins = matchup.f1_wins;
+      const f2Wins = matchup.f2_wins;
       const f1Winrate = totalGames > 0 ? (f1Wins / totalGames) * 100 : 0;
       const imbalance = Math.abs(f1Winrate - 50);
       
       return {
         map_id: matchup.map_id,
         map_name: matchup.map_name,
-        faction_1_id: matchup.faction_1_id,
-        faction_1_name: matchup.faction_1_name,
-        faction_2_id: matchup.faction_2_id,
-        faction_2_name: matchup.faction_2_name,
+        faction_1_id: matchup.f1_id,
+        faction_1_name: matchup.f1_name,
+        faction_2_id: matchup.f2_id,
+        faction_2_name: matchup.f2_name,
         total_games: totalGames,
         faction_1_wins: f1Wins,
         faction_2_wins: f2Wins,

@@ -36,40 +36,64 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
   const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
 
   const aggregateMapData = (data: ComparisonData[]): MapBalanceStats[] => {
+    // Group by map and aggregate faction stats
     const mapMap = new Map<string, {
       map_id: string;
       map_name: string;
+      processedMatches: Set<string>; // Track matches to avoid double-counting
       factionStats: Map<string, { wins: number; losses: number; total: number }>;
     }>();
     
     data.forEach(item => {
-      const key = item.map_id || '';
+      const mapId = item.map_id || '';
       const mapName = item.map_name || '';
+      const factionId = item.faction_id || '';
+      const opponentId = item.opponent_faction_id || '';
       
-      if (!mapMap.has(key)) {
-        mapMap.set(key, {
-          map_id: key,
+      if (!mapMap.has(mapId)) {
+        mapMap.set(mapId, {
+          map_id: mapId,
           map_name: mapName,
+          processedMatches: new Set(),
           factionStats: new Map(),
         });
       }
       
-      const mapData = mapMap.get(key)!;
-      const factionKey = item.faction_id || '';
+      const mapData = mapMap.get(mapId)!;
       
-      if (!mapData.factionStats.has(factionKey)) {
-        mapData.factionStats.set(factionKey, { wins: 0, losses: 0, total: 0 });
+      // Create a normalized match key to avoid processing the same match twice
+      const matchKey = [factionId, opponentId].sort().join('|');
+      
+      // Skip if we've already processed this match (in either direction)
+      if (mapData.processedMatches.has(matchKey)) {
+        return;
+      }
+      mapData.processedMatches.add(matchKey);
+      
+      // Record stats for this faction
+      if (!mapData.factionStats.has(factionId)) {
+        mapData.factionStats.set(factionId, { wins: 0, losses: 0, total: 0 });
       }
       
-      const stats = mapData.factionStats.get(factionKey)!;
-      stats.wins += item.wins;
-      stats.losses += item.losses;
-      stats.total += item.total_games;
+      const fStats = mapData.factionStats.get(factionId)!;
+      fStats.wins += item.wins;
+      fStats.losses += item.losses;
+      fStats.total += item.total_games;
+      
+      // Also record stats for opponent (inverted)
+      if (!mapData.factionStats.has(opponentId)) {
+        mapData.factionStats.set(opponentId, { wins: 0, losses: 0, total: 0 });
+      }
+      
+      const oppStats = mapData.factionStats.get(opponentId)!;
+      oppStats.wins += item.losses; // opponent's wins = this faction's losses
+      oppStats.losses += item.wins; // opponent's losses = this faction's wins
+      oppStats.total += item.total_games;
     });
     
     return Array.from(mapMap.values()).map(mapData => {
       const factionStats = mapData.factionStats;
-      const totalGames = Array.from(factionStats.values()).reduce((sum, f) => sum + f.total, 0);
+      const totalGames = Array.from(factionStats.values()).reduce((sum, f) => sum + f.total, 0) / 2; // Divide by 2 because each game counted twice
       const winrates = Array.from(factionStats.values())
         .filter(f => f.total > 0)
         .map(f => (f.wins / f.total) * 100);
