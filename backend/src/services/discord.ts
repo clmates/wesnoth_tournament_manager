@@ -39,7 +39,8 @@ export async function resolveDiscordIdFromUsername(usernameInput: string): Promi
 
     console.log('[DISCORD-RESOLVE] Searching for username in guild:', {
       guildId,
-      searchQuery: username
+      searchQuery: username,
+      originalInput: usernameInput
     });
 
     // Search for members in guild by username
@@ -58,23 +59,53 @@ export async function resolveDiscordIdFromUsername(usernameInput: string): Promi
       return null;
     }
 
+    console.log('[DISCORD-RESOLVE] Members found:', members.map((m: any) => ({
+      id: m.user.id,
+      username: m.user.username,
+      discriminator: m.user.discriminator,
+      fullTag: `${m.user.username}#${m.user.discriminator}`
+    })));
+
     // Find exact match (considering both username and discriminator)
     let targetMember = null;
 
     if (usernameInput.includes('#')) {
       // Search for exact username#discriminator match
       const [searchUsername, searchDiscriminator] = usernameInput.split('#');
-      targetMember = members.find((m: any) =>
-        m.user.username.toLowerCase() === searchUsername.toLowerCase() &&
-        m.user.discriminator === searchDiscriminator
-      );
+      console.log('[DISCORD-RESOLVE] Looking for exact match:', {
+        searchUsername: searchUsername.toLowerCase(),
+        searchDiscriminator
+      });
+      
+      targetMember = members.find((m: any) => {
+        const match = m.user.username.toLowerCase() === searchUsername.toLowerCase() &&
+                      m.user.discriminator === searchDiscriminator;
+        if (!match) {
+          console.log('[DISCORD-RESOLVE] Checked member:', {
+            username: m.user.username,
+            discriminator: m.user.discriminator,
+            matched: match
+          });
+        }
+        return match;
+      });
+      
+      if (!targetMember) {
+        console.warn('[DISCORD-RESOLVE] Exact username#discriminator not found, trying username-only match');
+        // Fall back to username-only match if discriminator doesn't match
+        targetMember = members.find((m: any) =>
+          m.user.username.toLowerCase() === usernameInput.split('#')[0].toLowerCase()
+        );
+      }
     } else {
       // Just username, take first match
+      console.log('[DISCORD-RESOLVE] Accepting first match for username (no discriminator specified)');
       targetMember = members[0];
     }
 
     if (!targetMember) {
-      console.warn('[DISCORD-RESOLVE] Exact username match not found:', usernameInput);
+      console.warn('[DISCORD-RESOLVE] No suitable member found for:', usernameInput);
+      console.warn('[DISCORD-RESOLVE] Available members:', members.map((m: any) => `${m.user.username}#${m.user.discriminator}`));
       return null;
     }
 
