@@ -202,13 +202,24 @@ export async function notifyUserUnlocked(user: {
  * Send a direct message to a Discord user via DM
  */
 export async function sendDirectMessage(discordId: string, message: string): Promise<void> {
-  if (!DISCORD_ENABLED || !process.env.DISCORD_BOT_TOKEN) {
-    console.warn('[DISCORD] Discord not enabled or bot token not configured, skipping DM');
+  console.log('[DISCORD DM] Starting sendDirectMessage', {
+    discordId,
+    discordEnabled: DISCORD_ENABLED,
+    botTokenConfigured: !!process.env.DISCORD_BOT_TOKEN
+  });
+
+  if (!DISCORD_ENABLED) {
+    console.warn('[DISCORD DM] Discord not enabled, skipping DM');
+    return;
+  }
+
+  if (!process.env.DISCORD_BOT_TOKEN) {
+    console.error('[DISCORD DM] Bot token not configured in environment');
     return;
   }
 
   if (!discordId) {
-    console.warn('[DISCORD] No Discord ID provided, cannot send DM');
+    console.warn('[DISCORD DM] No Discord ID provided, cannot send DM');
     return;
   }
 
@@ -219,6 +230,8 @@ export async function sendDirectMessage(discordId: string, message: string): Pro
       'Content-Type': 'application/json',
     };
 
+    console.log('[DISCORD DM] Creating DM channel for user:', discordId);
+
     // First, create a DM channel
     const dmChannelResponse = await axios.post(
       `${DISCORD_API_URL}/users/@me/channels`,
@@ -227,23 +240,39 @@ export async function sendDirectMessage(discordId: string, message: string): Pro
     );
 
     const dmChannelId = dmChannelResponse.data.id;
+    console.log('[DISCORD DM] DM channel created successfully:', dmChannelId);
+    console.log('[DISCORD DM] DM Channel Response Status:', dmChannelResponse.status);
+
+    console.log('[DISCORD DM] Sending message to DM channel:', dmChannelId);
 
     // Then send the message to that channel
-    await axios.post(
+    const messageResponse = await axios.post(
       `${DISCORD_API_URL}/channels/${dmChannelId}/messages`,
       { content: message },
       { headers }
     );
 
-    console.log(`✅ Discord DM sent successfully to user ${discordId}`);
-  } catch (error: any) {
-    console.error('❌ Error sending Discord DM:', {
+    console.log('[DISCORD DM] Message sent successfully', {
       discordId,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message
+      channelId: dmChannelId,
+      messageId: messageResponse.data.id,
+      status: messageResponse.status
     });
+  } catch (error: any) {
+    console.error('[DISCORD DM] ❌ Error sending Discord DM:', {
+      discordId,
+      httpStatus: error.response?.status,
+      statusText: error.response?.statusText,
+      errorData: error.response?.data,
+      errorMessage: error.message,
+      errorCode: error.code
+    });
+    
+    // Log specific Discord error codes
+    if (error.response?.data?.code) {
+      console.error('[DISCORD DM] Discord API Error Code:', error.response.data.code);
+    }
+    
     throw error;
   }
 }

@@ -304,12 +304,21 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
     const { nickname, discord_id } = req.body;
     const ip = getUserIP(req);
 
+    console.log('[PASSWORD-RESET] Request received', {
+      nickname,
+      discordId: discord_id,
+      ip,
+      discordEnabled: DISCORD_ENABLED
+    });
+
     if (!nickname || !discord_id) {
+      console.warn('[PASSWORD-RESET] Missing required fields');
       return res.status(400).json({ error: 'Nickname and Discord ID are required' });
     }
 
     // Discord is required for this feature
     if (!DISCORD_ENABLED) {
+      console.warn('[PASSWORD-RESET] Discord is not enabled');
       return res.status(403).json({ error: 'Password reset via Discord is not enabled on this server' });
     }
 
@@ -320,14 +329,23 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
     );
 
     if (userResult.rows.length === 0) {
+      console.log('[PASSWORD-RESET] User not found:', nickname);
       // Don't reveal if user exists (security)
       return res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord DM' });
     }
 
     const user = userResult.rows[0];
+    console.log('[PASSWORD-RESET] User found:', {
+      userId: user.id,
+      nickname: nickname,
+      storedDiscordId: user.discord_id,
+      providedDiscordId: discord_id,
+      match: user.discord_id === discord_id
+    });
 
     // Verify Discord ID matches
     if (user.discord_id !== discord_id) {
+      console.log('[PASSWORD-RESET] Discord ID mismatch for user:', nickname);
       // Don't reveal the mismatch for security
       return res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord DM' });
     }
@@ -336,14 +354,24 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
     const tempPassword = Math.random().toString(36).slice(-8);
     const passwordHash = await hashPassword(tempPassword);
 
+    console.log('[PASSWORD-RESET] Generated temporary password for user:', {
+      userId: user.id,
+      nickname: nickname,
+      discordId: user.discord_id,
+      tempPassword: `${tempPassword.substring(0, 2)}***`
+    });
+
     // Update user password and set password_must_change flag
     await query(
       'UPDATE users SET password_hash = $1, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [passwordHash, user.id]
     );
 
+    console.log('[PASSWORD-RESET] Password updated in database for user:', nickname);
+
     // Send Discord DM with temporary password
     try {
+      console.log('[PASSWORD-RESET] Attempting to send Discord DM to user:', user.discord_id);
       await sendDirectMessage(
         user.discord_id,
         `🔐 **Password Reset Request**\n\n` +
@@ -351,8 +379,13 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
         `Use this password to log in. You will be required to change it on your next login.\n\n` +
         `If you didn't request this, contact an administrator.`
       );
+      console.log('[PASSWORD-RESET] Discord DM sent successfully to user:', user.discord_id);
     } catch (dmError) {
-      console.error('Failed to send Discord DM:', dmError);
+      console.error('[PASSWORD-RESET] ❌ Failed to send Discord DM to user:', {
+        userId: user.id,
+        discordId: user.discord_id,
+        error: dmError instanceof Error ? dmError.message : String(dmError)
+      });
       // Still return success since password was reset, DM failure will be logged
     }
 
