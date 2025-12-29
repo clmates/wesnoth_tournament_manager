@@ -98,9 +98,12 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
         .filter(f => f.total > 0)
         .map(f => (f.wins / f.total) * 100);
       
-      const avgImbalance = winrates.length > 1
-        ? winrates.reduce((sum, wr) => sum + Math.abs(wr - 50), 0) / winrates.length
+      // Calculate standard deviation like the backend does
+      const avgWinrate = winrates.length > 0 ? winrates.reduce((sum, wr) => sum + wr, 0) / winrates.length : 50;
+      const variance = winrates.length > 0 
+        ? winrates.reduce((sum, wr) => sum + Math.pow(wr - avgWinrate, 2), 0) / winrates.length 
         : 0;
+      const avgImbalance = Math.sqrt(variance);
       
       return {
         map_id: mapData.map_id,
