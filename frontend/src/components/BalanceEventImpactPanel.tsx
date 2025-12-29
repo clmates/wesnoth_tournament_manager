@@ -128,39 +128,32 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
   };
 
   const aggregateData = (snapshots: ImpactData[]): AggregatedData[] => {
-    const aggregated = new Map<string, { wins: number; losses: number; total: number; map_id: string; faction_id: string; opponent_id: string }>();
+    // Take the LATEST snapshot for each combination (don't sum historical snapshots)
+    // Each snapshot already contains cumulative stats
+    const aggregated = new Map<string, ImpactData>();
     
     snapshots.forEach(snapshot => {
       const key = `${snapshot.map_id}|${snapshot.faction_id}|${snapshot.opponent_faction_id}`;
-      const current = aggregated.get(key) || { wins: 0, losses: 0, total: 0, map_id: snapshot.map_id, faction_id: snapshot.faction_id, opponent_id: snapshot.opponent_faction_id };
+      const current = aggregated.get(key);
       
-      aggregated.set(key, {
-        wins: current.wins + snapshot.wins,
-        losses: current.losses + snapshot.losses,
-        total: current.total + snapshot.total_games,
-        map_id: current.map_id,
-        faction_id: current.faction_id,
-        opponent_id: current.opponent_id,
-      });
+      // Keep the one with most games (latest snapshot in the period)
+      if (!current || snapshot.total_games > current.total_games) {
+        aggregated.set(key, snapshot);
+      }
     });
     
-    return Array.from(aggregated.entries()).map(([key, stats]) => {
-      const [mapId, factionId, opponentId] = key.split('|');
-      const snapshot = snapshots.find(s => s.map_id === mapId && s.faction_id === factionId && s.opponent_faction_id === opponentId);
-      
-      return {
-        map_id: mapId,
-        map_name: snapshot?.map_name || '',
-        faction_id: factionId,
-        faction_name: snapshot?.faction_name || '',
-        opponent_faction_id: opponentId,
-        opponent_faction_name: snapshot?.opponent_faction_name || '',
-        winrate: stats.total > 0 ? (stats.wins / stats.total) * 100 : 0,
-        total_games: stats.total,
-        wins: stats.wins,
-        losses: stats.losses,
-      };
-    }).sort((a, b) => b.total_games - a.total_games);
+    return Array.from(aggregated.values()).map(snapshot => ({
+      map_id: snapshot.map_id,
+      map_name: snapshot.map_name,
+      faction_id: snapshot.faction_id,
+      faction_name: snapshot.faction_name,
+      opponent_faction_id: snapshot.opponent_faction_id,
+      opponent_faction_name: snapshot.opponent_faction_name,
+      winrate: snapshot.winrate,
+      total_games: snapshot.total_games,
+      wins: snapshot.wins,
+      losses: snapshot.losses,
+    })).sort((a, b) => b.total_games - a.total_games);
   };
 
   const handleEventSelect = (event: BalanceEvent | null) => {

@@ -69,25 +69,25 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
   };
 
   const aggregateFactionData = (data: ComparisonData[]) => {
-    const aggregated = new Map<string, { wins: number; losses: number; total: number; faction_name: string }>();
+    // Take the LATEST snapshot for each faction (don't sum historical snapshots)
+    // Group by faction, then find the last one by total_games (highest = most recent)
+    const factionMap = new Map<string, ComparisonData>();
     
     data.forEach(item => {
       const key = item.faction_id || '';
-      const current = aggregated.get(key) || { wins: 0, losses: 0, total: 0, faction_name: item.faction_name };
+      const existing = factionMap.get(key);
       
-      aggregated.set(key, {
-        wins: current.wins + item.wins,
-        losses: current.losses + item.losses,
-        total: current.total + item.total_games,
-        faction_name: current.faction_name,
-      });
+      // Keep the one with most games (latest snapshot)
+      if (!existing || item.total_games > existing.total_games) {
+        factionMap.set(key, item);
+      }
     });
 
-    return Array.from(aggregated.entries()).map(([factionId, stats]) => ({
-      faction_id: factionId,
-      faction_name: stats.faction_name,
-      total_games: stats.total,
-      winrate: stats.total > 0 ? (stats.wins / stats.total) * 100 : 0,
+    return Array.from(factionMap.values()).map(stat => ({
+      faction_id: stat.faction_id,
+      faction_name: stat.faction_name,
+      total_games: stat.total_games,
+      winrate: stat.winrate,
     })).sort((a, b) => b.total_games - a.total_games);
   };
 
