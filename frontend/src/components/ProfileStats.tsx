@@ -26,7 +26,10 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
   const winPercentage = decidedMatches > 0 ? Math.round(((player.total_wins || 0) / decidedMatches) * 100) : 0;
 
   // Debug: log player data
-  if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('ProfileStats player data:', player);
+  console.log('ProfileStats player data:', player);
+  if (player.last_activity) {
+    console.log('last_activity value:', player.last_activity, 'type:', typeof player.last_activity);
+  }
 
   return (
     <div className="profile-stats-container">

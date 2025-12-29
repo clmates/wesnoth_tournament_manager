@@ -56,6 +56,7 @@ const PlayerProfile: React.FC = () => {
       try {
         // Fetch player profile
         const profileRes = await publicService.getPlayerProfile(id);
+        console.log('Player profile response:', profileRes.data);
         setProfile(profileRes.data);
 
         // Fetch recent matches for the user
