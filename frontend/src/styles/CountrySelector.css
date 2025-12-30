@@ -1,0 +1,223 @@
+/* Country Selector Styles */
+
+.country-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.country-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.country-input-wrapper {
+  position: relative;
+}
+
+.country-button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  background-color: var(--bg-secondary, #fff);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.country-button:hover:not(.disabled) {
+  border-color: var(--accent-color, #4a90e2);
+  background-color: var(--bg-tertiary, #f5f5f5);
+}
+
+.country-button:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a90e2);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.country-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: var(--bg-disabled, #f5f5f5);
+}
+
+.country-button-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.country-flag {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+}
+
+.country-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.country-chevron {
+  margin-left: 0.5rem;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+}
+
+.country-button.has-value .country-chevron {
+  color: var(--text-secondary);
+}
+
+.country-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--bg-secondary, #fff);
+  border: 2px solid var(--accent-color, #4a90e2);
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  margin-top: -2px;
+  z-index: 1000;
+  max-height: 300px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.country-search {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  font-size: 0.95rem;
+  background-color: var(--bg-secondary, #fff);
+  color: var(--text-primary);
+}
+
+.country-search:focus {
+  outline: none;
+  background-color: var(--bg-tertiary, #f5f5f5);
+}
+
+.country-search::placeholder {
+  color: var(--text-secondary);
+}
+
+.country-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.country-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border: none;
+  background: none;
+  text-align: left;
+  width: 100%;
+  transition: background-color 0.15s ease;
+  border-left: 3px solid transparent;
+}
+
+.country-option:hover {
+  background-color: var(--bg-tertiary, #f5f5f5);
+  border-left-color: var(--accent-color, #4a90e2);
+}
+
+.country-option.selected {
+  background-color: var(--accent-light, #f0f7ff);
+  border-left-color: var(--accent-color, #4a90e2);
+}
+
+.country-option-flag {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+}
+
+.country-option-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.country-option-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.country-option-code {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.country-loading,
+.country-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.country-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .country-dropdown {
+    max-height: 250px;
+  }
+
+  .country-button {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .country-option {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .country-flag,
+  .country-option-flag {
+    font-size: 1.25rem;
+    min-width: 1.75rem;
+  }
+}

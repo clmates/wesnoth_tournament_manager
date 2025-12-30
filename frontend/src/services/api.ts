@@ -101,6 +101,8 @@ export const authService = {
 export const userService = {
   getProfile: () => api.get('/users/profile'),
   updateDiscordId: (discordId: string) => api.put('/users/profile/discord', { discord_id: discordId }),
+  updateProfile: (data: { country?: string; avatar?: string }) => 
+    api.put('/users/profile/update', data),
   getUserStats: (id: string) => api.get(`/users/${id}/stats`),
   getUserMonthlyStats: (id: string) => api.get(`/users/${id}/stats/month`),
   getRecentMatches: (id: string) => api.get(`/users/${id}/matches`),

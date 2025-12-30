@@ -1,0 +1,218 @@
+{
+  "ES": {
+    "flag": "🇪🇸",
+    "en": "Spain"
+  },
+  "US": {
+    "flag": "🇺🇸",
+    "en": "United States"
+  },
+  "GB": {
+    "flag": "🇬🇧",
+    "en": "United Kingdom"
+  },
+  "FR": {
+    "flag": "🇫🇷",
+    "en": "France"
+  },
+  "DE": {
+    "flag": "🇩🇪",
+    "en": "Germany"
+  },
+  "IT": {
+    "flag": "🇮🇹",
+    "en": "Italy"
+  },
+  "MX": {
+    "flag": "🇲🇽",
+    "en": "Mexico"
+  },
+  "BR": {
+    "flag": "🇧🇷",
+    "en": "Brazil"
+  },
+  "AR": {
+    "flag": "🇦🇷",
+    "en": "Argentina"
+  },
+  "CA": {
+    "flag": "🇨🇦",
+    "en": "Canada"
+  },
+  "AU": {
+    "flag": "🇦🇺",
+    "en": "Australia"
+  },
+  "JP": {
+    "flag": "🇯🇵",
+    "en": "Japan"
+  },
+  "CN": {
+    "flag": "🇨🇳",
+    "en": "China"
+  },
+  "IN": {
+    "flag": "🇮🇳",
+    "en": "India"
+  },
+  "RU": {
+    "flag": "🇷🇺",
+    "en": "Russia"
+  },
+  "ZA": {
+    "flag": "🇿🇦",
+    "en": "South Africa"
+  },
+  "KR": {
+    "flag": "🇰🇷",
+    "en": "South Korea"
+  },
+  "NZ": {
+    "flag": "🇳🇿",
+    "en": "New Zealand"
+  },
+  "SG": {
+    "flag": "🇸🇬",
+    "en": "Singapore"
+  },
+  "TH": {
+    "flag": "🇹🇭",
+    "en": "Thailand"
+  },
+  "PL": {
+    "flag": "🇵🇱",
+    "en": "Poland"
+  },
+  "NL": {
+    "flag": "🇳🇱",
+    "en": "Netherlands"
+  },
+  "SE": {
+    "flag": "🇸🇪",
+    "en": "Sweden"
+  },
+  "CH": {
+    "flag": "🇨🇭",
+    "en": "Switzerland"
+  },
+  "AT": {
+    "flag": "🇦🇹",
+    "en": "Austria"
+  },
+  "BE": {
+    "flag": "🇧🇪",
+    "en": "Belgium"
+  },
+  "GR": {
+    "flag": "🇬🇷",
+    "en": "Greece"
+  },
+  "CZ": {
+    "flag": "🇨🇿",
+    "en": "Czech Republic"
+  },
+  "HU": {
+    "flag": "🇭🇺",
+    "en": "Hungary"
+  },
+  "RO": {
+    "flag": "🇷🇴",
+    "en": "Romania"
+  },
+  "PT": {
+    "flag": "🇵🇹",
+    "en": "Portugal"
+  },
+  "TR": {
+    "flag": "🇹🇷",
+    "en": "Turkey"
+  },
+  "CL": {
+    "flag": "🇨🇱",
+    "en": "Chile"
+  },
+  "CO": {
+    "flag": "🇨🇴",
+    "en": "Colombia"
+  },
+  "PE": {
+    "flag": "🇵🇪",
+    "en": "Peru"
+  },
+  "VE": {
+    "flag": "🇻🇪",
+    "en": "Venezuela"
+  },
+  "NG": {
+    "flag": "🇳🇬",
+    "en": "Nigeria"
+  },
+  "EG": {
+    "flag": "🇪🇬",
+    "en": "Egypt"
+  },
+  "MA": {
+    "flag": "🇲🇦",
+    "en": "Morocco"
+  },
+  "KE": {
+    "flag": "🇰🇪",
+    "en": "Kenya"
+  },
+  "IR": {
+    "flag": "🇮🇷",
+    "en": "Iran"
+  },
+  "IQ": {
+    "flag": "🇮🇶",
+    "en": "Iraq"
+  },
+  "SA": {
+    "flag": "🇸🇦",
+    "en": "Saudi Arabia"
+  },
+  "AE": {
+    "flag": "🇦🇪",
+    "en": "United Arab Emirates"
+  },
+  "IL": {
+    "flag": "🇮🇱",
+    "en": "Israel"
+  },
+  "PK": {
+    "flag": "🇵🇰",
+    "en": "Pakistan"
+  },
+  "BD": {
+    "flag": "🇧🇩",
+    "en": "Bangladesh"
+  },
+  "VN": {
+    "flag": "🇻🇳",
+    "en": "Vietnam"
+  },
+  "PH": {
+    "flag": "🇵🇭",
+    "en": "Philippines"
+  },
+  "ID": {
+    "flag": "🇮🇩",
+    "en": "Indonesia"
+  },
+  "MY": {
+    "flag": "🇲🇾",
+    "en": "Malaysia"
+  },
+  "HK": {
+    "flag": "🇭🇰",
+    "en": "Hong Kong"
+  },
+  "TW": {
+    "flag": "🇹🇼",
+    "en": "Taiwan"
+  },
+  "XX": {
+    "flag": "🌍",
+    "en": "Other"
+  }
+}

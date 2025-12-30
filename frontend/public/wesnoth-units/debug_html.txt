@@ -1,0 +1,40 @@
+<html lang="es"><head><title>¡Oh no!</title><link rel="stylesheet" href="/.within.website/x/xess/xess.min.css?cachebuster=1.21.3"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex,nofollow"><style>
+        body,
+        html {
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .centered-div {
+            text-align: center;
+        }
+
+        #status {
+            font-variant-numeric: tabular-nums;
+        }
+
+        #progress {
+          display: none;
+          width: 90%;
+          width: min(20rem, 90%);
+          height: 2rem;
+          border-radius: 1rem;
+          overflow: hidden;
+          margin: 1rem 0 2rem;
+					outline-offset: 2px;
+					outline: #b16286 solid 4px;
+				}
+
+        .bar-inner {
+            background-color: #b16286;
+            height: 100%;
+            width: 0;
+            transition: width 0.25s ease-in;
+        }
+    	</style><script id="anubis_version" type="application/json">"1.21.3"
+</script><script id="anubis_base_prefix" type="application/json">""
+</script></head><body id="top"><main><h1 id="title" class="centered-div">¡Oh no!</h1><div class="centered-div"><img id="image" alt="Sad Anubis" style="width:100%;max-width:256px;" src="/.within.website/x/cmd/anubis/static/img/reject.webp?cacheBuster=1.21.3"><p>Acceso denegado: código de error 4d1dbaddfcc0f385.</p><p><a href="/">Inicio</a></p></div><footer><div class="centered-div"><p>Protegido por <a href="https://github.com/TecharoHQ/anubis">Anubis</a> From <a href="https://techaro.lol">Techaro</a>. Hecho con ❤️ en 🇨🇦.</p><p>Diseño de la mascota por <a href="https://bsky.app/profile/celphase.bsky.social">CELPHASE</a>.</p></div></footer></main></body></html>

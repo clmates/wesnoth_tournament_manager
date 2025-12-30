@@ -90,8 +90,7 @@
   "discord_id_updated": "Discord-ID erfolgreich aktualisiert",
   "loading": "Wird geladen...",
   "no_data": "Keine Daten verfügbar",
-  "navbar_rankings": "Rankings"
-  ,
+  "navbar_rankings": "Rankings",
   "navbar_players": "Spieler",
   "report_match_link": "Spiel melden",
   "pagination_first": "Erste",
@@ -131,11 +130,10 @@
   "details_btn": "Details",
   "no_replay": "Kein Replay",
   "download": "Herunterladen",
-  "downloads": "Downloads"
-  ,
+  "downloads": "Downloads",
   "recent_games": "Neueste Spiele",
   "recent_games_no_data": "Keine aktuellen Spiele",
-  "label_ranking_change": "Ranking-Änderung",
+  "label_ranking_change": "Positionsänderung",
   "my_opponents": "Meine Gegner",
   "no_opponent_data": "Keine Gegnerdaten verfügbar",
   "opponent_name": "Gegner",
@@ -151,13 +149,10 @@
   "last_match": "Letztes Spiel",
   "label_replay": "Replay",
   "month": "Monat",
-  "report": "Melden"
-  ,
+  "report": "Melden",
   "determine_winner": "Gewinner bestimmen",
   "confirm_dispute": "Bestätigen/Bestreiten",
   "view_match": "Spiel ansehen",
-  "report_match_link": "Spiel melden"
-  ,
   "view_all": "Alle anzeigen →",
   "announcements": "Ankündigungen",
   "home": {
@@ -260,7 +255,10 @@
   "report.rating_5": "Ausgezeichnet",
   "report.submitting": "Melde...",
   "btn_cancel": "Abbrechen",
-  "matches": "Spiele",
+  "matches": {
+    "scheduled": "Geplante Spiele",
+    "completed": "Abgeschlossene Spiele"
+  },
   "filter_by_tournament_name": "Nach Turniername suchen...",
   "filter_status": "Status",
   "filter_type": "Turnierart",
@@ -362,10 +360,6 @@
   "label_start_date": "Startdatum",
   "label_end_date": "Enddatum",
   "label_format": "Format",
-  "matches": {
-    "scheduled": "Geplante Spiele",
-    "completed": "Abgeschlossene Spiele"
-  },
   "no_scheduled_matches": "Derzeit sind keine Spiele geplant.",
   "no_rounds_configured": "Keine Runden konfiguriert.",
   "no_completed_matches": "Noch keine abgeschlossenen Spiele.",
@@ -395,7 +389,6 @@
   "error_failed_create_tournament": "Turnier konnte nicht erstellt werden",
   "error_failed_join_tournament": "Beitritt zum Turnier fehlgeschlagen",
   "label_ranking_position": "Ranglistenposition",
-  "label_ranking_change": "Positionsänderung",
   "option_type_swiss_elimination": "Swiss-Elimination Mix",
   "profile": {
     "title": "Mein Profil",
@@ -416,7 +409,10 @@
     "error_passwords_not_match": "Neue Passwörter stimmen nicht überein",
     "error_password_too_short": "Neues Passwort muss mindestens 8 Zeichen lang sein",
     "password_changed_success": "Passwort erfolgreich geändert",
-    "error_change_password_failed": "Fehler beim Ändern des Passworts"
+    "error_change_password_failed": "Fehler beim Ändern des Passworts",
+    "country": "Land",
+    "avatar": "Avatar",
+    "updated": "Profil erfolgreich aktualisiert"
   },
   "tournaments.player_abandoned": "Spieler Aufgegeben",
   "tournaments.abandonment_note": "Wählen Sie den Gewinner. Wenn ein Spieler aufgegeben hat, gewinnt sein Gegner automatisch alle verbleibenden Spiele (keine ELO-Auswirkung, Turnierpunkte vergeben).",
@@ -434,7 +430,7 @@
   "label_current_elo": "Aktuelles ELO",
   "label_elo_range": "ELO-Bereich",
   "label_status_actions": "Status / Aktionen",
-  "no_data_available": "Keine Daten verfügbar",
+  "no_data_available": "Für das ausgewählte Ereignis sind keine Daten verfügbar",
   "statistics": "Statistiken",
   "statistics_intro": "Detaillierte Analyse des Fraktions- und Kartenebalancierens über alle Spiele",
   "faction_balance": "Fraktions-Balance",
@@ -454,7 +450,6 @@
   "unbalanced_matchups": "Unausgeglichene Matchups",
   "minimum_games": "Mindestspiele",
   "faction_1": "Fraktion 1",
-  "vs": "VS",
   "faction_2": "Fraktion 2",
   "faction_1_wins": "F1 Siege",
   "faction_2_wins": "F2 Siege",
@@ -497,9 +492,6 @@
   "days_since": "Tage seit",
   "games": "Spiele",
   "matchup": "Paarung",
-  "vs": "gegen",
-  "no_data_available": "Für das ausgewählte Ereignis sind keine Daten verfügbar",
-  "loading": "Wird geladen...",
   "error_loading_impact": "Fehler beim Laden der Auswirkungsdaten",
   "none": "Keine",
   "date": "Datum",
@@ -523,7 +515,13 @@
   "matches_evaluated": "Spiele",
   "ranking_criteria_title": "Ranking-Kriterien",
   "ranking_criteria_description": "Spieler müssen ein Minimum-ELO von 1400 haben, mindestens 10 Spiele gespielt haben und in den letzten 30 Tagen aktiv gewesen sein.",
-  "status_active": "Aktiv",
   "status_inactive": "Inaktiv",
-  "last_activity": "Letzte Aktivität"
+  "last_activity": "Letzte Aktivität",
+  "common": {
+    "select": "Auswählen...",
+    "search": "Suchen...",
+    "loading": "Wird geladen...",
+    "noResults": "Keine Ergebnisse gefunden",
+    "updateFailed": "Aktualisierung fehlgeschlagen"
+  }
 }

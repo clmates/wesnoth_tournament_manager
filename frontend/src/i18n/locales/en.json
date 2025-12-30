@@ -408,6 +408,8 @@
     "label_email": "Email",
     "label_elo": "ELO Rating",
     "label_level": "Level",
+    "country": "Country",
+    "avatar": "Avatar",
     "discord_title": "Discord ID",
     "discord_placeholder": "Enter your Discord ID",
     "update_discord_button": "Update Discord ID",
@@ -420,7 +422,8 @@
     "error_passwords_not_match": "New passwords do not match",
     "error_password_too_short": "New password must be at least 8 characters",
     "password_changed_success": "Password changed successfully",
-    "error_change_password_failed": "Failed to change password"
+    "error_change_password_failed": "Failed to change password",
+    "updated": "Profile updated successfully"
   },
   "btn_accept": "Accept",
   "btn_reject": "Reject",
@@ -440,7 +443,7 @@
   "label_current_elo": "Current ELO",
   "label_elo_range": "ELO Range",
   "label_status_actions": "Status / Actions",
-  "no_data_available": "No match data available",
+  "no_data_available": "No data available for the selected event",
   "statistics": "Statistics",
   "statistics_intro": "Detailed analysis of faction and map balance across all matches",
   "faction_balance": "Faction Balance",
@@ -451,7 +454,6 @@
   "unbalanced_matchups": "Unbalanced Matchups",
   "minimum_games": "Minimum Games",
   "faction_1": "Faction 1",
-  "vs": "VS",
   "faction_2": "Faction 2",
   "faction_1_wins": "F1 Wins",
   "faction_2_wins": "F2 Wins",
@@ -503,14 +505,10 @@
   "days_since": "Days Since",
   "games": "Games",
   "matchup": "Matchup",
-  "vs": "vs",
-  "no_data_available": "No data available for the selected event",
-  "loading": "Loading...",
   "error_loading_impact": "Error loading impact data",
   "winrate_before": "Before",
   "winrate_after": "After",
   "change": "Change",
-  "error_loading_impact": "Error loading impact data",
   "none": "None",
   "date": "Date",
   "add_event": "Add Event",
@@ -533,7 +531,13 @@
   "matches_evaluated": "matches",
   "ranking_criteria_title": "Ranking Criteria",
   "ranking_criteria_description": "Players must have a minimum ELO of 1400, have played a minimum of 10 games and have activity in the last 30 days.",
-  "status_active": "Active",
   "status_inactive": "Inactive",
-  "last_activity": "Last Activity"
+  "last_activity": "Last Activity",
+  "common": {
+    "select": "Select...",
+    "search": "Search...",
+    "loading": "Loading...",
+    "noResults": "No results found",
+    "updateFailed": "Update failed"
+  }
 }

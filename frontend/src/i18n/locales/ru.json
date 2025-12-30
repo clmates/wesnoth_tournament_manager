@@ -90,8 +90,7 @@
   "discord_id_updated": "Discord ID успешно обновлен",
   "loading": "Загрузка...",
   "no_data": "Нет доступных данных",
-  "navbar_rankings": "Рейтинги"
-  ,
+  "navbar_rankings": "Рейтинги",
   "navbar_players": "Игроки",
   "report_match_link": "Сообщить о матче",
   "pagination_first": "Первая",
@@ -131,11 +130,10 @@
   "details_btn": "Детали",
   "no_replay": "Нет повтора",
   "download": "Скачать",
-  "downloads": "Скачивания"
-  ,
+  "downloads": "Скачивания",
   "recent_games": "Последние игры",
   "recent_games_no_data": "Нет последних игр",
-  "label_ranking_change": "Изменение рейтинга",
+  "label_ranking_change": "Изменение Позиции",
   "my_opponents": "Мои противники",
   "no_opponent_data": "Данные о противниках недоступны",
   "opponent_name": "Противник",
@@ -166,7 +164,6 @@
   "determine_winner": "Определить победителя",
   "confirm_dispute": "Подтвердить/оспорить",
   "view_match": "Просмотреть матч",
-  "report_match_link": "Сообщить о матче",
   "view_all": "Показать все →",
   "announcements": "Объявления",
   "pagination_page_info": "Страница {{page}} из {{totalPages}}",
@@ -258,7 +255,10 @@
   "report.rating_5": "Отлично",
   "report.submitting": "Отправка...",
   "btn_cancel": "Отмена",
-  "matches": "матчи",
+  "matches": {
+    "scheduled": "Запланированные матчи",
+    "completed": "Завершённые матчи"
+  },
   "filter_by_tournament_name": "Поиск по названию турнира...",
   "filter_status": "Статус",
   "filter_type": "Тип турнира",
@@ -360,10 +360,6 @@
   "label_start_date": "Дата начала",
   "label_end_date": "Дата окончания",
   "label_format": "Формат",
-  "matches": {
-    "scheduled": "Запланированные матчи",
-    "completed": "Завершённые матчи"
-  },
   "no_scheduled_matches": "В настоящее время нет запланированных матчей.",
   "no_rounds_configured": "Раунды не настроены.",
   "no_completed_matches": "Пока нет завершённых матчей.",
@@ -393,7 +389,6 @@
   "error_failed_create_tournament": "Не удалось создать турнир",
   "error_failed_join_tournament": "Не удалось присоединиться к турниру",
   "label_ranking_position": "Позиция в Рейтинге",
-  "label_ranking_change": "Изменение Позиции",
   "option_type_swiss_elimination": "Микс Swiss-Elimination",
   "profile": {
     "title": "Мой профиль",
@@ -414,7 +409,10 @@
     "error_passwords_not_match": "Новые пароли не совпадают",
     "error_password_too_short": "Новый пароль должен содержать не менее 8 символов",
     "password_changed_success": "Пароль успешно изменен",
-    "error_change_password_failed": "Не удалось изменить пароль"
+    "error_change_password_failed": "Не удалось изменить пароль",
+    "country": "Страна",
+    "avatar": "Аватар",
+    "updated": "Профиль успешно обновлен"
   },
   "tournaments.player_abandoned": "Игрок отказался",
   "tournaments.abandonment_note": "Выберите победителя. Если игрок отказался, его противник автоматически выигрывает все оставшиеся матчи (без влияния на ELO, присуждаются очки турнира).",
@@ -432,7 +430,7 @@
   "label_current_elo": "Текущий ELO",
   "label_elo_range": "Диапазон ELO",
   "label_status_actions": "Статус / Действия",
-  "no_data_available": "Данные недоступны",
+  "no_data_available": "Для выбранного события нет доступных данных",
   "statistics": "Статистика",
   "statistics_intro": "Детальный анализ баланса фракций и карт во всех играх",
   "faction_balance": "Баланс фракций",
@@ -452,7 +450,6 @@
   "unbalanced_matchups": "Несбалансированные противостояния",
   "minimum_games": "Минимальное количество игр",
   "faction_1": "Фракция 1",
-  "vs": "VS",
   "faction_2": "Фракция 2",
   "faction_1_wins": "Победы Ф1",
   "faction_2_wins": "Победы Ф2",
@@ -495,9 +492,6 @@
   "days_since": "Дней прошло",
   "games": "Игры",
   "matchup": "Противостояние",
-  "vs": "против",
-  "no_data_available": "Для выбранного события нет доступных данных",
-  "loading": "Загрузка...",
   "error_loading_impact": "Ошибка при загрузке данных воздействия",
   "none": "Нет",
   "date": "Дата",
@@ -521,7 +515,13 @@
   "matches_evaluated": "матчи",
   "ranking_criteria_title": "Критерии рейтинга",
   "ranking_criteria_description": "Игроки должны иметь минимальный рейтинг ELO 1400, сыграть минимум 10 игр и быть активными в течение последних 30 дней.",
-  "status_active": "Активен",
   "status_inactive": "Неактивен",
-  "last_activity": "Последняя активность"
+  "last_activity": "Последняя активность",
+  "common": {
+    "select": "Выбрать...",
+    "search": "Поиск...",
+    "loading": "Загрузка...",
+    "noResults": "Результаты не найдены",
+    "updateFailed": "Ошибка обновления"
+  }
 }

@@ -12,7 +12,7 @@ const router = Router();
 // Register request - RATE LIMITED
 router.post('/register', registerLimiter, async (req, res) => {
   try {
-    const { nickname, email, language, discord_id, password } = req.body;
+    const { nickname, email, language, discord_id, password, country, avatar } = req.body;
     const ip = getUserIP(req);
     const userAgent = getUserAgent(req);
 
@@ -53,10 +53,10 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     // Create user directly (blocked by default - admin must activate)
     const result = await query(
-      `INSERT INTO users (nickname, email, password_hash, language, discord_id, is_active, is_admin, is_blocked, is_rated, matches_played, elo_provisional, total_wins, total_losses, trend)
-       VALUES ($1, $2, $3, $4, $5, true, false, true, false, 0, false, 0, 0, '-')
+      `INSERT INTO users (nickname, email, password_hash, language, discord_id, country, avatar, is_active, is_admin, is_blocked, is_rated, matches_played, elo_provisional, total_wins, total_losses, trend)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true, false, true, false, 0, false, 0, 0, '-')
        RETURNING id`,
-      [nickname, email, passwordHash, language || 'en', discord_id || null]
+      [nickname, email, passwordHash, language || 'en', discord_id || null, country || null, avatar || null]
     );
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('User created successfully:', result.rows[0].id);

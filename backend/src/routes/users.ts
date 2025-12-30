@@ -210,7 +210,7 @@ router.put('/profile/discord', authMiddleware, async (req: AuthRequest, res) => 
     }
 
     const result = await query(
-      `UPDATE users SET discord_id = $1 WHERE id = $2 RETURNING id, nickname, email, language, discord_id, elo_rating, level, created_at`,
+      `UPDATE users SET discord_id = $1 WHERE id = $2 RETURNING id, nickname, email, language, discord_id, country, avatar, elo_rating, level, created_at`,
       [discord_id, req.userId]
     );
 
@@ -223,6 +223,49 @@ router.put('/profile/discord', authMiddleware, async (req: AuthRequest, res) => 
   } catch (error) {
     console.error('Error updating Discord ID:', error);
     res.status(500).json({ error: 'Failed to update Discord ID' });
+  }
+});
+
+// Update user profile (country and avatar)
+router.put('/profile/update', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { country, avatar } = req.body;
+
+    if (!country && !avatar) {
+      return res.status(400).json({ error: 'At least one field (country or avatar) is required' });
+    }
+
+    let updateFields: string[] = [];
+    let params: any[] = [];
+    let paramCount = 1;
+
+    if (country) {
+      updateFields.push(`country = $${paramCount}`);
+      params.push(country);
+      paramCount++;
+    }
+
+    if (avatar) {
+      updateFields.push(`avatar = $${paramCount}`);
+      params.push(avatar);
+      paramCount++;
+    }
+
+    params.push(req.userId);
+    
+    const result = await query(
+      `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramCount} RETURNING id, nickname, email, language, discord_id, country, avatar, elo_rating, level, created_at`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile', details: (error as any).message });
   }
 });
 
@@ -280,7 +323,7 @@ router.get('/ranking/global', async (req, res) => {
     params.push(limit);
     params.push(offset);
     const result = await query(
-      `SELECT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, COALESCE(u.trend, '-') as trend 
+      `SELECT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, u.country, u.avatar, COALESCE(u.trend, '-') as trend 
        FROM users u
        WHERE ${whereClause}
        ORDER BY u.elo_rating DESC
@@ -308,7 +351,7 @@ router.get('/ranking/global', async (req, res) => {
 router.get('/ranking/active', async (req, res) => {
   try {
     const result = await query(
-      `SELECT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, COALESCE(u.trend, '-') as trend
+      `SELECT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, u.country, u.avatar, COALESCE(u.trend, '-') as trend
        FROM users u
        WHERE u.is_active = true 
          AND u.is_blocked = false
@@ -330,7 +373,7 @@ router.get('/ranking/active', async (req, res) => {
 router.get('/all', async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, nickname, elo_rating, level, is_rated, created_at FROM users 
+      `SELECT id, nickname, elo_rating, level, is_rated, country, avatar, created_at FROM users 
        WHERE is_active = true 
          AND is_blocked = false
        ORDER BY created_at DESC
@@ -433,6 +476,59 @@ router.get('/:id/stats/month', async (req, res) => {
   } catch (error) {
     console.error('Monthly stats error:', error);
     res.status(500).json({ error: 'Failed to fetch monthly stats', details: (error as any).message });
+  }
+});
+
+// Get available countries with multilingual names
+router.get('/data/countries', async (req, res) => {
+  try {
+    // Get the preferred language from query params, default to English
+    const lang = (req.query.lang as string || 'en').toLowerCase();
+    
+    const result = await query(
+      `SELECT 
+        code, 
+        names_json, 
+        flag_emoji,
+        official_name,
+        region
+       FROM countries 
+       WHERE is_active = true 
+       ORDER BY names_json->>'en' ASC`
+    );
+    
+    // Transform the response to include the country name in the requested language
+    const countries = result.rows.map(row => {
+      const names = row.names_json || {};
+      const name = names[lang] || names['en'] || 'Unknown';
+      
+      return {
+        code: row.code,
+        name,
+        flag: row.flag_emoji,
+        official_name: row.official_name,
+        region: row.region,
+        names: names // Include all names for frontend flexibility
+      };
+    });
+    
+    res.json(countries);
+  } catch (error) {
+    console.error('Countries error:', error);
+    res.status(500).json({ error: 'Failed to fetch countries', details: (error as any).message });
+  }
+});
+
+// Get available avatars
+router.get('/data/avatars', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, name, icon_path, description FROM player_avatars WHERE is_active = true ORDER BY name ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Avatars error:', error);
+    res.status(500).json({ error: 'Failed to fetch avatars', details: (error as any).message });
   }
 });
 

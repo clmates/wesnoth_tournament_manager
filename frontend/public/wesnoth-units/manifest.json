@@ -1,0 +1,1167 @@
+[
+  {
+    "id": "20_dwarvish_lord20_test",
+    "name": "20_Dwarvish Lord(20) Test",
+    "filename": "20_Dwarvish Lord(20) Test.png"
+  },
+  {
+    "id": "ancient_lich",
+    "name": "Ancient Lich",
+    "filename": "Ancient Lich.png"
+  },
+  {
+    "id": "ancient_wose",
+    "name": "Ancient Wose",
+    "filename": "Ancient Wose.png"
+  },
+  {
+    "id": "arch_mage",
+    "name": "Arch Mage",
+    "filename": "Arch Mage.png"
+  },
+  {
+    "id": "armageddon_drake",
+    "name": "Armageddon Drake",
+    "filename": "Armageddon Drake.png"
+  },
+  {
+    "id": "assassin",
+    "name": "Assassin",
+    "filename": "Assassin.png"
+  },
+  {
+    "id": "axepad_20_test",
+    "name": "Axepad (20) Test",
+    "filename": "Axepad (20) Test.png"
+  },
+  {
+    "id": "bandit",
+    "name": "Bandit",
+    "filename": "Bandit.png"
+  },
+  {
+    "id": "banebow",
+    "name": "Banebow",
+    "filename": "Banebow.png"
+  },
+  {
+    "id": "blood_bat",
+    "name": "Blood Bat",
+    "filename": "Blood Bat.png"
+  },
+  {
+    "id": "blood_bat_20_test",
+    "name": "Blood Bat (20) Test",
+    "filename": "Blood Bat (20) Test.png"
+  },
+  {
+    "id": "bone_knight",
+    "name": "Bone Knight",
+    "filename": "Bone Knight.png"
+  },
+  {
+    "id": "bowman",
+    "name": "Bowman",
+    "filename": "Bowman.png"
+  },
+  {
+    "id": "bowman_20",
+    "name": "Bowman (20)",
+    "filename": "Bowman (20).png"
+  },
+  {
+    "id": "cavalier",
+    "name": "Cavalier",
+    "filename": "Cavalier.png"
+  },
+  {
+    "id": "cavalryman",
+    "name": "Cavalryman",
+    "filename": "Cavalryman.png"
+  },
+  {
+    "id": "cavalryman_20",
+    "name": "Cavalryman (20)",
+    "filename": "Cavalryman (20).png"
+  },
+  {
+    "id": "chocobone",
+    "name": "Chocobone",
+    "filename": "Chocobone.png"
+  },
+  {
+    "id": "dark_adept",
+    "name": "Dark Adept",
+    "filename": "Dark Adept.png"
+  },
+  {
+    "id": "death_knight",
+    "name": "Death Knight",
+    "filename": "Death Knight.png"
+  },
+  {
+    "id": "death_squire",
+    "name": "Death Squire",
+    "filename": "Death Squire.png"
+  },
+  {
+    "id": "direwolf_rider",
+    "name": "Direwolf Rider",
+    "filename": "Direwolf Rider.png"
+  },
+  {
+    "id": "dragoon",
+    "name": "Dragoon",
+    "filename": "Dragoon.png"
+  },
+  {
+    "id": "drake_burner",
+    "name": "Drake Burner",
+    "filename": "Drake Burner.png"
+  },
+  {
+    "id": "drake_burner_20",
+    "name": "Drake Burner (20)",
+    "filename": "Drake Burner (20).png"
+  },
+  {
+    "id": "drake_clasher",
+    "name": "Drake Clasher",
+    "filename": "Drake Clasher.png"
+  },
+  {
+    "id": "drake_enforcer",
+    "name": "Drake Enforcer",
+    "filename": "Drake Enforcer.png"
+  },
+  {
+    "id": "drake_fighter",
+    "name": "Drake Fighter",
+    "filename": "Drake Fighter.png"
+  },
+  {
+    "id": "drake_fighter_20",
+    "name": "Drake Fighter (20)",
+    "filename": "Drake Fighter (20).png"
+  },
+  {
+    "id": "drake_fighter_20_test",
+    "name": "Drake Fighter (20) Test",
+    "filename": "Drake Fighter (20) Test.png"
+  },
+  {
+    "id": "drake_flameheart",
+    "name": "Drake Flameheart",
+    "filename": "Drake Flameheart.png"
+  },
+  {
+    "id": "drake_flameheart_20",
+    "name": "Drake Flameheart (20)",
+    "filename": "Drake Flameheart (20).png"
+  },
+  {
+    "id": "drake_flare",
+    "name": "Drake Flare",
+    "filename": "Drake Flare.png"
+  },
+  {
+    "id": "drake_glider",
+    "name": "Drake Glider",
+    "filename": "Drake Glider.png"
+  },
+  {
+    "id": "drake_glider_20_test",
+    "name": "Drake Glider (20) Test",
+    "filename": "Drake Glider (20) Test.png"
+  },
+  {
+    "id": "drake_guardraken",
+    "name": "Drake Guardraken",
+    "filename": "Drake Guardraken.png"
+  },
+  {
+    "id": "drake_protector",
+    "name": "Drake Protector",
+    "filename": "Drake Protector.png"
+  },
+  {
+    "id": "drake_warden",
+    "name": "Drake Warden",
+    "filename": "Drake Warden.png"
+  },
+  {
+    "id": "drake_warrior",
+    "name": "Drake Warrior",
+    "filename": "Drake Warrior.png"
+  },
+  {
+    "id": "drake_warrior_20",
+    "name": "Drake Warrior (20)",
+    "filename": "Drake Warrior (20).png"
+  },
+  {
+    "id": "draug",
+    "name": "Draug",
+    "filename": "Draug.png"
+  },
+  {
+    "id": "dread_bat",
+    "name": "Dread Bat",
+    "filename": "Dread Bat.png"
+  },
+  {
+    "id": "duelist",
+    "name": "Duelist",
+    "filename": "Duelist.png"
+  },
+  {
+    "id": "dwarvish_arcanister",
+    "name": "Dwarvish Arcanister",
+    "filename": "Dwarvish Arcanister.png"
+  },
+  {
+    "id": "dwarvish_berserker",
+    "name": "Dwarvish Berserker",
+    "filename": "Dwarvish Berserker.png"
+  },
+  {
+    "id": "dwarvish_dragonguard",
+    "name": "Dwarvish Dragonguard",
+    "filename": "Dwarvish Dragonguard.png"
+  },
+  {
+    "id": "dwarvish_dragonguard_20_test",
+    "name": "Dwarvish Dragonguard (20) Test",
+    "filename": "Dwarvish Dragonguard (20) Test.png"
+  },
+  {
+    "id": "dwarvish_explorer",
+    "name": "Dwarvish Explorer",
+    "filename": "Dwarvish Explorer.png"
+  },
+  {
+    "id": "dwarvish_fighter",
+    "name": "Dwarvish Fighter",
+    "filename": "Dwarvish Fighter.png"
+  },
+  {
+    "id": "dwarvish_fighter20_test",
+    "name": "Dwarvish Fighter(20) Test",
+    "filename": "Dwarvish Fighter(20) Test.png"
+  },
+  {
+    "id": "dwarvish_guardsman",
+    "name": "Dwarvish Guardsman",
+    "filename": "Dwarvish Guardsman.png"
+  },
+  {
+    "id": "dwarvish_guardsman_20",
+    "name": "Dwarvish Guardsman (20)",
+    "filename": "Dwarvish Guardsman (20).png"
+  },
+  {
+    "id": "dwarvish_guardsman_20_test",
+    "name": "Dwarvish Guardsman (20) Test",
+    "filename": "Dwarvish Guardsman (20) Test.png"
+  },
+  {
+    "id": "dwarvish_lord",
+    "name": "Dwarvish Lord",
+    "filename": "Dwarvish Lord.png"
+  },
+  {
+    "id": "dwarvish_miner",
+    "name": "Dwarvish Miner",
+    "filename": "Dwarvish Miner.png"
+  },
+  {
+    "id": "dwarvish_pathfinder",
+    "name": "Dwarvish Pathfinder",
+    "filename": "Dwarvish Pathfinder.png"
+  },
+  {
+    "id": "dwarvish_runemaster",
+    "name": "Dwarvish Runemaster",
+    "filename": "Dwarvish Runemaster.png"
+  },
+  {
+    "id": "dwarvish_runesmith",
+    "name": "Dwarvish Runesmith",
+    "filename": "Dwarvish Runesmith.png"
+  },
+  {
+    "id": "dwarvish_scout",
+    "name": "Dwarvish Scout",
+    "filename": "Dwarvish Scout.png"
+  },
+  {
+    "id": "dwarvish_sentinel",
+    "name": "Dwarvish Sentinel",
+    "filename": "Dwarvish Sentinel.png"
+  },
+  {
+    "id": "dwarvish_stalwart",
+    "name": "Dwarvish Stalwart",
+    "filename": "Dwarvish Stalwart.png"
+  },
+  {
+    "id": "dwarvish_steelclad",
+    "name": "Dwarvish Steelclad",
+    "filename": "Dwarvish Steelclad.png"
+  },
+  {
+    "id": "dwarvish_thunderer",
+    "name": "Dwarvish Thunderer",
+    "filename": "Dwarvish Thunderer.png"
+  },
+  {
+    "id": "dwarvish_thunderer_20_test",
+    "name": "Dwarvish Thunderer (20) Test",
+    "filename": "Dwarvish Thunderer (20) Test.png"
+  },
+  {
+    "id": "dwarvish_thunderguard",
+    "name": "Dwarvish Thunderguard",
+    "filename": "Dwarvish Thunderguard.png"
+  },
+  {
+    "id": "dwarvish_ulfserker",
+    "name": "Dwarvish Ulfserker",
+    "filename": "Dwarvish Ulfserker.png"
+  },
+  {
+    "id": "elder_mage",
+    "name": "Elder Mage",
+    "filename": "Elder Mage.png"
+  },
+  {
+    "id": "elder_wose",
+    "name": "Elder Wose",
+    "filename": "Elder Wose.png"
+  },
+  {
+    "id": "elvish_archer",
+    "name": "Elvish Archer",
+    "filename": "Elvish Archer.png"
+  },
+  {
+    "id": "elvish_avenger",
+    "name": "Elvish Avenger",
+    "filename": "Elvish Avenger.png"
+  },
+  {
+    "id": "elvish_champion",
+    "name": "Elvish Champion",
+    "filename": "Elvish Champion.png"
+  },
+  {
+    "id": "elvish_druid",
+    "name": "Elvish Druid",
+    "filename": "Elvish Druid.png"
+  },
+  {
+    "id": "elvish_enchantress",
+    "name": "Elvish Enchantress",
+    "filename": "Elvish Enchantress.png"
+  },
+  {
+    "id": "elvish_fighter",
+    "name": "Elvish Fighter",
+    "filename": "Elvish Fighter.png"
+  },
+  {
+    "id": "elvish_high_lord",
+    "name": "Elvish High Lord",
+    "filename": "Elvish High Lord.png"
+  },
+  {
+    "id": "elvish_lady",
+    "name": "Elvish Lady",
+    "filename": "Elvish Lady.png"
+  },
+  {
+    "id": "elvish_lord",
+    "name": "Elvish Lord",
+    "filename": "Elvish Lord.png"
+  },
+  {
+    "id": "elvish_marshal",
+    "name": "Elvish Marshal",
+    "filename": "Elvish Marshal.png"
+  },
+  {
+    "id": "elvish_outrider",
+    "name": "Elvish Outrider",
+    "filename": "Elvish Outrider.png"
+  },
+  {
+    "id": "elvish_rider",
+    "name": "Elvish Rider",
+    "filename": "Elvish Rider.png"
+  },
+  {
+    "id": "elvish_scout",
+    "name": "Elvish Scout",
+    "filename": "Elvish Scout.png"
+  },
+  {
+    "id": "elvish_shaman",
+    "name": "Elvish Shaman",
+    "filename": "Elvish Shaman.png"
+  },
+  {
+    "id": "elvish_shaman_20_test",
+    "name": "Elvish Shaman (20) Test",
+    "filename": "Elvish Shaman (20) Test.png"
+  },
+  {
+    "id": "elvish_sharpshooter",
+    "name": "Elvish Sharpshooter",
+    "filename": "Elvish Sharpshooter.png"
+  },
+  {
+    "id": "elvish_shyde",
+    "name": "Elvish Shyde",
+    "filename": "Elvish Shyde.png"
+  },
+  {
+    "id": "elvish_sorceress",
+    "name": "Elvish Sorceress",
+    "filename": "Elvish Sorceress.png"
+  },
+  {
+    "id": "elvish_sylph",
+    "name": "Elvish Sylph",
+    "filename": "Elvish Sylph.png"
+  },
+  {
+    "id": "fencer",
+    "name": "Fencer",
+    "filename": "Fencer.png"
+  },
+  {
+    "id": "footpad",
+    "name": "Footpad",
+    "filename": "Footpad.png"
+  },
+  {
+    "id": "fugitive",
+    "name": "Fugitive",
+    "filename": "Fugitive.png"
+  },
+  {
+    "id": "general",
+    "name": "General",
+    "filename": "General.png"
+  },
+  {
+    "id": "ghast",
+    "name": "Ghast",
+    "filename": "Ghast.png"
+  },
+  {
+    "id": "ghast_20_test",
+    "name": "Ghast (20) Test",
+    "filename": "Ghast (20) Test.png"
+  },
+  {
+    "id": "ghost",
+    "name": "Ghost",
+    "filename": "Ghost.png"
+  },
+  {
+    "id": "ghoul",
+    "name": "Ghoul",
+    "filename": "Ghoul.png"
+  },
+  {
+    "id": "ghoul_20_test",
+    "name": "Ghoul (20) Test",
+    "filename": "Ghoul (20) Test.png"
+  },
+  {
+    "id": "goblin_impaler",
+    "name": "Goblin Impaler",
+    "filename": "Goblin Impaler.png"
+  },
+  {
+    "id": "goblin_knight",
+    "name": "Goblin Knight",
+    "filename": "Goblin Knight.png"
+  },
+  {
+    "id": "goblin_pillager",
+    "name": "Goblin Pillager",
+    "filename": "Goblin Pillager.png"
+  },
+  {
+    "id": "goblin_rouser",
+    "name": "Goblin Rouser",
+    "filename": "Goblin Rouser.png"
+  },
+  {
+    "id": "goblin_spearman",
+    "name": "Goblin Spearman",
+    "filename": "Goblin Spearman.png"
+  },
+  {
+    "id": "grand_knight",
+    "name": "Grand Knight",
+    "filename": "Grand Knight.png"
+  },
+  {
+    "id": "grand_marshal",
+    "name": "Grand Marshal",
+    "filename": "Grand Marshal.png"
+  },
+  {
+    "id": "great_mage",
+    "name": "Great Mage",
+    "filename": "Great Mage.png"
+  },
+  {
+    "id": "great_troll",
+    "name": "Great Troll",
+    "filename": "Great Troll.png"
+  },
+  {
+    "id": "great_troll_20_test",
+    "name": "Great Troll (20) Test",
+    "filename": "Great Troll (20) Test.png"
+  },
+  {
+    "id": "gryphon",
+    "name": "Gryphon",
+    "filename": "Gryphon.png"
+  },
+  {
+    "id": "gryphon_master",
+    "name": "Gryphon Master",
+    "filename": "Gryphon Master.png"
+  },
+  {
+    "id": "gryphon_rider",
+    "name": "Gryphon Rider",
+    "filename": "Gryphon Rider.png"
+  },
+  {
+    "id": "gryphon_rider_20",
+    "name": "Gryphon Rider (20)",
+    "filename": "Gryphon Rider (20).png"
+  },
+  {
+    "id": "halberdier",
+    "name": "Halberdier",
+    "filename": "Halberdier.png"
+  },
+  {
+    "id": "heavy_infantryman",
+    "name": "Heavy Infantryman",
+    "filename": "Heavy Infantryman.png"
+  },
+  {
+    "id": "heavy_infantryman_20_test",
+    "name": "Heavy Infantryman (20) Test",
+    "filename": "Heavy Infantryman (20) Test.png"
+  },
+  {
+    "id": "highwayman",
+    "name": "Highwayman",
+    "filename": "Highwayman.png"
+  },
+  {
+    "id": "horseman",
+    "name": "Horseman",
+    "filename": "Horseman.png"
+  },
+  {
+    "id": "horseman_20_test",
+    "name": "Horseman (20) Test",
+    "filename": "Horseman (20) Test.png"
+  },
+  {
+    "id": "huntsman",
+    "name": "Huntsman",
+    "filename": "Huntsman.png"
+  },
+  {
+    "id": "hurricane_drake",
+    "name": "Hurricane Drake",
+    "filename": "Hurricane Drake.png"
+  },
+  {
+    "id": "inferno_drake",
+    "name": "Inferno Drake",
+    "filename": "Inferno Drake.png"
+  },
+  {
+    "id": "inferno_drake_20",
+    "name": "Inferno Drake (20)",
+    "filename": "Inferno Drake (20).png"
+  },
+  {
+    "id": "iron_mauler",
+    "name": "Iron Mauler",
+    "filename": "Iron Mauler.png"
+  },
+  {
+    "id": "iron_mauler_20_test",
+    "name": "Iron Mauler (20) Test",
+    "filename": "Iron Mauler (20) Test.png"
+  },
+  {
+    "id": "javelineer",
+    "name": "Javelineer",
+    "filename": "Javelineer.png"
+  },
+  {
+    "id": "knight",
+    "name": "Knight",
+    "filename": "Knight.png"
+  },
+  {
+    "id": "lancer",
+    "name": "Lancer",
+    "filename": "Lancer.png"
+  },
+  {
+    "id": "lich",
+    "name": "Lich",
+    "filename": "Lich.png"
+  },
+  {
+    "id": "lieutenant",
+    "name": "Lieutenant",
+    "filename": "Lieutenant.png"
+  },
+  {
+    "id": "longbowman",
+    "name": "Longbowman",
+    "filename": "Longbowman.png"
+  },
+  {
+    "id": "mage",
+    "name": "Mage",
+    "filename": "Mage.png"
+  },
+  {
+    "id": "mage_of_light",
+    "name": "Mage of Light",
+    "filename": "Mage of Light.png"
+  },
+  {
+    "id": "master_bowman",
+    "name": "Master Bowman",
+    "filename": "Master Bowman.png"
+  },
+  {
+    "id": "master_at_arms",
+    "name": "Master at Arms",
+    "filename": "Master at Arms.png"
+  },
+  {
+    "id": "mermaid_diviner",
+    "name": "Mermaid Diviner",
+    "filename": "Mermaid Diviner.png"
+  },
+  {
+    "id": "mermaid_enchantress",
+    "name": "Mermaid Enchantress",
+    "filename": "Mermaid Enchantress.png"
+  },
+  {
+    "id": "mermaid_initiate",
+    "name": "Mermaid Initiate",
+    "filename": "Mermaid Initiate.png"
+  },
+  {
+    "id": "mermaid_priestess",
+    "name": "Mermaid Priestess",
+    "filename": "Mermaid Priestess.png"
+  },
+  {
+    "id": "mermaid_siren",
+    "name": "Mermaid Siren",
+    "filename": "Mermaid Siren.png"
+  },
+  {
+    "id": "merman_brawler",
+    "name": "Merman Brawler",
+    "filename": "Merman Brawler.png"
+  },
+  {
+    "id": "merman_citizen",
+    "name": "Merman Citizen",
+    "filename": "Merman Citizen.png"
+  },
+  {
+    "id": "merman_entangler",
+    "name": "Merman Entangler",
+    "filename": "Merman Entangler.png"
+  },
+  {
+    "id": "merman_fighter",
+    "name": "Merman Fighter",
+    "filename": "Merman Fighter.png"
+  },
+  {
+    "id": "merman_hoplite",
+    "name": "Merman Hoplite",
+    "filename": "Merman Hoplite.png"
+  },
+  {
+    "id": "merman_hunter",
+    "name": "Merman Hunter",
+    "filename": "Merman Hunter.png"
+  },
+  {
+    "id": "merman_javelineer",
+    "name": "Merman Javelineer",
+    "filename": "Merman Javelineer.png"
+  },
+  {
+    "id": "merman_netcaster",
+    "name": "Merman Netcaster",
+    "filename": "Merman Netcaster.png"
+  },
+  {
+    "id": "merman_spearman",
+    "name": "Merman Spearman",
+    "filename": "Merman Spearman.png"
+  },
+  {
+    "id": "merman_triton",
+    "name": "Merman Triton",
+    "filename": "Merman Triton.png"
+  },
+  {
+    "id": "merman_warrior",
+    "name": "Merman Warrior",
+    "filename": "Merman Warrior.png"
+  },
+  {
+    "id": "naga_dirkfang",
+    "name": "Naga Dirkfang",
+    "filename": "Naga Dirkfang.png"
+  },
+  {
+    "id": "naga_fighter",
+    "name": "Naga Fighter",
+    "filename": "Naga Fighter.png"
+  },
+  {
+    "id": "naga_guard",
+    "name": "Naga Guard",
+    "filename": "Naga Guard.png"
+  },
+  {
+    "id": "naga_high_guard",
+    "name": "Naga High Guard",
+    "filename": "Naga High Guard.png"
+  },
+  {
+    "id": "naga_myrmidon",
+    "name": "Naga Myrmidon",
+    "filename": "Naga Myrmidon.png"
+  },
+  {
+    "id": "naga_ophidian",
+    "name": "Naga Ophidian",
+    "filename": "Naga Ophidian.png"
+  },
+  {
+    "id": "naga_ringcaster",
+    "name": "Naga Ringcaster",
+    "filename": "Naga Ringcaster.png"
+  },
+  {
+    "id": "naga_shield_guard",
+    "name": "Naga Shield Guard",
+    "filename": "Naga Shield Guard.png"
+  },
+  {
+    "id": "naga_sicarius",
+    "name": "Naga Sicarius",
+    "filename": "Naga Sicarius.png"
+  },
+  {
+    "id": "naga_warrior",
+    "name": "Naga Warrior",
+    "filename": "Naga Warrior.png"
+  },
+  {
+    "id": "naga_zephyr",
+    "name": "Naga Zephyr",
+    "filename": "Naga Zephyr.png"
+  },
+  {
+    "id": "necromancer",
+    "name": "Necromancer",
+    "filename": "Necromancer.png"
+  },
+  {
+    "id": "necrophage",
+    "name": "Necrophage",
+    "filename": "Necrophage.png"
+  },
+  {
+    "id": "necrophage_20_test",
+    "name": "Necrophage (20) Test",
+    "filename": "Necrophage (20) Test.png"
+  },
+  {
+    "id": "nightgaunt",
+    "name": "Nightgaunt",
+    "filename": "Nightgaunt.png"
+  },
+  {
+    "id": "orcish_archer",
+    "name": "Orcish Archer",
+    "filename": "Orcish Archer.png"
+  },
+  {
+    "id": "orcish_archer_20_test",
+    "name": "Orcish Archer (20) Test",
+    "filename": "Orcish Archer (20) Test.png"
+  },
+  {
+    "id": "orcish_assassin",
+    "name": "Orcish Assassin",
+    "filename": "Orcish Assassin.png"
+  },
+  {
+    "id": "orcish_crossbowman",
+    "name": "Orcish Crossbowman",
+    "filename": "Orcish Crossbowman.png"
+  },
+  {
+    "id": "orcish_grunt",
+    "name": "Orcish Grunt",
+    "filename": "Orcish Grunt.png"
+  },
+  {
+    "id": "orcish_grunt_20_test",
+    "name": "Orcish Grunt (20) Test",
+    "filename": "Orcish Grunt (20) Test.png"
+  },
+  {
+    "id": "orcish_leader",
+    "name": "Orcish Leader",
+    "filename": "Orcish Leader.png"
+  },
+  {
+    "id": "orcish_ruler",
+    "name": "Orcish Ruler",
+    "filename": "Orcish Ruler.png"
+  },
+  {
+    "id": "orcish_slurbow",
+    "name": "Orcish Slurbow",
+    "filename": "Orcish Slurbow.png"
+  },
+  {
+    "id": "orcish_sovereign",
+    "name": "Orcish Sovereign",
+    "filename": "Orcish Sovereign.png"
+  },
+  {
+    "id": "orcish_warlord",
+    "name": "Orcish Warlord",
+    "filename": "Orcish Warlord.png"
+  },
+  {
+    "id": "orcish_warrior",
+    "name": "Orcish Warrior",
+    "filename": "Orcish Warrior.png"
+  },
+  {
+    "id": "outlaw",
+    "name": "Outlaw",
+    "filename": "Outlaw.png"
+  },
+  {
+    "id": "paladin",
+    "name": "Paladin",
+    "filename": "Paladin.png"
+  },
+  {
+    "id": "peasant",
+    "name": "Peasant",
+    "filename": "Peasant.png"
+  },
+  {
+    "id": "pikeman",
+    "name": "Pikeman",
+    "filename": "Pikeman.png"
+  },
+  {
+    "id": "poacher",
+    "name": "Poacher",
+    "filename": "Poacher.png"
+  },
+  {
+    "id": "poacher_20_test",
+    "name": "Poacher (20) Test",
+    "filename": "Poacher (20) Test.png"
+  },
+  {
+    "id": "ranger",
+    "name": "Ranger",
+    "filename": "Ranger.png"
+  },
+  {
+    "id": "rogue",
+    "name": "Rogue",
+    "filename": "Rogue.png"
+  },
+  {
+    "id": "royal_guard",
+    "name": "Royal Guard",
+    "filename": "Royal Guard.png"
+  },
+  {
+    "id": "royal_warrior",
+    "name": "Royal Warrior",
+    "filename": "Royal Warrior.png"
+  },
+  {
+    "id": "ruffian",
+    "name": "Ruffian",
+    "filename": "Ruffian.png"
+  },
+  {
+    "id": "saurian_ambusher",
+    "name": "Saurian Ambusher",
+    "filename": "Saurian Ambusher.png"
+  },
+  {
+    "id": "saurian_augur",
+    "name": "Saurian Augur",
+    "filename": "Saurian Augur.png"
+  },
+  {
+    "id": "saurian_flanker",
+    "name": "Saurian Flanker",
+    "filename": "Saurian Flanker.png"
+  },
+  {
+    "id": "saurian_javelineer",
+    "name": "Saurian Javelineer",
+    "filename": "Saurian Javelineer.png"
+  },
+  {
+    "id": "saurian_prophet",
+    "name": "Saurian Prophet",
+    "filename": "Saurian Prophet.png"
+  },
+  {
+    "id": "saurian_seer",
+    "name": "Saurian Seer",
+    "filename": "Saurian Seer.png"
+  },
+  {
+    "id": "saurian_skirmisher",
+    "name": "Saurian Skirmisher",
+    "filename": "Saurian Skirmisher.png"
+  },
+  {
+    "id": "saurian_soothsayer",
+    "name": "Saurian Soothsayer",
+    "filename": "Saurian Soothsayer.png"
+  },
+  {
+    "id": "saurian_spearthrower",
+    "name": "Saurian Spearthrower",
+    "filename": "Saurian Spearthrower.png"
+  },
+  {
+    "id": "sergeant",
+    "name": "Sergeant",
+    "filename": "Sergeant.png"
+  },
+  {
+    "id": "shadow",
+    "name": "Shadow",
+    "filename": "Shadow.png"
+  },
+  {
+    "id": "shock_trooper",
+    "name": "Shock Trooper",
+    "filename": "Shock Trooper.png"
+  },
+  {
+    "id": "silver_mage",
+    "name": "Silver Mage",
+    "filename": "Silver Mage.png"
+  },
+  {
+    "id": "skeleton",
+    "name": "Skeleton",
+    "filename": "Skeleton.png"
+  },
+  {
+    "id": "skeleton_archer",
+    "name": "Skeleton Archer",
+    "filename": "Skeleton Archer.png"
+  },
+  {
+    "id": "skeleton_rider",
+    "name": "Skeleton Rider",
+    "filename": "Skeleton Rider.png"
+  },
+  {
+    "id": "sky_drake",
+    "name": "Sky Drake",
+    "filename": "Sky Drake.png"
+  },
+  {
+    "id": "soulless",
+    "name": "Soulless",
+    "filename": "Soulless.png"
+  },
+  {
+    "id": "spearman",
+    "name": "Spearman",
+    "filename": "Spearman.png"
+  },
+  {
+    "id": "spectre",
+    "name": "Spectre",
+    "filename": "Spectre.png"
+  },
+  {
+    "id": "swordsman",
+    "name": "Swordsman",
+    "filename": "Swordsman.png"
+  },
+  {
+    "id": "thief",
+    "name": "Thief",
+    "filename": "Thief.png"
+  },
+  {
+    "id": "thief_20_test",
+    "name": "Thief (20) Test",
+    "filename": "Thief (20) Test.png"
+  },
+  {
+    "id": "thug",
+    "name": "Thug",
+    "filename": "Thug.png"
+  },
+  {
+    "id": "trapper",
+    "name": "Trapper",
+    "filename": "Trapper.png"
+  },
+  {
+    "id": "trapper_20",
+    "name": "Trapper (20)",
+    "filename": "Trapper (20).png"
+  },
+  {
+    "id": "troll_20_test",
+    "name": "Troll (20) Test",
+    "filename": "Troll (20) Test.png"
+  },
+  {
+    "id": "troll_hero",
+    "name": "Troll Hero",
+    "filename": "Troll Hero.png"
+  },
+  {
+    "id": "troll_hero_20_test",
+    "name": "Troll Hero (20) Test",
+    "filename": "Troll Hero (20) Test.png"
+  },
+  {
+    "id": "troll_rocklobber",
+    "name": "Troll Rocklobber",
+    "filename": "Troll Rocklobber.png"
+  },
+  {
+    "id": "troll_rocklobber_20_test",
+    "name": "Troll Rocklobber (20) Test",
+    "filename": "Troll Rocklobber (20) Test.png"
+  },
+  {
+    "id": "troll_shaman",
+    "name": "Troll Shaman",
+    "filename": "Troll Shaman.png"
+  },
+  {
+    "id": "troll_shaman_20_test",
+    "name": "Troll Shaman (20) Test",
+    "filename": "Troll Shaman (20) Test.png"
+  },
+  {
+    "id": "troll_warrior",
+    "name": "Troll Warrior",
+    "filename": "Troll Warrior.png"
+  },
+  {
+    "id": "troll_warrior_20_test",
+    "name": "Troll Warrior (20) Test",
+    "filename": "Troll Warrior (20) Test.png"
+  },
+  {
+    "id": "troll_whelp",
+    "name": "Troll Whelp",
+    "filename": "Troll Whelp.png"
+  },
+  {
+    "id": "troll_whelp_20_test",
+    "name": "Troll Whelp (20) Test",
+    "filename": "Troll Whelp (20) Test.png"
+  },
+  {
+    "id": "vampire_bat",
+    "name": "Vampire Bat",
+    "filename": "Vampire Bat.png"
+  },
+  {
+    "id": "vampire_bat_20_test",
+    "name": "Vampire Bat (20) Test",
+    "filename": "Vampire Bat (20) Test.png"
+  },
+  {
+    "id": "walking_corpse",
+    "name": "Walking Corpse",
+    "filename": "Walking Corpse.png"
+  },
+  {
+    "id": "wolf_rider",
+    "name": "Wolf Rider",
+    "filename": "Wolf Rider.png"
+  },
+  {
+    "id": "woodsman",
+    "name": "Woodsman",
+    "filename": "Woodsman.png"
+  },
+  {
+    "id": "wose",
+    "name": "Wose",
+    "filename": "Wose.png"
+  },
+  {
+    "id": "wose_20_test",
+    "name": "Wose (20) Test",
+    "filename": "Wose (20) Test.png"
+  },
+  {
+    "id": "wose_sapling",
+    "name": "Wose Sapling",
+    "filename": "Wose Sapling.png"
+  },
+  {
+    "id": "wose_shaman",
+    "name": "Wose Shaman",
+    "filename": "Wose Shaman.png"
+  },
+  {
+    "id": "wraith",
+    "name": "Wraith",
+    "filename": "Wraith.png"
+  }
+]

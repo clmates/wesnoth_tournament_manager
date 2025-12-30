@@ -349,7 +349,7 @@ router.get('/players', async (req, res) => {
     params.push(limit);
     params.push(offset);
     const result = await query(
-      `SELECT id, nickname, elo_rating, is_rated, matches_played, total_wins, total_losses
+      `SELECT id, nickname, elo_rating, is_rated, matches_played, total_wins, total_losses, country, avatar
        FROM users
        WHERE ${whereClause}
        ORDER BY nickname ASC
@@ -488,6 +488,8 @@ router.get('/players/:id', async (req, res) => {
         u.total_wins, 
         u.total_losses, 
         u.level, 
+        u.country,
+        u.avatar,
         u.created_at,
         u.trend,
         u.is_active,
