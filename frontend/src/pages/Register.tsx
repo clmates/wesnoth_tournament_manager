@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
+import { CountrySelector } from '../components/CountrySelector';
+import { AvatarSelector } from '../components/AvatarSelector';
 import '../styles/Auth.css';
 
 const Register: React.FC = () => {
@@ -13,6 +15,8 @@ const Register: React.FC = () => {
     password: '',
     confirmPassword: '',
     discordId: '',
+    country: '',
+    avatar: '',
     language: i18n.language || 'en',
   });
   const [loading, setLoading] = useState(false);
@@ -101,6 +105,8 @@ const Register: React.FC = () => {
         nickname: formData.nickname,
         password: formData.password,
         discord_id: formData.discordId || null,
+        country: formData.country || null,
+        avatar: formData.avatar || null,
         language: formData.language,
       });
 
@@ -209,6 +215,20 @@ const Register: React.FC = () => {
               disabled={loading}
             />
             <small>Your Discord user ID for notifications</small>
+          </div>
+
+          <div className="form-group-selectors">
+            <CountrySelector
+              value={formData.country}
+              onChange={(country) => setFormData(prev => ({ ...prev, country }))}
+              showFlag={true}
+              disabled={loading}
+            />
+            <AvatarSelector
+              value={formData.avatar}
+              onChange={(avatar) => setFormData(prev => ({ ...prev, avatar }))}
+              disabled={loading}
+            />
           </div>
 
           <div className="form-group">

@@ -5,6 +5,8 @@ import { authService, userService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import MainLayout from '../components/MainLayout';
 import ProfileStats from '../components/ProfileStats';
+import { CountrySelector } from '../components/CountrySelector';
+import { AvatarSelector } from '../components/AvatarSelector';
 import '../styles/UserProfile.css';
 
 const Profile: React.FC = () => {
@@ -15,6 +17,8 @@ const Profile: React.FC = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.language);
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedAvatar, setSelectedAvatar] = useState('');
   const [discordId, setDiscordId] = useState('');
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -74,6 +78,8 @@ const Profile: React.FC = () => {
         const langFromDB = profileRes.data.language || 'en';
         console.log('Setting selectedLanguage to:', langFromDB);
         setSelectedLanguage(langFromDB);
+        setSelectedCountry(profileRes.data.country || '');
+        setSelectedAvatar(profileRes.data.avatar || '');
         setDiscordId(profileRes.data.discord_id || '');
         console.log('Discord ID from API:', profileRes.data.discord_id);
         
@@ -98,6 +104,32 @@ const Profile: React.FC = () => {
     setLanguageDropdownOpen(false);
     setDiscordMessage(t('profile_language_updated') || 'Language updated');
     setTimeout(() => setDiscordMessage(''), 3000);
+  };
+
+  const handleCountryChange = async (countryCode: string) => {
+    setSelectedCountry(countryCode);
+    try {
+      const res = await userService.updateProfile({ country: countryCode });
+      setProfile(res.data);
+      setDiscordMessage(t('profile.country_updated') || 'Country updated');
+      setTimeout(() => setDiscordMessage(''), 3000);
+    } catch (err: any) {
+      console.error('Error updating country:', err);
+      setDiscordError(err.response?.data?.error || t('profile.error_update_country_failed'));
+    }
+  };
+
+  const handleAvatarChange = async (avatarId: string) => {
+    setSelectedAvatar(avatarId);
+    try {
+      const res = await userService.updateProfile({ avatar: avatarId });
+      setProfile(res.data);
+      setDiscordMessage(t('profile.avatar_updated') || 'Avatar updated');
+      setTimeout(() => setDiscordMessage(''), 3000);
+    } catch (err: any) {
+      console.error('Error updating avatar:', err);
+      setDiscordError(err.response?.data?.error || t('profile.error_update_avatar_failed'));
+    }
   };
 
   const handleDiscordUpdate = async () => {
@@ -192,6 +224,21 @@ const Profile: React.FC = () => {
               <div className="info-group">
                 <label>{t('profile.label_email')}</label>
                 <p>{profile?.email}</p>
+              </div>
+            </section>
+
+            <section className="profile-preferences">
+              <h2>{t('profile.preferences_title') || 'Preferences'}</h2>
+              <div className="preferences-grid">
+                <CountrySelector
+                  value={selectedCountry}
+                  onChange={handleCountryChange}
+                  showFlag={true}
+                />
+                <AvatarSelector
+                  value={selectedAvatar}
+                  onChange={handleAvatarChange}
+                />
               </div>
             </section>
 

@@ -880,3 +880,22 @@
   font-size: 1.1rem;
   font-weight: 600;
 }
+
+/* Form Group Selectors */
+.form-group-selectors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin: 1rem 0;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #3498db;
+}
+
+@media (max-width: 768px) {
+  .form-group-selectors {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}

@@ -19,6 +19,7 @@
 
 /* Section Styles */
 .profile-info,
+.profile-preferences,
 .discord-settings,
 .language-settings,
 .change-password {
@@ -30,6 +31,7 @@
 }
 
 .profile-info h2,
+.profile-preferences h2,
 .discord-settings h2,
 .language-settings h2,
 .change-password h2 {
@@ -463,5 +465,19 @@
 
   .discord-input-group button {
     width: 100%;
+  }
+}
+
+/* Preferences Grid */
+.preferences-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .preferences-grid {
+    grid-template-columns: 1fr;
   }
 }
