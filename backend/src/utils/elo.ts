@@ -107,16 +107,15 @@ export const calculateInitialRating = (
 /**
  * Check if a player should be rated after their matches
  * Requirements:
- * - At least 5 games played
- * - All against rated players
+ * - At least 10 games played
  * - Resulting rating >= 1400
+ * - Opponent rating doesn't matter
  */
 export const shouldPlayerBeRated = (
   matchesPlayed: number,
-  allOpponentsRated: boolean,
   calculatedRating: number
 ): boolean => {
-  return matchesPlayed >= 5 && allOpponentsRated && calculatedRating >= 1400;
+  return matchesPlayed >= 10 && calculatedRating >= 1400;
 };
 
 /**

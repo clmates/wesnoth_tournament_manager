@@ -193,8 +193,12 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
     let winnerIsNowRated = winner.is_rated;
     let finalWinnerRating = winnerNewRating;
 
-    // Check if unrated winner should become rated (FIDE: 5 games minimum)
-    if (!winner.is_rated && newWinnerMatches >= 5) {
+    // Check if winner should become unrated (drops below 1400 elo)
+    if (winner.is_rated && finalWinnerRating < 1400) {
+      winnerIsNowRated = false;
+    }
+    // Check if unrated winner should become rated (10 games minimum, rating >= 1400)
+    else if (!winner.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
       winnerIsNowRated = true;
     }
 
@@ -216,8 +220,12 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
     let loserIsNowRated = loser.is_rated;
     let finalLoserRating = loserNewRating;
 
-    // Check if unrated loser should become rated (FIDE: 5 games minimum)
-    if (!loser.is_rated && newLoserMatches >= 5) {
+    // Check if loser should become unrated (drops below 1400 elo)
+    if (loser.is_rated && finalLoserRating < 1400) {
+      loserIsNowRated = false;
+    }
+    // Check if unrated loser should become rated (10 games minimum, rating >= 1400)
+    else if (!loser.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
       loserIsNowRated = true;
     }
 
@@ -480,8 +488,12 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     let winnerIsNowRated = winner.is_rated;
     let finalWinnerRating = winnerNewRating;
 
-    // Check if unrated winner should become rated (FIDE: 5 games minimum, rating >= 1400)
-    if (!winner.is_rated && newWinnerMatches >= 5 && finalWinnerRating >= 1400) {
+    // Check if winner should become unrated (drops below 1400 elo)
+    if (winner.is_rated && finalWinnerRating < 1400) {
+      winnerIsNowRated = false;
+    }
+    // Check if unrated winner should become rated (10 games minimum, rating >= 1400)
+    else if (!winner.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
       winnerIsNowRated = true;
     }
 
@@ -503,8 +515,12 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     let loserIsNowRated = loser.is_rated;
     let finalLoserRating = loserNewRating;
 
-    // Check if unrated loser should become rated (FIDE: 5 games minimum, rating >= 1400)
-    if (!loser.is_rated && newLoserMatches >= 5 && finalLoserRating >= 1400) {
+    // Check if loser should become unrated (drops below 1400 elo)
+    if (loser.is_rated && finalLoserRating < 1400) {
+      loserIsNowRated = false;
+    }
+    // Check if unrated loser should become rated (10 games minimum, rating >= 1400)
+    else if (!loser.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
       loserIsNowRated = true;
     }
 
