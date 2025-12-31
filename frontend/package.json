@@ -1,7 +1,7 @@
 {
   "name": "wesnoth-tournament-frontend",
   "version": "1.0.0",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "description": "Frontend for Wesnoth Tournament Management",
   "type": "module",
   "scripts": {

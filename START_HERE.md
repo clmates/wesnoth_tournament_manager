@@ -2,7 +2,18 @@
 
 **Last Updated**: 2025-12-14  
 **Status**: ✅ **PRODUCTION READY**  
-**Test Success Rate**: 4/4 (100%)
+**Test Success Rate**: 4/4 (100%)  
+**License**: ⚖️ **AGPL-3.0-or-later**
+
+---
+
+## ⚠️ IMPORTANT: License Notice
+
+This project is licensed under **GNU Affero General Public License v3 (AGPL-3.0-or-later)**.
+
+**Key Point**: If you run this software as a service accessible via network, you must provide source code access to users.
+
+📖 See [LICENSE](LICENSE) and [README.md](README.md#licencia) for details.
 
 ---
 

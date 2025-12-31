@@ -1,21 +1,50 @@
-GNU GENERAL PUBLIC LICENSE
-Version 3, 29 June 2007
+GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3, 19 November 2007
 
-Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
-Everyone is permitted to copy and distribute verbatim copies
-of this license document, but changing it is not allowed.
-
-<Coloca aquí el texto completo de la GPL v3, disponible en https://www.gnu.org/licenses/gpl-3.0.txt>
+Copyright (c) 2024 Wesnoth Tournament Manager Contributors
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see https://www.gnu.org/licenses/
+
+IMPORTANT: NETWORK/SERVICE CLAUSE
+
+If you run this software to provide a service accessible via network (whether
+on your own server, in the cloud, or through any other means), you must
+provide access to the Corresponding Source Code to the users of that service.
+
+This means:
+- If you host this application and users access it via the web, you must
+  make the source code available to those users
+- Any modifications you make to the code must be shared with users who
+  access the modified service
+- You cannot use this software to provide a service without sharing the
+  source code with users
+
+For the complete terms of the GNU Affero General Public License, please visit:
+https://www.gnu.org/licenses/agpl-3.0.html
+
+EXCEPTION NOTICE
+
+The GNU Affero General Public License requires that if you offer this
+software as a service, you must provide the source code to users.
+
+This is intentional and benefits the community:
+- Users can verify that the service works as intended
+- Users can audit the code for security
+- Improvements can be shared back to benefit everyone
+- The spirit of open-source software is preserved
+
+If you wish to use this software without these requirements, you must
+contact the authors to negotiate an alternative commercial license.
+
+Third-party licenses are documented in DEPENDENCIES_AND_LICENSES.md

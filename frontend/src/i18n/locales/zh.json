@@ -531,7 +531,7 @@
     "updateFailed": "更新失败"
   },
   "footer": {
-    "disclaimer_affiliation": "wesnoth.playranked.org 和 Wesnoth 锦标赛管理器应用程序是独立项目，与 wesnoth.org、Wesnoth 论坛、Wesnoth Discord 服务器或任何官方 Wesnoth 项目无关联、未获得认可或赞助。\n\n该项目在 GNU 通用公共许可证 (GPL) 下获得许可，旨在提供一个独立平台来组织和管理竞争性的 Wesnoth 锦标赛。\n\n与 Battle for Wesnoth 相关的所有商标、徽标和图像均为其各自所有者的财产。本网站和应用程序仅供粉丝和社区使用，不声称与原始游戏有任何所有权或官方关联。",
+    "disclaimer_affiliation": "wesnoth.playranked.org 和 Wesnoth 锦标赛管理器应用程序是独立项目，与 wesnoth.org、Wesnoth 论坛、Wesnoth Discord 服务器或任何官方 Wesnoth 项目无关联、未获得认可或赞助。\n\n该项目在 GNU Affero 通用公共许可证 v3 (AGPL-3.0-or-later) 下获得许可，是一个独立的开源平台，旨在组织和管理竞争性的 Wesnoth 锦标赛。通过网络访问此服务的用户有权访问完整源代码。\n\n与 Battle for Wesnoth 相关的所有商标、徽标和图像均为其各自所有者的财产。本网站和应用程序仅供粉丝和社区使用，不声称与原始游戏有任何所有权或官方关联。",
     "disclaimer_assets": "单位图标和图形 © Battle for Wesnoth 项目，在 CC BY-SA 3.0 下使用。"
   }
 }

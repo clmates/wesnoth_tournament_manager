@@ -458,7 +458,40 @@ Las contribuciones son bienvenidas. Por favor:
 
 ## Licencia
 
-Este proyecto está bajo la licencia GPL.
+Este proyecto está bajo la licencia **GNU Affero General Public License v3 (AGPL-3.0-or-later)**.
+
+### ¿Qué significa AGPL?
+
+- ✅ **Uso libre**: Puedes usar este software libremente
+- ✅ **Modificación libre**: Puedes modificar y adaptar el código
+- ✅ **Distribución libre**: Puedes compartir el software
+
+#### Requisito principal:
+
+**Si ejecutas este software como servicio accesible por red**, debes proporcionar el código fuente a los usuarios que acceden al servicio.
+
+Esto significa:
+- Si despliegas esta aplicación en un servidor y usuarios acceden via web, debes compartir el código fuente con ellos
+- Cualquier modificación que hagas debe ser accesible a los usuarios del servicio
+- Los usuarios pueden ver, auditar y mejorar el código
+
+### ¿Por qué AGPL?
+
+Esta licencia refleja nuestros valores:
+- **Transparencia**: El código del servicio es visible para los usuarios
+- **Comunidad**: Las mejoras benefician a todos
+- **Confianza**: Los usuarios pueden verificar que funciona como se espera
+- **Seguridad**: El código puede ser auditado por cualquiera
+
+### Licencias de dependencias
+
+Ver [DEPENDENCIES_AND_LICENSES.md](DEPENDENCIES_AND_LICENSES.md) para información sobre las licencias de todas las librerías usadas.
+
+Todas las dependencias son compatibles con AGPL-3.0.
+
+### Licencia comercial
+
+Si necesitas usar este software sin los requisitos de AGPL (por ejemplo, para un servicio privado sin compartir código), puedes contactar a los autores para negociar una licencia comercial.
 
 ## Contacto
 
