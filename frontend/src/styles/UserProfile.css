@@ -9,22 +9,6 @@
   min-width: 1500px;
 }
 
-.profile-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2rem;
-  margin-bottom: 2rem;
-}
-
-.profile-header h1 {
-  color: #2c3e50;
-  font-size: 2.5rem;
-  font-weight: 700;
-  text-align: center;
-  margin: 0;
-}
-
 .profile-page-content h1 {
   color: #2c3e50;
   margin-bottom: 2rem;

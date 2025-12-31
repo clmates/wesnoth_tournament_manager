@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { getLevelTranslationKey } from '../utils/levelTranslation';
+import UserBadge from './UserBadge';
 import '../styles/ProfileStats.css';
 
 interface ProfileStatsProps {
@@ -16,6 +17,8 @@ interface ProfileStatsProps {
     avg_elo_change?: number;
     is_active?: boolean;
     last_activity?: string;
+    country?: string;
+    avatar?: string;
   };
 }
 
@@ -49,6 +52,14 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
               <span className="last-activity-text">
                 {t('last_activity')}: {new Date(player.last_activity).toLocaleDateString(i18n.language, { year: 'numeric', month: 'short', day: 'numeric' })}
               </span>
+            )}
+            {(player.country || player.avatar) && (
+              <UserBadge
+                country={player.country}
+                avatar={player.avatar}
+                username={player.nickname}
+                size="small"
+              />
             )}
           </div>
         </div>

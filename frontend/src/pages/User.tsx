@@ -13,7 +13,6 @@ import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import PlayerStatsByMap from '../components/PlayerStatsByMap';
 import PlayerStatsByFaction from '../components/PlayerStatsByFaction';
 import PlayerLink from '../components/PlayerLink';
-import UserBadge from '../components/UserBadge';
 import '../styles/UserProfile.css';
 import '../styles/OpponentStats.css';
 
@@ -262,17 +261,7 @@ const User: React.FC = () => {
   return (
     <MainLayout>
       <div className="profile-page-content">
-        <div className="profile-header">
-          <h1>{profile?.nickname}'s Profile</h1>
-          {profile && (
-            <UserBadge
-              country={profile.country}
-              avatar={profile.avatar}
-              username={profile.nickname}
-              size="medium"
-            />
-          )}
-        </div>
+        <h1>{profile?.nickname}'s Profile</h1>
         
         {profile && (
           <>
