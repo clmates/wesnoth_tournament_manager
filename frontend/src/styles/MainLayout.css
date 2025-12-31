@@ -1,7 +1,7 @@
 .main-layout {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 70px);
+  min-height: calc(100vh - 70px);
   background: linear-gradient(135deg, #0a1929 0%, #0d2b3e 100%);
 }
 
