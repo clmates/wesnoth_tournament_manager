@@ -40,6 +40,15 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
   );
 
   const selectedCountry = countries.find(c => c.code === value);
+  
+  // Get display name even if countries are still loading
+  const getSelectedCountryName = (): string => {
+    if (selectedCountry) {
+      return selectedCountry.name;
+    }
+    // If no selected country or still loading, show placeholder
+    return t('common.select') || 'Select Country';
+  };
 
   // Convert country code to flag code for flagcdn.com
   const getCountryFlagCode = (code: string): string => {
@@ -122,7 +131,7 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
               />
             )}
             <span className="country-name">
-              {selectedCountry?.name || t('common.select') || 'Select Country'}
+              {getSelectedCountryName()}
             </span>
           </span>
           <span className="country-chevron">▼</span>

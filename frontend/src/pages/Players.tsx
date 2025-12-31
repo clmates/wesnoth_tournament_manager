@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { publicService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import UserBadge from '../components/UserBadge';
 import '../styles/Players.css';
 
 interface PlayerStats {
@@ -14,6 +15,8 @@ interface PlayerStats {
   total_wins: number;
   total_losses: number;
   winPercentage: number;
+  country?: string;
+  avatar?: string;
 }
 
 interface FilterState {
@@ -355,20 +358,28 @@ const Players: React.FC = () => {
                   <span className="rank-badge">#{(currentPage - 1) * 20 + index + 1}</span>
                 </td>
                 <td className="nickname-col">
-                  <a 
-                    href="#" 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (userId === player.id) {
-                        navigate('/user');
-                      } else {
-                        navigate(`/player/${player.id}`);
-                      }
-                    }}
-                    className="player-link"
-                  >
-                    {player.nickname}
-                  </a>
+                  <div className="nickname-with-badge">
+                    <a 
+                      href="#" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (userId === player.id) {
+                          navigate('/user');
+                        } else {
+                          navigate(`/player/${player.id}`);
+                        }
+                      }}
+                      className="player-link"
+                    >
+                      {player.nickname}
+                    </a>
+                    <UserBadge
+                      country={player.country}
+                      avatar={player.avatar}
+                      username={player.nickname}
+                      size="small"
+                    />
+                  </div>
                 </td>
                 <td className="elo-col">
                   <span className="elo-badge">{player.elo_rating}</span>

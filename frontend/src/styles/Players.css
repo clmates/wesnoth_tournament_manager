@@ -186,9 +186,21 @@
 }
 
 .nickname-col {
-  width: 180px;
+  width: 220px;
   font-weight: 600;
   color: #2c3e50;
+}
+
+.nickname-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.player-link {
+  flex: 1;
+  min-width: 0;
 }
 
 .elo-col {
