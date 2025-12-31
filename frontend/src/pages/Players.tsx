@@ -359,6 +359,12 @@ const Players: React.FC = () => {
                 </td>
                 <td className="nickname-col">
                   <div className="nickname-with-badge">
+                    <UserBadge
+                      country={player.country}
+                      avatar={player.avatar}
+                      username={player.nickname}
+                      size="medium-small"
+                    />
                     <a 
                       href="#" 
                       onClick={(e) => {
@@ -373,12 +379,6 @@ const Players: React.FC = () => {
                     >
                       {player.nickname}
                     </a>
-                    <UserBadge
-                      country={player.country}
-                      avatar={player.avatar}
-                      username={player.nickname}
-                      size="medium-small"
-                    />
                   </div>
                 </td>
                 <td className="elo-col">

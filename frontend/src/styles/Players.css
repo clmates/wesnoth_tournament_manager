@@ -198,6 +198,10 @@
   width: 100%;
 }
 
+.nickname-with-badge .user-badge {
+  flex-shrink: 0;
+}
+
 .player-link {
   flex: 1;
   min-width: 0;
