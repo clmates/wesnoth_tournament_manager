@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { userService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import PlayerLink from '../components/PlayerLink';
+import UserBadge from '../components/UserBadge';
 import '../styles/Rankings.css';
 
 interface PlayerStats {
@@ -16,6 +17,8 @@ interface PlayerStats {
   total_losses: number;
   winPercentage: number;
   trend: string;
+  country?: string;
+  avatar?: string;
 }
 
 interface FilterState {
@@ -145,6 +148,8 @@ const Rankings: React.FC = () => {
             total_losses: losses,
             winPercentage,
             trend,
+            country: player.country,
+            avatar: player.avatar,
           };
         });
 
@@ -331,7 +336,28 @@ const Rankings: React.FC = () => {
                     <span className="rank-badge">#{(currentPage - 1) * 20 + index + 1}</span>
                   </td>
                   <td className="nickname-col">
-                    <PlayerLink nickname={player.nickname} userId={player.id} />
+                    <div className="nickname-with-badge">
+                      <UserBadge
+                        country={player.country}
+                        avatar={player.avatar}
+                        username={player.nickname}
+                        size="medium-small"
+                      />
+                      <a 
+                        href="#" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (userId === player.id) {
+                            navigate('/user');
+                          } else {
+                            navigate(`/player/${player.id}`);
+                          }
+                        }}
+                        className="player-link"
+                      >
+                        {player.nickname}
+                      </a>
+                    </div>
                   </td>
                   <td className="elo-col">
                     <span className="elo-badge">{player.elo_rating}</span>
