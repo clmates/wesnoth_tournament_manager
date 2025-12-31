@@ -97,6 +97,7 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
               <ul className="country-list" role="listbox">
                 {filteredCountries.map((country) => {
                   const flag = country.flag || '🌍';
+                  console.log('🎌 Rendering country:', country.code, 'flag:', flag);
                   return (
                     <li
                       key={country.code}

@@ -67,6 +67,7 @@
   align-items: center;
   justify-content: center;
   min-width: 2rem;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
 }
 
 .country-name {
@@ -161,6 +162,7 @@
   align-items: center;
   justify-content: center;
   min-width: 2rem;
+  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
 }
 
 .country-option-content {
