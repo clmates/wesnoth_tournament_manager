@@ -23,12 +23,15 @@ export const AvatarSelector: React.FC<AvatarSelectorProps> = ({
     const loadAvatars = async () => {
       setIsLoading(true);
       const data = await avatarsService.getAvatars();
+      console.log('Loaded avatars:', data.length);
+      console.log('First avatar path:', data[0]?.path);
       setAvatars(data);
 
       // Set preview URL for selected avatar
       if (value) {
         const selected = data.find(a => a.id === value);
         if (selected) {
+          console.log('Selected avatar path:', selected.path);
           setPreviewUrl(selected.path);
         }
       }
@@ -44,7 +47,10 @@ export const AvatarSelector: React.FC<AvatarSelectorProps> = ({
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    e.currentTarget.style.display = 'none';
+    const img = e.currentTarget;
+    console.warn(`Failed to load avatar image: ${img.src}`);
+    // Don't hide, just show broken image indicator
+    img.classList.add('image-error');
   };
 
   if (isLoading) {

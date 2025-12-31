@@ -116,6 +116,16 @@
   justify-content: center;
 }
 
+.avatar-option-image.image-error {
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+}
+
 .avatar-option-name {
   font-size: 0.75rem;
   color: var(--text-primary);
