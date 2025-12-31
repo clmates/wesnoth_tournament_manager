@@ -135,7 +135,7 @@ class AvatarsService {
     return avatarsArray.map((avatar: any) => ({
       id: avatar.id,
       name: avatar.name,
-      path: `/wesnoth-avatars/${encodeURIComponent(avatar.filename)}`,
+      path: `/wesnoth-avatars/${avatar.filename}`,
       filename: avatar.filename
     }));
   }
