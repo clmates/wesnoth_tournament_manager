@@ -78,7 +78,7 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
       'GU': 'gu', 'MP': 'mp', 'VI': 'vi', 'AS': 'as', 'PR': 'pr',
       'GP': 'gp', 'MQ': 'mq', 'RE': 're', 'YT': 'yt', 'BL': 'bl',
       'MF': 'mf', 'GF': 'gf', 'SR': 'sr', 'GY': 'gy', 'FK': 'fk',
-      'AI': 'ai', 'BM': 'bm', 'KY': 'ky', 'FK': 'fk', 'GI': 'gi',
+      'AI': 'ai', 'BM': 'bm', 'KY': 'ky', 'GI': 'gi',
       'SJ': 'sj', 'AX': 'ax', 'GG': 'gg', 'JE': 'je', 'IM': 'im',
       'MS': 'ms', 'TC': 'tc', 'VG': 'vg', 'SH': 'sh', 'PN': 'pn',
       'AW': 'aw', 'CW': 'cw', 'BQ': 'bq', 'PM': 'pm'
@@ -90,6 +90,8 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
     const flagCode = getCountryFlagCode(code);
     return `https://flagcdn.com/w40/${flagCode}.png`;
   };
+
+  const handleSelect = (code: string) => {
     onChange(code);
     setIsOpen(false);
     setSearchTerm('');
