@@ -151,6 +151,8 @@ const Players: React.FC = () => {
             total_wins: wins,
             total_losses: losses,
             winPercentage,
+            country: user.country,
+            avatar: user.avatar,
           };
         });
 
