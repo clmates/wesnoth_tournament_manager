@@ -43,7 +43,7 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
   };
 
   // Construct full avatar path if needed
-  const getAvatarUrl = (avatarValue: string): string => {
+  const getAvatarUrl = (avatarValue: string | undefined): string => {
     if (!avatarValue) return '';
     // If it's already a full path, return as-is
     if (avatarValue.startsWith('/') || avatarValue.startsWith('http')) {
