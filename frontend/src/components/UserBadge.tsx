@@ -42,11 +42,24 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
     large: 'user-badge-large'
   };
 
+  // Construct full avatar path if needed
+  const getAvatarUrl = (avatarValue: string): string => {
+    if (!avatarValue) return '';
+    // If it's already a full path, return as-is
+    if (avatarValue.startsWith('/') || avatarValue.startsWith('http')) {
+      return avatarValue;
+    }
+    // Otherwise, construct the path from the avatar ID/filename
+    return `/wesnoth-avatars/${avatarValue}.png`;
+  };
+
+  const avatarUrl = getAvatarUrl(avatar);
+
   return (
     <div className={`user-badge ${sizeClasses[size]}`}>
-      {avatar && (
+      {avatarUrl && (
         <img
-          src={avatar}
+          src={avatarUrl}
           alt={username || 'Avatar'}
           className="user-badge-avatar"
           title={username}
