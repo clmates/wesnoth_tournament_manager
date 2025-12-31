@@ -1,6 +1,5 @@
 import React from 'react';
 import UserProfileNav from './UserProfileNav';
-import Footer from './Footer';
 import '../styles/MainLayout.css';
 
 interface MainLayoutProps {
@@ -14,7 +13,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       <main className="main-content">
         {children}
       </main>
-      <Footer />
     </div>
   );
 };

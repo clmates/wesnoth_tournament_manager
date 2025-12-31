@@ -4,7 +4,6 @@
   background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
   color: #ecf0f1;
   padding: 2rem 1rem;
-  margin-top: auto;
   border-top: 3px solid #667eea;
   flex-shrink: 0;
 }

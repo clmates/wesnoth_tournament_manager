@@ -4,6 +4,7 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n/config';
 import { useAuthStore } from './store/authStore';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -82,6 +83,7 @@ const App: React.FC = () => {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
+        <Footer />
       </BrowserRouter>
     </I18nextProvider>
   );
