@@ -67,10 +67,13 @@
   align-items: center;
   justify-content: center;
   min-width: 2rem;
-  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
   line-height: 1;
   height: 2rem;
-  color: inherit;
+  font-variant-emoji: emoji;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv10" 1;
+  -webkit-text-fill-color: currentColor;
 }
 
 .country-name {
@@ -165,10 +168,13 @@
   align-items: center;
   justify-content: center;
   min-width: 2rem;
-  font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
   line-height: 1;
   height: 2rem;
-  color: inherit;
+  font-variant-emoji: emoji;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv10" 1;
+  -webkit-text-fill-color: currentColor;
 }
 
 .country-option-content {
