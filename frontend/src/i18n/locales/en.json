@@ -549,7 +549,7 @@
     "updateFailed": "Update failed"
   },
   "footer": {
-    "disclaimer_affiliation": "wesnothranked.org and the Wesnoth Tournament Manager application are independent projects and are not affiliated, endorsed, or sponsored by wesnoth.org, the Wesnoth forums, the Wesnoth Discord servers, or any official Wesnoth project.\n\nThis project is licensed under the GNU General Public License (GPL) and aims to provide an independent platform to organize and manage competitive Wesnoth tournaments.\n\nAll trademarks, logos, and images associated with Battle for Wesnoth are the property of their respective owners. This site and application are intended for fan and community use only, and do not claim ownership or official association with the original game.",
+    "disclaimer_affiliation": "wesnoth.playranked.org and the Wesnoth Tournament Manager application are independent projects and are not affiliated, endorsed, or sponsored by wesnoth.org, the Wesnoth forums, the Wesnoth Discord servers, or any official Wesnoth project.\n\nThis project is licensed under the GNU General Public License (GPL) and aims to provide an independent platform to organize and manage competitive Wesnoth tournaments.\n\nAll trademarks, logos, and images associated with Battle for Wesnoth are the property of their respective owners. This site and application are intended for fan and community use only, and do not claim ownership or official association with the original game.",
     "disclaimer_assets": "Unit icons and graphics © The Battle for Wesnoth project, used under CC BY-SA 3.0."
   }
 }
