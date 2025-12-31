@@ -135,7 +135,8 @@ class AvatarsService {
     return avatarsArray.map((avatar: any) => ({
       id: avatar.id,
       name: avatar.name,
-      path: `/wesnoth-avatars/${avatar.filename}`,
+      // Encode the filename to handle special characters like parentheses
+      path: `/wesnoth-avatars/${encodeURIComponent(avatar.filename)}`,
       filename: avatar.filename
     }));
   }

@@ -50,8 +50,8 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
       return avatarValue;
     }
     // Otherwise, construct the path from the avatar filename
-    // Filenames already include .png extension and use hyphens instead of spaces
-    return `/wesnoth-avatars/${avatarValue}`;
+    // Encode to handle special characters like parentheses in filenames
+    return `/wesnoth-avatars/${encodeURIComponent(avatarValue)}`;
   };
 
   const avatarUrl = getAvatarUrl(avatar);
