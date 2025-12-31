@@ -4,11 +4,11 @@
   margin: 0 auto;
   padding: 2rem 1rem;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  min-height: calc(100vh - 80px);
+  min-height: 100%;
   box-sizing: border-box;
-  overflow: hidden;
-  /* Optimize LCP by deferring background gradient paint */
-  contain: size layout;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
 }
 
 .home-header {
@@ -49,6 +49,8 @@
   grid-template-columns: 1fr 0.25fr;
   gap: 2rem;
   align-items: start;
+  width: 100%;
+  min-height: 100%;
 }
 
 /* Left Column */
