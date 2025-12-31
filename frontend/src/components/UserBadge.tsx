@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { avatarsService } from '../services/countryAvatarService';
 import '../styles/UserBadge.css';
 
 interface UserBadgeProps {
@@ -35,6 +36,31 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
   username,
   size = 'medium'
 }) => {
+  const [avatarPath, setAvatarPath] = useState<string>('');
+
+  useEffect(() => {
+    // If avatar is provided, resolve it to the actual path
+    if (avatar) {
+      // Check if it's already a full path
+      if (avatar.startsWith('/') || avatar.startsWith('http')) {
+        setAvatarPath(avatar);
+      } else {
+        // It's likely an avatar ID from the database, need to resolve it
+        const resolveAvatar = async () => {
+          try {
+            const avatars = await avatarsService.getAvatars();
+            const found = avatars.find(a => a.id === avatar);
+            if (found) {
+              setAvatarPath(found.path);
+            }
+          } catch (error) {
+            console.error('Error resolving avatar:', error);
+          }
+        };
+        resolveAvatar();
+      }
+    }
+  }, [avatar]);
   const sizeClasses = {
     small: 'user-badge-small',
     'medium-small': 'user-badge-medium-small',
@@ -43,18 +69,21 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
   };
 
   // Construct full avatar path if needed
-  const getAvatarUrl = (avatarValue: string | undefined): string => {
-    if (!avatarValue) return '';
-    // If it's already a full path, return as-is
-    if (avatarValue.startsWith('/') || avatarValue.startsWith('http')) {
-      return avatarValue;
+  const getAvatarUrl = (): string => {
+    // If we already resolved the path from manifest, use it
+    if (avatarPath) {
+      return avatarPath;
     }
-    // Otherwise, construct the path from the avatar filename
+    // Otherwise, construct the path from the avatar value
+    if (!avatar) return '';
+    if (avatar.startsWith('/') || avatar.startsWith('http')) {
+      return avatar;
+    }
     // Encode to handle special characters like parentheses in filenames
-    return `/wesnoth-avatars/${encodeURIComponent(avatarValue)}`;
+    return `/wesnoth-avatars/${encodeURIComponent(avatar)}`;
   };
 
-  const avatarUrl = getAvatarUrl(avatar);
+  const avatarUrl = getAvatarUrl();
 
   return (
     <div className={`user-badge ${sizeClasses[size]}`}>
