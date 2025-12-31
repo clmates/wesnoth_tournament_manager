@@ -56,6 +56,11 @@
 }
 
 /* Large size */
+.user-badge-large {
+  flex-direction: column;
+  gap: 12px;
+}
+
 .user-badge-large .user-badge-avatar {
   width: 120px;
   height: 120px;
@@ -68,7 +73,4 @@
   height: 42px;
   border: 2px solid rgba(0, 0, 0, 0.15);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  position: absolute;
-  bottom: -8px;
-  right: -8px;
 }
