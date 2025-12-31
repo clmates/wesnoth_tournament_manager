@@ -377,7 +377,7 @@ const Players: React.FC = () => {
                       country={player.country}
                       avatar={player.avatar}
                       username={player.nickname}
-                      size="small"
+                      size="medium-small"
                     />
                   </div>
                 </td>

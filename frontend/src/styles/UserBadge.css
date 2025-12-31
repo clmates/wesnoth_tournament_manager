@@ -26,6 +26,24 @@
   height: 12px;
 }
 
+/* Medium-Small size (for tables/lists) */
+.user-badge-medium-small .user-badge-avatar {
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.user-badge-medium-small .user-badge-flag {
+  width: 24px;
+  height: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+}
+
 /* Medium size (default) */
 .user-badge-medium .user-badge-avatar {
   width: 32px;
@@ -39,11 +57,18 @@
 
 /* Large size */
 .user-badge-large .user-badge-avatar {
-  width: 48px;
-  height: 48px;
+  width: 120px;
+  height: 120px;
+  border: 3px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .user-badge-large .user-badge-flag {
-  width: 40px;
-  height: 30px;
+  width: 56px;
+  height: 42px;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
 }

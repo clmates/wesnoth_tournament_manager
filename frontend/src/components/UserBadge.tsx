@@ -5,7 +5,7 @@ interface UserBadgeProps {
   country?: string;
   avatar?: string;
   username?: string;
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium-small' | 'medium' | 'large';
 }
 
 const getCountryFlagUrl = (countryCode: string): string => {
@@ -37,6 +37,7 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
 }) => {
   const sizeClasses = {
     small: 'user-badge-small',
+    'medium-small': 'user-badge-medium-small',
     medium: 'user-badge-medium',
     large: 'user-badge-large'
   };

@@ -53,16 +53,18 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
                 {t('last_activity')}: {new Date(player.last_activity).toLocaleDateString(i18n.language, { year: 'numeric', month: 'short', day: 'numeric' })}
               </span>
             )}
-            {(player.country || player.avatar) && (
-              <UserBadge
-                country={player.country}
-                avatar={player.avatar}
-                username={player.nickname}
-                size="small"
-              />
-            )}
           </div>
         </div>
+        {(player.country || player.avatar) && (
+          <div className="avatar-section">
+            <UserBadge
+              country={player.country}
+              avatar={player.avatar}
+              username={player.nickname}
+              size="large"
+            />
+          </div>
+        )}
       </div>
 
       <div className="stats-grid">
