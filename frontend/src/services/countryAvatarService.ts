@@ -26,20 +26,65 @@ class CountriesService {
     
     // Return cached data if still valid
     if (this.countriesCache.length > 0 && now - this.cacheTimestamp < this.CACHE_DURATION) {
+      console.log('🔄 Returning cached countries:', this.countriesCache.length);
       return this.countriesCache;
     }
 
     try {
-      const response = await api.get('/users/data/countries', {
-        params: { lang: language }
-      });
+      // Try to get from backend first
+      try {
+        console.log('🌐 Fetching from backend...');
+        const response = await api.get('/users/data/countries', {
+          params: { lang: language }
+        });
+        
+        console.log('✅ Backend response received:', response.data);
+        
+        if (response.data && Array.isArray(response.data)) {
+          // Ensure all countries have proper flag and name
+          const countries = response.data.map((country: any) => ({
+            code: country.code,
+            name: country.name || 'Unknown',
+            flag: country.flag || country.flag_emoji || '🌍',
+            official_name: country.official_name,
+            region: country.region,
+            names: country.names
+          }));
+          
+          console.log('✨ Transformed countries:', countries.length);
+          console.log('🏁 First country:', countries[0]);
+          
+          this.countriesCache = countries;
+          this.cacheTimestamp = now;
+          return countries;
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Backend fetch failed:', backendError);
+      }
       
-      this.countriesCache = response.data;
+      // Fallback to local JSON data
+      console.log('📁 Loading from local JSON...');
+      const response = await fetch('/data/countries.json');
+      const data = await response.json();
+      
+      // Transform the data to match the expected format
+      const countries = data.countries.map((country: any) => ({
+        code: country.code,
+        name: country.names[language] || country.names['en'] || country.code,
+        flag: country.flag || country.flag_emoji || '🌍',
+        official_name: country.official_name,
+        region: country.region,
+        names: country.names
+      }));
+      
+      console.log('✨ Local countries loaded:', countries.length);
+      console.log('🏁 First country:', countries[0]);
+      
+      this.countriesCache = countries;
       this.cacheTimestamp = now;
-      
-      return response.data;
+      return countries;
     } catch (error) {
-      console.error('Error fetching countries:', error);
+      console.error('❌ Error fetching countries:', error);
       return [];
     }
   }
@@ -68,25 +113,29 @@ class AvatarsService {
 
     try {
       const response = await fetch('/wesnoth-units/manifest.json');
-      this.manifestCache = await response.json();
+      const data = await response.json();
+      this.manifestCache = data;
       this.cacheTimestamp = now;
       return this.manifestCache;
     } catch (error) {
       console.error('Error loading manifest:', error);
-      return null;
+      return [];
     }
   }
 
   async getAvatars(): Promise<Avatar[]> {
     const manifest = await this.getManifest();
-    if (!manifest || !manifest.avatars) {
+    if (!manifest) {
       return [];
     }
 
-    return manifest.avatars.map((avatar: any) => ({
+    // Handle both array and object formats
+    const avatarsArray = Array.isArray(manifest) ? manifest : (manifest.avatars || []);
+
+    return avatarsArray.map((avatar: any) => ({
       id: avatar.id,
       name: avatar.name,
-      path: avatar.path,
+      path: `/wesnoth-units/${avatar.filename}`,
       filename: avatar.filename
     }));
   }

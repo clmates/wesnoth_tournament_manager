@@ -482,8 +482,10 @@ router.get('/:id/stats/month', async (req, res) => {
 // Get available countries with multilingual names
 router.get('/data/countries', async (req, res) => {
   try {
+    console.log('🔵 GET /data/countries called');
     // Get the preferred language from query params, default to English
     const lang = (req.query.lang as string || 'en').toLowerCase();
+    console.log('📍 Language:', lang);
     
     const result = await query(
       `SELECT 
@@ -497,6 +499,9 @@ router.get('/data/countries', async (req, res) => {
        ORDER BY names_json->>'en' ASC`
     );
     
+    console.log('✅ Query result rows:', result.rows.length);
+    console.log('📊 First row:', result.rows[0]);
+
     // Transform the response to include the country name in the requested language
     const countries = result.rows.map(row => {
       const names = row.names_json || {};
@@ -512,9 +517,12 @@ router.get('/data/countries', async (req, res) => {
       };
     });
     
+    console.log('📤 Sending response:', countries.length, 'countries');
+    console.log('🏁 First country response:', countries[0]);
+    
     res.json(countries);
   } catch (error) {
-    console.error('Countries error:', error);
+    console.error('❌ Countries error:', error);
     res.status(500).json({ error: 'Failed to fetch countries', details: (error as any).message });
   }
 });

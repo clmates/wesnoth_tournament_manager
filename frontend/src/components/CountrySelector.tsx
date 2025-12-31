@@ -95,22 +95,25 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
               </div>
             ) : (
               <ul className="country-list" role="listbox">
-                {filteredCountries.map((country) => (
-                  <li
-                    key={country.code}
-                    role="option"
-                    className={`country-option ${value === country.code ? 'selected' : ''}`}
-                    onClick={() => handleSelect(country.code)}
-                  >
-                    {showFlag && (
-                      <span className="country-option-flag">{country.flag}</span>
-                    )}
-                    <div className="country-option-content">
-                      <span className="country-option-name">{country.name}</span>
-                      <span className="country-option-code">{country.code}</span>
-                    </div>
-                  </li>
-                ))}
+                {filteredCountries.map((country) => {
+                  const flag = country.flag || '🌍';
+                  return (
+                    <li
+                      key={country.code}
+                      role="option"
+                      className={`country-option ${value === country.code ? 'selected' : ''}`}
+                      onClick={() => handleSelect(country.code)}
+                    >
+                      {showFlag && (
+                        <span className="country-option-flag">{flag}</span>
+                      )}
+                      <div className="country-option-content">
+                        <span className="country-option-name">{country.name}</span>
+                        <span className="country-option-code">{country.code}</span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
