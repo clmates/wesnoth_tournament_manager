@@ -76,6 +76,14 @@
   -webkit-text-fill-color: currentColor;
 }
 
+.country-flag-image {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 3px;
+  object-fit: cover;
+}
+
 .country-name {
   white-space: nowrap;
   overflow: hidden;
@@ -175,6 +183,14 @@
   text-rendering: optimizeLegibility;
   font-feature-settings: "cv10" 1;
   -webkit-text-fill-color: currentColor;
+}
+
+.country-option-flag-image {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 3px;
+  object-fit: cover;
 }
 
 .country-option-content {

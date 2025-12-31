@@ -41,7 +41,55 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
 
   const selectedCountry = countries.find(c => c.code === value);
 
-  const handleSelect = (code: string) => {
+  // Convert country code to flag code for flagcdn.com
+  const getCountryFlagCode = (code: string): string => {
+    const codeMap: Record<string, string> = {
+      'US': 'us', 'GB': 'gb', 'DE': 'de', 'FR': 'fr', 'ES': 'es',
+      'IT': 'it', 'JP': 'jp', 'CN': 'cn', 'IN': 'in', 'BR': 'br',
+      'CA': 'ca', 'AU': 'au', 'MX': 'mx', 'RU': 'ru', 'KR': 'kr',
+      'AR': 'ar', 'CL': 'cl', 'CO': 'co', 'PE': 'pe', 'VE': 've',
+      'ZA': 'za', 'NG': 'ng', 'EG': 'eg', 'KE': 'ke', 'ET': 'et',
+      'NZ': 'nz', 'SG': 'sg', 'TH': 'th', 'MY': 'my', 'ID': 'id',
+      'PH': 'ph', 'VN': 'vn', 'TR': 'tr', 'SA': 'sa', 'AE': 'ae',
+      'IL': 'il', 'PK': 'pk', 'BD': 'bd', 'IR': 'ir', 'IQ': 'iq',
+      'SE': 'se', 'NO': 'no', 'DK': 'dk', 'FI': 'fi', 'PL': 'pl',
+      'CZ': 'cz', 'HU': 'hu', 'RO': 'ro', 'GR': 'gr', 'PT': 'pt',
+      'BE': 'be', 'NL': 'nl', 'AT': 'at', 'CH': 'ch', 'IE': 'ie',
+      'UA': 'ua', 'BY': 'by', 'MD': 'md', 'HR': 'hr', 'RS': 'rs',
+      'BG': 'bg', 'SK': 'sk', 'SI': 'si', 'LT': 'lt', 'LV': 'lv',
+      'EE': 'ee', 'IS': 'is', 'LU': 'lu', 'MT': 'mt', 'CY': 'cy',
+      'TN': 'tn', 'DZ': 'dz', 'MA': 'ma', 'LY': 'ly', 'SD': 'sd',
+      'GH': 'gh', 'CI': 'ci', 'SN': 'sn', 'CM': 'cm', 'UG': 'ug',
+      'TZ': 'tz', 'MZ': 'mz', 'ZM': 'zm', 'ZW': 'zw', 'BW': 'bw',
+      'NA': 'na', 'AO': 'ao', 'MG': 'mg', 'MU': 'mu', 'SC': 'sc',
+      'TW': 'tw', 'HK': 'hk', 'MO': 'mo', 'KH': 'kh', 'LA': 'la',
+      'MM': 'mm', 'NP': 'np', 'LK': 'lk', 'MV': 'mv', 'AF': 'af',
+      'UZ': 'uz', 'TJ': 'tj', 'KG': 'kg', 'TM': 'tm', 'KZ': 'kz',
+      'QA': 'qa', 'BH': 'bh', 'KW': 'kw', 'OM': 'om', 'YE': 'ye',
+      'JO': 'jo', 'LB': 'lb', 'SY': 'sy', 'PS': 'ps', 'EH': 'eh',
+      'MR': 'mr', 'ML': 'ml', 'BJ': 'bj', 'TG': 'tg', 'SL': 'sl',
+      'LR': 'lr', 'GM': 'gm', 'GW': 'gw', 'CV': 'cv', 'ST': 'st',
+      'PA': 'pa', 'CR': 'cr', 'NI': 'ni', 'HN': 'hn', 'SV': 'sv',
+      'GT': 'gt', 'BZ': 'bz', 'CU': 'cu', 'DO': 'do', 'HT': 'ht',
+      'JM': 'jm', 'TT': 'tt', 'BS': 'bs', 'BB': 'bb', 'AG': 'ag',
+      'VC': 'vc', 'LC': 'lc', 'DM': 'dm', 'GD': 'gd', 'KN': 'kn',
+      'FJ': 'fj', 'PG': 'pg', 'SB': 'sb', 'VU': 'vu', 'WS': 'ws',
+      'TO': 'to', 'KI': 'ki', 'MH': 'mh', 'FM': 'fm', 'PW': 'pw',
+      'GU': 'gu', 'MP': 'mp', 'VI': 'vi', 'AS': 'as', 'PR': 'pr',
+      'GP': 'gp', 'MQ': 'mq', 'RE': 're', 'YT': 'yt', 'BL': 'bl',
+      'MF': 'mf', 'GF': 'gf', 'SR': 'sr', 'GY': 'gy', 'FK': 'fk',
+      'AI': 'ai', 'BM': 'bm', 'KY': 'ky', 'FK': 'fk', 'GI': 'gi',
+      'SJ': 'sj', 'AX': 'ax', 'GG': 'gg', 'JE': 'je', 'IM': 'im',
+      'MS': 'ms', 'TC': 'tc', 'VG': 'vg', 'SH': 'sh', 'PN': 'pn',
+      'AW': 'aw', 'CW': 'cw', 'BQ': 'bq', 'PM': 'pm'
+    };
+    return codeMap[code.toUpperCase()] || code.toLowerCase();
+  };
+
+  const getCountryFlagUrl = (code: string): string => {
+    const flagCode = getCountryFlagCode(code);
+    return `https://flagcdn.com/w40/${flagCode}.png`;
+  };
     onChange(code);
     setIsOpen(false);
     setSearchTerm('');
@@ -65,7 +113,11 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
         >
           <span className="country-button-content">
             {showFlag && selectedCountry && (
-              <span className="country-flag">{selectedCountry.flag}</span>
+              <img 
+                src={getCountryFlagUrl(selectedCountry.code)} 
+                alt={selectedCountry.code}
+                className="country-flag-image"
+              />
             )}
             <span className="country-name">
               {selectedCountry?.name || t('common.select') || 'Select Country'}
@@ -96,8 +148,6 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
             ) : (
               <ul className="country-list" role="listbox">
                 {filteredCountries.map((country) => {
-                  const flag = country.flag || '🌍';
-                  console.log('🎌 Rendering country:', country.code, 'flag:', flag);
                   return (
                     <li
                       key={country.code}
@@ -106,7 +156,11 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
                       onClick={() => handleSelect(country.code)}
                     >
                       {showFlag && (
-                        <span className="country-option-flag">{flag}</span>
+                        <img 
+                          src={getCountryFlagUrl(country.code)} 
+                          alt={country.code}
+                          className="country-option-flag-image"
+                        />
                       )}
                       <div className="country-option-content">
                         <span className="country-option-name">{country.name}</span>

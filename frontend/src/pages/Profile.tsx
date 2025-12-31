@@ -71,19 +71,28 @@ const Profile: React.FC = () => {
         // Fetch profile data
         const profileRes = await userService.getProfile();
         console.log('Profile data:', profileRes.data);
+        console.log('Country from API:', profileRes.data.country);
+        console.log('Avatar from API:', profileRes.data.avatar);
         console.log('Language from API:', profileRes.data.language);
+        
         setProfile(profileRes.data);
         
-        // Asegurarse de que se usa el idioma del perfil, no el actual de i18n
+        // Initialize selectors with values from profile
+        if (profileRes.data.country) {
+          setSelectedCountry(profileRes.data.country);
+        }
+        if (profileRes.data.avatar) {
+          setSelectedAvatar(profileRes.data.avatar);
+        }
+        
+        // Set language from profile
         const langFromDB = profileRes.data.language || 'en';
         console.log('Setting selectedLanguage to:', langFromDB);
         setSelectedLanguage(langFromDB);
-        setSelectedCountry(profileRes.data.country || '');
-        setSelectedAvatar(profileRes.data.avatar || '');
         setDiscordId(profileRes.data.discord_id || '');
         console.log('Discord ID from API:', profileRes.data.discord_id);
         
-        // Cambiar i18n si es diferente
+        // Change i18n if different
         if (langFromDB !== i18n.language) {
           i18n.changeLanguage(langFromDB);
         }
@@ -95,7 +104,7 @@ const Profile: React.FC = () => {
     };
 
     fetchData();
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, i18n]);
 
   const handleLanguageChange = async (lang: string) => {
     setSelectedLanguage(lang);
