@@ -49,10 +49,10 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
     if (avatarValue.startsWith('/') || avatarValue.startsWith('http')) {
       return avatarValue;
     }
-    // Otherwise, construct the path from the avatar ID/filename
-    // Encode the filename to handle spaces and special characters
+    // Otherwise, construct the path from the avatar filename
+    // The filename already includes the .png extension
     const encodedFilename = encodeURIComponent(avatarValue);
-    return `/wesnoth-avatars/${encodedFilename}.png`;
+    return `/wesnoth-avatars/${encodedFilename}`;
   };
 
   const avatarUrl = getAvatarUrl(avatar);
