@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { countriesService, Country } from '../services/countryAvatarService';
 import '../styles/CountrySelector.css';
@@ -33,25 +33,31 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
     loadCountries();
   }, [i18n.language]);
 
-  // Filter countries based on search term
-  const filteredCountries = countries.filter(country =>
-    country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    country.code.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter countries based on search term - memoized
+  const filteredCountries = useMemo(() =>
+    countries.filter(country =>
+      country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      country.code.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    [countries, searchTerm]
   );
 
-  const selectedCountry = countries.find(c => c.code === value);
+  const selectedCountry = useMemo(() => 
+    countries.find(c => c.code === value),
+    [countries, value]
+  );
   
   // Get display name even if countries are still loading
-  const getSelectedCountryName = (): string => {
+  const getSelectedCountryName = useCallback((): string => {
     if (selectedCountry) {
       return selectedCountry.name;
     }
     // If no selected country or still loading, show placeholder
     return t('common.select') || 'Select Country';
-  };
+  }, [selectedCountry, t]);
 
   // Convert country code to flag code for flagcdn.com
-  const getCountryFlagCode = (code: string): string => {
+  const getCountryFlagCode = useCallback((code: string): string => {
     const codeMap: Record<string, string> = {
       'US': 'us', 'GB': 'gb', 'DE': 'de', 'FR': 'fr', 'ES': 'es',
       'IT': 'it', 'JP': 'jp', 'CN': 'cn', 'IN': 'in', 'BR': 'br',
@@ -93,18 +99,18 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
       'AW': 'aw', 'CW': 'cw', 'BQ': 'bq', 'PM': 'pm'
     };
     return codeMap[code.toUpperCase()] || code.toLowerCase();
-  };
+  }, []);
 
-  const getCountryFlagUrl = (code: string): string => {
+  const getCountryFlagUrl = useCallback((code: string): string => {
     const flagCode = getCountryFlagCode(code);
     return `https://flagcdn.com/w40/${flagCode}.png`;
-  };
+  }, [getCountryFlagCode]);
 
-  const handleSelect = (code: string) => {
+  const handleSelect = useCallback((code: string) => {
     onChange(code);
     setIsOpen(false);
     setSearchTerm('');
-  };
+  }, [onChange]);
 
   return (
     <div className="country-selector">

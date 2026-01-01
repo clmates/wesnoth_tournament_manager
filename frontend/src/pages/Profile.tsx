@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { authService, userService } from '../services/api';
@@ -32,33 +32,36 @@ const Profile: React.FC = () => {
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const [showPasswordHints, setShowPasswordHints] = useState(false);
 
-  const languages = [
+  const languages = useMemo(() => [
     { code: 'en', name: 'English', countryCode: 'us' },
     { code: 'es', name: 'Español', countryCode: 'es' },
     { code: 'zh', name: '中文', countryCode: 'cn' },
     { code: 'de', name: 'Deutsch', countryCode: 'de' },
     { code: 'ru', name: 'Русский', countryCode: 'ru' },
-  ];
+  ], []);
 
-  const currentLanguage = languages.find(l => l.code === selectedLanguage) || languages[0];
+  const currentLanguage = useMemo(() => 
+    languages.find(l => l.code === selectedLanguage) || languages[0],
+    [selectedLanguage, languages]
+  );
 
-  const passwordRules = [
+  const passwordRules = useMemo(() => [
     { regex: /.{8,}/, label: 'At least 8 characters' },
     { regex: /[A-Z]/, label: 'At least one uppercase letter' },
     { regex: /[a-z]/, label: 'At least one lowercase letter' },
     { regex: /[0-9]/, label: 'At least one number' },
     { regex: /[!@#$%^&*(),.?":{}|<>]/, label: 'At least one special character' },
-  ];
+  ], []);
 
-  const getPasswordValidation = () => {
+  const getPasswordValidation = useCallback(() => {
     return passwordRules.map(rule => ({
       ...rule,
       satisfied: rule.regex.test(newPassword)
     }));
-  };
+  }, [newPassword, passwordRules]);
 
-  const passwordValidation = getPasswordValidation();
-  const isNewPasswordValid = passwordValidation.every(rule => rule.satisfied);
+  const passwordValidation = useMemo(() => getPasswordValidation(), [getPasswordValidation]);
+  const isNewPasswordValid = useMemo(() => passwordValidation.every(rule => rule.satisfied), [passwordValidation]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -106,16 +109,16 @@ const Profile: React.FC = () => {
     fetchData();
   }, [isAuthenticated, navigate, i18n]);
 
-  const handleLanguageChange = async (lang: string) => {
+  const handleLanguageChange = useCallback(async (lang: string) => {
     setSelectedLanguage(lang);
     i18n.changeLanguage(lang);
     localStorage.setItem('language', lang);
     setLanguageDropdownOpen(false);
     setDiscordMessage(t('profile_language_updated') || 'Language updated');
     setTimeout(() => setDiscordMessage(''), 3000);
-  };
+  }, [t, i18n]);
 
-  const handleCountryChange = async (countryCode: string) => {
+  const handleCountryChange = useCallback(async (countryCode: string) => {
     setSelectedCountry(countryCode);
     try {
       const res = await userService.updateProfile({ country: countryCode });
@@ -126,9 +129,9 @@ const Profile: React.FC = () => {
       console.error('Error updating country:', err);
       setDiscordError(err.response?.data?.error || t('profile.error_update_country_failed'));
     }
-  };
+  }, [t]);
 
-  const handleAvatarChange = async (avatarId: string) => {
+  const handleAvatarChange = useCallback(async (avatarId: string) => {
     setSelectedAvatar(avatarId);
     try {
       const res = await userService.updateProfile({ avatar: avatarId });
@@ -139,9 +142,9 @@ const Profile: React.FC = () => {
       console.error('Error updating avatar:', err);
       setDiscordError(err.response?.data?.error || t('profile.error_update_avatar_failed'));
     }
-  };
+  }, [t]);
 
-  const handleDiscordUpdate = async () => {
+  const handleDiscordUpdate = useCallback(async () => {
     if (!discordId.trim()) {
       setDiscordError(t('profile.error_discord_empty'));
       return;
@@ -171,9 +174,9 @@ const Profile: React.FC = () => {
     } finally {
       setUpdatingDiscord(false);
     }
-  };
+  }, [discordId, t]);
 
-  const handleChangePassword = async (e: React.FormEvent) => {
+  const handleChangePassword = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!oldPassword || !newPassword || !confirmPassword) {
@@ -209,7 +212,7 @@ const Profile: React.FC = () => {
     } finally {
       setChangingPassword(false);
     }
-  };
+  }, [oldPassword, newPassword, confirmPassword, passwordValidation, t]);
 
   if (loading) {
     return <div className="auth-container"><p>{t('loading')}</p></div>;

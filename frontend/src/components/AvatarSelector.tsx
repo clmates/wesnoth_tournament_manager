@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { avatarsService, Avatar } from '../services/countryAvatarService';
 import '../styles/AvatarSelector.css';
@@ -42,16 +42,16 @@ export const AvatarSelector: React.FC<AvatarSelectorProps> = ({
     loadAvatars();
   }, [value]);
 
-  const handleSelect = (avatarId: string) => {
+  const handleSelect = useCallback((avatarId: string) => {
     onChange(avatarId);
-  };
+  }, [onChange]);
 
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     console.warn(`Failed to load avatar image: ${img.src}`);
     // Don't hide, just show broken image indicator
     img.classList.add('image-error');
-  };
+  }, []);
 
   if (isLoading) {
     return (

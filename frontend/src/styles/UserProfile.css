@@ -3,10 +3,11 @@
 .profile-page-content {
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: calc(100vh - 70px);
-  padding: 0;
-  width: 1500px;
+  padding: 2rem;
+  max-width: 1500px;
+  width: 100%;
   margin: 0 auto;
-  min-width: 1500px;
+  box-sizing: border-box;
 }
 
 .profile-page-content h1 {
@@ -28,6 +29,9 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   padding: 2rem;
   margin-bottom: 2rem;
+  min-height: 150px;
+  contain: layout style;
+  will-change: auto;
 }
 
 .profile-info h2,
@@ -115,6 +119,8 @@
 .language-dropdown-profile {
   position: relative;
   display: inline-block;
+  min-height: 40px;
+  contain: layout style;
 }
 
 .language-btn-profile {
@@ -149,7 +155,7 @@
 
 .language-menu-profile {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 8px);
   left: 0;
   background-color: white;
   color: #333;
@@ -157,11 +163,11 @@
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
-  margin-top: 8px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   border: 1px solid #e9ecef;
+  contain: layout style paint;
 }
 
 .language-option-profile {
@@ -474,6 +480,8 @@
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
   margin-top: 1.5rem;
+  contain: layout style;
+  min-height: 300px;
 }
 
 @media (max-width: 1024px) {
