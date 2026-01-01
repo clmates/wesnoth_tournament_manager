@@ -54,7 +54,7 @@
 
 .players-table th {
   padding: 1rem;
-  text-align: left;
+  text-align: center;
   font-weight: 600;
   border-bottom: 2px solid #e0e0e0;
   font-size: 0.95rem;
@@ -62,6 +62,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Default all headers to center, except nickname */
+.players-table th.nickname-col {
+  text-align: left;
 }
 
 .players-table tbody {
@@ -92,13 +97,17 @@
 }
 
 /* Column Widths */
-.rank-col {
+.players-table th.rank-col,
+.players-table td.rank-col {
   width: 60px;
-  text-align: center;
 }
 
-.nickname-col {
+.players-table th.nickname-col,
+.players-table td.nickname-col {
   width: 220px;
+}
+
+.players-table td.nickname-col {
   font-weight: 600;
   color: #2c3e50;
   text-align: left;
@@ -124,34 +133,34 @@
   white-space: nowrap;
 }
 
-.elo-col {
+.players-table th.elo-col,
+.players-table td.elo-col {
   width: 120px;
-  text-align: center;
 }
 
-.status-col {
+.players-table th.status-col,
+.players-table td.status-col {
   width: 130px;
-  text-align: center;
 }
 
-.matches-col {
+.players-table th.matches-col,
+.players-table td.matches-col {
   width: 90px;
-  text-align: center;
 }
 
-.wins-col {
+.players-table th.wins-col,
+.players-table td.wins-col {
   width: 80px;
-  text-align: center;
 }
 
-.losses-col {
+.players-table th.losses-col,
+.players-table td.losses-col {
   width: 80px;
-  text-align: center;
 }
 
-.ratio-col {
+.players-table th.ratio-col,
+.players-table td.ratio-col {
   width: 90px;
-  text-align: center;
 }
 
 .sort-col {
