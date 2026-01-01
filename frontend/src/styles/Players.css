@@ -143,6 +143,7 @@
 .players-table th.status-col,
 .players-table td.status-col {
   width: 130px;
+  box-sizing: border-box;
 }
 
 .players-table th.matches-col,
@@ -200,7 +201,7 @@
 }
 
 .status-badge {
-  display: inline-flex;
+  display: flex;
   padding: 0.4rem 0.8rem;
   border-radius: 20px;
   font-size: 0.85rem;
@@ -208,7 +209,8 @@
   height: 28px;
   align-items: center;
   justify-content: center;
-  min-width: fit-content;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .status-badge.rated {
