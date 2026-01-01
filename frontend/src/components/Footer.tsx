@@ -1,26 +1,15 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { Suspense, lazy } from 'react';
 import '../styles/Footer.css';
 
-const Footer: React.FC = () => {
-  const { t } = useTranslation();
+const DisclaimerSection = lazy(() => import('./DisclaimerSection'));
 
+const Footer: React.FC = () => {
   return (
     <footer className="app-footer">
       <div className="footer-content">
-        <div className="footer-section">
-          <h3 className="footer-title">{t('footer_disclaimer') || 'Legal Notice'}</h3>
-          <div className="disclaimer-box">
-            <p className="disclaimer-text">
-              {t('footer.disclaimer_affiliation')}
-            </p>
-          </div>
-          <div className="disclaimer-box">
-            <p className="disclaimer-text">
-              {t('footer.disclaimer_assets')}
-            </p>
-          </div>
-        </div>
+        <Suspense fallback={<div className="disclaimer-skeleton" />}>
+          <DisclaimerSection />
+        </Suspense>
       </div>
       <div className="footer-bottom">
         <p className="footer-copyright">
