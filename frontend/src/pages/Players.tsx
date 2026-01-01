@@ -196,7 +196,15 @@ const Players: React.FC = () => {
   if (loading) {
     return (
       <div className="players-container">
-        <p>{t('loading')}</p>
+        <h1>{t('players_title')}</h1>
+        <div className="loading-skeleton">
+          <div className="skeleton-header"></div>
+          <div className="skeleton-table">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="skeleton-row"></div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
