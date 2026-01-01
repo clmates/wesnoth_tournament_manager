@@ -43,7 +43,7 @@
   width: 100%;
   border-collapse: collapse;
   background: white;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .players-table thead {
@@ -86,23 +86,22 @@
   background-color: #f9f9f9;
 }
 
+.players-table td {
+  padding: 1rem;
+  vertical-align: middle;
+}
+
 /* Column Widths */
 .rank-col {
   width: 60px;
   text-align: center;
-  padding: 0.75rem !important;
-  min-width: 60px;
 }
 
 .nickname-col {
   width: 220px;
   font-weight: 600;
   color: #2c3e50;
-  padding: 0.75rem !important;
-  min-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: left;
 }
 
 .nickname-with-badge {
@@ -128,43 +127,31 @@
 .elo-col {
   width: 120px;
   text-align: center;
-  padding: 0.75rem !important;
-  min-width: 120px;
 }
 
 .status-col {
   width: 130px;
   text-align: center;
-  padding: 0.75rem !important;
-  min-width: 130px;
 }
 
 .matches-col {
   width: 90px;
   text-align: center;
-  padding: 0.75rem !important;
-  min-width: 90px;
 }
 
 .wins-col {
   width: 80px;
   text-align: center;
-  padding: 0.75rem !important;
-  min-width: 80px;
 }
 
 .losses-col {
   width: 80px;
   text-align: center;
-  padding: 0.75rem !important;
-  min-width: 80px;
 }
 
 .ratio-col {
   width: 90px;
   text-align: center;
-  padding: 0.75rem !important;
-  min-width: 90px;
 }
 
 .sort-col {
