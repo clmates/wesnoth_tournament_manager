@@ -76,8 +76,7 @@
 
 .players-table tbody tr {
   transition: background-color 0.2s ease;
-  height: auto;
-  min-height: 55px;
+  height: 72px;
 }
 
 .players-table tbody tr:hover {
@@ -436,8 +435,7 @@
   }
 
   .players-table tbody tr {
-    height: auto;
-    min-height: 50px;
+    height: 68px;
   }
 
   .filters-section {
@@ -466,8 +464,7 @@
   }
 
   .players-table tbody tr {
-    height: auto;
-    min-height: 45px;
+    height: 60px;
   }
 
   .rank-col {
