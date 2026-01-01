@@ -205,6 +205,7 @@
   font-weight: 600;
   height: 28px;
   align-items: center;
+  justify-content: center;
   min-width: fit-content;
 }
 
