@@ -70,7 +70,8 @@
 
 .players-table tbody tr {
   transition: background-color 0.2s ease;
-  height: 50px;
+  height: auto;
+  min-height: 55px;
 }
 
 .players-table tbody tr:hover {
@@ -114,8 +115,6 @@
 
 .nickname-with-badge .user-badge {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
 }
 
 .player-link {
@@ -436,7 +435,8 @@
   }
 
   .players-table tbody tr {
-    height: 48px;
+    height: auto;
+    min-height: 50px;
   }
 
   .filters-section {
@@ -465,7 +465,8 @@
   }
 
   .players-table tbody tr {
-    height: 44px;
+    height: auto;
+    min-height: 45px;
   }
 
   .rank-col {
