@@ -10,6 +10,7 @@
   display: flex;
   align-items: center;
   position: relative;
+  z-index: 999;
 }
 
 .navbar-container {
@@ -23,6 +24,8 @@
   box-sizing: border-box;
   overflow: visible;
   gap: 1rem;
+  position: relative;
+  z-index: 999;
 }
 
 .navbar-brand a {
@@ -105,6 +108,8 @@
 .user-menu {
   position: relative;
   align-self: center;
+  overflow: visible;
+  z-index: 2000;
 }
 
 .user-btn {
@@ -123,14 +128,12 @@
 }
 
 .user-dropdown {
-  position: fixed;
-  top: auto;
-  right: 1rem;
-  bottom: auto;
+  position: absolute;
+  top: 100%;
+  right: 0;
   background-color: white;
   color: #333;
   width: 200px;
-  max-width: calc(100vw - 2rem);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 2000;
@@ -138,12 +141,7 @@
   overflow: visible;
   display: flex;
   flex-direction: column;
-}
-
-@supports (position: fixed) {
-  .user-dropdown {
-    position: fixed;
-  }
+  min-width: 180px;
 }
 
 .dropdown-item {
@@ -178,10 +176,13 @@
   display: flex;
   gap: 0.5rem;
   position: relative;
+  overflow: visible;
+  z-index: 2000;
 }
 
 .language-dropdown {
   position: relative;
+  overflow: visible;
 }
 
 .language-btn {
@@ -222,14 +223,12 @@
 }
 
 .language-menu {
-  position: fixed;
-  top: auto;
-  right: 0.5rem;
-  bottom: auto;
+  position: absolute;
+  top: 100%;
+  right: 0;
   background-color: white;
   color: #333;
   min-width: 200px;
-  max-width: calc(100vw - 1rem);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 2000;
@@ -303,19 +302,21 @@
   }
 
   .user-dropdown {
-    position: fixed !important;
-    top: auto !important;
-    right: 0.5rem !important;
-    bottom: auto !important;
-    width: calc(100vw - 1rem) !important;
-    max-width: 320px !important;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: auto;
+    max-width: 280px;
+    min-width: 180px;
   }
 
   .language-menu {
-    position: fixed !important;
-    right: 0.5rem !important;
-    width: calc(100vw - 1rem) !important;
-    max-width: 280px !important;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: auto;
+    max-width: 280px;
+    min-width: 180px;
   }
 
   .language-selector {
@@ -369,9 +370,12 @@
   }
 
   .user-dropdown {
-    width: calc(100vw - 0.5rem) !important;
-    right: 0.25rem !important;
-    max-width: 95vw !important;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: auto;
+    min-width: 160px;
+    max-width: calc(100vw - 1rem);
   }
 
   .dropdown-item {
@@ -380,9 +384,12 @@
   }
 
   .language-menu {
-    width: calc(100vw - 0.5rem) !important;
-    right: 0.25rem !important;
-    max-width: 95vw !important;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: auto;
+    min-width: 160px;
+    max-width: calc(100vw - 1rem);
   }
 
   .language-option {

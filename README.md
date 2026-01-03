@@ -109,8 +109,6 @@ cd wesnoth_tournament_manager
 
 #### **Opción A: Con Docker (Más Fácil)**
 
-⚠️ **Si tienes Windows 11 Home**, ve a **Opción B**. Consulta [DOCKER_SETUP.md](./DOCKER_SETUP.md) para alternativas con WSL 2.
-
 ```bash
 # 1. Crear archivo .env
 cp backend/.env.example backend/.env
@@ -149,7 +147,6 @@ docker run -d \
 cd backend
 npm install
 cp .env.example .env
-# Editar .env con OPENAI_API_KEY
 npm run dev
 # Esperar mensaje: "Server running on port 3000"
 
@@ -245,7 +242,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=wesnoth_tournament
 DB_USER=postgres
-DB_PASSWORD=postgres
+DB_PASSWORD=<passwordhere>
 
 # JWT
 JWT_SECRET=tu-clave-secreta-super-segura-min-32-caracteres
@@ -312,14 +309,6 @@ docker ps
 # Contraseña: postgres
 # Puerto: 5432
 ```
-
-### Error de OPENAI_API_KEY
-- No es necesaria para funcionalidad básica
-- Sin ella, las traducciones no funcionarán automáticamente
-- Obtener en: https://platform.openai.com/api-keys
-
----
-
 ## 📱 Usar Diferentes Idiomas
 
 - Botones en Navbar: EN | ES | ZH | DE | RU
@@ -407,7 +396,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=wesnoth_tournament
 DB_USER=postgres
-DB_PASSWORD=postgres
+DB_PASSWORD=<passwordhere>
 
 JWT_SECRET=your-super-secret-jwt-key-change-this
 JWT_EXPIRATION=7d
@@ -415,9 +404,6 @@ JWT_EXPIRATION=7d
 PORT=3000
 NODE_ENV=development
 
-OPENAI_API_KEY=your-openai-api-key
-FRONTEND_URL=http://localhost:5173
-```
 
 ## Características Principales
 

@@ -34,7 +34,7 @@ This project is licensed under **GNU Affero General Public License v3 (AGPL-3.0-
 
 ### Fastest Way (All 4 Types)
 ```bash
-cd c:\Users\carlo\Documents\Desarrollo\Pruebas\wesnoth_tournament_manager
+cd c:\Users\<usuario>\Documents\Desarrollo\wesnoth_tournament_manager
 node testing/scripts/run_batch_tournament_tests.js
 ```
 
