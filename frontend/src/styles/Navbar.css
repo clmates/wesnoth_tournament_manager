@@ -13,6 +13,30 @@
   z-index: 999;
 }
 
+/* Portal dropdowns for mobile */
+.user-dropdown-portal {
+  background-color: white;
+  color: #333;
+  width: 200px;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+}
+
+.language-menu-portal {
+  background-color: white;
+  color: #333;
+  min-width: 200px;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+
 .navbar-container {
   width: 100%;
   max-width: 100%;

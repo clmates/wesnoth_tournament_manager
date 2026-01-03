@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
@@ -137,15 +138,16 @@ const Navbar: React.FC = () => {
               >
                 {userNickname} ▼
               </button>
-              {dropdownOpen && (
+              {dropdownOpen && dropdownPosition && createPortal(
                 <div 
-                  className="user-dropdown"
-                  style={dropdownPosition ? {
+                  className="user-dropdown-portal"
+                  style={{
                     position: 'fixed',
                     top: `${dropdownPosition.top}px`,
                     right: `${dropdownPosition.right}px`,
                     left: 'auto',
-                  } : undefined}
+                    zIndex: 9999,
+                  }}
                 >
                   <button 
                     className="dropdown-item"
@@ -159,7 +161,8 @@ const Navbar: React.FC = () => {
                   >
                     {t('navbar_logout') || 'Logout'}
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           )}
@@ -186,15 +189,16 @@ const Navbar: React.FC = () => {
               />
               <span className="lang-code">{currentLanguage.code.toUpperCase()}</span>
             </button>
-            {languageDropdownOpen && (
+            {languageDropdownOpen && languageDropdownPosition && createPortal(
               <div 
-                className="language-menu"
-                style={languageDropdownPosition ? {
+                className="language-menu-portal"
+                style={{
                   position: 'fixed',
                   top: `${languageDropdownPosition.top}px`,
                   right: `${languageDropdownPosition.right}px`,
                   left: 'auto',
-                } : undefined}
+                  zIndex: 9999,
+                }}
               >
                 {languages.map((lang) => (
                   <button
@@ -210,7 +214,8 @@ const Navbar: React.FC = () => {
                     <span className="lang-text">{lang.code.toUpperCase()} - {lang.name}</span>
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>
