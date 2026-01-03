@@ -7,12 +7,17 @@
   position: sticky;
   top: 0;
   z-index: 100;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .user-profile-nav .nav-container {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 1rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .user-profile-nav .nav-links {
@@ -21,6 +26,9 @@
   gap: 0.5rem;
   flex-wrap: wrap;
   justify-content: flex-start;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .user-profile-nav .nav-link {
@@ -94,17 +102,29 @@
 
 /* Mobile responsive */
 @media (max-width: 600px) {
+  .user-profile-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .user-profile-nav .nav-container {
     padding: 0 0.5rem;
   }
 
   .user-profile-nav .nav-links {
     gap: 0.25rem;
+    flex-wrap: nowrap;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
   }
 
   .user-profile-nav .nav-link {
     padding: 0.5rem 0.75rem;
     font-size: 0.8rem;
+    flex-shrink: 0;
+    min-width: fit-content;
   }
 
   .user-profile-nav .nav-separator {
@@ -112,6 +132,12 @@
   }
 
   .user-profile-nav .nav-link.admin-link {
-    display: none;
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 768px) {
+  .user-profile-nav .nav-text {
+    display: inline;
   }
 }

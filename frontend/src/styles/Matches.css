@@ -1129,6 +1129,12 @@
 
   .filters-section {
     grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .reset-btn {
+    width: 100%;
   }
 
   .games-table-wrapper {
@@ -1136,9 +1142,14 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  .games-table {
+    min-width: 100%;
+  }
+
   .pagination-controls {
     gap: 0.5rem;
     padding: 1rem;
+    flex-wrap: wrap;
   }
 
   .page-btn {
@@ -1200,5 +1211,86 @@
   .details-btn,
   .download-btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .matches-page-content {
+    padding: 0.75rem;
+  }
+
+  .matches-page-content h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .filters-section {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+    padding: 0.5rem;
+  }
+
+  .filter-group {
+    gap: 0.3rem;
+  }
+
+  .filter-group label {
+    font-size: 0.75rem;
+  }
+
+  .filter-group input,
+  .filter-group select {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .reset-btn {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .games-table th {
+    padding: 0.3rem;
+    font-size: 0.7rem;
+  }
+
+  .games-table td {
+    padding: 0.3rem;
+    font-size: 0.75rem;
+  }
+
+  .games-table {
+    min-width: 280px;
+  }
+
+  .pagination-controls {
+    gap: 0.3rem;
+    padding: 0.75rem;
+  }
+
+  .page-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .page-info {
+    font-size: 0.8rem;
+  }
+
+  .modal-content {
+    max-width: 98vw;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .detail-item label,
+  .detail-item span {
+    font-size: 0.75rem;
+  }
+
+  .modal-footer button {
+    padding: 0.5rem;
+    font-size: 0.85rem;
   }
 }

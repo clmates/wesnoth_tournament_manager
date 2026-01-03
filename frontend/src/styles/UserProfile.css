@@ -452,25 +452,85 @@
 @media (max-width: 768px) {
   .profile-page-content {
     padding: 1rem;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
   }
 
   .profile-page-content h1 {
     font-size: 1.8rem;
+    margin-bottom: 1.5rem;
   }
 
   .profile-info,
+  .profile-preferences,
   .discord-settings,
   .language-settings,
   .change-password {
     padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .profile-info h2,
+  .profile-preferences h2,
+  .discord-settings h2,
+  .language-settings h2,
+  .change-password h2 {
+    font-size: 1.1rem;
   }
 
   .discord-input-group {
     flex-direction: column;
+    gap: 0.5rem;
   }
 
   .discord-input-group button {
     width: 100%;
+  }
+
+  .discord-input-group input {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-page-content {
+    padding: 0.75rem;
+  }
+
+  .profile-page-content h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .profile-info,
+  .profile-preferences,
+  .discord-settings,
+  .language-settings,
+  .change-password {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .profile-info h2,
+  .profile-preferences h2,
+  .discord-settings h2,
+  .language-settings h2,
+  .change-password h2 {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .info-group {
+    margin-bottom: 1rem;
+  }
+
+  .info-group label {
+    font-size: 0.9rem;
+  }
+
+  .info-group p {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
   }
 }
 
@@ -487,5 +547,100 @@
 @media (max-width: 1024px) {
   .preferences-grid {
     grid-template-columns: 1fr;
+  }
+
+  .player-stats-tabs {
+    gap: 0.25rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .filters-section {
+    grid-template-columns: 1fr;
+  }
+
+  .reset-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .player-stats-tabs {
+    gap: 0.25rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 1.5rem 0 1rem 0;
+  }
+
+  .tab-btn {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  .filters-section {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .filter-group {
+    gap: 0.25rem;
+  }
+
+  .filter-group label {
+    font-size: 0.85rem;
+  }
+
+  .filter-group input,
+  .filter-group select {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .reset-btn {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .player-stats-tabs {
+    gap: 0.2rem;
+  }
+
+  .tab-btn {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .filters-section {
+    padding: 0.5rem;
+    gap: 0.4rem;
+  }
+
+  .filter-group {
+    gap: 0.2rem;
+  }
+
+  .filter-group label {
+    font-size: 0.75rem;
+  }
+
+  .filter-group input,
+  .filter-group select {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .reset-btn {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
   }
 }
