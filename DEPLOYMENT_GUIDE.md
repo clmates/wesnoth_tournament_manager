@@ -1,11 +1,11 @@
-# 🚀 Deployment a Supabase + Railway + Netlify
+# 🚀 Deployment a Supabase + Railway + Cloudflare Pages
 
 ## ✅ Status
 
 - ✅ Licencia MIT aplicada
 - ✅ Nombre del proyecto renombrado (clm_competitive_wesnoth → wesnoth_tournament_manager)
 - ✅ Schema completo generado: `backend/src/config/schema_full.sql`
-- ⏳ Próximos pasos: Supabase + Railway + Netlify
+- ⏳ Próximos pasos: Supabase + Railway + Cloudflare Pages
 
 ---
 
@@ -92,7 +92,7 @@ Copia y pega en Railway → Settings → Variables:
 DATABASE_URL=postgresql://postgres:PASSWORD@db.xxxxx.supabase.co:5432/postgres
 JWT_SECRET=tu-super-secret-jwt-key-change-this-change-this-change-this-key-min-32-chars
 OPENAI_API_KEY=sk-proj-xxxxx (tu API key de OpenAI)
-FRONTEND_URL=https://tu-sitio.netlify.app (lo tendrás después de Netlify)
+FRONTEND_URL=https://tu-sitio.pages.dev (lo tendrás después de Cloudflare Pages)
 PORT=3000
 NODE_ENV=production
 ```
@@ -108,34 +108,34 @@ openssl rand -base64 32
 2. Buildear: npm run build
 3. Start: npm start
 4. Railway mostrará una URL del backend (ej: https://wesnoth-tournament-api.up.railway.app)
-5. Copia esa URL (la necesitarás para Netlify)
+5. Copia esa URL (la necesitarás para Cloudflare Pages)
 ```
 
 ---
 
-## 🌐 Pasos para Netlify
+## 🌐 Pasos para Cloudflare Pages
 
-### Paso 1: Crear Sitio en Netlify
+### Paso 1: Crear Sitio en Cloudflare Pages
 ```
-1. Ir a https://netlify.com
-2. Click "New site from Git"
+1. Ir a https://pages.cloudflare.com
+2. Click "Create a project"
 3. Conecta GitHub → Selecciona: clmates/wesnoth_tournament_manager
 ```
 
-### Paso 2: Configurar Build en Netlify
+### Paso 2: Configurar Build en Cloudflare Pages
 ```
 1. Build command: npm run build
-2. Publish directory: dist
-3. Base directory: frontend
-4. Clickea "Deploy site"
+2. Output directory: dist
+3. Root directory: frontend
+4. Click "Save and Deploy"
 ```
 
-### Paso 3: Variables de Entorno en Netlify
+### Paso 3: Variables de Entorno en Cloudflare Pages
 
 Después del primer deploy (que fallará porque falta variable):
 
 ```
-1. En Netlify → Site settings → Build & deploy → Environment
+1. En Cloudflare Pages → Project settings → Environment Variables
 2. Añade variable:
 
    VITE_API_URL=https://wesnoth-tournament-api.up.railway.app/api
@@ -146,9 +146,9 @@ Después del primer deploy (que fallará porque falta variable):
 ### Paso 4: Redeploy
 ```
 1. Una vez añadida la variable
-2. Netlify → Deployments → trigger redeploy
+2. Cloudflare Pages → Deployments → trigger redeploy
 3. Espera a que termine
-4. Tu frontend estará en: https://tu-sitio.netlify.app
+4. Tu frontend estará en: https://tu-sitio.pages.dev
 ```
 
 ---
@@ -162,7 +162,7 @@ Una vez todo desplegado:
 curl https://wesnoth-tournament-api.up.railway.app/health
 
 # Verificar Frontend
-https://tu-sitio.netlify.app
+https://tu-sitio.pages.dev
 # Deberías ver la página de login
 ```
 
@@ -176,9 +176,9 @@ https://tu-sitio.netlify.app
 - [ ] Railway: Proyecto creado
 - [ ] Railway: Variables de entorno configuradas
 - [ ] Railway: Backend deployado (muestra URL)
-- [ ] Netlify: Proyecto creado
-- [ ] Netlify: Variables de entorno configuradas (VITE_API_URL)
-- [ ] Netlify: Frontend deployado
+- [ ] Cloudflare Pages: Proyecto creado
+- [ ] Cloudflare Pages: Variables de entorno configuradas (VITE_API_URL)
+- [ ] Cloudflare Pages: Frontend deployado
 - [ ] ✅ Verificación: Backend responde a /health
 - [ ] ✅ Verificación: Frontend carga correctamente
 

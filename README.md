@@ -18,7 +18,7 @@ Una aplicación web completa para gestionar torneos de Wesnoth con sistema de ra
 - Node.js (v18+)
 - Docker y Docker Compose
 - PostgreSQL (o usar Docker)
-- OpenAI API Key (para traducciones)
+
 
 ## Instalación
 
@@ -32,7 +32,7 @@ cd wesnoth_tournament_manager
 # Copiar archivo de configuración
 cp backend/.env.example backend/.env
 
-# Editar backend/.env con tus valores (especialmente OPENAI_API_KEY)
+# Editar backend/.env con tus valores
 
 # Iniciar los servicios
 docker-compose up
@@ -62,7 +62,7 @@ notepad .env
 # O con VS Code:
 code .env
 
-# Importante: Agrega tu OPENAI_API_KEY en .env
+
 
 # Compilar TypeScript
 npm run build
@@ -113,8 +113,7 @@ cd wesnoth_tournament_manager
 # 1. Crear archivo .env
 cp backend/.env.example backend/.env
 
-# 2. Editar backend/.env y agregar tu OPENAI_API_KEY
-# En Windows: notepad backend\.env
+
 
 # 3. Iniciar todo con Docker
 docker-compose up

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { hashPassword } from '../utils/auth.js';
-import { translateToAllLanguages } from '../utils/translation.js';
+
 import { calculateNewRating, calculateTrend } from '../utils/elo.js';
 import { unlockAccount } from '../services/accountLockout.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';

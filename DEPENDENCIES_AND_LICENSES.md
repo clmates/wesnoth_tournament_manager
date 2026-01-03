@@ -1,3 +1,33 @@
+### Dependencias de desarrollo (devDependencies)
+
+#### Backend
+| Paquete | Versión | Licencia | Descripción |
+|---------|---------|----------|-------------|
+| @types/bcrypt | 5.0.2 | **MIT** | Type definitions |
+| @types/cors | 2.8.19 | **MIT** | Type definitions |
+| @types/express | 4.17.22 | **MIT** | Type definitions |
+| @types/jsonwebtoken | 9.0.8 | **MIT** | Type definitions |
+| @types/multer | 1.4.12 | **MIT** | Type definitions |
+| @types/node | 22.10.2 | **MIT** | Type definitions |
+| @types/pg | 8.15.6 | **MIT** | Type definitions |
+| @types/uuid | 10.0.0 | **MIT** | Type definitions |
+| tsx | 4.19.1 | **MIT** | TypeScript executor |
+| typescript | 5.6.3 | **Apache-2.0** | Compilador TypeScript |
+
+#### Frontend
+| Paquete | Versión | Licencia | Descripción |
+|---------|---------|----------|-------------|
+| @types/react | 18.2.43 | **MIT** | Type definitions |
+| @types/react-dom | 18.2.17 | **MIT** | Type definitions |
+| @vitejs/plugin-react | 4.2.1 | **MIT** | Plugin React para Vite |
+| typescript | 5.3.3 | **Apache-2.0** | Compilador TypeScript |
+| vite | 5.0.8 | **MIT** | Bundler y dev server |
+### Dependencias de testing/scripts
+
+| Paquete | Versión | Licencia | Uso Real |
+|---------|---------|----------|----------|
+| axios | 1.13.2 | **MIT** | ✅ Requests HTTP para pruebas |
+| pg | 8.16.3 | **MIT** | ✅ Cliente PostgreSQL para pruebas |
 # 📋 ANÁLISIS COMPLETO DE DEPENDENCIAS Y LICENCIAS
 ## Wesnoth Tournament Manager
 
@@ -30,42 +60,31 @@
 - **HTTP Client**: Axios 1.13.2
 - **TypeScript**: TypeScript 5.9.3
 
-### ⚠️ DEPENDENCIAS NO USADAS
-- **OpenAI 4.104.0** (backend) - ❌ **INSTALADO PERO NO USADO**
-  - No hay imports de `openai` en backend
-  - Puede ser removido: `npm uninstall openai`
-
-- **netlify-cli 23.12.3** (raíz) - ❌ **INSTALADO PERO NO USADO**
-  - No se usa Netlify para deployment (se usa Railway/Supabase)
-  - Puede ser removido: `npm uninstall netlify-cli`
-
----
-
-## 📦 DEPENDENCIAS DEL BACKEND (24 paquetes)
-
+### ⚡️ Estado actual de dependencias
+No hay dependencias sobrantes ni paquetes no usados. El frontend se despliega en Cloudflare Pages y el backend en Railway/Supabase.
 ### ✅ Dependencias Principales REALMENTE USADAS (13 paquetes)
 
 | Paquete | Versión | Licencia | Uso Real |
 |---------|---------|----------|----------|
-| @supabase/supabase-js | 2.89.0 | **MIT** | ✅ Almacenamiento de replays + API |
-| axios | 1.13.2 | **MIT** | ✅ Requests HTTP (Discord, externos) |
+| @supabase/supabase-js | 2.47.0 | **MIT** | ✅ Almacenamiento de replays + API |
+| axios | 1.7.7 | **MIT** | ✅ Requests HTTP (Discord, externos) |
 | bcrypt | 5.1.1 | **MIT** | ✅ Hash de contraseñas |
 | bz2 | 1.0.1 | **MIT** | ✅ Compresión de archivos |
 | cors | 2.8.5 | **MIT** | ✅ Middleware CORS |
-| dotenv | 16.6.1 | **BSD-2-Clause** | ✅ Cargar variables de entorno |
-| express | 4.22.1 | **MIT** | ✅ Framework web |
+| dotenv | 16.4.5 | **BSD-2-Clause** | ✅ Cargar variables de entorno |
+| express | 4.19.2 | **MIT** | ✅ Framework web |
 | express-rate-limit | 7.5.1 | **MIT** | ✅ Rate limiting en endpoints |
-| jsonwebtoken | 9.0.3 | **MIT** | ✅ Tokens JWT para auth |
-| multer | 2.0.2 | **MIT** | ✅ Upload de archivos |
+| jsonwebtoken | 9.0.2 | **MIT** | ✅ Tokens JWT para auth |
+| multer | 2.0.1 | **MIT** | ✅ Upload de archivos |
 | node-cron | 4.2.1 | **ISC** | ✅ Tareas programadas (cleanup, etc) |
-| pg | 8.16.3 | **MIT** | ✅ Cliente PostgreSQL |
+| pg | 8.12.0 | **MIT** | ✅ Cliente PostgreSQL |
 | uuid | 10.0.0 | **MIT** | ✅ Generación de IDs únicos |
 
 ### ❌ Dependencias NO USADAS (1 paquete)
 
 | Paquete | Versión | Licencia | Problema |
 |---------|---------|----------|----------|
-| openai | 4.104.0 | **Apache-2.0** | ❌ **NO IMPORTADO EN EL CÓDIGO** |
+
 
 **Recomendación:** Remover `openai` del `package.json` ya que no se usa.
 
@@ -75,7 +94,7 @@
 
 | Paquete | Versión | Licencia | Problema |
 |---------|---------|----------|----------|
-| netlify-cli | 23.12.3 | MIT | ❌ **NO USADO - Deployment es via Railway** |
+
 
 **Recomendación:** Remover `netlify-cli` del package.json raíz ya que no se usa para deployment.
 
@@ -91,14 +110,14 @@
 
 | Paquete | Versión | Licencia | Descripción |
 |---------|---------|----------|------------|
-| axios | 1.13.2 | **MIT** | Cliente HTTP |
-| i18next | 23.16.8 | **MIT** | Motor de internacionalización |
-| react | 18.3.1 | **MIT** | Librería UI |
-| react-dom | 18.3.1 | **MIT** | Renderizador DOM de React |
+| axios | 1.6.5 | **MIT** | Cliente HTTP |
+| i18next | 23.7.6 | **MIT** | Motor de internacionalización |
+| react | 18.2.0 | **MIT** | Librería UI |
+| react-dom | 18.2.0 | **MIT** | Renderizador DOM de React |
 | react-i18next | 13.5.0 | **MIT** | Integración React + i18next |
-| react-router-dom | 6.30.2 | **MIT** | Enrutamiento |
+| react-router-dom | 6.20.1 | **MIT** | Enrutamiento |
 | recharts | 3.5.1 | **MIT** | Librería de gráficos |
-| zustand | 4.5.7 | **MIT** | Gestor de estado |
+| zustand | 4.4.1 | **MIT** | Gestor de estado |
 
 ### Dependencias de Desarrollo (6 paquetes - Type Definitions & Build Tools)
 
@@ -118,7 +137,7 @@
 
 ---
 
-## � ANÁLISIS REAL DE LICENCIAS (Solo dependencias usadas)
+## ANÁLISIS REAL DE LICENCIAS (Solo dependencias usadas)
 
 ### Distribución de Licencias - DEPENDENCIAS REALMENTE USADAS
 
@@ -130,9 +149,7 @@ ISC:                    1 paquete  (3%)   [node-cron]
 ────────────────────────────────────
 TOTAL (SIN UNUSED):     34 paquetes
 
-NO USADOS (para remover):
-- openai:              1 paquete  ❌ [backend]
-- netlify-cli:         1 paquete  ❌ [raíz]
+
 ```
 
 ### Licencias Presentes EN CÓDIGO REAL
@@ -160,14 +177,11 @@ NO USADOS (para remover):
 
 #### **RESPUESTA: ✅ SÍ, AHORA SÍ ES POSIBLE (sin OpenAI)**
 
-**IMPORTANTE:** El análisis cambió significativamente porque OpenAI NO se usa en el código.
+
 
 ### Razones de la compatibilidad mejorada:
 
-#### 1. **OpenAI removido del análisis** ✅
-   - OpenAI tiene Apache-2.0 y crea conflicto con AGPL v3
-   - Como NO está siendo usado, puede ignorarse/removerse
-   - **Acción recomendada:** Eliminar `openai` del package.json
+
 
 #### 2. **Solo quedan licencias permisivas simples** ✅
    - MIT (91%): Completamente compatible con AGPL v3
@@ -177,10 +191,7 @@ NO USADOS (para remover):
    
    **Resultado:** Sin conflictos significativos
 
-#### 3. **Mejor análisis jurídico sin Apache-2.0 en runtime** ✅
-   - Apache-2.0 (OpenAI) era en runtime → conflicto potencial
-   - TypeScript Apache-2.0 está solo en dev → SIN conflicto
-   - Las herramientas de desarrollo no afectan licencia final
+
 
 #### 4. **AGPL v3 es compatible con MIT** ✅
    - MIT dice: "Haz lo que quieras"
@@ -241,7 +252,7 @@ NO USADOS (para remover):
 - Un poco más complejo que MIT, pero viable
 
 **Acciones necesarias:**
-1. ✅ Remover `openai` del backend/package.json (no se usa)
+1. ✅ No existen dependencias de traducción automática ni OpenAI en el backend
 2. Añadir licencia AGPL v3 en archivo LICENSE
 3. Documentar que aplicación es AGPL v3
 
@@ -279,59 +290,13 @@ NO USADOS (para remover):
 
 ## ❌ ¿POR QUÉ ANTES NO AGPL v3? (ANÁLISIS ANTERIOR)
 
-### Antes: OpenAI estaba en el análisis
 
-La incompatibilidad anterior era porque:
-- OpenAI SDK tiene Apache-2.0
-- Apache-2.0 + AGPL v3 = conflicto potencial de patentes
-- Esto hacía problemático usar AGPL v3
-
-### Ahora: Sin OpenAI = Compatible
-
-**Verificación en código:**
-```bash
-grep -r "import.*openai" backend/src/
-grep -r "from 'openai'" backend/src/
-grep -r "require.*openai" backend/src/
-# RESULTADO: ❌ No encontrado
-```
-
-OpenAI NO se usa en ningún archivo del código.
-
-### Conclusión: El análisis inicial era correcto pero cambió
-
-- Analizar dependencias instaladas ≠ analizar dependencias usadas
-- OpenAI está en package.json pero no importado
-- Debe removerse del package.json para limpiar
 
 ---
 
 ## 📋 PASOS PARA IMPLEMENTAR LA LICENCIA
 
-### Paso 1: Remover Dependencias No Usadas (IMPORTANTE)
 
-**En `backend/package.json`:**
-```bash
-cd backend
-npm uninstall openai
-```
-
-**En `package.json` raíz:**
-```bash
-cd ..
-npm uninstall netlify-cli
-```
-
-**Por qué remover openai:**
-- No se usa en el código (verificado: no hay imports)
-- Tiene Apache-2.0 que crea complejidad innecesaria
-- Si usas AGPL v3, simplifica las cosas
-
-**Por qué remover netlify-cli:**
-- No se usa Netlify para deployment (se usa Railway)
-- No hay referencias en el código
-- Reduce complejidad de dependencias
-- Reduce tamaño de node_modules
 
 ---
 

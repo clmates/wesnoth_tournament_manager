@@ -12,7 +12,7 @@
 
 ```
 ✅ @supabase/supabase-js    - import { createClient } from '@supabase/supabase-js'
-✅ axios                     - import axios from 'axios'
+✅ axios                     - import axios from 'axios' (solo para Discord y peticiones externas, no traducción)
 ✅ bcrypt                    - import bcrypt from 'bcrypt'
 ✅ bz2                       - (compression utility)
 ✅ cors                      - import cors from 'cors'
@@ -57,7 +57,7 @@
 
 ```
 ❌ netlify-cli              - NO import/usage found anywhere
-                              - Deployment uses Railway + Supabase, NOT Netlify
+                              - Deployment uses Railway + Supabase + Cloudflare Pages, NOT Netlify
                               - Can be safely removed
                               - License: MIT
                               - Version: 23.12.3
@@ -66,10 +66,7 @@
 ### Backend
 
 ```
-❌ openai                    - NO import found anywhere in backend/src/**
-                              - Can be safely removed
-                              - License: Apache-2.0
-                              - Version: 4.104.0
+
 ```
 
 **Verification:**
@@ -77,11 +74,7 @@
 $ grep -r "import.*netlify" . --exclude-dir=node_modules
 # Result: No matches found
 
-$ grep -r "import.*openai" backend/src/
-# Result: No matches found
 
-$ grep -r "require.*openai" backend/src/
-# Result: No matches found
 ```
 
 ---
@@ -109,9 +102,7 @@ ISC:               1 dependency  (3%)   ✅ Compatible
 ────────────────────────────────────────
 TOTAL (useful):    34 dependencies
 
-UNUSED (should remove):
-- openai:          1 dependency  (3%)   ❌ Runtime - remove
-- netlify-cli:     1 dependency  (3%)   ❌ Root - remove
+
 ```
 
 ---
@@ -138,7 +129,7 @@ npm install
 **Benefits:**
 - Reduces bundle size
 - Removes Apache-2.0 from runtime dependencies (openai)
-- Removes MIT dependency used only in abandoned Netlify setup
+- Removes MIT dependency used only in abandoned Netlify setup (now Cloudflare Pages)
 - Simplifies license compliance
 - Removes confusion: "why are these imported if not used?"
 - Cleaner node_modules for deployments
