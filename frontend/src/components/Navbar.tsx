@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
@@ -12,6 +12,10 @@ const Navbar: React.FC = () => {
   const [userNickname, setUserNickname] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
+  const userBtnRef = useRef<HTMLButtonElement>(null);
+  const languageBtnRef = useRef<HTMLButtonElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
+  const [languageDropdownPosition, setLanguageDropdownPosition] = useState<{ top: number; right: number } | null>(null);
 
   const languages = [
     { code: 'en', name: 'English', countryCode: 'us' },
@@ -36,6 +40,44 @@ const Navbar: React.FC = () => {
       fetchUserProfile();
     }
   }, [isAuthenticated]);
+
+  // Calculate dropdown position when it opens
+  useEffect(() => {
+    if (dropdownOpen && userBtnRef.current) {
+      const rect = userBtnRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY,
+        right: window.innerWidth - rect.right,
+      });
+    }
+  }, [dropdownOpen]);
+
+  // Calculate language dropdown position when it opens
+  useEffect(() => {
+    if (languageDropdownOpen && languageBtnRef.current) {
+      const rect = languageBtnRef.current.getBoundingClientRect();
+      setLanguageDropdownPosition({
+        top: rect.bottom + window.scrollY,
+        right: window.innerWidth - rect.right,
+      });
+    }
+  }, [languageDropdownOpen]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.user-menu') && !target.closest('.language-dropdown')) {
+        setDropdownOpen(false);
+        setLanguageDropdownOpen(false);
+      }
+    };
+
+    if (dropdownOpen || languageDropdownOpen) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [dropdownOpen, languageDropdownOpen]);
 
   // Debug: Log auth state on mount and when it changes
   useEffect(() => {
@@ -89,13 +131,22 @@ const Navbar: React.FC = () => {
           {isAuthenticated && (
             <div className="user-menu">
               <button 
+                ref={userBtnRef}
                 className="user-btn"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 {userNickname} ▼
               </button>
               {dropdownOpen && (
-                <div className="user-dropdown">
+                <div 
+                  className="user-dropdown"
+                  style={dropdownPosition ? {
+                    position: 'fixed',
+                    top: `${dropdownPosition.top}px`,
+                    right: `${dropdownPosition.right}px`,
+                    left: 'auto',
+                  } : undefined}
+                >
                   <button 
                     className="dropdown-item"
                     onClick={() => handleNavigateAndClose('/user')}
@@ -124,6 +175,7 @@ const Navbar: React.FC = () => {
         <div className="language-selector">
           <div className="language-dropdown">
             <button 
+              ref={languageBtnRef}
               className="language-btn"
               onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
             >
@@ -135,7 +187,15 @@ const Navbar: React.FC = () => {
               <span className="lang-code">{currentLanguage.code.toUpperCase()}</span>
             </button>
             {languageDropdownOpen && (
-              <div className="language-menu">
+              <div 
+                className="language-menu"
+                style={languageDropdownPosition ? {
+                  position: 'fixed',
+                  top: `${languageDropdownPosition.top}px`,
+                  right: `${languageDropdownPosition.right}px`,
+                  left: 'auto',
+                } : undefined}
+              >
                 {languages.map((lang) => (
                   <button
                     key={lang.code}
