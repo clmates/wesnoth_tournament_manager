@@ -10,7 +10,7 @@ const http = require('http');
 const API_HOST = 'localhost';
 const API_PORT = 3000;
 const ADMIN_NICKNAME = 'admin';
-const ADMIN_PASSWORD = 'test123';
+const ADMIN_PASSWORD = '<password>';
 
 function httpRequest(method, path, body = null) {
   return new Promise((resolve, reject) => {

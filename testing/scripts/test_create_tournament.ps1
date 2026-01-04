@@ -6,7 +6,7 @@ try {
     Write-Host "Intentando login..." -ForegroundColor Cyan
     $adminLogin = Invoke-WebRequest -Uri "$ApiUrl/auth/login" -Method POST -ContentType "application/json" -Body (@{
         nickname = "admin"
-        password = "test123"
+        password = "<password>"
     } | ConvertTo-Json) -UseBasicParsing | ConvertFrom-Json
     
     $adminToken = $adminLogin.token

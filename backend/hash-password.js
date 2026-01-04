@@ -6,4 +6,5 @@ async function hashPassword(password) {
   console.log(`Hash: ${hash}`);
 }
 
-hashPassword('test123');
+hashPassword('<password>');
+

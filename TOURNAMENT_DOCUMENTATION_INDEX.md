@@ -4,7 +4,7 @@
 
 Todos los documentos están en la raíz del proyecto:
 ```
-c:\Users\carlo\Documents\Desarrollo\Pruebas\wesnoth_tournament_manager\
+c:\Users\<usuario>\Documents\Desarrollo\wesnoth_tournament_manager\
 ```
 
 ---

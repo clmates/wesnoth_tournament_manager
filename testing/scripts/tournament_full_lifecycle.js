@@ -34,7 +34,7 @@ const BASE_URL = `http://${BASE_HOST}:${BASE_PORT}`;
 
 const CREDENTIALS_PATH = path.join(__dirname, 'test_credentials.csv');
 const RESULTS_DIR = path.join(__dirname, '..', 'results');
-const WESNOTH_SAVES_DIR = 'C:\\Users\\carlo\\Documents\\My Games\\Wesnoth1.18\\saves';
+const WESNOTH_SAVES_DIR = '<path_to_wesnoth_saves>\\Wesnoth1.18\\saves';
 
 if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
 

@@ -1,7 +1,7 @@
 # Login para obtener token válido
 $loginBody = @{
     nickname = "admin"
-    password = "test123"
+    password = "<password>"
 } | ConvertTo-Json
 
 Write-Host "Intentando login..." -ForegroundColor Cyan

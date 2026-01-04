@@ -69,7 +69,7 @@ async function checkPlayerStatus(tournamentId) {
     host: 'localhost',
     port: 5432,
     user: 'postgres',
-    password: 'postgres',
+    password: '<password>',
     database: 'wesnoth_tournament'
   });
 
@@ -115,7 +115,7 @@ async function checkRoundMatches(tournamentId, roundNumber) {
     host: 'localhost',
     port: 5432,
     user: 'postgres',
-    password: 'postgres',
+    password: '<password>',
     database: 'wesnoth_tournament'
   });
 
@@ -175,7 +175,7 @@ async function runFullTest() {
         host: 'localhost',
         port: 5432,
         user: 'postgres',
-        password: 'postgres',
+        password: '<password>',
         database: 'wesnoth_tournament'
       });
 
