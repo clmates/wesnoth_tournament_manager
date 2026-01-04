@@ -1044,7 +1044,7 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
       );
 
       // STEP 2: Get default ELO for new users (from users table default or environment)
-      const defaultElo = 1600; // Standard baseline
+      const defaultElo = 1400; // FIDE standard baseline for new users
 
       // STEP 3: Get ALL non-cancelled matches in chronological order
       const allNonCancelledMatches = await query(
