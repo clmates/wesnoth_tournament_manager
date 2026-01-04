@@ -52,7 +52,7 @@
   "report_comments": "Comments",
   "report_rating": "Rate Opponent",
   "report_replay": "Upload Replay",
-  "report.replay_upload_help": "Upload replay to auto-populate players, factions and map",
+  "report.replay_upload_help": "Upload your replay file (.gz or .bz2) to auto-fill opponent, map, and factions",
   "report_button": "Report Match",
   "ranking_title": "Global Ranking",
   "ranking_position": "Position",

@@ -50,7 +50,7 @@
   "report_comments": "评论",
   "report_rating": "评价对手",
   "report_replay": "上传回放",
-  "report.replay_upload_help": "上传回放以自动填充玩家、派系和地图",
+  "report.replay_upload_help": "上传回放文件(.gz 或 .bz2)以自动填充对手、地图和派系",
   "report_button": "报告比赛",
   "ranking_title": "全球排名",
   "ranking_position": "位置",
