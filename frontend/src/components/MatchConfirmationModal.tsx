@@ -78,8 +78,8 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
     }
   };
 
-  const winnerElo = match.winner_elo_rating || 'N/A';
-  const loserElo = match.loser_elo_rating || 'N/A';
+  const winnerElo = match.winner_elo_before || 'N/A';
+  const loserElo = match.loser_elo_before || 'N/A';
 
   return (
     <div className="modal-overlay" onClick={onClose}>

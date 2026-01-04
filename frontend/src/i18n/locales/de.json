@@ -50,6 +50,7 @@
   "report_comments": "Kommentare",
   "report_rating": "Gegner bewerten",
   "report_replay": "Replay hochladen",
+  "report.replay_upload_help": "Laden Sie das Replay hoch, um Spieler, Fraktionen und Karten automatisch auszufüllen",
   "report_button": "Spiel melden",
   "ranking_title": "Globales Ranking",
   "ranking_position": "Position",

@@ -52,6 +52,7 @@
   "report_comments": "Comentarios",
   "report_rating": "Valorar Oponente",
   "report_replay": "Cargar Replay",
+  "report.replay_upload_help": "Carga el replay para autocompletar jugadores, facciones y mapa",
   "report_button": "Reportar Partida",
   "ranking_title": "Ranking Global",
   "ranking_position": "Posición",

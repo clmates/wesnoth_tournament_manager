@@ -241,6 +241,18 @@ const ReportMatch: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="report-match-form">
           <div className="form-group">
+            <label htmlFor="replay">{t('report_replay')}</label>
+            <FileUploadInput
+              value={formData.replay}
+              onChange={handleReplayFileChange}
+              accept=".gz,.bz2"
+            />
+            <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+              {t('report.replay_upload_help')}
+            </small>
+          </div>
+
+          <div className="form-group">
             <label htmlFor="opponent_id">{t('report_opponent')} *</label>
             <OpponentSelector
               value={formData.opponent_id}
@@ -336,18 +348,6 @@ const ReportMatch: React.FC = () => {
               <option value="4">4 - {t('report.rating_4')}</option>
               <option value="5">5 - {t('report.rating_5')}</option>
             </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="replay">{t('report_replay')}</label>
-            <FileUploadInput
-              value={formData.replay}
-              onChange={handleReplayFileChange}
-              accept=".gz,.bz2"
-            />
-            <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
-              Upload your replay file (.gz or .bz2) to auto-fill opponent, map, and factions
-            </small>
           </div>
 
           <div className="form-actions">

@@ -52,6 +52,7 @@
   "report_comments": "Comments",
   "report_rating": "Rate Opponent",
   "report_replay": "Upload Replay",
+  "report.replay_upload_help": "Upload replay to auto-populate players, factions and map",
   "report_button": "Report Match",
   "ranking_title": "Global Ranking",
   "ranking_position": "Position",
