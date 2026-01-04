@@ -615,6 +615,22 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
 
     // Update all users in the database with their recalculated stats
     for (const [userId, stats] of userStates.entries()) {
+      // Determine is_rated status
+      // Get current is_rated status from database
+      const userCurrentResult = await query('SELECT is_rated FROM users WHERE id = $1', [userId]);
+      const isCurrentlyRated = userCurrentResult.rows[0]?.is_rated || false;
+      
+      let isRated = isCurrentlyRated;
+      
+      // If rated and ELO falls below 1400, unrate the player
+      if (isCurrentlyRated && stats.elo_rating < 1400) {
+        isRated = false;
+      }
+      // If unrated, has 10+ matches, and ELO >= 1400, rate the player
+      else if (!isCurrentlyRated && stats.matches_played >= 10 && stats.elo_rating >= 1400) {
+        isRated = true;
+      }
+      
       await query(
         `UPDATE users 
          SET elo_rating = $1, 
@@ -622,9 +638,10 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
              total_wins = $3,
              total_losses = $4,
              trend = $5,
+             is_rated = $6,
              updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $6`,
-        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, userId]
+         WHERE id = $7`,
+        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, isRated, userId]
       );
     }
 
