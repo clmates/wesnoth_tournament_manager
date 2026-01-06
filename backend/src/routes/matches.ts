@@ -1174,10 +1174,14 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
 
       // STEP 7: Recalculate faction/map balance statistics
       try {
-        await query('SELECT recalculate_faction_map_statistics()');
+        const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
+        console.log('🟢 Faction/map statistics recalculated successfully after dispute validation');
+        console.log('Result:', recalcResult.rows);
         if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Faction/map statistics recalculated successfully after dispute validation');
       } catch (error) {
-        console.error('Error recalculating faction/map statistics:', error);
+        console.error('🔴 ERROR recalculating faction/map statistics after dispute validation:', error);
+        console.error('Error message:', error.message);
+        console.error('Error code:', (error as any).code);
         // Don't fail the entire operation if balance stats fail
       }
 

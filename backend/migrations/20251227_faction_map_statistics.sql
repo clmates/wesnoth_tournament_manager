@@ -144,7 +144,13 @@ BEGIN
     wins,
     losses,
     ROUND(100.0 * wins / total_games, 2)::NUMERIC(5,2)
-  FROM winner_stats;
+  FROM winner_stats
+  ON CONFLICT (map_id, faction_id, opponent_faction_id)
+  DO UPDATE SET
+    total_games = EXCLUDED.total_games,
+    wins = EXCLUDED.wins,
+    losses = EXCLUDED.losses,
+    winrate = EXCLUDED.winrate;
 
   -- Insert for all loser factions
   WITH loser_stats AS (
@@ -171,7 +177,13 @@ BEGIN
     wins,
     losses,
     ROUND(100.0 * wins / total_games, 2)::NUMERIC(5,2)
-  FROM loser_stats;
+  FROM loser_stats
+  ON CONFLICT (map_id, faction_id, opponent_faction_id)
+  DO UPDATE SET
+    total_games = EXCLUDED.total_games,
+    wins = EXCLUDED.wins,
+    losses = EXCLUDED.losses,
+    winrate = EXCLUDED.winrate;
 
   GET DIAGNOSTICS v_total_records = ROW_COUNT;
   RAISE NOTICE 'Faction map statistics recalculated successfully: % records inserted', v_total_records;

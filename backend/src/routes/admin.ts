@@ -671,10 +671,14 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
 
     // Recalculate faction/map balance statistics
     try {
-      await query('SELECT recalculate_faction_map_statistics()');
+      const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
+      console.log('🟢 Faction/map statistics recalculated successfully');
+      console.log('Result:', recalcResult.rows);
       if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Faction/map statistics recalculated successfully');
     } catch (error) {
-      console.error('Error recalculating faction/map statistics:', error);
+      console.error('🔴 ERROR recalculating faction/map statistics:', error);
+      console.error('Error message:', error.message);
+      console.error('Error code:', (error as any).code);
       // Don't fail the entire operation if balance stats fail
     }
 
