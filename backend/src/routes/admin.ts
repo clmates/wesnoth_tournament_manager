@@ -539,6 +539,15 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`Starting global stats recalculation by admin ${req.userId}`);
 
+    // CRITICAL: Disable trigger to prevent automatic faction/map stats updates during this process
+    // The trigger fires on UPDATE matches, which would cause double-counting
+    try {
+      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches');
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Disabled trigger: trg_update_faction_map_stats');
+    } catch (error) {
+      console.error('Warning: Failed to disable trigger:', error);
+    }
+
     const defaultElo = 1400; // FIDE standard baseline for new users
 
     // Get ALL non-cancelled matches in chronological order
@@ -646,6 +655,19 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
     }
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`Global stats recalculation completed: ${allNonCancelledMatches.rows.length} matches replayed, ${userStates.size} users updated`);
+
+    // Re-enable the trigger after all updates are done
+    try {
+      await query(`
+        CREATE TRIGGER trg_update_faction_map_stats
+        AFTER INSERT OR UPDATE ON matches
+        FOR EACH ROW
+        EXECUTE FUNCTION update_faction_map_statistics();
+      `);
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Re-enabled trigger: trg_update_faction_map_stats');
+    } catch (error) {
+      console.error('Warning: Failed to re-enable trigger:', error);
+    }
 
     // Recalculate faction/map balance statistics
     try {

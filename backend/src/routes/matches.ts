@@ -1043,6 +1043,15 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
         ['cancelled', req.userId, id]
       );
 
+      // STEP 1B: Disable trigger to prevent automatic faction/map stats updates during this process
+      // The trigger fires on UPDATE matches, which would cause double-counting
+      try {
+        await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches');
+        if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Disabled trigger: trg_update_faction_map_stats');
+      } catch (error) {
+        console.error('Warning: Failed to disable trigger:', error);
+      }
+
       // STEP 2: Get default ELO for new users (from users table default or environment)
       const defaultElo = 1400; // FIDE standard baseline for new users
 
@@ -1148,6 +1157,19 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
            WHERE id = $7`,
           [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, isRated, userId]
         );
+      }
+
+      // STEP 6B: Re-enable the trigger after all updates are done
+      try {
+        await query(`
+          CREATE TRIGGER trg_update_faction_map_stats
+          AFTER INSERT OR UPDATE ON matches
+          FOR EACH ROW
+          EXECUTE FUNCTION update_faction_map_statistics();
+        `);
+        if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Re-enabled trigger: trg_update_faction_map_stats');
+      } catch (error) {
+        console.error('Warning: Failed to re-enable trigger:', error);
       }
 
       // STEP 7: Recalculate faction/map balance statistics
