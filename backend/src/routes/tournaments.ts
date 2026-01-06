@@ -1969,16 +1969,16 @@ router.get('/:id/config', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     
-    const [rows]: any = await query(
-      `SELECT * FROM tournaments WHERE tournament_id = ?`,
+    const rows = await query(
+      `SELECT * FROM tournaments WHERE tournament_id = $1`,
       [id]
     );
     
-    if (!rows || rows.length === 0) {
+    if (!rows || !rows.rows || rows.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
     
-    res.json(rows[0]);
+    res.json(rows.rows[0]);
   } catch (error) {
     console.error('Error fetching tournament config:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -2088,12 +2088,12 @@ router.get('/:id/standings', authMiddleware, async (req: AuthRequest, res) => {
     // Get standings ordered by points DESC, then by tiebreakers (OMP, GWP, OGP) DESC
     const standings = await query(
       `SELECT * FROM tournament_participants 
-       WHERE tournament_id = ? 
+       WHERE tournament_id = $1 
        ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC`,
       [id]
     );
     
-    res.json({ standings: standings || [] });
+    res.json({ standings: (standings && standings.rows) ? standings.rows : [] });
   } catch (error) {
     console.error('Error fetching standings:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -2108,12 +2108,12 @@ router.get('/:id/league-standings', authMiddleware, async (req: AuthRequest, res
   try {
     const { id } = req.params;
     
-    const [standings]: any = await query(
-      `SELECT * FROM league_standings WHERE tournament_id = ? ORDER BY league_position ASC`,
+    const standings = await query(
+      `SELECT * FROM league_standings WHERE tournament_id = $1 ORDER BY league_position ASC`,
       [id]
     );
     
-    res.json({ standings: standings || [] });
+    res.json({ standings: (standings && standings.rows) ? standings.rows : [] });
   } catch (error) {
     console.error('Error fetching league standings:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -2128,14 +2128,14 @@ router.get('/:id/swiss-pairings/:round_id', authMiddleware, async (req: AuthRequ
   try {
     const { id, round_id } = req.params;
     
-    const [pairings]: any = await query(
+    const pairings = await query(
       `SELECT * FROM swiss_pairings 
-       WHERE tournament_id = ? AND tournament_round_id = ? 
+       WHERE tournament_id = $1 AND tournament_round_id = $2 
        ORDER BY pairing_number ASC`,
       [id, round_id]
     );
     
-    res.json({ pairings: pairings || [] });
+    res.json({ pairings: (pairings && pairings.rows) ? pairings.rows : [] });
   } catch (error) {
     console.error('Error fetching swiss pairings:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -2153,7 +2153,7 @@ router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthReques
     
     // Check if user is admin or tournament creator
     const tournamentQuery = await query(
-      'SELECT creator_id FROM tournaments WHERE tournament_id = ?',
+      'SELECT creator_id FROM tournaments WHERE tournament_id = $1',
       [id]
     );
     
@@ -2163,7 +2163,7 @@ router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthReques
     
     const tournament = tournamentQuery.rows[0];
     const userQuery = await query(
-      'SELECT is_admin FROM users WHERE user_id = ?',
+      'SELECT is_admin FROM users WHERE user_id = $1',
       [req.userId]
     );
     
@@ -2176,7 +2176,7 @@ router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthReques
     
     // Execute the stored procedure
     const result = await query(
-      'SELECT updated_count, error_message FROM update_tournament_tiebreakers(?)',
+      'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
       [id]
     );
     
@@ -2192,7 +2192,7 @@ router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthReques
     // Fetch updated participants ordered by tiebreakers
     const participants = await query(
       `SELECT * FROM tournament_participants 
-       WHERE tournament_id = ? 
+       WHERE tournament_id = $1 
        ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC`,
       [id]
     );
@@ -2220,7 +2220,7 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
     
     // Check if user is admin or tournament creator
     const tournamentQuery = await query(
-      'SELECT creator_id FROM tournaments WHERE tournament_id = ?',
+      'SELECT creator_id FROM tournaments WHERE tournament_id = $1',
       [id]
     );
     
@@ -2230,7 +2230,7 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
     
     const tournament = tournamentQuery.rows[0];
     const userQuery = await query(
-      'SELECT is_admin FROM users WHERE user_id = ?',
+      'SELECT is_admin FROM users WHERE user_id = $1',
       [req.userId]
     );
     
@@ -2243,7 +2243,7 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
     
     // Execute the stored procedure
     const result = await query(
-      'SELECT updated_count, error_message FROM update_league_tiebreakers(?)',
+      'SELECT updated_count, error_message FROM update_league_tiebreakers($1)',
       [id]
     );
     
@@ -2259,7 +2259,7 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
     // Fetch updated participants ordered by: tournament_points DESC, omp DESC, gwp DESC, ogp DESC
     const participants = await query(
       `SELECT * FROM tournament_participants 
-       WHERE tournament_id = ? 
+       WHERE tournament_id = $1 
        ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC`,
       [id]
     );
