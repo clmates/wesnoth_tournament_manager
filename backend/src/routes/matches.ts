@@ -1178,6 +1178,11 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
         console.log('🟢 Faction/map statistics recalculated successfully after dispute validation');
         console.log('Result:', recalcResult.rows);
         if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Faction/map statistics recalculated successfully after dispute validation');
+        
+        // Manage snapshots: delete old ones after last event, create/update AFTER snapshot
+        const snapshotResult = await query('SELECT * FROM manage_faction_map_statistics_snapshots()');
+        console.log('🟢 Snapshots managed successfully after dispute validation');
+        console.log('Snapshot Management:', snapshotResult.rows[0]);
       } catch (error: any) {
         console.error('🔴 ERROR recalculating faction/map statistics after dispute validation:', error);
         console.error('Error message:', error.message);
