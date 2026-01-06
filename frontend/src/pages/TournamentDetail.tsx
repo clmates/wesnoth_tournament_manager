@@ -461,13 +461,15 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     <div className="admin-container">
       <div className="tournament-header">
         <button onClick={handleBackButton} className="btn-back">← {t('tournaments.back_to_tournaments')}</button>
-        <h1>{tournament.name}</h1>
-        <span 
-          className="status-badge"
-          style={{ backgroundColor: getStatusColor(tournament.status) }}
-        >
-          {t(`option_${normalizeStatus(tournament.status)}`) !== `option_${normalizeStatus(tournament.status)}` ? t(`option_${normalizeStatus(tournament.status)}`) : (tournament.status || t('option_pending'))}
-        </span>
+        <div className="tournament-header-content">
+          <h1>{tournament.name}</h1>
+          <span 
+            className="status-badge"
+            style={{ backgroundColor: getStatusColor(tournament.status) }}
+          >
+            {t(`option_${normalizeStatus(tournament.status)}`) !== `option_${normalizeStatus(tournament.status)}` ? t(`option_${normalizeStatus(tournament.status)}`) : (tournament.status || t('option_pending'))}
+          </span>
+        </div>
       </div>
 
       {error && <p className="error-message">{error}</p>}
