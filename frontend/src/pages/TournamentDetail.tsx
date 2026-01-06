@@ -1135,11 +1135,11 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   .sort((a, b) => {
                     const pointsDiff = (b.tournament_points || 0) - (a.tournament_points || 0);
                     if (pointsDiff !== 0) return pointsDiff;
-                    const ompDiff = (b.omp || 0) - (a.omp || 0);
+                    const ompDiff = (Number(b.omp) || 0) - (Number(a.omp) || 0);
                     if (ompDiff !== 0) return ompDiff;
-                    const gwpDiff = (b.gwp || 0) - (a.gwp || 0);
+                    const gwpDiff = (Number(b.gwp) || 0) - (Number(a.gwp) || 0);
                     if (gwpDiff !== 0) return gwpDiff;
-                    const ogpDiff = (b.ogp || 0) - (a.ogp || 0);
+                    const ogpDiff = (Number(b.ogp) || 0) - (Number(a.ogp) || 0);
                     if (ogpDiff !== 0) return ogpDiff;
                     return (b.tournament_wins || 0) - (a.tournament_wins || 0);
                   })
@@ -1152,9 +1152,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       <td>{participant.tournament_wins || 0}</td>
                       <td>{participant.tournament_losses || 0}</td>
                       <td><strong>{participant.tournament_points || 0}</strong></td>
-                      <td>{participant.omp !== undefined ? participant.omp.toFixed(2) : '-'}</td>
-                      <td>{participant.gwp !== undefined ? participant.gwp.toFixed(2) : '-'}</td>
-                      <td>{participant.ogp !== undefined ? participant.ogp.toFixed(2) : '-'}</td>
+                      <td>{participant.omp != null ? Number(participant.omp).toFixed(2) : '-'}</td>
+                      <td>{participant.gwp != null ? Number(participant.gwp).toFixed(2) : '-'}</td>
+                      <td>{participant.ogp != null ? Number(participant.ogp).toFixed(2) : '-'}</td>
                       <td>
                         <span className={`status-badge status-${normalizeStatus(participant.participation_status)}`}>
                           {t(`option_${normalizeStatus(participant.participation_status)}`) !== `option_${normalizeStatus(participant.participation_status)}` ? t(`option_${normalizeStatus(participant.participation_status)}`) : (participant.participation_status || t('option_pending'))}
