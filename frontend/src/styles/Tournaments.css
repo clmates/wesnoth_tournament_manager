@@ -171,22 +171,24 @@
 .tournament-header-content {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
   flex: 1;
   min-width: 0;
 }
 
 .tournament-header h1 {
-  flex: 0 0 70%;
+  flex: 1;
   margin: 0;
   font-size: 2rem;
   word-break: break-word;
   overflow-wrap: break-word;
+  min-width: 0;
 }
 
 .tournament-header .status-badge {
-  flex: 0 0 30%;
+  flex: 0 0 auto;
   text-align: center;
+  white-space: nowrap;
 }
 
 .tournament-info {
