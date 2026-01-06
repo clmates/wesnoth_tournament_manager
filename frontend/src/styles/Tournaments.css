@@ -113,13 +113,18 @@
 
 .status-badge {
   display: inline-block;
-  padding: 0.4rem 0.8rem;
+  padding: 0.4rem 0.6rem;
   border-radius: 4px;
   color: white;
   font-weight: 600;
   font-size: 0.85rem;
   text-align: center;
-  min-width: 100px;
+  min-width: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .btn-view {
