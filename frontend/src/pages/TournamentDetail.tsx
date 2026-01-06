@@ -159,7 +159,7 @@ const TournamentDetail: React.FC = () => {
       
       // Check user's participation status
       if (userId) {
-        const userParticipant = participantsRes.data?.find((p: TournamentParticipant) => p.user_id === userId);
+        const userParticipant = participantsRes.data?.standings?.find((p: TournamentParticipant) => p.user_id === userId);
         setUserParticipationStatus(userParticipant?.participation_status || null);
       }
 
