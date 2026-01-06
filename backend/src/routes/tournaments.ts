@@ -2084,19 +2084,14 @@ router.get('/suggestions/by-count', authMiddleware, async (req: AuthRequest, res
 router.get('/:id/standings', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { round_id } = req.query;
     
-    let sql = `SELECT * FROM tournament_standings WHERE tournament_id = ?`;
-    const params: any[] = [id];
-    
-    if (round_id) {
-      sql += ` AND tournament_round_id = ?`;
-      params.push(round_id);
-    }
-    
-    sql += ` ORDER BY current_rank ASC`;
-    
-    const [standings]: any = await query(sql, params);
+    // Get standings ordered by points DESC, then by tiebreakers (OMP, GWP, OGP) DESC
+    const standings = await query(
+      `SELECT * FROM tournament_participants 
+       WHERE tournament_id = ? 
+       ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC`,
+      [id]
+    );
     
     res.json({ standings: standings || [] });
   } catch (error) {
@@ -2143,6 +2138,140 @@ router.get('/:id/swiss-pairings/:round_id', authMiddleware, async (req: AuthRequ
     res.json({ pairings: pairings || [] });
   } catch (error) {
     console.error('Error fetching swiss pairings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/tournaments/:id/calculate-tiebreakers
+ * Calculate Swiss tiebreakers (OMP, GWP, OGP) for tournament participants
+ * Only admins or tournament creators can call this endpoint
+ */
+router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if user is admin or tournament creator
+    const tournamentQuery = await query(
+      'SELECT creator_id FROM tournaments WHERE tournament_id = ?',
+      [id]
+    );
+    
+    if (!tournamentQuery || !tournamentQuery.rows || tournamentQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+    
+    const tournament = tournamentQuery.rows[0];
+    const userQuery = await query(
+      'SELECT is_admin FROM users WHERE user_id = ?',
+      [req.userId]
+    );
+    
+    const isAdmin = userQuery && userQuery.rows && userQuery.rows.length > 0 && userQuery.rows[0].is_admin;
+    const isCreator = tournament.creator_id === req.userId;
+    
+    if (!isAdmin && !isCreator) {
+      return res.status(403).json({ error: 'Only admins or tournament creators can calculate tiebreakers' });
+    }
+    
+    // Execute the stored procedure
+    const result = await query(
+      'SELECT updated_count, error_message FROM update_tournament_tiebreakers(?)',
+      [id]
+    );
+    
+    if (result && result.rows && result.rows.length > 0 && result.rows[0].error_message) {
+      return res.status(400).json({ 
+        error: 'Failed to calculate tiebreakers',
+        details: result.rows[0].error_message
+      });
+    }
+    
+    const updatedCount = result && result.rows && result.rows.length > 0 ? result.rows[0].updated_count : 0;
+    
+    // Fetch updated participants ordered by tiebreakers
+    const participants = await query(
+      `SELECT * FROM tournament_participants 
+       WHERE tournament_id = ? 
+       ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC`,
+      [id]
+    );
+    
+    res.json({
+      success: true,
+      message: `Tiebreakers calculated for ${updatedCount} participants`,
+      updated_count: updatedCount,
+      participants: (participants && participants.rows) ? participants.rows : []
+    });
+  } catch (error) {
+    console.error('Error calculating tiebreakers:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/leagues/:id/calculate-tiebreakers
+ * Calculate League tiebreakers (OMP, GWP, OGP) for tournament participants (league tournaments)
+ * Only admins or league creators can call this endpoint
+ */
+router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if user is admin or tournament creator
+    const tournamentQuery = await query(
+      'SELECT creator_id FROM tournaments WHERE tournament_id = ?',
+      [id]
+    );
+    
+    if (!tournamentQuery || !tournamentQuery.rows || tournamentQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament (league) not found' });
+    }
+    
+    const tournament = tournamentQuery.rows[0];
+    const userQuery = await query(
+      'SELECT is_admin FROM users WHERE user_id = ?',
+      [req.userId]
+    );
+    
+    const isAdmin = userQuery && userQuery.rows && userQuery.rows.length > 0 && userQuery.rows[0].is_admin;
+    const isCreator = tournament.creator_id === req.userId;
+    
+    if (!isAdmin && !isCreator) {
+      return res.status(403).json({ error: 'Only admins or tournament creators can calculate tiebreakers' });
+    }
+    
+    // Execute the stored procedure
+    const result = await query(
+      'SELECT updated_count, error_message FROM update_league_tiebreakers(?)',
+      [id]
+    );
+    
+    if (result && result.rows && result.rows.length > 0 && result.rows[0].error_message) {
+      return res.status(400).json({ 
+        error: 'Failed to calculate tiebreakers',
+        details: result.rows[0].error_message
+      });
+    }
+    
+    const updatedCount = result && result.rows && result.rows.length > 0 ? result.rows[0].updated_count : 0;
+    
+    // Fetch updated participants ordered by: tournament_points DESC, omp DESC, gwp DESC, ogp DESC
+    const participants = await query(
+      `SELECT * FROM tournament_participants 
+       WHERE tournament_id = ? 
+       ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC`,
+      [id]
+    );
+    
+    res.json({
+      success: true,
+      message: `Tiebreakers calculated for ${updatedCount} participants`,
+      updated_count: updatedCount,
+      participants: (participants && participants.rows) ? participants.rows : []
+    });
+  } catch (error) {
+    console.error('Error calculating league tiebreakers:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

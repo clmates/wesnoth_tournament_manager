@@ -92,6 +92,27 @@ export async function selectPlayersForEliminationPhase(
     
     console.log(`${'='.repeat(80)}\n`);
     
+    // Calculate tiebreakers for Swiss phase completion
+    console.log(`\n🎲 [TIEBREAKERS] Calculating Swiss tiebreakers (OMP, GWP, OGP)...`);
+    try {
+      const tiebreakersResult = await query(
+        'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
+        [tournamentId]
+      );
+      
+      if (tiebreakersResult.rows.length > 0) {
+        const { updated_count, error_message } = tiebreakersResult.rows[0];
+        if (error_message) {
+          console.error(`❌ [TIEBREAKERS] Error: ${error_message}`);
+        } else {
+          console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} participants`);
+        }
+      }
+    } catch (tiebreakersErr) {
+      console.error('[TIEBREAKERS] Error calculating tiebreakers:', tiebreakersErr);
+      // Don't fail the tournament if tiebreakers calculation fails
+    }
+    
     return true;
   } catch (error) {
     console.error('[SELECT_PLAYERS] Error selecting players for elimination phase:', error);
@@ -896,18 +917,43 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
       const totalRounds = parseInt(totalRoundsResult.rows[0].total_rounds);
 
       if (roundNumber === totalRounds) {
-        // This is the last round - tournament is finished
-        // Get the ranking and declare winner
+        // This is the last round - tournament is about to finish
+        
+        // FIRST: Calculate tiebreakers BEFORE marking as finished
+        // This ensures rankings are properly ordered by OMP/GWP/OGP for correct winner selection
+        console.log(`\n🎲 [TIEBREAKERS] Calculating tournament tiebreakers (OMP, GWP, OGP) BEFORE finishing...`);
+        try {
+          const tiebreakersResult = await query(
+            'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
+            [tournamentId]
+          );
+          
+          if (tiebreakersResult.rows.length > 0) {
+            const { updated_count, error_message } = tiebreakersResult.rows[0];
+            if (error_message) {
+              console.error(`❌ [TIEBREAKERS] Error: ${error_message}`);
+            } else {
+              console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} participants`);
+            }
+          }
+        } catch (tiebreakersErr) {
+          console.error('[TIEBREAKERS] Error calculating tiebreakers:', tiebreakersErr);
+          // Don't fail the tournament finish if tiebreakers calculation fails
+        }
+
+        // THEN: Get ranking with proper tiebreaker ordering
         const rankingResult = await query(
           `SELECT user_id FROM tournament_participants 
            WHERE tournament_id = $1 
-           ORDER BY tournament_points DESC, tournament_wins DESC
+           ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC
            LIMIT 1`,
           [tournamentId]
         );
 
         if (rankingResult.rows.length > 0) {
           const winnerId = rankingResult.rows[0].user_id;
+          
+          // NOW mark as finished
           await query(
             `UPDATE tournaments SET status = 'finished', finished_at = NOW() WHERE id = $1`,
             [tournamentId]
