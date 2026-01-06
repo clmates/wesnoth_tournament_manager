@@ -2087,9 +2087,11 @@ router.get('/:id/standings', authMiddleware, async (req: AuthRequest, res) => {
     
     // Get standings ordered by points DESC, then by tiebreakers (OMP, GWP, OGP) DESC
     const standings = await query(
-      `SELECT * FROM tournament_participants 
-       WHERE tournament_id = $1 
-       ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC`,
+      `SELECT tp.*, u.nickname, u.elo_rating
+       FROM tournament_participants tp
+       LEFT JOIN users u ON tp.user_id = u.id
+       WHERE tp.tournament_id = $1 
+       ORDER BY tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC`,
       [id]
     );
     
@@ -2100,25 +2102,6 @@ router.get('/:id/standings', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-/**
- * GET /api/tournaments/:id/league-standings
- * Get league standings
- */
-router.get('/:id/league-standings', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    
-    const standings = await query(
-      `SELECT * FROM league_standings WHERE tournament_id = $1 ORDER BY league_position ASC`,
-      [id]
-    );
-    
-    res.json({ standings: (standings && standings.rows) ? standings.rows : [] });
-  } catch (error) {
-    console.error('Error fetching league standings:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 /**
  * GET /api/tournaments/:id/swiss-pairings/:round_id

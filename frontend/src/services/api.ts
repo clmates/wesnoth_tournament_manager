@@ -171,7 +171,6 @@ export const tournamentService = {
   getTournamentRanking: (id: string) => api.get(`/tournaments/${id}/ranking`),
   getTournamentStandings: (id: string, roundId?: string) => 
     api.get(`/tournaments/${id}/standings`, { params: roundId ? { round_id: roundId } : {} }),
-  getTournamentLeagueStandings: (id: string) => api.get(`/tournaments/${id}/league-standings`),
   calculateTournamentTiebreakers: (id: string) => api.post(`/tournaments/${id}/calculate-tiebreakers`, {}),
   calculateLeagueTiebreakers: (leagueId: string) => api.post(`/leagues/${leagueId}/calculate-tiebreakers`, {}),
   getTournamentMatches: (id: string) => api.get(`/tournaments/${id}/matches`),
