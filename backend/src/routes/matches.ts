@@ -1150,6 +1150,15 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
         );
       }
 
+      // STEP 7: Recalculate faction/map balance statistics
+      try {
+        await query('SELECT recalculate_faction_map_statistics()');
+        if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Faction/map statistics recalculated successfully after dispute validation');
+      } catch (error) {
+        console.error('Error recalculating faction/map statistics:', error);
+        // Don't fail the entire operation if balance stats fail
+      }
+
       // Reopen the associated tournament match for re-reporting
       const tournamentMatchResult = await query(
         `SELECT tm.id as tm_id FROM tournament_matches tm
