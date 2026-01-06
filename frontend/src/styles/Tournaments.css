@@ -177,7 +177,7 @@
 }
 
 .tournament-header h1 {
-  flex: 1;
+  flex: 7;
   margin: 0;
   font-size: 2rem;
   word-break: break-word;
@@ -186,7 +186,7 @@
 }
 
 .tournament-header .status-badge {
-  flex: 0 0 auto;
+  flex: 3;
   text-align: center;
   white-space: nowrap;
 }
