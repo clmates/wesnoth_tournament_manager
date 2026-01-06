@@ -1196,4 +1196,55 @@ router.delete('/factions/:factionId', authMiddleware, async (req: AuthRequest, r
   }
 });
 
+// ===== RECALCULATE BALANCE EVENT SNAPSHOTS =====
+router.post('/api/admin/recalculate-snapshots', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Check if user is admin
+    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Only admins can access this resource' });
+    }
+
+    const { eventId, recreateAll } = req.body;
+
+    console.log('🟡 Starting balance event snapshots recalculation');
+    console.log('Parameters:', { eventId, recreateAll });
+
+    // Call SQL function to recalculate snapshots
+    const winnerResult = await query(
+      'SELECT * FROM recalculate_balance_event_snapshots($1, $2)',
+      [eventId || null, recreateAll || false]
+    );
+
+    console.log('🟢 Winner faction snapshots recalculated');
+    console.log('Result:', winnerResult.rows[0]);
+
+    // Also calculate loser faction snapshots
+    await query(
+      'SELECT * FROM recalculate_balance_event_snapshots_loser($1, $2)',
+      [eventId || null, recreateAll || false]
+    );
+
+    console.log('🟢 Loser faction snapshots recalculated');
+
+    const result = winnerResult.rows[0];
+    res.json({
+      success: true,
+      message: 'Balance event snapshots recalculated successfully',
+      totalEventsProcessed: result.total_events_processed,
+      totalSnapshotsCreated: result.total_snapshots_created,
+      beforeSnapshots: result.before_snapshots,
+      afterSnapshots: result.after_snapshots,
+      recreatedAll: recreateAll
+    });
+  } catch (error) {
+    console.error('🔴 ERROR recalculating balance event snapshots:', error);
+    res.status(500).json({
+      error: 'Failed to recalculate balance event snapshots',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
+
