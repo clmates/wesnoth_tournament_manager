@@ -1197,7 +1197,7 @@ router.delete('/factions/:factionId', authMiddleware, async (req: AuthRequest, r
 });
 
 // ===== RECALCULATE BALANCE EVENT SNAPSHOTS =====
-router.post('/api/admin/recalculate-snapshots', authMiddleware, async (req: AuthRequest, res) => {
+router.post('/admin/recalculate-snapshots', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
     const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
