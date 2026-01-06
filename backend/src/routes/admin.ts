@@ -675,10 +675,10 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
       console.log('🟢 Faction/map statistics recalculated successfully');
       console.log('Result:', recalcResult.rows);
       if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Faction/map statistics recalculated successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('🔴 ERROR recalculating faction/map statistics:', error);
       console.error('Error message:', error.message);
-      console.error('Error code:', (error as any).code);
+      console.error('Error code:', error.code);
       // Don't fail the entire operation if balance stats fail
     }
 
