@@ -228,8 +228,8 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       <div className="balance-stats">
         <h3>{t('unbalanced_matchups_comparison') || 'Unbalanced Matchups - Before & After'}</h3>
         <p className="block-info">
-          {t('before_event') || 'Before'}: {beforeData ? beforeData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'} | 
-          {t('after_event') || 'After'}: {afterData ? afterData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'}
+          {t('before_event') || 'Before'}: {beforeData ? beforeData.length : 0} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterData ? afterData.length : 0} {t('matches_evaluated') || 'matches'}
         </p>
 
         <div className="stats-table-container">

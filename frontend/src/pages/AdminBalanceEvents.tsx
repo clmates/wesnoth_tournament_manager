@@ -152,11 +152,16 @@ const AdminBalanceEvents: React.FC = () => {
     setSnapshotSuccess('');
 
     try {
-      const response = await api.post('/statistics/history/recalculate-snapshots');
+      const response = await api.post('/admin/recalculate-snapshots', {
+        eventId: null,
+        recreateAll: true
+      });
+      
+      const { totalSnapshotsCreated, beforeSnapshots, afterSnapshots } = response.data;
       
       setSnapshotSuccess(
         t('snapshots_recalculated_success') || 
-        `Historical snapshots recalculated successfully. Created ${response.data.totalSnapshots} snapshots.`
+        `Historical snapshots recalculated successfully.\nSnapshots created: ${totalSnapshotsCreated}\nMatches before: ${beforeSnapshots}\nMatches after: ${afterSnapshots}`
       );
     } catch (err: any) {
       setSnapshotError(err.response?.data?.error || t('error_recalculating_snapshots') || 'Error recalculating snapshots');

@@ -232,8 +232,8 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
       <div className="balance-stats">
         <h3>{t('map_balance_comparison') || 'Map Balance - Before & After'}</h3>
         <p className="block-info">
-          {t('before_event') || 'Before'}: {beforeData ? beforeData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'} | 
-          {t('after_event') || 'After'}: {afterData ? afterData.reduce((sum: number, d: ComparisonData) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'}
+          {t('before_event') || 'Before'}: {beforeData ? beforeData.length : 0} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterData ? afterData.length : 0} {t('matches_evaluated') || 'matches'}
         </p>
         <p className="stats-info">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
         

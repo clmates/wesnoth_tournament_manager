@@ -171,8 +171,8 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
       <div className="balance-stats">
         <h3>{t('faction_balance_comparison') || 'Faction Balance - Before & After'}</h3>
         <p className="block-info">
-          {t('before_event') || 'Before'}: {beforeData ? beforeData.reduce((sum, d) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'} | 
-          {t('after_event') || 'After'}: {afterData ? afterData.reduce((sum, d) => sum + d.total_games, 0) : 0} {t('matches_evaluated') || 'matches'}
+          {t('before_event') || 'Before'}: {beforeData ? beforeData.length : 0} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterData ? afterData.length : 0} {t('matches_evaluated') || 'matches'}
         </p>
         <div className="stats-table-container">
           <table className="stats-table comparison-mode">
