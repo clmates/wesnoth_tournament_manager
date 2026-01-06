@@ -12,7 +12,9 @@
 .footer-content {
   max-width: 1200px;
   margin: 0 auto;
-  min-height: 120px;
+  /* Reserve space to prevent CLS */
+  min-height: 148px;
+  contain: layout style paint;
 }
 
 .footer-section {
@@ -61,39 +63,34 @@
   color: #95a5a6;
 }
 
-/* Skeleton Loading */
+/* Skeleton Loading - Fixed height to prevent CLS */
 .disclaimer-skeleton {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   padding: 1rem;
-  min-height: 120px;
-  animation: skeleton-loading 1s linear infinite alternate;
+  height: 128px;
+  contain: layout style;
 }
 
 .disclaimer-skeleton::before {
   content: '';
   display: block;
   height: 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.1) 75%);
+  background-size: 200% 100%;
   border-radius: 4px;
+  will-change: auto;
 }
 
 .disclaimer-skeleton::after {
   content: '';
   display: block;
-  height: 4rem;
-  background: rgba(255, 255, 255, 0.05);
+  height: 3.5rem;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.02) 50%, rgba(255,255,255,0.05) 75%);
+  background-size: 200% 100%;
   border-radius: 4px;
-}
-
-@keyframes skeleton-loading {
-  0% {
-    opacity: 0.7;
-  }
-  100% {
-    opacity: 1;
-  }
+  will-change: auto;
 }
 
 /* Responsive Design */
@@ -103,7 +100,7 @@
   }
 
   .footer-content {
-    min-height: 100px;
+    min-height: 128px;
   }
 
   .footer-section {
@@ -130,6 +127,10 @@
   .footer-copyright {
     font-size: 0.75rem;
   }
+
+  .disclaimer-skeleton {
+    height: 112px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -138,7 +139,7 @@
   }
 
   .footer-content {
-    min-height: 80px;
+    min-height: 100px;
   }
 
   .footer-section {
@@ -147,5 +148,9 @@
 
   .disclaimer-text {
     font-size: 0.8rem;
+  }
+
+  .disclaimer-skeleton {
+    height: 100px;
   }
 }

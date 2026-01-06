@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
   return (
     <footer className="app-footer">
       <div className="footer-content">
-        <Suspense fallback={<div className="disclaimer-skeleton" />}>
+        <Suspense fallback={<div className="disclaimer-skeleton" role="status" aria-label="Loading footer content" />}>
           <DisclaimerSection />
         </Suspense>
       </div>
