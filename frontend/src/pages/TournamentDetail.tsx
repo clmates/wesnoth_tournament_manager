@@ -128,7 +128,7 @@ const TournamentDetail: React.FC = () => {
       ]);
 
       setTournament(tournamentRes.data);
-      setParticipants(participantsRes.data || []);
+      setParticipants(participantsRes.data?.standings || []);
       setMatches(matchesRes.data || []);
       setRoundMatches(roundMaturesRes.data || []);
       setRounds(roundsRes.data || []);
