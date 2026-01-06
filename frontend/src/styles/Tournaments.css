@@ -162,7 +162,7 @@
 .tournament-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   margin-bottom: 2rem;
   border-bottom: 2px solid #ecf0f1;
   padding-bottom: 1rem;
