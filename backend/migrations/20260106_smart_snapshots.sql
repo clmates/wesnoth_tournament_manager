@@ -97,8 +97,8 @@ DECLARE
   v_snapshot_after_created BOOLEAN := FALSE;
 BEGIN
   -- Find the last balance event
-  SELECT id, event_date, snapshot_before_date
-  INTO v_last_event_id, v_last_event_date, v_snapshot_before_date
+  SELECT id, event_date
+  INTO v_last_event_id, v_last_event_date
   FROM balance_events
   ORDER BY event_date DESC
   LIMIT 1;
@@ -107,6 +107,8 @@ BEGIN
   IF v_last_event_id IS NULL THEN
     v_last_event_date := CURRENT_TIMESTAMP;
     v_snapshot_before_date := (CURRENT_DATE - INTERVAL '1 day');
+  ELSE
+    v_snapshot_before_date := (v_last_event_date::DATE - INTERVAL '1 day');
   END IF;
   
   -- Delete all snapshots AFTER the last balance event

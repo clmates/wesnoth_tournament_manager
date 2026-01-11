@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS public.player_of_month (
 );
 
 -- Create unique index to ensure only one record per month
-CREATE UNIQUE INDEX idx_player_of_month_month ON player_of_month(month_year);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_player_of_month_month ON player_of_month(month_year);
 
 -- Create index on player_id for faster lookups
-CREATE INDEX idx_player_of_month_player_id ON player_of_month(player_id);
+CREATE INDEX IF NOT EXISTS idx_player_of_month_player_id ON player_of_month(player_id);
 
 SELECT 'Migration: Created player_of_month table' AS migration_info;
