@@ -7,6 +7,7 @@ interface TournamentMatchReportProps {
   tournamentMatchId: string;
   tournamentId: string;
   tournamentName: string;
+  tournamentMode?: 'ranked' | 'unranked' | 'team';
   player1Id: string;
   player1Name: string;
   player2Id: string;
@@ -30,6 +31,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
   tournamentMatchId,
   tournamentId,
   tournamentName,
+  tournamentMode = 'ranked',
   player1Id,
   player1Name,
   player2Id,
@@ -64,10 +66,34 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
     const loadData = async () => {
       try {
         setLoadingData(true);
-        const [mapsResponse, factionsResponse] = await Promise.all([
-          api.get('/public/maps'),
-          api.get('/public/factions'),
-        ]);
+        
+        let mapsResponse, factionsResponse;
+        
+        if (tournamentMode === 'unranked') {
+          // For unranked tournaments, fetch tournament-specific assets
+          try {
+            const tourResponse = await api.get(`/tournaments/${tournamentId}?include=unranked_assets`);
+            mapsResponse = { data: tourResponse.data?.unranked_maps || [] };
+            factionsResponse = { data: tourResponse.data?.unranked_factions || [] };
+          } catch (err) {
+            // Fallback to all maps and factions
+            const results = await Promise.all([
+              api.get('/public/maps'),
+              api.get('/public/factions'),
+            ]);
+            mapsResponse = results[0];
+            factionsResponse = results[1];
+          }
+        } else {
+          // For ranked/team tournaments, use all maps and factions
+          const results = await Promise.all([
+            api.get('/public/maps'),
+            api.get('/public/factions'),
+          ]);
+          mapsResponse = results[0];
+          factionsResponse = results[1];
+        }
+        
         setMaps(mapsResponse.data || []);
         setFactions(factionsResponse.data || []);
         
@@ -84,7 +110,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
     };
 
     loadData();
-  }, []);
+  }, [tournamentMode, tournamentId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

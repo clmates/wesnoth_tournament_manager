@@ -1480,3 +1480,113 @@
   border-color: #a93226;
 }
 
+/* Team Tournament Styles */
+.teams-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.team-card {
+  border: 2px solid #3498db;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
+  transition: all 0.3s ease;
+}
+
+.team-card:hover {
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+  transform: translateY(-2px);
+}
+
+.team-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #3498db;
+}
+
+.team-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.25rem;
+}
+
+.team-size {
+  font-size: 0.875rem;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.team-members-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.team-members-table thead {
+  background: #ecf0f1;
+}
+
+.team-members-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #2c3e50;
+  border-bottom: 1px solid #bdc3c7;
+}
+
+.team-members-table td {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.team-members-table tbody tr:hover {
+  background-color: #e8f4f8;
+}
+
+.no-members {
+  color: #7f8c8d;
+  font-style: italic;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.team-substitutes {
+  background: white;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border-left: 3px solid #e67e22;
+  margin-top: 1rem;
+}
+
+.team-substitutes strong {
+  color: #e67e22;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.team-substitutes ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.team-substitutes li {
+  margin: 0.25rem 0;
+  color: #2c3e50;
+}
+
+@media (max-width: 768px) {
+  .teams-container {
+    grid-template-columns: 1fr;
+  }
+}

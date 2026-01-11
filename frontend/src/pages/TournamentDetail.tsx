@@ -17,6 +17,7 @@ interface Tournament {
   creator_nickname: string;
   status: string;
   tournament_type: string;
+  tournament_mode?: 'ranked' | 'unranked' | 'team';
   general_rounds: number;
   final_rounds: number;
   general_rounds_format: 'bo1' | 'bo3' | 'bo5';
@@ -40,6 +41,8 @@ interface TournamentParticipant {
   tournament_losses: number;
   tournament_points: number;
   elo_rating: number;
+  team_id?: string | null;
+  team_position?: number | null;
   omp?: number;
   gwp?: number;
   ogp?: number;
@@ -82,11 +85,12 @@ const TournamentDetail: React.FC = () => {
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [roundMatches, setRoundMatches] = useState<any[]>([]);
   const [rounds, setRounds] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [matchConfirmationMap, setMatchConfirmationMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [activeTab, setActiveTab] = useState<'participants' | 'matches' | 'rounds' | 'roundMatches' | 'ranking'>('participants');
+  const [activeTab, setActiveTab] = useState<'participants' | 'matches' | 'rounds' | 'roundMatches' | 'ranking' | 'teams'>('participants');
   const [userParticipationStatus, setUserParticipationStatus] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [reportMatchData, setReportMatchData] = useState<any>(null);
@@ -132,6 +136,21 @@ const TournamentDetail: React.FC = () => {
       setMatches(matchesRes.data || []);
       setRoundMatches(roundMaturesRes.data || []);
       setRounds(roundsRes.data || []);
+      
+      // Load teams if it's a team tournament
+      if (tournamentRes.data.tournament_mode === 'team') {
+        try {
+          const teamsRes = await fetch(`${import.meta.env.VITE_API_URL}/tournaments/${id}/teams`);
+          if (teamsRes.ok) {
+            const teamsData = await teamsRes.json();
+            if (teamsData.success && teamsData.data) {
+              setTeams(teamsData.data);
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching teams:', err);
+        }
+      }
       
       console.log('Fetched data:', {
         tournament: tournamentRes.data,
@@ -645,7 +664,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           className={`tab-btn ${activeTab === 'participants' ? 'active' : ''}`}
           onClick={() => setActiveTab('participants')}
         >
-          {t('tabs.participants', { count: participants.length })}
+          {tournament?.tournament_mode === 'team' ? 'Teams' : t('tabs.participants', { count: participants.length })}
         </button>
         <button 
           className={`tab-btn ${activeTab === 'matches' ? 'active' : ''}`}
@@ -675,42 +694,105 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
       {activeTab === 'participants' && (
         <div className="tab-content">
-          {participants.length > 0 ? (
-            <table className="participants-table">
-              <thead>
-                <tr>
-                  <th>{t('label_nickname')}</th>
-                  <th>{t('label_status')}</th>
-                  <th>{t('label_elo')}</th>
-                  <th>{t('label_classification')}</th>
-                  <th>{t('label_wins')}</th>
-                  <th>{t('label_losses')}</th>
-                  <th>{t('label_points')}</th>
-                  {isCreator && <th>{t('label_actions')}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {participants.map((p) => (
-                  <tr key={p.id}>
-                    <td><PlayerLink nickname={p.nickname} userId={p.id} /></td>
-                    <td>
-                      <span 
-                        className="status-badge"
-                        style={{ backgroundColor: getParticipationStatusColor(p.participation_status) }}
-                      >
-                        {t(`option_${normalizeStatus(p.participation_status)}`) !== `option_${normalizeStatus(p.participation_status)}` ? t(`option_${normalizeStatus(p.participation_status)}`) : (p.participation_status || t('option_pending'))}
-                      </span>
-                    </td>
-                    <td>{p.elo_rating || '-'}</td>
-                    <td>
-                      <span className="classification-badge">
-                        {p.status ? (p.status === 'active' ? '✓ ' + t('label_active') : '✗ ' + t('label_eliminated')) : '-'}
-                      </span>
-                    </td>
-                    <td>{p.tournament_wins}</td>
-                    <td>{p.tournament_losses}</td>
-                    <td>{p.tournament_points}</td>
-                    {isCreator && p.participation_status === 'pending' && (
+          {tournament?.tournament_mode === 'team' ? (
+            // Team view: Group participants by team
+            teams.length > 0 ? (
+              <div className="teams-container">
+                {teams.map((team) => (
+                  <div key={team.id} className="team-card">
+                    <div className="team-header">
+                      <h3>{team.name}</h3>
+                      <span className="team-size">({team.member_count}/2 members)</span>
+                    </div>
+                    {team.members && team.members.length > 0 ? (
+                      <table className="team-members-table">
+                        <thead>
+                          <tr>
+                            <th>{t('label_nickname')}</th>
+                            <th>Position</th>
+                            <th>{t('label_status')}</th>
+                            <th>{t('label_wins')}</th>
+                            <th>{t('label_losses')}</th>
+                            <th>{t('label_points')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {team.members.map((member: any) => (
+                            <tr key={member.id}>
+                              <td><PlayerLink nickname={member.nickname} userId={member.id} /></td>
+                              <td>{member.position || '-'}</td>
+                              <td>
+                                <span 
+                                  className="status-badge"
+                                  style={{ backgroundColor: getParticipationStatusColor(member.participation_status || 'accepted') }}
+                                >
+                                  {member.participation_status || 'Accepted'}
+                                </span>
+                              </td>
+                              <td>{member.tournament_wins || 0}</td>
+                              <td>{member.tournament_losses || 0}</td>
+                              <td>{member.tournament_points || 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <p className="no-members">No members</p>
+                    )}
+                    {team.substitutes && team.substitutes.length > 0 && (
+                      <div className="team-substitutes">
+                        <strong>Substitutes:</strong>
+                        <ul>
+                          {team.substitutes.map((sub: any) => (
+                            <li key={sub.id}>{sub.nickname} (#{sub.substitute_order})</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>{t('no_participants_yet')}</p>
+            )
+          ) : (
+            // Individual view for ranked/unranked
+            participants.length > 0 ? (
+              <table className="participants-table">
+                <thead>
+                  <tr>
+                    <th>{t('label_nickname')}</th>
+                    <th>{t('label_status')}</th>
+                    <th>{t('label_elo')}</th>
+                    <th>{t('label_classification')}</th>
+                    <th>{t('label_wins')}</th>
+                    <th>{t('label_losses')}</th>
+                    <th>{t('label_points')}</th>
+                    {isCreator && <th>{t('label_actions')}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {participants.map((p) => (
+                    <tr key={p.id}>
+                      <td><PlayerLink nickname={p.nickname} userId={p.id} /></td>
+                      <td>
+                        <span 
+                          className="status-badge"
+                          style={{ backgroundColor: getParticipationStatusColor(p.participation_status) }}
+                        >
+                          {t(`option_${normalizeStatus(p.participation_status)}`) !== `option_${normalizeStatus(p.participation_status)}` ? t(`option_${normalizeStatus(p.participation_status)}`) : (p.participation_status || t('option_pending'))}
+                        </span>
+                      </td>
+                      <td>{p.elo_rating || '-'}</td>
+                      <td>
+                        <span className="classification-badge">
+                          {p.status ? (p.status === 'active' ? '✓ ' + t('label_active') : '✗ ' + t('label_eliminated')) : '-'}
+                        </span>
+                      </td>
+                      <td>{p.tournament_wins}</td>
+                      <td>{p.tournament_losses}</td>
+                      <td>{p.tournament_points}</td>
+                      {isCreator && p.participation_status === 'pending' && (
                       <td>
                         <button 
                           className="btn-accept"
@@ -729,9 +811,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   </tr>
                 ))}
               </tbody>
-            </table>
-          ) : (
-            <p>{t('no_participants_yet')}</p>
+              </table>
+            ) : (
+              <p>{t('no_participants_yet')}</p>
+            )
           )}
         </div>
       )}
@@ -1117,67 +1200,123 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       {/* Ranking Section */}
       {activeTab === 'ranking' && (
         <div className="tab-content">
-          {participants.length > 0 ? (
-            <table className="ranking-table">
-              <thead>
-                <tr>
-                  <th>{t('label_rank')}</th>
-                  <th>{t('label_nickname')}</th>
-                  <th>{t('label_wins')}</th>
-                  <th>{t('label_losses')}</th>
-                  <th>{t('label_points')}</th>
-                  <th title="Opponent Match Points">OMP</th>
-                  <th title="Game Win Percentage">GWP</th>
-                  <th title="Opponent Game Percentage">OGP</th>
-                  <th>{t('label_status')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {participants
-                  .sort((a, b) => {
-                    const pointsDiff = (b.tournament_points || 0) - (a.tournament_points || 0);
-                    if (pointsDiff !== 0) return pointsDiff;
-                    const ompDiff = (Number(b.omp) || 0) - (Number(a.omp) || 0);
-                    if (ompDiff !== 0) return ompDiff;
-                    const gwpDiff = (Number(b.gwp) || 0) - (Number(a.gwp) || 0);
-                    if (gwpDiff !== 0) return gwpDiff;
-                    const ogpDiff = (Number(b.ogp) || 0) - (Number(a.ogp) || 0);
-                    if (ogpDiff !== 0) return ogpDiff;
-                    return (b.tournament_wins || 0) - (a.tournament_wins || 0);
-                  })
-                  .map((participant, index) => (
-                    <tr key={participant.id}>
-                      <td>
-                        <strong>#{index + 1}</strong>
-                      </td>
-                      <td>{participant.nickname}</td>
-                      <td>{participant.tournament_wins || 0}</td>
-                      <td>{participant.tournament_losses || 0}</td>
-                      <td><strong>{participant.tournament_points || 0}</strong></td>
-                      <td>{participant.omp != null ? Number(participant.omp).toFixed(2) : '-'}</td>
-                      <td>{participant.gwp != null ? Number(participant.gwp).toFixed(2) : '-'}</td>
-                      <td>{participant.ogp != null ? Number(participant.ogp).toFixed(2) : '-'}</td>
-                      <td>
-                        <span className={`status-badge status-${normalizeStatus(participant.participation_status)}`}>
-                          {t(`option_${normalizeStatus(participant.participation_status)}`) !== `option_${normalizeStatus(participant.participation_status)}` ? t(`option_${normalizeStatus(participant.participation_status)}`) : (participant.participation_status || t('option_pending'))}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+          {tournament?.tournament_mode === 'team' ? (
+            // Team ranking
+            teams.length > 0 ? (
+              <table className="ranking-table">
+                <thead>
+                  <tr>
+                    <th>{t('label_rank')}</th>
+                    <th>Team Name</th>
+                    <th>Members</th>
+                    <th>{t('label_wins')}</th>
+                    <th>{t('label_losses')}</th>
+                    <th>{t('label_points')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teams
+                    .map((team) => {
+                      // Calculate team stats from members
+                      const teamMembers = participants.filter((p: any) => p.team_id === team.id);
+                      const teamWins = teamMembers.reduce((sum, p) => sum + (p.tournament_wins || 0), 0);
+                      const teamLosses = teamMembers.reduce((sum, p) => sum + (p.tournament_losses || 0), 0);
+                      // Team points should be the same for all members (they share the same points)
+                      const teamPoints = teamMembers.length > 0 ? teamMembers[0].tournament_points || 0 : 0;
+                      
+                      return {
+                        ...team,
+                        teamWins,
+                        teamLosses,
+                        teamPoints,
+                        membersList: teamMembers.map((p: any) => p.nickname).join(', ')
+                      };
+                    })
+                    .sort((a, b) => {
+                      const pointsDiff = b.teamPoints - a.teamPoints;
+                      if (pointsDiff !== 0) return pointsDiff;
+                      return b.teamWins - a.teamWins;
+                    })
+                    .map((team, index) => (
+                      <tr key={team.id}>
+                        <td><strong>#{index + 1}</strong></td>
+                        <td><strong>{team.name}</strong></td>
+                        <td>{team.membersList}</td>
+                        <td>{team.teamWins}</td>
+                        <td>{team.teamLosses}</td>
+                        <td><strong>{team.teamPoints}</strong></td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>{t('no_participants_in_tournament')}</p>
+            )
           ) : (
-            <p>{t('no_participants_in_tournament')}</p>
+            // Individual ranking
+            participants.length > 0 ? (
+              <table className="ranking-table">
+                <thead>
+                  <tr>
+                    <th>{t('label_rank')}</th>
+                    <th>{t('label_nickname')}</th>
+                    <th>{t('label_wins')}</th>
+                    <th>{t('label_losses')}</th>
+                    <th>{t('label_points')}</th>
+                    <th title="Opponent Match Points">OMP</th>
+                    <th title="Game Win Percentage">GWP</th>
+                    <th title="Opponent Game Percentage">OGP</th>
+                    <th>{t('label_status')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {participants
+                    .sort((a, b) => {
+                      const pointsDiff = (b.tournament_points || 0) - (a.tournament_points || 0);
+                      if (pointsDiff !== 0) return pointsDiff;
+                      const ompDiff = (Number(b.omp) || 0) - (Number(a.omp) || 0);
+                      if (ompDiff !== 0) return ompDiff;
+                      const gwpDiff = (Number(b.gwp) || 0) - (Number(a.gwp) || 0);
+                      if (gwpDiff !== 0) return gwpDiff;
+                      const ogpDiff = (Number(b.ogp) || 0) - (Number(a.ogp) || 0);
+                      if (ogpDiff !== 0) return ogpDiff;
+                      return (b.tournament_wins || 0) - (a.tournament_wins || 0);
+                    })
+                    .map((participant, index) => (
+                      <tr key={participant.id}>
+                        <td>
+                          <strong>#{index + 1}</strong>
+                        </td>
+                        <td>{participant.nickname}</td>
+                        <td>{participant.tournament_wins || 0}</td>
+                        <td>{participant.tournament_losses || 0}</td>
+                        <td><strong>{participant.tournament_points || 0}</strong></td>
+                        <td>{participant.omp != null ? Number(participant.omp).toFixed(2) : '-'}</td>
+                        <td>{participant.gwp != null ? Number(participant.gwp).toFixed(2) : '-'}</td>
+                        <td>{participant.ogp != null ? Number(participant.ogp).toFixed(2) : '-'}</td>
+                        <td>
+                          <span className={`status-badge status-${normalizeStatus(participant.participation_status)}`}>
+                            {t(`option_${normalizeStatus(participant.participation_status)}`) !== `option_${normalizeStatus(participant.participation_status)}` ? t(`option_${normalizeStatus(participant.participation_status)}`) : (participant.participation_status || t('option_pending'))}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>{t('no_participants_in_tournament')}</p>
+            )
           )}
         </div>
       )}
 
       {/* Report Match Modal */}
-      {showReportModal && reportMatchData && (
+      {showReportModal && reportMatchData && tournament && (
         <TournamentMatchReportModal
           tournamentMatchId={reportMatchData.tournamentMatchId}
           tournamentId={reportMatchData.tournamentId}
           tournamentName={reportMatchData.tournamentName}
+          tournamentMode={tournament.tournament_mode || 'ranked'}
           player1Id={reportMatchData.player1Id}
           player1Name={reportMatchData.player1Name}
           player2Id={reportMatchData.player2Id}
