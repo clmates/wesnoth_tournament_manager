@@ -1260,13 +1260,13 @@ router.post('/admin/recalculate-snapshots', authMiddleware, async (req: AuthRequ
 // Get player of the month (calculated at start of each month via cron job)
 router.get('/player-of-month', async (req, res) => {
   try {
+    console.log('🔍 GET /admin/player-of-month called');
+    
     const now = new Date();
-    // Get the first day of the previous month (last month's player)
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    // Convert to YYYY-MM-DD format for PostgreSQL DATE comparison
     const monthYearStr = prevMonthStart.toISOString().split('T')[0];
     
-    console.log(`📊 GET player-of-month - Looking for month_year: ${monthYearStr}`);
+    console.log(`📊 Looking for month_year: ${monthYearStr}`);
 
     const result = await query(
       `SELECT player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year, calculated_at
@@ -1275,25 +1275,22 @@ router.get('/player-of-month', async (req, res) => {
       [monthYearStr]
     );
 
-    console.log(`📊 Query returned: ${result.rows.length} rows`);
-    if (result.rows.length > 0) {
-      console.log(`📊 Found player: ${result.rows[0].nickname}`);
-    } else {
-      // Debug: show what's in the table
-      const allResult = await query(`SELECT month_year, nickname FROM player_of_month ORDER BY month_year DESC`);
-      console.log(`📊 Available months in table: ${allResult.rows.map(r => `${r.nickname} (${r.month_year})`).join(', ')}`);
-    }
-
+    console.log(`📊 Query returned ${result.rows.length} rows`);
+    
     if (result.rows.length === 0) {
+      console.log('⚠️ No player found, returning 404');
       return res.status(404).json({ error: 'No player of month data available' });
     }
 
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error fetching player of month:', error);
+    const playerData = result.rows[0];
+    console.log(`✅ Returning player: ${playerData.nickname}`, playerData);
+    res.json(playerData);
+  } catch (error: any) {
+    console.error('❌ Error in /player-of-month:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       error: 'Failed to fetch player of month',
-      details: (error as any).message
+      details: error.message
     });
   }
 });

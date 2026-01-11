@@ -143,6 +143,7 @@ const Home: React.FC = () => {
 
         // Fetch player of month (separate from ranking cache)
         if (cachedPOM) {
+          console.log('📊 Using cached player of month:', cachedPOM);
           setPlayerOfMonth(cachedPOM);
           setPlayerMonthlyStats({
             elo_gained: cachedPOM.elo_gained,
@@ -151,21 +152,35 @@ const Home: React.FC = () => {
           });
         } else {
           try {
-            const pomRes = await fetch(`${API_URL}/admin/player-of-month`);
+            const pomUrl = `${API_URL}/admin/player-of-month`;
+            console.log(`🔍 Fetching player of month from: ${pomUrl}`);
+            
+            const pomRes = await fetch(pomUrl);
+            console.log(`📊 Response status: ${pomRes.status} ${pomRes.statusText}`);
+            console.log(`📊 Response headers:`, pomRes.headers);
+            
+            const pomText = await pomRes.text();
+            console.log(`📊 Response text (first 200 chars): ${pomText.substring(0, 200)}`);
+            
             if (pomRes.ok) {
-              const pomData = await pomRes.json();
-              setPlayerOfMonth(pomData);
-              setPlayerMonthlyStats({
-                elo_gained: pomData.elo_gained,
-                positions_gained: pomData.positions_gained,
-                current_rank: pomData.ranking_position
-              });
-              setCachedData('player-of-month', pomData);
+              try {
+                const pomData = JSON.parse(pomText);
+                console.log('✅ Player of month data:', pomData);
+                setPlayerOfMonth(pomData);
+                setPlayerMonthlyStats({
+                  elo_gained: pomData.elo_gained,
+                  positions_gained: pomData.positions_gained,
+                  current_rank: pomData.ranking_position
+                });
+                setCachedData('player-of-month', pomData);
+              } catch (parseErr) {
+                console.error('❌ Failed to parse JSON:', parseErr);
+              }
             } else {
-              console.warn('Player of month not available (404)');
+              console.warn(`⚠️ Player of month not available (${pomRes.status})`);
             }
           } catch (pomErr) {
-            console.error('Error fetching player of month:', pomErr);
+            console.error('❌ Error fetching player of month:', pomErr);
           }
         }
 
