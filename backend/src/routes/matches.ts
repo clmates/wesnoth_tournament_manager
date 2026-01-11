@@ -1190,6 +1190,25 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
         // Don't fail the entire operation if balance stats fail
       }
 
+      // Recalculate player of month if dispute is from previous month
+      try {
+        const now = new Date();
+        const matchDate = new Date(match.created_at);
+        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        
+        // Check if match is from previous month or earlier
+        if (matchDate < currentMonth) {
+          const { calculatePlayerOfMonth } = await import('../jobs/playerOfMonthJob.js');
+          console.log('🎯 Recalculating player of month after dispute validation...');
+          await calculatePlayerOfMonth();
+          console.log('✅ Player of month recalculated after dispute validation');
+        }
+      } catch (error: any) {
+        console.error('⚠️  Warning: Failed to recalculate player of month after dispute:', error.message);
+        // Don't fail the entire operation if player of month calculation fails
+      }
+
       // Reopen the associated tournament match for re-reporting
       const tournamentMatchResult = await query(
         `SELECT tm.id as tm_id FROM tournament_matches tm

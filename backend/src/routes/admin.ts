@@ -687,6 +687,17 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
       // Don't fail the entire operation if balance stats fail
     }
 
+    // Calculate player of the month for the previous month
+    try {
+      const { calculatePlayerOfMonth } = await import('../jobs/playerOfMonthJob.js');
+      console.log('🎯 Recalculating player of month...');
+      await calculatePlayerOfMonth();
+      console.log('✅ Player of month recalculated successfully');
+    } catch (error: any) {
+      console.error('⚠️  Warning: Failed to recalculate player of month:', error.message);
+      // Don't fail the entire operation if player of month calculation fails
+    }
+
     res.json({
       message: 'Global stats recalculation completed successfully',
       matchesProcessed: allNonCancelledMatches.rows.length,
@@ -1242,6 +1253,56 @@ router.post('/admin/recalculate-snapshots', authMiddleware, async (req: AuthRequ
     res.status(500).json({
       error: 'Failed to recalculate balance event snapshots',
       message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get player of the month (calculated at start of each month via cron job)
+router.get('/player-of-month', async (req, res) => {
+  try {
+    const now = new Date();
+    // Get the first day of the previous month (last month's player)
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const result = await query(
+      `SELECT player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year, calculated_at
+       FROM player_of_month
+       WHERE month_year = $1`,
+      [prevMonthStart]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No player of month data available' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching player of month:', error);
+    res.status(500).json({
+      error: 'Failed to fetch player of month',
+      details: (error as any).message
+    });
+  }
+});
+
+// Manually trigger player of month calculation (admin only)
+router.post('/calculate-player-of-month', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Verify admin status
+    const adminResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { calculatePlayerOfMonth } = await import('../jobs/playerOfMonthJob.js');
+    await calculatePlayerOfMonth();
+
+    res.json({ message: 'Player of month calculation triggered successfully' });
+  } catch (error) {
+    console.error('Error calculating player of month:', error);
+    res.status(500).json({
+      error: 'Failed to calculate player of month',
+      details: (error as any).message
     });
   }
 });

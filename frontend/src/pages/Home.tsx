@@ -129,12 +129,20 @@ const Home: React.FC = () => {
         if (cachedPlayers) {
           setTopPlayers(cachedPlayers.slice(0, 10));
           if (cachedPlayers.length > 0) {
-            setPlayerOfMonth(cachedPlayers[0]);
+            // Fetch player of month from dedicated endpoint
             try {
-              const statsRes = await userService.getUserMonthlyStats(cachedPlayers[0].id);
-              setPlayerMonthlyStats(statsRes.data || statsRes);
-            } catch (statsErr) {
-              console.error('Error fetching monthly stats:', statsErr);
+              const pomRes = await fetch(`${API_URL}/admin/player-of-month`);
+              if (pomRes.ok) {
+                const pomData = await pomRes.json();
+                setPlayerOfMonth(pomData);
+                setPlayerMonthlyStats({
+                  elo_gained: pomData.elo_gained,
+                  positions_gained: pomData.positions_gained,
+                  current_rank: pomData.ranking_position
+                });
+              }
+            } catch (err) {
+              console.error('Error fetching player of month:', err);
             }
           }
         } else {
@@ -145,18 +153,20 @@ const Home: React.FC = () => {
             setTopPlayers(Array.isArray(players) ? players.slice(0, 10) : []);
             setCachedData('players', players);
             
-            // Player of month - top player this month
-            if (Array.isArray(players) && players.length > 0) {
-              const topPlayer = players[0];
-              setPlayerOfMonth(topPlayer);
-              
-              // Fetch monthly stats for player of month
-              try {
-                const statsRes = await userService.getUserMonthlyStats(topPlayer.id);
-                setPlayerMonthlyStats(statsRes.data || statsRes);
-              } catch (statsErr) {
-                console.error('Error fetching monthly stats:', statsErr);
+            // Player of month - fetch from dedicated endpoint
+            try {
+              const pomRes = await fetch(`${API_URL}/admin/player-of-month`);
+              if (pomRes.ok) {
+                const pomData = await pomRes.json();
+                setPlayerOfMonth(pomData);
+                setPlayerMonthlyStats({
+                  elo_gained: pomData.elo_gained,
+                  positions_gained: pomData.positions_gained,
+                  current_rank: pomData.ranking_position
+                });
               }
+            } catch (pomErr) {
+              console.error('Error fetching player of month:', pomErr);
             }
           } catch (err) {
             console.error('Error fetching ranking:', err);
