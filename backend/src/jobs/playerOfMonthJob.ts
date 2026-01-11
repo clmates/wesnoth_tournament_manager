@@ -23,6 +23,9 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
           u.elo_rating,
           COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN m.winner_elo_after - m.winner_elo_before 
                            WHEN m.loser_id = u.id THEN m.loser_elo_after - m.loser_elo_before 
+                           ELSE 0 END), 0) as elo_change,
+          COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN m.winner_elo_after - m.winner_elo_before 
+                           WHEN m.loser_id = u.id THEN m.loser_elo_after - m.loser_elo_before 
                            ELSE 0 END), 0) as elo_gained
         FROM users u
         LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) 
@@ -33,7 +36,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
           AND u.is_blocked = false
           AND u.is_rated = true
         GROUP BY u.id, u.nickname, u.elo_rating
-        ORDER BY elo_gained DESC
+        ORDER BY elo_change DESC
         LIMIT 1
       )
       SELECT * FROM elo_gains`,

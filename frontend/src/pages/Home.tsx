@@ -377,16 +377,14 @@ const Home: React.FC = () => {
             <h3>{t('home.player_of_month')}</h3>
             {playerOfMonth ? (
                 <div className="widget-card player-of-month">
-                  <div className="player-name"><PlayerLink nickname={playerOfMonth.nickname} userId={playerOfMonth.id} /></div>
+                  <div className="player-name"><PlayerLink nickname={playerOfMonth.nickname} userId={playerOfMonth.player_id || playerOfMonth.id} /></div>
                   <div className="player-stat">
                     <span className="label">{t('label_elo')}:</span>
-                    <span className="value">
-                      {playerOfMonth.is_rated ? playerOfMonth.elo_rating : t('unrated')}
-                    </span>
+                    <span className="value">{playerOfMonth.elo_rating}</span>
                   </div>
                   <div className="player-stat">
-                    <span className="label">{t('label_level')}:</span>
-                    <span className="value">{t(getLevelTranslationKey(playerOfMonth.level))}</span>
+                    <span className="label">{t('label_ranking')}:</span>
+                    <span className="value">#{playerOfMonth.ranking_position}</span>
                   </div>
                   {playerMonthlyStats && (
                     <>
