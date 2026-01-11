@@ -17,19 +17,14 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// CORS configuration - allow both Netlify and Cloudflare URLs
-const baseAllowedOrigins = [
-  'https://wesnoth-tournament-manager.netlify.app',    // Netlify (old)
+// CORS configuration - allow Cloudflare Pages and custom domains
+const allowedOrigins = [
   'https://wesnoth-tournament-manager.pages.dev',       // Cloudflare Pages (production)
   'https://main.wesnoth-tournament-manager.pages.dev',  // Cloudflare Pages preview (main branch)
   'https://wesnoth.playranked.org',                     // PlayRanked custom domain
   'http://localhost:3000',                              // Local backend
   'http://localhost:5173'                               // Local frontend (Vite)
 ];
-
-// Add dynamic frontend URL from environment (for PR previews)
-const dynamicFrontendUrl = process.env.frontend_url;
-const allowedOrigins = dynamicFrontendUrl ? [...baseAllowedOrigins, dynamicFrontendUrl] : baseAllowedOrigins;
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -39,15 +34,9 @@ app.use(cors({
     } else if (allowedOrigins.includes(origin)) {
       // Exact match
       callback(null, true);
-    } else if (dynamicFrontendUrl && dynamicFrontendUrl.includes('*')) {
-      // Wildcard pattern support for frontend_url (e.g., *.wesnoth-tournament-manager.pages.dev)
-      const pattern = dynamicFrontendUrl.replace(/\*/g, '[a-z0-9]+');
-      const regex = new RegExp(`^https://${pattern}$`);
-      if (regex.test(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
+    } else if (origin.endsWith('.wesnoth-tournament-manager.pages.dev')) {
+      // Allow all subdomains of wesnoth-tournament-manager.pages.dev (main, PR previews, etc.)
+      callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
