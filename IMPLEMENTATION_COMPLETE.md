@@ -1,53 +1,39 @@
-# Unranked & Team Tournament Implementation Summary
+# Unranked & Team Tournament Implementation - Complete Summary
 
-**Status**: ✅ COMPLETE AND COMMITTED  
-**Branch**: `feature/unranked-tournaments`  
-**Latest Commit**: `c8b3a50` - feat: implement team tournament frontend components and views
-
----
-
-## 1. Executive Summary
-
-Successfully implemented comprehensive support for **Unranked Tournaments** (1v1 with asset restrictions) and **Team Tournaments** (2v2 format) in addition to existing Ranked Tournaments. The implementation includes database schema, backend REST endpoints, frontend UI components, and complete integration with the tournament system.
-
-**Key Features:**
-- Three tournament modes: `ranked`, `unranked`, `team`
-- Asset-restricted unranked tournaments (specific factions/maps only)
-- Team management with positions and substitutes
-- Conditional ELO calculation (disabled for unranked)
-- Team-level statistics aggregation
-- Responsive UI for both individual and team views
+**Status:** ✅ READY FOR TESTING  
+**Branch:** `feature/unranked-tournaments`  
+**Latest Commit:** 9708060 (Team self-registration flow implemented)
 
 ---
 
-## 2. Database Schema
+## Executive Summary
 
-### New Tables
+Complete implementation of two new tournament modes alongside existing ranked tournaments:
+- **Unranked (1v1):** Tournament format with restricted faction/map selection and no ELO calculation
+- **Team (2v2):** Two-player teams with self-registration, shared stats, and team-level rankings
 
-#### `tournament_unranked_factions`
-```sql
-- tournament_id (UUID, FK)
-- faction_id (INT, FK)
-- created_at (TIMESTAMP)
-- Constraint: UNIQUE(tournament_id, faction_id)
-- Index: idx_tournament_unranked_factions_tournament_id
-```
-**Purpose**: Stores faction restrictions for unranked tournaments
+All features are production-ready and awaiting end-to-end testing.
 
-#### `tournament_unranked_maps`
-```sql
-- tournament_id (UUID, FK)
-- map_id (INT, FK)
-- created_at (TIMESTAMP)
-- Constraint: UNIQUE(tournament_id, map_id)
-- Index: idx_tournament_unranked_maps_tournament_id
-```
-**Purpose**: Stores map restrictions for unranked tournaments
+---
 
-#### `tournament_teams`
-```sql
-- id (UUID, PK)
-- tournament_id (UUID, FK)
+## What's New in Latest Commit (9708060)
+
+**Team Self-Registration Implementation:**
+- Updated `POST /api/tournaments/:id/request-join` endpoint
+- Players can now create new team or join existing team on registration
+- Backend validates team size (max 2) and position conflicts
+- Created `TeamJoinModal` component for intuitive team selection
+- Teams are auto-created when first player provides `team_name`
+- Second player joins team by providing same `team_name`
+- Updated testing guide with correct self-registration flow
+
+**Flow:**
+1. Player 1 → "Request Join" → TeamJoinModal → Select "Create New Team" → Enter "Alpha Team" → Position auto-assigned as 1
+2. Player 2 → "Request Join" → TeamJoinModal → Select "Join Existing Team" → Choose "Alpha Team" → Select Position 2 → Join complete
+
+---
+
+## Implementation Status by Component
 - name (VARCHAR(255))
 - created_by (UUID, FK -> users)
 - created_at (TIMESTAMP)
