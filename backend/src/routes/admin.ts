@@ -1263,13 +1263,26 @@ router.get('/player-of-month', async (req, res) => {
     const now = new Date();
     // Get the first day of the previous month (last month's player)
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    // Convert to YYYY-MM-DD format for PostgreSQL DATE comparison
+    const monthYearStr = prevMonthStart.toISOString().split('T')[0];
+    
+    console.log(`📊 GET player-of-month - Looking for month_year: ${monthYearStr}`);
 
     const result = await query(
       `SELECT player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year, calculated_at
        FROM player_of_month
-       WHERE month_year = $1`,
-      [prevMonthStart]
+       WHERE month_year = $1::DATE`,
+      [monthYearStr]
     );
+
+    console.log(`📊 Query returned: ${result.rows.length} rows`);
+    if (result.rows.length > 0) {
+      console.log(`📊 Found player: ${result.rows[0].nickname}`);
+    } else {
+      // Debug: show what's in the table
+      const allResult = await query(`SELECT month_year, nickname FROM player_of_month ORDER BY month_year DESC`);
+      console.log(`📊 Available months in table: ${allResult.rows.map(r => `${r.nickname} (${r.month_year})`).join(', ')}`);
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'No player of month data available' });

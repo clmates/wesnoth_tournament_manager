@@ -13,6 +13,8 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     // Get the first day of the previous month
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1); // First day of current month
+    // Convert to YYYY-MM-DD format for consistent storage
+    const monthYearStr = prevMonthStart.toISOString().split('T')[0];
 
     // Calculate the player who gained the most ELO in the previous month
     console.log(`📊 Calculating for period: ${prevMonthStart.toISOString()} to ${prevMonthEnd.toISOString()}`);
@@ -132,17 +134,17 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     }
 
     // Delete previous month's record and insert new one
-    // Store the month_year as the first day of the PREVIOUS month
+    // Store the month_year as the first day of the PREVIOUS month in YYYY-MM-DD format
     
     await query(
-      `DELETE FROM player_of_month WHERE month_year = $1`,
-      [prevMonthStart]
+      `DELETE FROM player_of_month WHERE month_year = $1::DATE`,
+      [monthYearStr]
     );
 
     await query(
       `INSERT INTO player_of_month (player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [playerId, player.nickname, player.elo_rating, rankingPosition, Math.round(player.elo_gained), positionsGained, prevMonthStart]
+       VALUES ($1, $2, $3, $4, $5, $6, $7::DATE)`,
+      [playerId, player.nickname, player.elo_rating, rankingPosition, Math.round(player.elo_gained), positionsGained, monthYearStr]
     );
 
     console.log(`✅ Player of month calculated: ${player.nickname} (ELO gained: +${Math.round(player.elo_gained)}, Positions: ${positionsGained >= 0 ? '+' : ''}${positionsGained})`);
