@@ -331,7 +331,9 @@ const MyTournaments: React.FC = () => {
                   />
                 </div>
               )}
+            </div>
 
+            <div className="form-section">
               {/* Tournament Format (Swiss, Elimination, League) - SECOND choice */}
               <div className="form-row">
                 <select
@@ -356,6 +358,7 @@ const MyTournaments: React.FC = () => {
                     max_participants: e.target.value ? parseInt(e.target.value) : null 
                   })}
                 />
+              </div>
             </div>
 
             <div className="form-section">
