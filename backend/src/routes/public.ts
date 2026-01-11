@@ -598,5 +598,129 @@ router.get('/player-of-month', async (req, res) => {
     });
   }
 });
+
+// Get tournament unranked assets (public endpoint)
+router.get('/tournaments/:id/unranked-assets', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get tournament
+    const tournamentResult = await query(
+      'SELECT id, tournament_type FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    if (tournamentResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    const tournament = tournamentResult.rows[0];
+
+    // If not an unranked tournament, return empty
+    if (tournament.tournament_type !== 'unranked') {
+      return res.json({
+        success: true,
+        tournament_type: tournament.tournament_type,
+        data: { factions: [], maps: [] }
+      });
+    }
+
+    // Get factions for this tournament
+    const factions = await query(
+      `SELECT f.id, f.name
+       FROM factions f
+       JOIN tournament_unranked_factions tuf ON f.id = tuf.faction_id
+       WHERE tuf.tournament_id = $1
+       ORDER BY f.name ASC`,
+      [id]
+    );
+
+    // Get maps for this tournament
+    const maps = await query(
+      `SELECT m.id, m.name
+       FROM maps m
+       JOIN tournament_unranked_maps tum ON m.id = tum.map_id
+       WHERE tum.tournament_id = $1
+       ORDER BY m.name ASC`,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      tournament_type: tournament.tournament_type,
+      data: {
+        factions: factions.rows,
+        maps: maps.rows
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching tournament unranked assets:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch tournament unranked assets' });
+  }
+});
+
+// Get tournament teams (public endpoint - for team tournaments)
+router.get('/tournaments/:id/teams', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verify tournament exists and is team tournament
+    const tournResult = await query(
+      'SELECT id, tournament_type FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    if (tournResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    const tournament = tournResult.rows[0];
+
+    if (tournament.tournament_type !== 'team') {
+      return res.status(400).json({ success: false, error: 'This endpoint is for team tournaments only' });
+    }
+
+    // Get teams with members
+    const teamsResult = await query(
+      `SELECT 
+        t.id, t.name,
+        COUNT(tm.id) as member_count,
+        COUNT(ts.id) as substitute_count
+      FROM tournament_teams t
+      LEFT JOIN team_members tm ON t.id = tm.team_id
+      LEFT JOIN team_substitutes ts ON t.id = ts.team_id
+      WHERE t.tournament_id = $1
+      GROUP BY t.id
+      ORDER BY t.name`,
+      [id]
+    );
+
+    // Get members for each team
+    const teams = await Promise.all(teamsResult.rows.map(async (team) => {
+      const membersResult = await query(
+        `SELECT u.id, u.nickname FROM team_members tm
+         JOIN users u ON tm.player_id = u.id
+         WHERE tm.team_id = $1
+         ORDER BY tm.position`,
+        [team.id]
+      );
+
+      return {
+        ...team,
+        members: membersResult.rows
+      };
+    }));
+
+    res.json({
+      success: true,
+      tournament_type: 'team',
+      data: teams
+    });
+  } catch (error) {
+    console.error('Error fetching tournament teams:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch tournament teams' });
+  }
+});
+
 export default router;
 

@@ -1317,5 +1317,863 @@ router.post('/calculate-player-of-month', authMiddleware, async (req: AuthReques
   }
 });
 
+// ============================================================================
+// UNRANKED TOURNAMENTS ENDPOINTS
+// ============================================================================
+
+// Get all unranked factions
+router.get('/unranked-factions', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Check if user is admin or has tournament organizer role
+    const userResult = await query(
+      'SELECT is_admin FROM public.users WHERE id = $1',
+      [req.userId]
+    );
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { search } = req.query;
+    let query_str = `
+      SELECT 
+        f.id,
+        f.name,
+        f.is_ranked,
+        f.created_at,
+        COUNT(DISTINCT tuf.tournament_id) as used_in_tournaments
+      FROM factions f
+      LEFT JOIN tournament_unranked_factions tuf ON f.id = tuf.faction_id
+      WHERE f.is_ranked = false
+    `;
+
+    const params = [];
+    if (search) {
+      query_str += ` AND f.name ILIKE $1`;
+      params.push(`%${search}%`);
+    }
+
+    query_str += ` GROUP BY f.id ORDER BY f.created_at DESC`;
+
+    const result = await query(query_str, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching unranked factions:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch unranked factions' });
+  }
+});
+
+// Create new unranked faction
+router.post('/unranked-factions', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userResult = await query(
+      'SELECT is_admin FROM public.users WHERE id = $1',
+      [req.userId]
+    );
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { name, description } = req.body;
+
+    if (!name || name.trim().length === 0 || name.length > 100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Faction name is required and must be 1-100 characters'
+      });
+    }
+
+    // Check if faction name already exists
+    const existing = await query(
+      'SELECT id FROM factions WHERE LOWER(name) = LOWER($1)',
+      [name]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'A faction with this name already exists'
+      });
+    }
+
+    const result = await query(
+      `INSERT INTO factions (name, is_active, is_ranked)
+       VALUES ($1, true, false)
+       RETURNING id, name, is_ranked, created_at`,
+      [name]
+    );
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating unranked faction:', error);
+    res.status(500).json({ success: false, error: 'Failed to create unranked faction' });
+  }
+});
+
+// Get faction usage (before delete)
+router.get('/unranked-factions/:id/usage', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userResult = await query(
+      'SELECT is_admin FROM public.users WHERE id = $1',
+      [req.userId]
+    );
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+
+    // Get faction info
+    const factionResult = await query(
+      'SELECT id, name FROM factions WHERE id = $1 AND is_ranked = false',
+      [id]
+    );
+    if (factionResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Faction not found' });
+    }
+
+    const faction = factionResult.rows[0];
+
+    // Get active tournaments using this faction
+    const activeTournaments = await query(
+      `SELECT DISTINCT t.id, t.name, t.status
+       FROM tournaments t
+       JOIN tournament_unranked_factions tuf ON t.id = tuf.tournament_id
+       WHERE tuf.faction_id = $1
+       AND t.status IN ('CREATED', 'REGISTRATION_OPEN', 'STARTED', 'MATCHES_ONGOING')
+       ORDER BY t.created_at DESC`,
+      [id]
+    );
+
+    // Get completed tournaments using this faction
+    const completedTournaments = await query(
+      `SELECT DISTINCT t.id, t.name, t.status
+       FROM tournaments t
+       JOIN tournament_unranked_factions tuf ON t.id = tuf.tournament_id
+       WHERE tuf.faction_id = $1
+       AND t.status IN ('COMPLETED', 'CANCELLED', 'CANCELLED_IN_PROGRESS')
+       ORDER BY t.created_at DESC`,
+      [id]
+    );
+
+    const total = activeTournaments.rows.length + completedTournaments.rows.length;
+
+    res.json({
+      success: true,
+      data: {
+        faction_id: faction.id,
+        faction_name: faction.name,
+        total_tournaments_using: total,
+        active_tournaments: activeTournaments.rows,
+        completed_tournaments: completedTournaments.rows,
+        can_delete: activeTournaments.rows.length === 0,
+        reason:
+          activeTournaments.rows.length > 0
+            ? `In use by ${activeTournaments.rows.length} active tournament(s)`
+            : 'No active tournaments using this faction'
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching faction usage:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch faction usage' });
+  }
+});
+
+// Delete unranked faction (admin only, validates not in active tournaments)
+router.delete('/unranked-factions/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userResult = await query(
+      'SELECT is_admin FROM public.users WHERE id = $1',
+      [req.userId]
+    );
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+
+    // Check if faction exists
+    const factionResult = await query(
+      'SELECT id, name FROM factions WHERE id = $1',
+      [id]
+    );
+    if (factionResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Faction not found' });
+    }
+
+    // Check for active tournaments
+    const activeTournaments = await query(
+      `SELECT t.id, t.name, t.status
+       FROM tournaments t
+       JOIN tournament_unranked_factions tuf ON t.id = tuf.tournament_id
+       WHERE tuf.faction_id = $1
+       AND t.status IN ('CREATED', 'REGISTRATION_OPEN', 'STARTED', 'MATCHES_ONGOING')`,
+      [id]
+    );
+
+    if (activeTournaments.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'FACTION_IN_ACTIVE_TOURNAMENTS',
+        message: `Cannot delete faction - in use by ${activeTournaments.rows.length} active tournament(s)`,
+        data: { active_tournaments: activeTournaments.rows }
+      });
+    }
+
+    // Delete faction (cascade will remove associations)
+    await query('DELETE FROM factions WHERE id = $1', [id]);
+
+    res.json({ success: true, message: 'Faction deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting unranked faction:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete unranked faction' });
+  }
+});
+
+// Get all unranked maps
+router.get('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userResult = await query(
+      'SELECT is_admin FROM public.users WHERE id = $1',
+      [req.userId]
+    );
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { search } = req.query;
+    let query_str = `
+      SELECT 
+        m.id,
+        m.name,
+        m.is_ranked,
+        m.created_at,
+        COUNT(DISTINCT tum.tournament_id) as used_in_tournaments
+      FROM maps m
+      LEFT JOIN tournament_unranked_maps tum ON m.id = tum.map_id
+      WHERE m.is_ranked = false
+    `;
+
+    const params = [];
+    if (search) {
+      query_str += ` AND m.name ILIKE $1`;
+      params.push(`%${search}%`);
+    }
+
+    query_str += ` GROUP BY m.id ORDER BY m.created_at DESC`;
+
+    const result = await query(query_str, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching unranked maps:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch unranked maps' });
+  }
+});
+
+// Create new unranked map
+router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userResult = await query(
+      'SELECT is_admin FROM public.users WHERE id = $1',
+      [req.userId]
+    );
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { name, description, width, height } = req.body;
+
+    if (!name || name.trim().length === 0 || name.length > 100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Map name is required and must be 1-100 characters'
+      });
+    }
+
+    if (width && (width < 10 || width > 200)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Map width must be between 10 and 200'
+      });
+    }
+
+    if (height && (height < 10 || height > 200)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Map height must be between 10 and 200'
+      });
+    }
+
+    // Check if map name already exists
+    const existing = await query(
+      'SELECT id FROM maps WHERE LOWER(name) = LOWER($1)',
+      [name]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'A map with this name already exists'
+      });
+    }
+
+    const result = await query(
+      `INSERT INTO maps (name, is_active, is_ranked, width, height)
+       VALUES ($1, true, false, $2, $3)
+       RETURNING id, name, is_ranked, width, height, created_at`,
+      [name, width || null, height || null]
+    );
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating unranked map:', error);
+    res.status(500).json({ success: false, error: 'Failed to create unranked map' });
+  }
+});
+
+// Get map usage (before delete)
+router.get('/unranked-maps/:id/usage', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userResult = await query(
+      'SELECT is_admin FROM public.users WHERE id = $1',
+      [req.userId]
+    );
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+
+    // Get map info
+    const mapResult = await query(
+      'SELECT id, name FROM maps WHERE id = $1 AND is_ranked = false',
+      [id]
+    );
+    if (mapResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Map not found' });
+    }
+
+    const map = mapResult.rows[0];
+
+    // Get active tournaments using this map
+    const activeTournaments = await query(
+      `SELECT DISTINCT t.id, t.name, t.status
+       FROM tournaments t
+       JOIN tournament_unranked_maps tum ON t.id = tum.tournament_id
+       WHERE tum.map_id = $1
+       AND t.status IN ('CREATED', 'REGISTRATION_OPEN', 'STARTED', 'MATCHES_ONGOING')
+       ORDER BY t.created_at DESC`,
+      [id]
+    );
+
+    // Get completed tournaments using this map
+    const completedTournaments = await query(
+      `SELECT DISTINCT t.id, t.name, t.status
+       FROM tournaments t
+       JOIN tournament_unranked_maps tum ON t.id = tum.tournament_id
+       WHERE tum.map_id = $1
+       AND t.status IN ('COMPLETED', 'CANCELLED', 'CANCELLED_IN_PROGRESS')
+       ORDER BY t.created_at DESC`,
+      [id]
+    );
+
+    const total = activeTournaments.rows.length + completedTournaments.rows.length;
+
+    res.json({
+      success: true,
+      data: {
+        map_id: map.id,
+        map_name: map.name,
+        total_tournaments_using: total,
+        active_tournaments: activeTournaments.rows,
+        completed_tournaments: completedTournaments.rows,
+        can_delete: activeTournaments.rows.length === 0,
+        reason:
+          activeTournaments.rows.length > 0
+            ? `In use by ${activeTournaments.rows.length} active tournament(s)`
+            : 'No active tournaments using this map'
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching map usage:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch map usage' });
+  }
+});
+
+// Delete unranked map (admin only, validates not in active tournaments)
+router.delete('/unranked-maps/:id', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userResult = await query(
+      'SELECT is_admin FROM public.users WHERE id = $1',
+      [req.userId]
+    );
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+
+    // Check if map exists
+    const mapResult = await query(
+      'SELECT id, name FROM maps WHERE id = $1',
+      [id]
+    );
+    if (mapResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Map not found' });
+    }
+
+    // Check for active tournaments
+    const activeTournaments = await query(
+      `SELECT t.id, t.name, t.status
+       FROM tournaments t
+       JOIN tournament_unranked_maps tum ON t.id = tum.tournament_id
+       WHERE tum.map_id = $1
+       AND t.status IN ('CREATED', 'REGISTRATION_OPEN', 'STARTED', 'MATCHES_ONGOING')`,
+      [id]
+    );
+
+    if (activeTournaments.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'MAP_IN_ACTIVE_TOURNAMENTS',
+        message: `Cannot delete map - in use by ${activeTournaments.rows.length} active tournament(s)`,
+        data: { active_tournaments: activeTournaments.rows }
+      });
+    }
+
+    // Delete map (cascade will remove associations)
+    await query('DELETE FROM maps WHERE id = $1', [id]);
+
+    res.json({ success: true, message: 'Map deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting unranked map:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete unranked map' });
+  }
+});
+
+// Update tournament unranked assets (factions and maps)
+router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { faction_ids, map_ids } = req.body;
+
+    // Get tournament
+    const tournamentResult = await query(
+      `SELECT id, organizer_id, tournament_type, status
+       FROM tournaments WHERE id = $1`,
+      [id]
+    );
+
+    if (tournamentResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    const tournament = tournamentResult.rows[0];
+
+    // Check authorization (must be organizer)
+    if (tournament.organizer_id !== req.userId) {
+      const userResult = await query(
+        'SELECT is_admin FROM public.users WHERE id = $1',
+        [req.userId]
+      );
+      if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+        return res.status(403).json({ success: false, error: 'Not authorized to modify this tournament' });
+      }
+    }
+
+    // Validate tournament type
+    if (tournament.tournament_type !== 'unranked') {
+      return res.status(400).json({
+        success: false,
+        error: 'Unranked assets can only be assigned to unranked tournaments'
+      });
+    }
+
+    // Validate tournament status
+    if (!['CREATED', 'REGISTRATION_OPEN'].includes(tournament.status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot modify assets after tournament starts'
+      });
+    }
+
+    // Validate faction_ids
+    if (!faction_ids || !Array.isArray(faction_ids) || faction_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one faction must be selected'
+      });
+    }
+
+    // Validate map_ids
+    if (!map_ids || !Array.isArray(map_ids) || map_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one map must be selected'
+      });
+    }
+
+    // Verify all factions exist and are unranked
+    for (const factionId of faction_ids) {
+      const faction = await query(
+        'SELECT id FROM factions WHERE id = $1 AND is_ranked = false',
+        [factionId]
+      );
+      if (faction.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Faction ${factionId} not found or is not unranked`
+        });
+      }
+    }
+
+    // Verify all maps exist and are unranked
+    for (const mapId of map_ids) {
+      const map = await query(
+        'SELECT id FROM maps WHERE id = $1 AND is_ranked = false',
+        [mapId]
+      );
+      if (map.rows.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: `Map ${mapId} not found or is not unranked`
+        });
+      }
+    }
+
+    // Delete existing associations
+    await query('DELETE FROM tournament_unranked_factions WHERE tournament_id = $1', [id]);
+    await query('DELETE FROM tournament_unranked_maps WHERE tournament_id = $1', [id]);
+
+    // Insert new associations
+    for (const factionId of faction_ids) {
+      await query(
+        `INSERT INTO tournament_unranked_factions (tournament_id, faction_id)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [id, factionId]
+      );
+    }
+
+    for (const mapId of map_ids) {
+      await query(
+        `INSERT INTO tournament_unranked_maps (tournament_id, map_id)
+         VALUES ($1, $2)
+         ON CONFLICT DO NOTHING`,
+        [id, mapId]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Tournament unranked assets updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating tournament unranked assets:', error);
+    res.status(500).json({ success: false, error: 'Failed to update tournament unranked assets' });
+  }
+});
+
+// ============================================================================
+// TEAM TOURNAMENT ENDPOINTS
+// ============================================================================
+
+// Get teams for a tournament
+router.get('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get tournament and verify organizer
+    const tournResult = await query(
+      'SELECT id, tournament_type, organizer_id FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    if (tournResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    const tournament = tournResult.rows[0];
+
+    if (tournament.tournament_type !== 'team') {
+      return res.status(400).json({ success: false, error: 'This endpoint is for team tournaments only' });
+    }
+
+    // Verify user is tournament organizer
+    if (tournament.organizer_id !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Only organizer can manage teams' });
+    }
+
+    // Get teams with members
+    const teamsResult = await query(
+      `SELECT 
+        t.id, t.name, t.created_at,
+        COUNT(tm.id) as member_count,
+        COUNT(ts.id) as substitute_count
+      FROM tournament_teams t
+      LEFT JOIN team_members tm ON t.id = tm.team_id
+      LEFT JOIN team_substitutes ts ON t.id = ts.team_id
+      WHERE t.tournament_id = $1
+      GROUP BY t.id
+      ORDER BY t.name`,
+      [id]
+    );
+
+    // Get members for each team
+    const teams = await Promise.all(teamsResult.rows.map(async (team) => {
+      const membersResult = await query(
+        `SELECT u.id, u.nickname, tm.position FROM team_members tm
+         JOIN users u ON tm.player_id = u.id
+         WHERE tm.team_id = $1
+         ORDER BY tm.position`,
+        [team.id]
+      );
+
+      const substitutesResult = await query(
+        `SELECT u.id, u.nickname FROM team_substitutes ts
+         JOIN users u ON ts.player_id = u.id
+         WHERE ts.team_id = $1
+         ORDER BY ts.substitute_order`,
+        [team.id]
+      );
+
+      return {
+        ...team,
+        members: membersResult.rows,
+        substitutes: substitutesResult.rows
+      };
+    }));
+
+    res.json({ success: true, data: teams });
+  } catch (error) {
+    console.error('Error fetching teams:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch teams' });
+  }
+});
+
+// Create a team
+router.post('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Team name is required' });
+    }
+
+    // Get tournament and verify organizer
+    const tournResult = await query(
+      'SELECT id, tournament_type, organizer_id FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    if (tournResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    const tournament = tournResult.rows[0];
+
+    if (tournament.tournament_type !== 'team') {
+      return res.status(400).json({ success: false, error: 'This endpoint is for team tournaments only' });
+    }
+
+    if (tournament.organizer_id !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Only organizer can create teams' });
+    }
+
+    // Create team
+    const teamResult = await query(
+      `INSERT INTO tournament_teams (tournament_id, name, created_by)
+       VALUES ($1, $2, $3)
+       RETURNING id, name, created_at`,
+      [id, name.trim(), req.userId]
+    );
+
+    res.json({ success: true, data: teamResult.rows[0], message: 'Team created successfully' });
+  } catch (error: any) {
+    console.error('Error creating team:', error);
+    if (error.code === '23505') {
+      return res.status(400).json({ success: false, error: 'Team with this name already exists' });
+    }
+    res.status(500).json({ success: false, error: 'Failed to create team' });
+  }
+});
+
+// Add member to team
+router.post('/tournaments/:id/teams/:teamId/members', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id, teamId } = req.params;
+    const { player_id, position } = req.body;
+
+    if (!player_id || !position || ![1, 2].includes(position)) {
+      return res.status(400).json({ success: false, error: 'Invalid player_id or position (must be 1 or 2)' });
+    }
+
+    // Verify organizer
+    const tournResult = await query(
+      'SELECT organizer_id FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    if (tournResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    if (tournResult.rows[0].organizer_id !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Only organizer can add members' });
+    }
+
+    // Check if team exists and belongs to tournament
+    const teamResult = await query(
+      'SELECT id FROM tournament_teams WHERE id = $1 AND tournament_id = $2',
+      [teamId, id]
+    );
+
+    if (teamResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Team not found' });
+    }
+
+    // Add member
+    const memberResult = await query(
+      `INSERT INTO team_members (team_id, player_id, position)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [teamId, player_id, position]
+    );
+
+    res.json({ success: true, message: 'Member added successfully' });
+  } catch (error: any) {
+    console.error('Error adding member:', error);
+    if (error.code === '23505') {
+      return res.status(400).json({ success: false, error: 'Player is already in this team or position is taken' });
+    }
+    res.status(500).json({ success: false, error: 'Failed to add member' });
+  }
+});
+
+// Remove member from team
+router.delete('/tournaments/:id/teams/:teamId/members/:playerId', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id, teamId, playerId } = req.params;
+
+    // Verify organizer
+    const tournResult = await query(
+      'SELECT organizer_id FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    if (tournResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    if (tournResult.rows[0].organizer_id !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Only organizer can remove members' });
+    }
+
+    // Remove member
+    const result = await query(
+      'DELETE FROM team_members WHERE team_id = $1 AND player_id = $2',
+      [teamId, playerId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Member not found in team' });
+    }
+
+    res.json({ success: true, message: 'Member removed successfully' });
+  } catch (error) {
+    console.error('Error removing member:', error);
+    res.status(500).json({ success: false, error: 'Failed to remove member' });
+  }
+});
+
+// Add substitute to team
+router.post('/tournaments/:id/teams/:teamId/substitutes', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id, teamId } = req.params;
+    const { player_id } = req.body;
+
+    if (!player_id) {
+      return res.status(400).json({ success: false, error: 'player_id is required' });
+    }
+
+    // Verify organizer
+    const tournResult = await query(
+      'SELECT organizer_id FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    if (tournResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    if (tournResult.rows[0].organizer_id !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Only organizer can add substitutes' });
+    }
+
+    // Add substitute
+    await query(
+      `INSERT INTO team_substitutes (team_id, player_id, substitute_order)
+       VALUES ($1, $2, (SELECT COALESCE(MAX(substitute_order), 0) + 1 FROM team_substitutes WHERE team_id = $1))
+       ON CONFLICT DO NOTHING`,
+      [teamId, player_id]
+    );
+
+    res.json({ success: true, message: 'Substitute added successfully' });
+  } catch (error) {
+    console.error('Error adding substitute:', error);
+    res.status(500).json({ success: false, error: 'Failed to add substitute' });
+  }
+});
+
+// Delete team
+router.delete('/tournaments/:id/teams/:teamId', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id, teamId } = req.params;
+
+    // Verify organizer
+    const tournResult = await query(
+      'SELECT organizer_id FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    if (tournResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    if (tournResult.rows[0].organizer_id !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Only organizer can delete teams' });
+    }
+
+    // Check if team has matches
+    const matchResult = await query(
+      'SELECT COUNT(*) as count FROM team_tournament_matches WHERE team_a_id = $1 OR team_b_id = $1',
+      [teamId]
+    );
+
+    if (matchResult.rows[0].count > 0) {
+      return res.status(400).json({ success: false, error: 'Cannot delete team with matches' });
+    }
+
+    // Delete team
+    const result = await query(
+      'DELETE FROM tournament_teams WHERE id = $1 AND tournament_id = $2',
+      [teamId, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Team not found' });
+    }
+
+    res.json({ success: true, message: 'Team deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting team:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete team' });
+  }
+});
+
 export default router;
 
