@@ -8,13 +8,18 @@ import MatchDetailsModal from '../components/MatchDetailsModal';
 import '../styles/Matches.css';
 
 // Get API URL for direct backend calls
+// Determine API URL based on frontend hostname and Vite environment variables
 let API_URL: string;
+
 if (window.location.hostname.includes('main.')) {
-  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
-  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+  // Main deployment on Cloudflare Pages
+  API_URL = import.meta.env.VITE_API_URL || 'https://wesnothtournamentmanager-main.up.railway.app/api';
+} else if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1') {
+  // Local development
+  API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 } else {
-  API_URL = '/api';
+  // Production deployment (Cloudflare Pages default or custom domain)
+  API_URL = import.meta.env.VITE_API_URL || 'https://wesnothtournamentmanager-production.up.railway.app/api';
 }
 
 interface FilterState {
