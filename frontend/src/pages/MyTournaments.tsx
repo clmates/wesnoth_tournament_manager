@@ -5,6 +5,8 @@ import { useAuthStore } from '../store/authStore';
 import { tournamentService } from '../services/api';
 import MainLayout from '../components/MainLayout';
 import TournamentList, { Tournament } from '../components/TournamentList';
+import UnrankedFactionSelect from '../components/UnrankedFactionSelect';
+import UnrankedMapSelect from '../components/UnrankedMapSelect';
 import '../styles/Auth.css';
 
 interface RoundTypeConfig {
@@ -27,6 +29,7 @@ const MyTournaments: React.FC = () => {
     name: '',
     description: '',
     tournament_type: 'elimination',
+    tournament_mode: 'ranked' as 'ranked' | 'unranked' | 'team',
     max_participants: null as number | null,
     round_duration_days: 7,
     auto_advance_round: false,
@@ -37,6 +40,8 @@ const MyTournaments: React.FC = () => {
     finalRounds: 0,
     finalRoundsFormat: 'bo5',
   });
+  const [unrankedFactions, setUnrankedFactions] = useState<Array<{ id: string; name: string }>>([]);
+  const [unrankedMaps, setUnrankedMaps] = useState<Array<{ id: string; name: string }>>([]);
 
   // Update round type config defaults when tournament type changes
   const handleTournamentTypeChange = (newType: string) => {
@@ -184,7 +189,7 @@ const MyTournaments: React.FC = () => {
     }
 
     try {
-      const payload = {
+      const payload: any = {
         ...formData,
         general_rounds: generalRounds,
         general_rounds_format: roundTypeConfig.generalRoundsFormat,
@@ -192,6 +197,13 @@ const MyTournaments: React.FC = () => {
         final_rounds_format: roundTypeConfig.finalRoundsFormat,
         total_rounds: generalRounds + roundTypeConfig.finalRounds,
       };
+      
+      // Add unranked assets if this is an unranked tournament
+      if (formData.tournament_mode === 'unranked') {
+        payload.unranked_factions = unrankedFactions;
+        payload.unranked_maps = unrankedMaps;
+      }
+      
       console.log('Creating tournament with payload:', payload);
       await tournamentService.createTournament(payload);
       setError('');
@@ -199,10 +211,13 @@ const MyTournaments: React.FC = () => {
         name: '', 
         description: '', 
         tournament_type: 'elimination',
+        tournament_mode: 'ranked',
         max_participants: null,
         round_duration_days: 7,
         auto_advance_round: false,
       });
+      setUnrankedFactions([]);
+      setUnrankedMaps([]);
       // Reset to elimination defaults
       setRoundTypeConfig({
         generalRounds: 0,
@@ -264,6 +279,60 @@ const MyTournaments: React.FC = () => {
                 rows={5}
                 required
               />
+              
+              {/* Match Type (Ranked/Unranked/Team) - FIRST choice */}
+              <div className="form-row">
+                <label>{t('tournament.match_type', 'Match Type')}:</label>
+                <div className="radio-group">
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      value="ranked"
+                      checked={formData.tournament_mode === 'ranked'}
+                      onChange={(e) => setFormData({ ...formData, tournament_mode: e.target.value as any })}
+                    />
+                    {t('tournament.ranked', 'Ranked (1v1, ELO impact)')}
+                  </label>
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      value="unranked"
+                      checked={formData.tournament_mode === 'unranked'}
+                      onChange={(e) => setFormData({ ...formData, tournament_mode: e.target.value as any })}
+                    />
+                    {t('tournament.unranked', 'Unranked (1v1, no ELO)')}
+                  </label>
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      value="team"
+                      checked={formData.tournament_mode === 'team'}
+                      onChange={(e) => setFormData({ ...formData, tournament_mode: e.target.value as any })}
+                    />
+                    {t('tournament.team', 'Team (2v2)')}
+                  </label>
+                </div>
+              </div>
+
+              {/* Unranked Tournament - Show faction and map selectors */}
+              {formData.tournament_mode === 'unranked' && (
+                <div className="form-section">
+                  <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
+                  <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
+                  <UnrankedFactionSelect 
+                    tournamentId={null}
+                    selectedFactions={unrankedFactions}
+                    onSelectionChange={setUnrankedFactions}
+                  />
+                  <UnrankedMapSelect 
+                    tournamentId={null}
+                    selectedMaps={unrankedMaps}
+                    onSelectionChange={setUnrankedMaps}
+                  />
+                </div>
+              )}
+
+              {/* Tournament Format (Swiss, Elimination, League) - SECOND choice */}
               <div className="form-row">
                 <select
                   value={formData.tournament_type}
@@ -287,7 +356,6 @@ const MyTournaments: React.FC = () => {
                     max_participants: e.target.value ? parseInt(e.target.value) : null 
                   })}
                 />
-              </div>
             </div>
 
             <div className="form-section">

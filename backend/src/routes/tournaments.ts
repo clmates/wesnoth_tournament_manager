@@ -12,13 +12,16 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       name, 
       description, 
       tournament_type, 
+      tournament_mode,
       max_participants, 
       round_duration_days,
       auto_advance_round,
       general_rounds,
       final_rounds,
       general_rounds_format,
-      final_rounds_format
+      final_rounds_format,
+      unranked_factions,
+      unranked_maps
     } = req.body;
 
     // Validation
@@ -103,18 +106,19 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     // Create tournament
     const tournamentResult = await query(
       `INSERT INTO tournaments (
-        name, description, creator_id, tournament_type, 
+        name, description, creator_id, tournament_type, tournament_mode,
         max_participants, round_duration_days, auto_advance_round, 
         total_rounds, general_rounds, final_rounds,
         general_rounds_format, final_rounds_format,
         status, current_round
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING id`,
       [
         name, 
         description,
         req.userId, 
-        tournament_type, 
+        tournament_type,
+        tournament_mode || 'ranked',
         max_participants, 
         round_duration_days || 7,
         auto_advance_round || false,
@@ -129,6 +133,40 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     );
 
     const tournamentId = tournamentResult.rows[0].id;
+
+    // If unranked tournament, add allowed factions and maps
+    if (tournament_mode === 'unranked' && (unranked_factions || unranked_maps)) {
+      try {
+        // Add unranked factions
+        if (unranked_factions && Array.isArray(unranked_factions)) {
+          for (const faction of unranked_factions) {
+            const factionId = faction.id || faction;
+            await query(
+              `INSERT INTO tournament_unranked_factions (tournament_id, faction_id)
+               VALUES ($1, $2)
+               ON CONFLICT DO NOTHING`,
+              [tournamentId, factionId]
+            );
+          }
+        }
+
+        // Add unranked maps
+        if (unranked_maps && Array.isArray(unranked_maps)) {
+          for (const map of unranked_maps) {
+            const mapId = map.id || map;
+            await query(
+              `INSERT INTO tournament_unranked_maps (tournament_id, map_id)
+               VALUES ($1, $2)
+               ON CONFLICT DO NOTHING`,
+              [tournamentId, mapId]
+            );
+          }
+        }
+      } catch (assetError) {
+        console.error('Error adding unranked assets:', assetError);
+        // Don't fail tournament creation if adding assets fails
+      }
+    }
 
     // Get organizer nickname
     let organizerNickname = 'Unknown';

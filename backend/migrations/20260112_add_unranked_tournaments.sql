@@ -68,7 +68,7 @@ COMMENT ON COLUMN tournament_unranked_maps.tournament_id IS 'Foreign key to tour
 COMMENT ON COLUMN tournament_unranked_maps.map_id IS 'Foreign key to maps table (RESTRICT delete)';
 
 -- Create indexes for efficient queries
-CREATE INDEX idx_tournament_unranked_maps_tournament_id 
+CREATE INDEX IF NOT EXISTS idx_tournament_unranked_maps_tournament_id 
   ON tournament_unranked_maps(tournament_id);
-CREATE INDEX idx_tournament_unranked_maps_map_id 
+CREATE INDEX IF NOT EXISTS idx_tournament_unranked_maps_map_id 
   ON tournament_unranked_maps(map_id);
