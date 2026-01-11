@@ -165,24 +165,22 @@ const Home: React.FC = () => {
             // Test debug endpoint first
             const debugUrl = `${API_URL}/public/debug`;
             console.log(`🔍 Testing debug endpoint: ${debugUrl}`);
-            const debugRes = await fetch(debugUrl);
-            const debugText = await debugRes.text();
-            console.log(`📊 Debug response (${debugRes.status}): ${debugText.substring(0, 100)}`);
+            const debugRes = await api.get('/public/debug');
+            console.log(`📊 Debug response (${debugRes.status}): ${JSON.stringify(debugRes.data).substring(0, 100)}`);
             
             // Now try player of month
             const pomUrl = `${API_URL}/public/player-of-month`;
             console.log(`🔍 Fetching player of month from: ${pomUrl}`);
             
-            const pomRes = await fetch(pomUrl);
+            const pomRes = await api.get('/public/player-of-month');
             console.log(`📊 Response status: ${pomRes.status} ${pomRes.statusText}`);
-            console.log(`📊 Response headers:`, Array.from(pomRes.headers.entries()));
+            console.log(`📊 Response headers:`, pomRes.headers);
             
             const pomText = await pomRes.text();
-            console.log(`📊 Response text (first 300 chars): ${pomText.substring(0, 300)}`);
             
-            if (pomRes.ok) {
+            if (pomRes.status === 200) {
               try {
-                const pomData = JSON.parse(pomText);
+                const pomData = pomRes.data;
                 console.log('✅ Player of month data:', pomData);
                 setPlayerOfMonth(pomData);
                 setPlayerMonthlyStats({
@@ -192,8 +190,8 @@ const Home: React.FC = () => {
                 });
                 setCachedData('player-of-month', pomData);
               } catch (parseErr) {
-                console.error('❌ Failed to parse JSON:', parseErr);
-                console.error('Raw response:', pomText);
+                console.error('❌ Failed to parse data:', parseErr);
+                console.error('Response:', pomRes.data);
               }
             } else {
               console.warn(`⚠️ Player of month not available (${pomRes.status})`);
