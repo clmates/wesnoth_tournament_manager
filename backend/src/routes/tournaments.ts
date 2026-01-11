@@ -495,8 +495,8 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { team_name, team_position } = req.body;
-    console.log('Request to join tournament:', { id, userId: req.userId, team_name, team_position });
+    const { team_name, teammate_name } = req.body;
+    console.log('Request to join tournament:', { id, userId: req.userId, team_name, teammate_name });
 
     // Check if tournament exists and get tournament_mode
     const tournamentResult = await query(
@@ -513,57 +513,73 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
 
     // If team tournament, handle team logic
     if (tournament.tournament_mode === 'team') {
-      if (!team_name || !team_position) {
-        return res.status(400).json({ error: 'Team name and position required for team tournament' });
+      if (!team_name || !teammate_name) {
+        return res.status(400).json({ error: 'Team name and teammate name required for team tournament' });
       }
 
-      if (![1, 2].includes(team_position)) {
-        return res.status(400).json({ error: 'Team position must be 1 or 2' });
+      if (team_name.length < 2 || team_name.length > 50) {
+        return res.status(400).json({ error: 'Team name must be between 2 and 50 characters' });
       }
 
-      // Check if team exists
-      const existingTeamResult = await query(
-        `SELECT id FROM tournament_teams 
-         WHERE tournament_id = $1 AND name = $2`,
-        [id, team_name]
+      // Get current user's nickname for validation
+      const currentUserResult = await query('SELECT nickname FROM users WHERE id = $1', [req.userId]);
+      if (currentUserResult.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      const currentUserNickname = currentUserResult.rows[0].nickname;
+
+      // Check if trying to add self as teammate
+      if (teammate_name.toLowerCase() === currentUserNickname.toLowerCase()) {
+        return res.status(400).json({ error: 'You cannot select yourself as a teammate' });
+      }
+
+      // Find teammate user by nickname
+      const teammateResult = await query(
+        'SELECT id FROM users WHERE LOWER(nickname) = LOWER($1)',
+        [teammate_name]
       );
-
-      if (existingTeamResult.rows.length > 0) {
-        // Join existing team
-        teamId = existingTeamResult.rows[0].id;
-
-        // Check if this position is already taken in the team
-        const positionTakenResult = await query(
-          `SELECT id FROM tournament_participants 
-           WHERE team_id = $1 AND team_position = $2 AND participation_status IN ('pending', 'accepted')`,
-          [teamId, team_position]
-        );
-
-        if (positionTakenResult.rows.length > 0) {
-          return res.status(400).json({ error: `Position ${team_position} is already taken in team ${team_name}` });
-        }
-
-        // Check if team is full (max 2 active members)
-        const teamSizeResult = await query(
-          `SELECT COUNT(*) as count FROM tournament_participants 
-           WHERE team_id = $1 AND team_position IS NOT NULL AND participation_status IN ('pending', 'accepted')`,
-          [teamId]
-        );
-
-        if (teamSizeResult.rows[0].count >= 2) {
-          return res.status(400).json({ error: `Team ${team_name} is full (2/2 members)` });
-        }
-      } else {
-        // Create new team
-        const createTeamResult = await query(
-          `INSERT INTO tournament_teams (tournament_id, name, created_by)
-           VALUES ($1, $2, $3)
-           RETURNING id`,
-          [id, team_name, req.userId]
-        );
-        teamId = createTeamResult.rows[0].id;
-        console.log('New team created:', { teamId, name: team_name });
+      if (teammateResult.rows.length === 0) {
+        return res.status(400).json({ error: `User "${teammate_name}" not found` });
       }
+      const teammateUserId = teammateResult.rows[0].id;
+
+      // Check if teammate is already in this tournament
+      const existingParticipantResult = await query(
+        `SELECT id FROM tournament_participants 
+         WHERE tournament_id = $1 AND user_id = $2 AND participation_status IN ('pending', 'accepted')`,
+        [id, teammateUserId]
+      );
+      if (existingParticipantResult.rows.length > 0) {
+        return res.status(400).json({ error: `${teammate_name} is already registered in this tournament` });
+      }
+
+      // Create new team with both players
+      const createTeamResult = await query(
+        `INSERT INTO tournament_teams (tournament_id, name, created_by)
+         VALUES ($1, $2, $3)
+         RETURNING id`,
+        [id, team_name, req.userId]
+      );
+      teamId = createTeamResult.rows[0].id;
+      console.log('New team created:', { teamId, name: team_name });
+
+      // Insert current user as Position 1
+      const player1Result = await query(
+        `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id`,
+        [id, req.userId, 'pending', teamId, 1]
+      );
+      console.log('Player 1 (organizer) added:', player1Result.rows[0].id);
+
+      // Insert teammate as Position 2
+      const player2Result = await query(
+        `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id`,
+        [id, teammateUserId, 'pending', teamId, 2]
+      );
+      console.log('Player 2 (teammate) added:', player2Result.rows[0].id);
     }
 
     // Get user's ELO rating and nickname
@@ -573,15 +589,14 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Insert as pending participant
-    const result = await query(
-      `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id`,
-      [id, req.userId, 'pending', teamId, tournament.tournament_mode === 'team' ? team_position : null]
-    );
-
-    console.log('Join request created:', result.rows[0].id);
+    // For non-team tournaments, insert as pending participant (existing logic)
+    if (tournament.tournament_mode !== 'team') {
+      await query(
+        `INSERT INTO tournament_participants (tournament_id, user_id, participation_status)
+         VALUES ($1, $2, $3)`,
+        [id, req.userId, 'pending']
+      );
+    }
 
     // Get current participant count
     const countResult = await query(
@@ -595,7 +610,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     if (tournament.discord_thread_id) {
       try {
         const displayName = tournament.tournament_mode === 'team' 
-          ? `${userResult.rows[0].nickname} (Team: ${team_name})`
+          ? `${userResult.rows[0].nickname} & ${teammate_name} (Team: ${team_name})`
           : userResult.rows[0].nickname;
         
         await discordService.postPlayerRegistered(
@@ -611,9 +626,10 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     }
 
     res.status(201).json({ 
-      id: result.rows[0].id,
       team_id: teamId,
-      message: 'Join request sent. Waiting for organizer approval.'
+      message: tournament.tournament_mode === 'team' 
+        ? 'Team created! Both players are pending organizer approval.'
+        : 'Join request sent. Waiting for organizer approval.'
     });
   } catch (error: any) {
     console.error('Request-join error:', error.message || error);

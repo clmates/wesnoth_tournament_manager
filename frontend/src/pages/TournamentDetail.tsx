@@ -79,7 +79,7 @@ const TournamentDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { userId } = useAuthStore();
+  const { userId, user } = useAuthStore();
 
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [participants, setParticipants] = useState<TournamentParticipant[]>([]);
@@ -214,14 +214,14 @@ const TournamentDetail: React.FC = () => {
     }
   };
 
-  const handleTeamJoinSubmit = async (teamName: string, teamPosition: number) => {
+  const handleTeamJoinSubmit = async (teamName: string, teammateName: string) => {
     try {
       setJoiningTeamLoading(true);
       setError('');
       
       await tournamentService.requestJoinTournament(id!, {
         team_name: teamName,
-        team_position: teamPosition
+        teammate_name: teammateName
       });
       
       setSuccess(t('success_join_request_sent'));
@@ -1348,10 +1348,11 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       {showTeamJoinModal && tournament && (
         <TeamJoinModal
           tournamentId={id!}
-          existingTeams={teams}
           onSubmit={handleTeamJoinSubmit}
           onClose={() => setShowTeamJoinModal(false)}
           isLoading={joiningTeamLoading}
+          currentUserId={userId || undefined}
+          currentUserNickname={user?.nickname || undefined}
         />
       )}
 
