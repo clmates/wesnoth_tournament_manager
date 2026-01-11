@@ -7,11 +7,19 @@ if (import.meta.env.VITE_API_URL) {
   // Explicit environment variable takes precedence
   API_URL = import.meta.env.VITE_API_URL;
 } else if (window.location.hostname.includes('main.')) {
-  // Preview environment (main branch on Cloudflare)
+  // Main branch preview on Cloudflare
   API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
 } else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
   // Production environment (production branch on Cloudflare)
   API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+} else if (window.location.hostname.includes('pr-')) {
+  // PR preview on Cloudflare - extract PR number and route to corresponding Railway backend
+  const prMatch = window.location.hostname.match(/pr-(\d+)/);
+  if (prMatch) {
+    API_URL = `https://wesnothtournamentmanager-wesnothtournamentmanager-pr-${prMatch[1]}.up.railway.app/api`;
+  } else {
+    API_URL = '/api';
+  }
 } else {
   // Development/fallback
   API_URL = '/api';
