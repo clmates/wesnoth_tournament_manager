@@ -9,7 +9,7 @@ const Login: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { setToken, setUserId, setIsAdmin } = useAuthStore();
-  const [nickname, setNickname] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,7 +18,7 @@ const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await authService.login(nickname, password);
+      const response = await authService.login(usernameOrEmail, password);
       
       // Validate token before storing
       if (!response.data.token || !response.data.userId) {
@@ -65,9 +65,9 @@ const Login: React.FC = () => {
       <form onSubmit={handleSubmit}>
         <input
           type="text"
-          placeholder={t('login_nickname')}
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
+          placeholder={t('login_nickname_or_email')} 
+          value={usernameOrEmail}
+          onChange={(e) => setUsernameOrEmail(e.target.value)}
           required
         />
         <input

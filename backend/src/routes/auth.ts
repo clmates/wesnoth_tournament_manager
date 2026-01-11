@@ -93,27 +93,37 @@ router.post('/register', registerLimiter, async (req, res) => {
 // Login - RATE LIMITED with account lockout
 router.post('/login', loginLimiter, async (req, res) => {
   try {
-    const { nickname, password } = req.body;
+    const { nickname, email, password } = req.body;
     const ip = getUserIP(req);
     const userAgent = getUserAgent(req);
 
-    // Get user by nickname
+    // Validate that either nickname or email is provided
+    if (!nickname && !email) {
+      return res.status(400).json({ error: 'Nickname or email and password are required' });
+    }
+
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+
+    // Get user by nickname or email
     // COALESCE handles case where columns don't exist yet (before migration)
     const result = await query(
-      `SELECT id, password_hash, is_blocked, 
+      `SELECT id, nickname, password_hash, is_blocked, 
               COALESCE(failed_login_attempts, 0) as failed_login_attempts,
               locked_until,
               COALESCE(password_must_change, false) as password_must_change
-       FROM public.users WHERE nickname = $1`,
-      [nickname]
+       FROM public.users WHERE nickname = $1 OR email = $2`,
+      [nickname || '', email || '']
     );
 
     // Check if user exists
     if (result.rows.length === 0) {
       // Log failed login attempt (user not found)
+      const loginAttempt = nickname || email;
       await logAuditEvent({
         event_type: 'LOGIN_FAILED',
-        username: nickname,
+        username: loginAttempt,
         ip_address: ip,
         user_agent: userAgent,
         details: { reason: 'user_not_found' }
@@ -132,7 +142,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       await logAuditEvent({
         event_type: 'LOGIN_FAILED',
         user_id: user.id,
-        username: nickname,
+        username: user.nickname,
         ip_address: ip,
         user_agent: userAgent,
         details: { reason: 'account_locked', remaining_minutes: minutes }
@@ -149,7 +159,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       await logAuditEvent({
         event_type: 'LOGIN_FAILED',
         user_id: user.id,
-        username: nickname,
+        username: user.nickname,
         ip_address: ip,
         user_agent: userAgent,
         details: { reason: 'account_blocked' }
@@ -162,7 +172,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const isValid = await comparePasswords(password, user.password_hash);
     if (!isValid) {
       // Record failed attempt and check for lockout
-      await recordFailedLoginAttempt(user.id, nickname);
+      await recordFailedLoginAttempt(user.id, user.nickname);
 
       const updatedUser = await query(
         `SELECT failed_login_attempts FROM public.users WHERE id = $1`,
@@ -175,7 +185,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       await logAuditEvent({
         event_type: 'LOGIN_FAILED',
         user_id: user.id,
-        username: nickname,
+        username: user.nickname,
         ip_address: ip,
         user_agent: userAgent,
         details: { reason: 'invalid_password', failed_attempts: failedAttempts }
@@ -203,7 +213,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     await logAuditEvent({
       event_type: 'LOGIN_SUCCESS',
       user_id: user.id,
-      username: nickname,
+      username: user.nickname,
       ip_address: ip,
       user_agent: userAgent,
       details: { success: true }

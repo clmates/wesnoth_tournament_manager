@@ -89,7 +89,16 @@ api.interceptors.response.use(
 
 export const authService = {
   register: (data: any) => api.post('/auth/register', data),
-  login: (nickname: string, password: string) => api.post('/auth/login', { nickname, password }),
+  login: (usernameOrEmail: string, password: string) => {
+    // Determine if input is email or nickname
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usernameOrEmail);
+    
+    return api.post('/auth/login', {
+      nickname: isEmail ? undefined : usernameOrEmail,
+      email: isEmail ? usernameOrEmail : undefined,
+      password
+    });
+  },
   changePassword: (oldPassword: string, newPassword: string) =>
     api.post('/auth/change-password', { oldPassword, newPassword }),
   requestPasswordReset: (data: { nickname: string; discord_id: string }) =>
