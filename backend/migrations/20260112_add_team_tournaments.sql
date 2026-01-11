@@ -107,6 +107,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_check_team_member_count ON tournament_participants;
 CREATE TRIGGER trigger_check_team_member_count
 BEFORE INSERT ON tournament_participants
 FOR EACH ROW
@@ -137,6 +138,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_check_team_member_positions ON tournament_participants;
 CREATE TRIGGER trigger_check_team_member_positions
 BEFORE INSERT OR UPDATE ON tournament_participants
 FOR EACH ROW
