@@ -556,10 +556,15 @@ router.get('/factions', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch factions' });
   }
 });
+// Debug endpoint to verify public routes are working
+router.get('/debug', (req, res) => {
+  res.json({ message: 'Public routes working', timestamp: new Date().toISOString() });
+});
+
 // Get player of the month
 router.get('/player-of-month', async (req, res) => {
   try {
-    console.log('🔍 GET /public/player-of-month called');
+    console.log('🔍🔍🔍 GET /public/player-of-month called START');
     
     const now = new Date();
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);

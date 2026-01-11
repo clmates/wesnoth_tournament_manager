@@ -152,15 +152,23 @@ const Home: React.FC = () => {
           });
         } else {
           try {
+            // Test debug endpoint first
+            const debugUrl = `${API_URL}/public/debug`;
+            console.log(`🔍 Testing debug endpoint: ${debugUrl}`);
+            const debugRes = await fetch(debugUrl);
+            const debugText = await debugRes.text();
+            console.log(`📊 Debug response (${debugRes.status}): ${debugText.substring(0, 100)}`);
+            
+            // Now try player of month
             const pomUrl = `${API_URL}/public/player-of-month`;
             console.log(`🔍 Fetching player of month from: ${pomUrl}`);
             
             const pomRes = await fetch(pomUrl);
             console.log(`📊 Response status: ${pomRes.status} ${pomRes.statusText}`);
-            console.log(`📊 Response headers:`, pomRes.headers);
+            console.log(`📊 Response headers:`, Array.from(pomRes.headers.entries()));
             
             const pomText = await pomRes.text();
-            console.log(`📊 Response text (first 200 chars): ${pomText.substring(0, 200)}`);
+            console.log(`📊 Response text (first 300 chars): ${pomText.substring(0, 300)}`);
             
             if (pomRes.ok) {
               try {
@@ -175,6 +183,7 @@ const Home: React.FC = () => {
                 setCachedData('player-of-month', pomData);
               } catch (parseErr) {
                 console.error('❌ Failed to parse JSON:', parseErr);
+                console.error('Raw response:', pomText);
               }
             } else {
               console.warn(`⚠️ Player of month not available (${pomRes.status})`);
