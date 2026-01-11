@@ -15,6 +15,22 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1); // First day of current month
 
     // Calculate the player who gained the most ELO in the previous month
+    console.log(`📊 Calculating for period: ${prevMonthStart.toISOString()} to ${prevMonthEnd.toISOString()}`);
+    
+    // First, check if there are any matches in the previous month
+    const matchCheckResult = await query(
+      `SELECT COUNT(*) as match_count FROM matches 
+       WHERE created_at >= $1 AND created_at < $2 AND status != 'cancelled'`,
+      [prevMonthStart, prevMonthEnd]
+    );
+    console.log(`📊 Non-cancelled matches in previous month: ${matchCheckResult.rows[0]?.match_count || 0}`);
+
+    // Check all players
+    const allPlayersResult = await query(
+      `SELECT COUNT(*) as player_count FROM users`
+    );
+    console.log(`📊 Total players: ${allPlayersResult.rows[0]?.player_count || 0}`);
+
     const playerOfMonthResult = await query(
       `WITH elo_gains AS (
         SELECT 
@@ -32,9 +48,6 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
           AND m.status != 'cancelled'
           AND m.created_at >= $1
           AND m.created_at < $2
-        WHERE u.is_active = true 
-          AND u.is_blocked = false
-          AND u.is_rated = true
         GROUP BY u.id, u.nickname, u.elo_rating
         ORDER BY elo_change DESC
         LIMIT 1
@@ -45,6 +58,31 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
 
     if (playerOfMonthResult.rows.length === 0) {
       console.log('⚠️  No eligible players found for this month');
+      // Debug: check if there are any results without the ORDER BY LIMIT
+      const debugResult = await query(
+        `WITH elo_gains AS (
+          SELECT 
+            u.id,
+            u.nickname,
+            u.elo_rating,
+            COUNT(m.id) as match_count,
+            COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN m.winner_elo_after - m.winner_elo_before 
+                             WHEN m.loser_id = u.id THEN m.loser_elo_after - m.loser_elo_before 
+                             ELSE 0 END), 0) as elo_gained
+          FROM users u
+          LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) 
+            AND m.status != 'cancelled'
+            AND m.created_at >= $1
+            AND m.created_at < $2
+          GROUP BY u.id, u.nickname, u.elo_rating
+        )
+        SELECT * FROM elo_gains WHERE match_count > 0 ORDER BY elo_gained DESC`,
+        [prevMonthStart, prevMonthEnd]
+      );
+      console.log(`📊 Players with matches in period: ${debugResult.rows.length}`);
+      debugResult.rows.forEach((row: any) => {
+        console.log(`  - ${row.nickname}: ${row.match_count} matches, +${row.elo_gained} ELO`);
+      });
       return;
     }
 
@@ -55,11 +93,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     const rankingResult = await query(
       `SELECT COUNT(*) + 1 as ranking_position
        FROM users u2
-       WHERE u2.is_active = true 
-         AND u2.is_blocked = false
-         AND u2.is_rated = true
-         AND u2.elo_rating >= 1400
-         AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+       WHERE (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
       [player.elo_rating, playerId]
     );
 
@@ -73,7 +107,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
        END as elo_at_month_start
        FROM matches m
        WHERE (m.winner_id = $1 OR m.loser_id = $1)
-         AND m.status = 'confirmed'
+         AND m.status != 'cancelled'
          AND m.created_at >= $2
          AND m.created_at < $3
        ORDER BY m.created_at ASC
@@ -89,11 +123,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
       const rankAtStartResult = await query(
         `SELECT COUNT(*) + 1 as rank_at_start
          FROM users u2
-         WHERE u2.is_active = true 
-           AND u2.is_blocked = false
-           AND u2.is_rated = true
-           AND u2.elo_rating >= 1400
-           AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+         WHERE (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
         [eloAtMonthStart, playerId]
       );
 
