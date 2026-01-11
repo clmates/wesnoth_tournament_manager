@@ -125,26 +125,10 @@ const Home: React.FC = () => {
         const cachedMatches = getCachedData('matches');
         const cachedUsers = getCachedData('users');
         const cachedNews = getCachedData('news');
+        const cachedPOM = getCachedData('player-of-month');
 
         if (cachedPlayers) {
           setTopPlayers(cachedPlayers.slice(0, 10));
-          if (cachedPlayers.length > 0) {
-            // Fetch player of month from dedicated endpoint
-            try {
-              const pomRes = await fetch(`${API_URL}/admin/player-of-month`);
-              if (pomRes.ok) {
-                const pomData = await pomRes.json();
-                setPlayerOfMonth(pomData);
-                setPlayerMonthlyStats({
-                  elo_gained: pomData.elo_gained,
-                  positions_gained: pomData.positions_gained,
-                  current_rank: pomData.ranking_position
-                });
-              }
-            } catch (err) {
-              console.error('Error fetching player of month:', err);
-            }
-          }
         } else {
           // Fetch top 10 players only if not cached
           try {
@@ -152,24 +136,36 @@ const Home: React.FC = () => {
             const players = rankingRes.data?.data || rankingRes.data || [];
             setTopPlayers(Array.isArray(players) ? players.slice(0, 10) : []);
             setCachedData('players', players);
-            
-            // Player of month - fetch from dedicated endpoint
-            try {
-              const pomRes = await fetch(`${API_URL}/admin/player-of-month`);
-              if (pomRes.ok) {
-                const pomData = await pomRes.json();
-                setPlayerOfMonth(pomData);
-                setPlayerMonthlyStats({
-                  elo_gained: pomData.elo_gained,
-                  positions_gained: pomData.positions_gained,
-                  current_rank: pomData.ranking_position
-                });
-              }
-            } catch (pomErr) {
-              console.error('Error fetching player of month:', pomErr);
-            }
           } catch (err) {
             console.error('Error fetching ranking:', err);
+          }
+        }
+
+        // Fetch player of month (separate from ranking cache)
+        if (cachedPOM) {
+          setPlayerOfMonth(cachedPOM);
+          setPlayerMonthlyStats({
+            elo_gained: cachedPOM.elo_gained,
+            positions_gained: cachedPOM.positions_gained,
+            current_rank: cachedPOM.ranking_position
+          });
+        } else {
+          try {
+            const pomRes = await fetch(`${API_URL}/admin/player-of-month`);
+            if (pomRes.ok) {
+              const pomData = await pomRes.json();
+              setPlayerOfMonth(pomData);
+              setPlayerMonthlyStats({
+                elo_gained: pomData.elo_gained,
+                positions_gained: pomData.positions_gained,
+                current_rank: pomData.ranking_position
+              });
+              setCachedData('player-of-month', pomData);
+            } else {
+              console.warn('Player of month not available (404)');
+            }
+          } catch (pomErr) {
+            console.error('Error fetching player of month:', pomErr);
           }
         }
 
