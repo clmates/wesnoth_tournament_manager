@@ -175,7 +175,8 @@ export const tournamentService = {
   getAllTournaments: () => api.get('/tournaments'),
   getMyTournaments: () => api.get('/tournaments/my'),
   joinTournament: (id: string) => api.post(`/tournaments/${id}/join`),
-  requestJoinTournament: (id: string) => api.post(`/tournaments/${id}/request-join`),
+  requestJoinTournament: (id: string, data?: { team_name?: string; team_position?: number }) => 
+    api.post(`/tournaments/${id}/request-join`, data || {}),
   getTournamentRounds: (id: string) => api.get(`/tournaments/${id}/rounds`),
   getTournamentRanking: (id: string) => api.get(`/tournaments/${id}/ranking`),
   getTournamentStandings: (id: string, roundId?: string) => 

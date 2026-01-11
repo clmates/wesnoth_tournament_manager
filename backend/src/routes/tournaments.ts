@@ -495,16 +495,75 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    console.log('Request to join tournament:', { id, userId: req.userId });
+    const { team_name, team_position } = req.body;
+    console.log('Request to join tournament:', { id, userId: req.userId, team_name, team_position });
 
-    // Check if tournament exists
+    // Check if tournament exists and get tournament_mode
     const tournamentResult = await query(
-      'SELECT id, discord_thread_id, max_participants FROM tournaments WHERE id = $1',
+      'SELECT id, discord_thread_id, max_participants, tournament_mode FROM tournaments WHERE id = $1',
       [id]
     );
     if (tournamentResult.rows.length === 0) {
       console.log('Tournament not found:', id);
       return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const tournament = tournamentResult.rows[0];
+    let teamId: string | null = null;
+
+    // If team tournament, handle team logic
+    if (tournament.tournament_mode === 'team') {
+      if (!team_name || !team_position) {
+        return res.status(400).json({ error: 'Team name and position required for team tournament' });
+      }
+
+      if (![1, 2].includes(team_position)) {
+        return res.status(400).json({ error: 'Team position must be 1 or 2' });
+      }
+
+      // Check if team exists
+      const existingTeamResult = await query(
+        `SELECT id FROM tournament_teams 
+         WHERE tournament_id = $1 AND name = $2`,
+        [id, team_name]
+      );
+
+      if (existingTeamResult.rows.length > 0) {
+        // Join existing team
+        teamId = existingTeamResult.rows[0].id;
+
+        // Check if this position is already taken in the team
+        const positionTakenResult = await query(
+          `SELECT id FROM tournament_participants 
+           WHERE team_id = $1 AND team_position = $2 AND participation_status IN ('pending', 'accepted')`,
+          [teamId, team_position]
+        );
+
+        if (positionTakenResult.rows.length > 0) {
+          return res.status(400).json({ error: `Position ${team_position} is already taken in team ${team_name}` });
+        }
+
+        // Check if team is full (max 2 active members)
+        const teamSizeResult = await query(
+          `SELECT COUNT(*) as count FROM tournament_participants 
+           WHERE team_id = $1 AND team_position IS NOT NULL AND participation_status IN ('pending', 'accepted')`,
+          [teamId]
+        );
+
+        if (teamSizeResult.rows[0].count >= 2) {
+          return res.status(400).json({ error: `Team ${team_name} is full (2/2 members)` });
+        }
+      } else {
+        // Create new team
+        const createTeamResult = await query(
+          `INSERT INTO tournament_teams (tournament_id, name, created_by)
+           VALUES ($1, $2, $3)
+           RETURNING id`,
+          [id, team_name, req.userId]
+        );
+        teamId = createTeamResult.rows[0].id;
+        console.log('New team created:', { teamId, name: team_name });
+      }
     }
 
     // Get user's ELO rating and nickname
@@ -516,10 +575,10 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
 
     // Insert as pending participant
     const result = await query(
-      `INSERT INTO tournament_participants (tournament_id, user_id, participation_status)
-       VALUES ($1, $2, $3)
+      `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
-      [id, req.userId, 'pending']
+      [id, req.userId, 'pending', teamId, tournament.tournament_mode === 'team' ? team_position : null]
     );
 
     console.log('Join request created:', result.rows[0].id);
@@ -533,13 +592,17 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     const currentCount = countResult.rows[0]?.count || 0;
 
     // Post to Discord if thread exists
-    if (tournamentResult.rows[0].discord_thread_id) {
+    if (tournament.discord_thread_id) {
       try {
+        const displayName = tournament.tournament_mode === 'team' 
+          ? `${userResult.rows[0].nickname} (Team: ${team_name})`
+          : userResult.rows[0].nickname;
+        
         await discordService.postPlayerRegistered(
-          tournamentResult.rows[0].discord_thread_id,
-          userResult.rows[0].nickname,
+          tournament.discord_thread_id,
+          displayName,
           currentCount,
-          tournamentResult.rows[0].max_participants
+          tournament.max_participants
         );
       } catch (discordError) {
         console.error('Discord notification error:', discordError);
@@ -549,6 +612,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
 
     res.status(201).json({ 
       id: result.rows[0].id,
+      team_id: teamId,
       message: 'Join request sent. Waiting for organizer approval.'
     });
   } catch (error: any) {

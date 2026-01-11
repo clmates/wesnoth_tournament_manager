@@ -6,6 +6,7 @@ import { publicService, tournamentService } from '../services/api';
 import TournamentMatchReportModal from '../components/TournamentMatchReportModal';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import MatchDetailsModal from '../components/MatchDetailsModal';
+import { TeamJoinModal } from '../components/TeamJoinModal';
 import PlayerLink from '../components/PlayerLink';
 import '../styles/Tournaments.css';
 
@@ -86,6 +87,8 @@ const TournamentDetail: React.FC = () => {
   const [roundMatches, setRoundMatches] = useState<any[]>([]);
   const [rounds, setRounds] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
+  const [showTeamJoinModal, setShowTeamJoinModal] = useState(false);
+  const [joiningTeamLoading, setJoiningTeamLoading] = useState(false);
   const [matchConfirmationMap, setMatchConfirmationMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -192,16 +195,47 @@ const TournamentDetail: React.FC = () => {
   };
 
   const handleJoinTournament = async () => {
+    if (tournament?.tournament_mode === 'team') {
+      // Show team join modal for team tournaments
+      setShowTeamJoinModal(true);
+    } else {
+      // Direct join for ranked/unranked tournaments
+      try {
+        await tournamentService.requestJoinTournament(id!);
+        setSuccess(t('success_join_request_sent'));
+        setUserParticipationStatus('pending');
+        // Refresh the page after 2 seconds
+        setTimeout(() => {
+          fetchTournamentData();
+        }, 2000);
+      } catch (err: any) {
+        setError(err.response?.data?.error || t('error_failed_join_tournament'));
+      }
+    }
+  };
+
+  const handleTeamJoinSubmit = async (teamName: string, teamPosition: number) => {
     try {
-      await tournamentService.requestJoinTournament(id!);
+      setJoiningTeamLoading(true);
+      setError('');
+      
+      await tournamentService.requestJoinTournament(id!, {
+        team_name: teamName,
+        team_position: teamPosition
+      });
+      
       setSuccess(t('success_join_request_sent'));
       setUserParticipationStatus('pending');
+      setShowTeamJoinModal(false);
+      
       // Refresh the page after 2 seconds
       setTimeout(() => {
         fetchTournamentData();
       }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.error || t('error_failed_join_tournament'));
+    } finally {
+      setJoiningTeamLoading(false);
     }
   };
 
@@ -1308,6 +1342,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
             )
           )}
         </div>
+      )}
+
+      {/* Team Join Modal */}
+      {showTeamJoinModal && tournament && (
+        <TeamJoinModal
+          tournamentId={id!}
+          existingTeams={teams}
+          onSubmit={handleTeamJoinSubmit}
+          onClose={() => setShowTeamJoinModal(false)}
+          isLoading={joiningTeamLoading}
+        />
       )}
 
       {/* Report Match Modal */}
