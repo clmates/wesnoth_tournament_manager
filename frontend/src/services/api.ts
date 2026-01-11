@@ -3,19 +3,19 @@ import axios, { AxiosError } from 'axios';
 // Determine API URL based on environment
 let API_URL: string;
 
-if (import.meta.env.VITE_API_URL) {
-  // Explicit environment variable takes precedence (set by build system for PRs)
-  API_URL = import.meta.env.VITE_API_URL;
-} else if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+// Check hostname first (more specific than environment variables)
+if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
   // Main branch preview on Cloudflare
   API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
 } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
   // Production environment (production branch on Cloudflare)
   API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
 } else if (window.location.hostname.endsWith('.wesnoth-tournament-manager.pages.dev')) {
-  // PR preview on Cloudflare (e.g., 8b1b288b.wesnoth-tournament-manager.pages.dev)
-  // Default to PR-1 backend, but should be set via VITE_API_URL environment variable
+  // PR preview on Cloudflare (e.g., 1949c27b.wesnoth-tournament-manager.pages.dev)
   API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+} else if (import.meta.env.VITE_API_URL) {
+  // Explicit environment variable as fallback
+  API_URL = import.meta.env.VITE_API_URL;
 } else {
   // Development/fallback
   API_URL = '/api';
