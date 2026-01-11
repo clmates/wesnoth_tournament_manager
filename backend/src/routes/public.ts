@@ -556,6 +556,42 @@ router.get('/factions', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch factions' });
   }
 });
+// Get player of the month
+router.get('/player-of-month', async (req, res) => {
+  try {
+    console.log('🔍 GET /public/player-of-month called');
+    
+    const now = new Date();
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const monthYearStr = prevMonthStart.toISOString().split('T')[0];
+    
+    console.log(`📊 Looking for month_year: ${monthYearStr}`);
 
+    const result = await query(
+      `SELECT player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year, calculated_at
+       FROM player_of_month
+       WHERE month_year = $1`,
+      [monthYearStr]
+    );
+
+    console.log(`📊 Query returned ${result.rows.length} rows`);
+    
+    if (result.rows.length === 0) {
+      console.log('⚠️ No player found, returning 404');
+      return res.status(404).json({ error: 'No player of month data available' });
+    }
+
+    const playerData = result.rows[0];
+    console.log(`✅ Returning player: ${playerData.nickname}`, playerData);
+    res.json(playerData);
+  } catch (error: any) {
+    console.error('❌ Error in /player-of-month:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({
+      error: 'Failed to fetch player of month',
+      details: error.message
+    });
+  }
+});
 export default router;
 

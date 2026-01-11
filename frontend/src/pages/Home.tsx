@@ -152,7 +152,7 @@ const Home: React.FC = () => {
           });
         } else {
           try {
-            const pomUrl = `${API_URL}/admin/player-of-month`;
+            const pomUrl = `${API_URL}/public/player-of-month`;
             console.log(`🔍 Fetching player of month from: ${pomUrl}`);
             
             const pomRes = await fetch(pomUrl);
