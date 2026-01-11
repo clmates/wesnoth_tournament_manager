@@ -165,18 +165,16 @@ const Home: React.FC = () => {
             // Test debug endpoint first
             const debugUrl = `${API_URL}/public/debug`;
             console.log(`🔍 Testing debug endpoint: ${debugUrl}`);
-            const debugRes = await api.get('/public/debug');
-            console.log(`📊 Debug response (${debugRes.status}): ${JSON.stringify(debugRes.data).substring(0, 100)}`);
+            const debugRes = await publicService.getDebug();
+            console.log(`📊 Debug response (${debugRes.status}):`, debugRes.data);
             
             // Now try player of month
             const pomUrl = `${API_URL}/public/player-of-month`;
             console.log(`🔍 Fetching player of month from: ${pomUrl}`);
             
-            const pomRes = await api.get('/public/player-of-month');
-            console.log(`📊 Response status: ${pomRes.status} ${pomRes.statusText}`);
+            const pomRes = await publicService.getPlayerOfMonth();
+            console.log(`📊 Response status: ${pomRes.status}`);
             console.log(`📊 Response headers:`, pomRes.headers);
-            
-            const pomText = await pomRes.text();
             
             if (pomRes.status === 200) {
               try {

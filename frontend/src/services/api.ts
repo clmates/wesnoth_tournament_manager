@@ -282,6 +282,8 @@ export const publicService = {
   getTournamentParticipants: (id: string) => api.get(`/public/tournaments/${id}/participants`),
   getTournamentMatches: (id: string) => api.get(`/public/tournaments/${id}/matches`),
   getMatch: (id: string) => api.get(`/matches/${id}`),
+  getDebug: () => api.get('/public/debug'),
+  getPlayerOfMonth: () => api.get('/public/player-of-month'),
 };
 
 export { api };
