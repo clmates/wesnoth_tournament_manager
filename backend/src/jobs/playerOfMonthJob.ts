@@ -29,7 +29,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
                            ELSE 0 END), 0) as elo_gained
         FROM users u
         LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) 
-          AND m.status = 'confirmed' 
+          AND m.status != 'cancelled'
           AND m.created_at >= $1
           AND m.created_at < $2
         WHERE u.is_active = true 
