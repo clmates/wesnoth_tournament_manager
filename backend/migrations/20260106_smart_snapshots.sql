@@ -94,7 +94,7 @@ DECLARE
   v_snapshot_before_date DATE;
   v_snapshots_deleted INT := 0;
   v_snapshot_after_date DATE;
-  v_snapshot_after_created BOOLEAN := FALSE;
+  v_snapshot_after_created INT := 0;
 BEGIN
   -- Find the last balance event
   SELECT id, event_date
