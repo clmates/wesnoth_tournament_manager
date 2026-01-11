@@ -4,22 +4,18 @@ import axios, { AxiosError } from 'axios';
 let API_URL: string;
 
 if (import.meta.env.VITE_API_URL) {
-  // Explicit environment variable takes precedence
+  // Explicit environment variable takes precedence (e.g., for specific PR backends)
   API_URL = import.meta.env.VITE_API_URL;
-} else if (window.location.hostname.includes('main.')) {
+} else if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
   // Main branch preview on Cloudflare
   API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+} else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
   // Production environment (production branch on Cloudflare)
   API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
-} else if (window.location.hostname.includes('pr-')) {
-  // PR preview on Cloudflare - extract PR number and route to corresponding Railway backend
-  const prMatch = window.location.hostname.match(/pr-(\d+)/);
-  if (prMatch) {
-    API_URL = `https://wesnothtournamentmanager-wesnothtournamentmanager-pr-${prMatch[1]}.up.railway.app/api`;
-  } else {
-    API_URL = '/api';
-  }
+} else if (window.location.hostname.endsWith('.wesnoth-tournament-manager.pages.dev')) {
+  // PR preview on Cloudflare (e.g., b0be6e60.wesnoth-tournament-manager.pages.dev)
+  // Use main backend as fallback, or set VITE_API_URL in Railway environment for specific PR backend
+  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
 } else {
   // Development/fallback
   API_URL = '/api';
