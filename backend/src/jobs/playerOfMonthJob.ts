@@ -137,13 +137,13 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     // Store the month_year as the first day of the PREVIOUS month in YYYY-MM-DD format
     
     await query(
-      `DELETE FROM player_of_month WHERE month_year = $1::DATE`,
+      `DELETE FROM player_of_month WHERE month_year = $1`,
       [monthYearStr]
     );
 
     await query(
       `INSERT INTO player_of_month (player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::DATE)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [playerId, player.nickname, player.elo_rating, rankingPosition, Math.round(player.elo_gained), positionsGained, monthYearStr]
     );
 

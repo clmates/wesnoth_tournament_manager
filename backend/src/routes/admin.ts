@@ -1271,7 +1271,7 @@ router.get('/player-of-month', async (req, res) => {
     const result = await query(
       `SELECT player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year, calculated_at
        FROM player_of_month
-       WHERE month_year = $1::DATE`,
+       WHERE month_year = $1`,
       [monthYearStr]
     );
 
