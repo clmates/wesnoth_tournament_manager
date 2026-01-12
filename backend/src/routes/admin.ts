@@ -1324,15 +1324,7 @@ router.post('/calculate-player-of-month', authMiddleware, async (req: AuthReques
 // Get all unranked factions
 router.get('/unranked-factions', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    // Check if user is admin or has tournament organizer role
-    const userResult = await query(
-      'SELECT is_admin FROM public.users WHERE id = $1',
-      [req.userId]
-    );
-    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
+    // Allow any authenticated user to view unranked factions (for creating tournaments)
     const { search } = req.query;
     let query_str = `
       SELECT 
@@ -1362,17 +1354,9 @@ router.get('/unranked-factions', authMiddleware, async (req: AuthRequest, res) =
   }
 });
 
-// Create new unranked faction
+// Create new unranked faction (any authenticated user can create, always as unranked)
 router.post('/unranked-factions', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const userResult = await query(
-      'SELECT is_admin FROM public.users WHERE id = $1',
-      [req.userId]
-    );
-    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
-      return res.status(403).json({ success: false, error: 'Admin access required' });
-    }
-
     const { name, description } = req.body;
 
     if (!name || name.trim().length === 0 || name.length > 100) {
@@ -1534,14 +1518,7 @@ router.delete('/unranked-factions/:id', authMiddleware, async (req: AuthRequest,
 // Get all unranked maps
 router.get('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const userResult = await query(
-      'SELECT is_admin FROM public.users WHERE id = $1',
-      [req.userId]
-    );
-    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
+    // Allow any authenticated user to view unranked maps (for creating tournaments)
     const { search } = req.query;
     let query_str = `
       SELECT 
@@ -1572,16 +1549,9 @@ router.get('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Create new unranked map
+// Create new unranked map (any authenticated user can create, always as unranked)
 router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const userResult = await query(
-      'SELECT is_admin FROM public.users WHERE id = $1',
-      [req.userId]
-    );
-    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
-      return res.status(403).json({ success: false, error: 'Admin access required' });
-    }
-
     const { name, description, width, height } = req.body;
 
     if (!name || name.trim().length === 0 || name.length > 100) {
