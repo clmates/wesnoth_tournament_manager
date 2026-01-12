@@ -161,7 +161,6 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             required
             disabled={isLoading || mode === 'edit'}
           >
-            <option value="">{t('option_all_types')}</option>
             <option value="elimination">{t('option_type_elimination')}</option>
             <option value="league">{t('option_type_league')}</option>
             <option value="swiss">{t('option_type_swiss')}</option>
@@ -281,69 +280,169 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         {/* NON-ELIMINATION TOURNAMENT - Manual round configuration */}
         {canConfigureRounds() && formData.tournament_type !== 'elimination' && (
           <div className="round-types-config">
-            <div className="form-row">
-              <div className="form-group">
-                <label>{t('label_general_rounds')}</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.general_rounds}
-                  onChange={(e) => onFormDataChange({
-                    ...formData,
-                    general_rounds: parseInt(e.target.value),
-                  })}
-                  disabled={isLoading}
-                />
-              </div>
+            {/* LEAGUE TOURNAMENT */}
+            {formData.tournament_type === 'league' && (
+              <>
+                <h4>{t('tournament.league_configuration', 'League Configuration')}</h4>
+                <p className="info-text">{t('tournament.league_description', 'All participants play against each other')}</p>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('tournament.league_rounds', 'League Format')}</label>
+                    <select
+                      value={formData.general_rounds}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds: parseInt(e.target.value),
+                      })}
+                      disabled={isLoading}
+                    >
+                      <option value="1">{t('tournament.single_round', 'Single Round (Ida)')}</option>
+                      <option value="2">{t('tournament.double_round', 'Double Round (Ida y Vuelta)')}</option>
+                    </select>
+                    <p className="field-hint">{formData.general_rounds === 1 ? t('tournament.single_round_hint', 'Each player plays every other player once') : t('tournament.double_round_hint', 'Each player plays every other player twice (home and away)')}</p>
+                  </div>
 
-              <div className="form-group">
-                <label>{t('tournament.general_rounds_format') || 'General Rounds Format'}</label>
-                <select
-                  value={formData.general_rounds_format}
-                  onChange={(e) => onFormDataChange({
-                    ...formData,
-                    general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                  })}
-                  disabled={isLoading}
-                >
-                  <option value="bo1">{t('match_format.bo1')}</option>
-                  <option value="bo3">{t('match_format.bo3')}</option>
-                  <option value="bo5">{t('match_format.bo5')}</option>
-                </select>
-              </div>
-            </div>
+                  <div className="form-group">
+                    <label>{t('tournament.match_format', 'Match Format')}</label>
+                    <select
+                      value={formData.general_rounds_format}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                      })}
+                      disabled={isLoading}
+                    >
+                      <option value="bo1">{t('match_format.bo1')}</option>
+                      <option value="bo3">{t('match_format.bo3')}</option>
+                      <option value="bo5">{t('match_format.bo5')}</option>
+                    </select>
+                    <p className="field-hint">{t('tournament.match_format_hint', 'Each league matchup consists of this many games')}</p>
+                  </div>
+                </div>
+              </>
+            )}
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>{t('label_final_rounds')}</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.final_rounds}
-                  onChange={(e) => onFormDataChange({
-                    ...formData,
-                    final_rounds: parseInt(e.target.value),
-                  })}
-                  disabled={isLoading}
-                />
-              </div>
+            {/* SWISS TOURNAMENT */}
+            {formData.tournament_type === 'swiss' && (
+              <>
+                <h4>{t('tournament.swiss_configuration', 'Swiss System Configuration')}</h4>
+                <p className="info-text">{t('tournament.swiss_description', 'Players are paired based on their current score. Fewer matches than league, fairer than elimination.')}</p>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('tournament.swiss_rounds', 'Number of Rounds')}</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={formData.general_rounds}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds: parseInt(e.target.value),
+                      })}
+                      disabled={isLoading}
+                    />
+                    <p className="field-hint">{t('tournament.swiss_rounds_hint', '1-10 rounds recommended. More rounds = more matches and fairer ranking.')}</p>
+                  </div>
 
-              <div className="form-group">
-                <label>{t('tournament.final_rounds_format') || 'Final Rounds Format'}</label>
-                <select
-                  value={formData.final_rounds_format}
-                  onChange={(e) => onFormDataChange({
-                    ...formData,
-                    final_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                  })}
-                  disabled={isLoading}
-                >
-                  <option value="bo1">{t('match_format.bo1')}</option>
-                  <option value="bo3">{t('match_format.bo3')}</option>
-                  <option value="bo5">{t('match_format.bo5')}</option>
-                </select>
-              </div>
-            </div>
+                  <div className="form-group">
+                    <label>{t('tournament.match_format', 'Match Format')}</label>
+                    <select
+                      value={formData.general_rounds_format}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                      })}
+                      disabled={isLoading}
+                    >
+                      <option value="bo1">{t('match_format.bo1')}</option>
+                      <option value="bo3">{t('match_format.bo3')}</option>
+                      <option value="bo5">{t('match_format.bo5')}</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* SWISS-ELIMINATION HYBRID TOURNAMENT */}
+            {formData.tournament_type === 'swiss_elimination' && (
+              <>
+                <h4>{t('tournament.hybrid_configuration', 'Swiss-Elimination Configuration')}</h4>
+                <p className="info-text">{t('tournament.hybrid_description', 'Swiss round-robin phase followed by single/double elimination finals.')}</p>
+                
+                <div className="info-box info">
+                  <p>📊 {t('tournament.hybrid_explanation', 'First play Swiss rounds with fair pairings, then top players advance to elimination bracket.')}</p>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('tournament.swiss_rounds_phase', 'Swiss Rounds')}</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={formData.general_rounds}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds: parseInt(e.target.value),
+                      })}
+                      disabled={isLoading}
+                    />
+                    <p className="field-hint">{t('tournament.swiss_phase_hint', 'Players ranked by points, top scorers advance to finals')}</p>
+                  </div>
+
+                  <div className="form-group">
+                    <label>{t('tournament.swiss_format', 'Swiss Format')}</label>
+                    <select
+                      value={formData.general_rounds_format}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                      })}
+                      disabled={isLoading}
+                    >
+                      <option value="bo1">{t('match_format.bo1')}</option>
+                      <option value="bo3">{t('match_format.bo3')}</option>
+                      <option value="bo5">{t('match_format.bo5')}</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t('tournament.elimination_rounds', 'Elimination Rounds')}</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.final_rounds}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        final_rounds: parseInt(e.target.value),
+                      })}
+                      disabled={isLoading}
+                    />
+                    <p className="field-hint">{formData.final_rounds === 1 ? t('tournament.elim_1_round', 'Final - 2 players') : formData.final_rounds === 2 ? t('tournament.elim_2_rounds', 'Semifinals & Final - 4 players') : formData.final_rounds === 3 ? t('tournament.elim_3_rounds', 'Quarterfinals, Semifinals & Final - 8 players') : t('tournament.elim_n_rounds', `${Math.pow(2, formData.final_rounds)} players in finals`)}</p>
+                  </div>
+
+                  <div className="form-group">
+                    <label>{t('tournament.finals_format', 'Finals Format')}</label>
+                    <select
+                      value={formData.final_rounds_format}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        final_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                      })}
+                      disabled={isLoading}
+                    >
+                      <option value="bo1">{t('match_format.bo1')}</option>
+                      <option value="bo3">{t('match_format.bo3')}</option>
+                      <option value="bo5">{t('match_format.bo5')}</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
