@@ -3,18 +3,18 @@ import './UnrankedFactionSelect.css';
 import { api } from '../services/api';
 
 interface UnrankedFactionSelectProps {
-  selectedFactionIds: number[];
-  onChange: (factionIds: number[]) => void;
+  selectedFactionIds: string[];
+  onChange: (factionIds: string[]) => void;
   disabled?: boolean;
-  tournamentId?: number;
+  tournamentId?: string;
 }
 
 interface Faction {
-  id: number;
+  id: string;
   name: string;
   is_ranked: boolean;
   created_at: string;
-  used_in_tournaments: number;
+  used_in_tournaments: string | number;
 }
 
 interface ApiResponse {
@@ -56,7 +56,7 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
     fetchFactions();
   }, []);
 
-  const handleFactionSelect = (factionId: number) => {
+  const handleFactionSelect = (factionId: string) => {
     if (selectedFactionIds.includes(factionId)) {
       onChange(selectedFactionIds.filter(id => id !== factionId));
     } else {

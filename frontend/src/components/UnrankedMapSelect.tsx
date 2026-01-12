@@ -3,20 +3,20 @@ import './UnrankedMapSelect.css';
 import { api } from '../services/api';
 
 interface UnrankedMapSelectProps {
-  selectedMapIds: number[];
-  onChange: (mapIds: number[]) => void;
+  selectedMapIds: string[];
+  onChange: (mapIds: string[]) => void;
   disabled?: boolean;
-  tournamentId?: number;
+  tournamentId?: string;
 }
 
 interface Map {
-  id: number;
+  id: string;
   name: string;
   is_ranked: boolean;
   width?: number;
   height?: number;
   created_at: string;
-  used_in_tournaments: number;
+  used_in_tournaments: string | number;
 }
 
 interface ApiResponse {
@@ -62,7 +62,7 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
     fetchMaps();
   }, []);
 
-  const handleMapSelect = (mapId: number) => {
+  const handleMapSelect = (mapId: string) => {
     if (selectedMapIds.includes(mapId)) {
       onChange(selectedMapIds.filter(id => id !== mapId));
     } else {
