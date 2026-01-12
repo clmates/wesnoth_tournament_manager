@@ -40,8 +40,8 @@ const MyTournaments: React.FC = () => {
     finalRounds: 0,
     finalRoundsFormat: 'bo5',
   });
-  const [unrankedFactions, setUnrankedFactions] = useState<Array<{ id: string; name: string }>>([]);
-  const [unrankedMaps, setUnrankedMaps] = useState<Array<{ id: string; name: string }>>([]);
+  const [unrankedFactions, setUnrankedFactions] = useState<string[]>([]);
+  const [unrankedMaps, setUnrankedMaps] = useState<string[]>([]);
 
   // Update round type config defaults when tournament type changes
   const handleTournamentTypeChange = (newType: string) => {
@@ -320,14 +320,14 @@ const MyTournaments: React.FC = () => {
                   <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
                   <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
                   <UnrankedFactionSelect 
-                    tournamentId={null}
-                    selectedFactions={unrankedFactions}
-                    onSelectionChange={setUnrankedFactions}
+                    tournamentId={undefined}
+                    selectedFactionIds={unrankedFactions}
+                    onChange={setUnrankedFactions}
                   />
                   <UnrankedMapSelect 
-                    tournamentId={null}
-                    selectedMaps={unrankedMaps}
-                    onSelectionChange={setUnrankedMaps}
+                    tournamentId={undefined}
+                    selectedMapIds={unrankedMaps}
+                    onChange={setUnrankedMaps}
                   />
                 </div>
               )}
