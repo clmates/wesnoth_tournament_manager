@@ -349,7 +349,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
       </div>
 
       <div className="form-section button-group">
-        <button type="submit" disabled={isLoading}>
+        <button type="submit" className="btn-submit" disabled={isLoading}>
           {isLoading ? t('loading') : (mode === 'create' ? t('btn_create') : t('btn_confirm'))}
         </button>
       </div>

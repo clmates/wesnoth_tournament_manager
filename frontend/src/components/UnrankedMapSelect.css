@@ -65,13 +65,13 @@
 .select-all-wrapper {
   border-bottom: 1px solid #e0e0e0;
   background-color: #f5f5f5;
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
 }
 
 .checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  display: table-row;
   cursor: pointer;
   user-select: none;
   transition: background-color 0.15s;
@@ -83,11 +83,11 @@
 
 .checkbox-row.header-row {
   font-weight: 600;
-  padding: 10px 12px;
+  background-color: #f5f5f5;
 }
 
 .checkbox-row.header-row:hover {
-  background-color: #f5f5f5;
+  background-color: #f0f0f0;
 }
 
 .checkbox-row input[type="checkbox"] {
@@ -96,6 +96,9 @@
   height: 18px;
   margin: 0;
   accent-color: #2196f3;
+  display: table-cell;
+  padding: 8px;
+  vertical-align: middle;
 }
 
 .checkbox-row input[type="checkbox"]:disabled {
@@ -107,6 +110,9 @@
   font-size: 13px;
   color: #333;
   font-weight: 500;
+  display: table-cell;
+  padding: 10px 8px;
+  vertical-align: middle;
 }
 
 .map-table {
@@ -114,10 +120,28 @@
   overflow-y: auto;
   max-height: 250px;
   background: #fff;
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.map-table .checkbox-row {
+  display: table-row;
+  border-bottom: 1px solid #eee;
+}
+
+.map-table .checkbox-row:hover {
+  background-color: #f9f9f9;
 }
 
 .map-table .checkbox-row:last-child {
   border-bottom: none;
+}
+
+.map-table .checkbox-row > * {
+  display: table-cell;
+  padding: 10px 8px;
+  vertical-align: middle;
 }
 
 .map-name {
