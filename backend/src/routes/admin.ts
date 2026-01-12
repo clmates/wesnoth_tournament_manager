@@ -1576,7 +1576,7 @@ router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
     const result = await query(
       `INSERT INTO game_maps (name, is_active, is_ranked)
        VALUES ($1, true, false)
-       RETURNING id, name, is_ranked, width, height, created_at`,
+       RETURNING id, name, is_ranked, is_active, created_at`,
       [name]
     );
 
