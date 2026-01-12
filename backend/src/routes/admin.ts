@@ -1324,7 +1324,8 @@ router.post('/calculate-player-of-month', authMiddleware, async (req: AuthReques
 // Get all unranked factions
 router.get('/unranked-factions', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    // Allow any authenticated user to view unranked factions (for creating tournaments)
+    // Allow any authenticated user to view ALL factions (ranked and unranked)
+    // for creating tournaments. Unranked tournaments can use any faction.
     const { search } = req.query;
     let query_str = `
       SELECT 
@@ -1335,12 +1336,11 @@ router.get('/unranked-factions', authMiddleware, async (req: AuthRequest, res) =
         COUNT(DISTINCT tuf.tournament_id) as used_in_tournaments
       FROM factions f
       LEFT JOIN tournament_unranked_factions tuf ON f.id = tuf.faction_id
-      WHERE f.is_ranked = false
     `;
 
     const params = [];
     if (search) {
-      query_str += ` AND f.name ILIKE $1`;
+      query_str += ` WHERE f.name ILIKE $1`;
       params.push(`%${search}%`);
     }
 
@@ -1518,7 +1518,8 @@ router.delete('/unranked-factions/:id', authMiddleware, async (req: AuthRequest,
 // Get all unranked maps
 router.get('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    // Allow any authenticated user to view unranked maps (for creating tournaments)
+    // Allow any authenticated user to view ALL maps (ranked and unranked)
+    // for creating tournaments. Unranked tournaments can use any map.
     const { search } = req.query;
     let query_str = `
       SELECT 
@@ -1527,14 +1528,13 @@ router.get('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
         m.is_ranked,
         m.created_at,
         COUNT(DISTINCT tum.tournament_id) as used_in_tournaments
-      FROM maps m
+      FROM game_maps m
       LEFT JOIN tournament_unranked_maps tum ON m.id = tum.map_id
-      WHERE m.is_ranked = false
     `;
 
     const params = [];
     if (search) {
-      query_str += ` AND m.name ILIKE $1`;
+      query_str += ` WHERE m.name ILIKE $1`;
       params.push(`%${search}%`);
     }
 
@@ -1577,7 +1577,7 @@ router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
 
     // Check if map name already exists
     const existing = await query(
-      'SELECT id FROM maps WHERE LOWER(name) = LOWER($1)',
+      'SELECT id FROM game_maps WHERE LOWER(name) = LOWER($1)',
       [name]
     );
     if (existing.rows.length > 0) {
@@ -1588,7 +1588,7 @@ router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const result = await query(
-      `INSERT INTO maps (name, is_active, is_ranked, width, height)
+      `INSERT INTO game_maps (name, is_active, is_ranked, width, height)
        VALUES ($1, true, false, $2, $3)
        RETURNING id, name, is_ranked, width, height, created_at`,
       [name, width || null, height || null]
@@ -1619,7 +1619,7 @@ router.get('/unranked-maps/:id/usage', authMiddleware, async (req: AuthRequest, 
 
     // Get map info
     const mapResult = await query(
-      'SELECT id, name FROM maps WHERE id = $1 AND is_ranked = false',
+      'SELECT id, name FROM game_maps WHERE id = $1 AND is_ranked = false',
       [id]
     );
     if (mapResult.rows.length === 0) {
@@ -1688,7 +1688,7 @@ router.delete('/unranked-maps/:id', authMiddleware, async (req: AuthRequest, res
 
     // Check if map exists
     const mapResult = await query(
-      'SELECT id, name FROM maps WHERE id = $1',
+      'SELECT id, name FROM game_maps WHERE id = $1',
       [id]
     );
     if (mapResult.rows.length === 0) {
@@ -1715,7 +1715,7 @@ router.delete('/unranked-maps/:id', authMiddleware, async (req: AuthRequest, res
     }
 
     // Delete map (cascade will remove associations)
-    await query('DELETE FROM maps WHERE id = $1', [id]);
+    await query('DELETE FROM game_maps WHERE id = $1', [id]);
 
     res.json({ success: true, message: 'Map deleted successfully' });
   } catch (error) {
@@ -1786,16 +1786,16 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
       });
     }
 
-    // Verify all factions exist and are unranked
+    // Verify all factions exist (can be ranked or unranked)
     for (const factionId of faction_ids) {
       const faction = await query(
-        'SELECT id FROM factions WHERE id = $1 AND is_ranked = false',
+        'SELECT id FROM factions WHERE id = $1',
         [factionId]
       );
       if (faction.rows.length === 0) {
         return res.status(400).json({
           success: false,
-          error: `Faction ${factionId} not found or is not unranked`
+          error: `Faction ${factionId} not found`
         });
       }
     }
@@ -1803,13 +1803,13 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
     // Verify all maps exist and are unranked
     for (const mapId of map_ids) {
       const map = await query(
-        'SELECT id FROM maps WHERE id = $1 AND is_ranked = false',
+        'SELECT id FROM game_maps WHERE id = $1',
         [mapId]
       );
       if (map.rows.length === 0) {
         return res.status(400).json({
           success: false,
-          error: `Map ${mapId} not found or is not unranked`
+          error: `Map ${mapId} not found`
         });
       }
     }
