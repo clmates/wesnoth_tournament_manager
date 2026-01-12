@@ -36,9 +36,7 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [newMapData, setNewMapData] = useState({
-    name: '',
-    width: '',
-    height: ''
+    name: ''
   });
   const [creatingMap, setCreatingMap] = useState(false);
 
@@ -76,25 +74,10 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
       return;
     }
 
-    const width = newMapData.width ? parseInt(newMapData.width) : null;
-    const height = newMapData.height ? parseInt(newMapData.height) : null;
-
-    if (width && (width < 10 || width > 200)) {
-      alert('Width must be between 10 and 200');
-      return;
-    }
-
-    if (height && (height < 10 || height > 200)) {
-      alert('Height must be between 10 and 200');
-      return;
-    }
-
     try {
       setCreatingMap(true);
       const response = await api.post('/admin/unranked-maps', {
-        name: newMapData.name.trim(),
-        width,
-        height
+        name: newMapData.name.trim()
       });
 
       const data = response.data;
@@ -106,7 +89,7 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
       onChange([...selectedMapIds, data.data.id]);
 
       // Reset form
-      setNewMapData({ name: '', width: '', height: '' });
+      setNewMapData({ name: '' });
       setShowModal(false);
     } catch (err: any) {
       alert(err.response?.data?.error || (err instanceof Error ? err.message : 'Error creating map'));
@@ -174,27 +157,6 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
               maxLength={100}
               autoFocus
             />
-
-            <div className="input-row">
-              <input
-                type="number"
-                placeholder="Width (10-200)"
-                value={newMapData.width}
-                onChange={(e) => setNewMapData({ ...newMapData, width: e.target.value })}
-                disabled={creatingMap}
-                min="10"
-                max="200"
-              />
-              <input
-                type="number"
-                placeholder="Height (10-200)"
-                value={newMapData.height}
-                onChange={(e) => setNewMapData({ ...newMapData, height: e.target.value })}
-                disabled={creatingMap}
-                min="10"
-                max="200"
-              />
-            </div>
 
             <div className="modal-buttons">
               <button

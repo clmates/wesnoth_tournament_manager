@@ -1585,8 +1585,67 @@
   color: #2c3e50;
 }
 
+/* Unranked Assets Section */
+.unranked-assets-section {
+  background: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  border: 1px solid #e0e0e0;
+}
+
+.unranked-assets-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1.2rem;
+}
+
+.assets-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.assets-group h4 {
+  margin: 0 0 0.75rem 0;
+  color: #555;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.assets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.asset-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: inline-block;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.asset-badge:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.no-assets {
+  color: #999;
+  font-style: italic;
+  font-size: 0.95rem;
+  margin: 0.5rem 0 0 0;
+}
+
 @media (max-width: 768px) {
   .teams-container {
     grid-template-columns: 1fr;
   }
-}
+
+  .assets-container {

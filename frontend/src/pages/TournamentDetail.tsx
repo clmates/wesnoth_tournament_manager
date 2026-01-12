@@ -87,6 +87,8 @@ const TournamentDetail: React.FC = () => {
   const [roundMatches, setRoundMatches] = useState<any[]>([]);
   const [rounds, setRounds] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
+  const [unrankedFactions, setUnrankedFactions] = useState<Array<{ id: string; name: string }>>([]);
+  const [unrankedMaps, setUnrankedMaps] = useState<Array<{ id: string; name: string }>>([]);
   const [showTeamJoinModal, setShowTeamJoinModal] = useState(false);
   const [joiningTeamLoading, setJoiningTeamLoading] = useState(false);
   const [matchConfirmationMap, setMatchConfirmationMap] = useState<Record<string, string>>({});
@@ -213,6 +215,24 @@ const TournamentDetail: React.FC = () => {
       }
     }
   };
+
+  // Fetch unranked tournament assets
+  useEffect(() => {
+    if (tournament?.tournament_type === 'unranked' && id) {
+      const fetchUnrankedAssets = async () => {
+        try {
+          const response = await publicService.getTournamentUnrankedAssets(id);
+          if (response.data.success) {
+            setUnrankedFactions(response.data.data.factions || []);
+            setUnrankedMaps(response.data.data.maps || []);
+          }
+        } catch (err) {
+          console.error('Error fetching unranked assets:', err);
+        }
+      };
+      fetchUnrankedAssets();
+    }
+  }, [tournament?.tournament_type, id]);
 
   const handleTeamJoinSubmit = async (teamName: string, teammateName: string) => {
     try {
@@ -538,6 +558,41 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <p><strong>{t('label_description')}:</strong> {tournament.description}</p>
       </div>
 
+      {/* Unranked Tournament Assets Section */}
+      {tournament.tournament_type === 'unranked' && (
+        <div className="unranked-assets-section">
+          <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
+          
+          <div className="assets-container">
+            <div className="assets-group">
+              <h4>{t('tournament.allowed_factions', 'Allowed Factions')}</h4>
+              {unrankedFactions.length > 0 ? (
+                <div className="assets-list">
+                  {unrankedFactions.map((faction) => (
+                    <span key={faction.id} className="asset-badge">{faction.name}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="no-assets">{t('tournament.no_factions', 'No factions selected')}</p>
+              )}
+            </div>
+
+            <div className="assets-group">
+              <h4>{t('tournament.allowed_maps', 'Allowed Maps')}</h4>
+              {unrankedMaps.length > 0 ? (
+                <div className="assets-list">
+                  {unrankedMaps.map((map) => (
+                    <span key={map.id} className="asset-badge">{map.name}</span>
+                  ))}
+                </div>
+              ) : (
+                <p className="no-assets">{t('tournament.no_maps', 'No maps selected')}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tournament Configuration Section */}
       <div className="tournament-config">
         <h3>{t('tournament_title')} {t('tournament.basic_info') ? '- ' + t('tournament.basic_info') : ''}</h3>
@@ -654,6 +709,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
             </div>
           ) : (
             <div className="control-buttons">
+              {tournament.status !== 'prepared' && tournament.status !== 'in_progress' && tournament.status !== 'finished' && (
+                <button onClick={() => setEditMode(true)} className="btn-edit">{t('btn_edit', 'Edit')}</button>
+              )}
+
               {tournament.status === 'registration_open' && (
                 <button onClick={handleCloseRegistration} className="btn-close-reg">{t('tournaments.btn_close_registration')}</button>
               )}

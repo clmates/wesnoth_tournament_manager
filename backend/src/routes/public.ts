@@ -638,7 +638,7 @@ router.get('/tournaments/:id/unranked-assets', async (req, res) => {
     // Get maps for this tournament
     const maps = await query(
       `SELECT m.id, m.name
-       FROM maps m
+       FROM game_maps m
        JOIN tournament_unranked_maps tum ON m.id = tum.map_id
        WHERE tum.tournament_id = $1
        ORDER BY m.name ASC`,

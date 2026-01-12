@@ -1552,26 +1552,12 @@ router.get('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
 // Create new unranked map (any authenticated user can create, always as unranked)
 router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { name, description, width, height } = req.body;
+    const { name } = req.body;
 
     if (!name || name.trim().length === 0 || name.length > 100) {
       return res.status(400).json({
         success: false,
         error: 'Map name is required and must be 1-100 characters'
-      });
-    }
-
-    if (width && (width < 10 || width > 200)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Map width must be between 10 and 200'
-      });
-    }
-
-    if (height && (height < 10 || height > 200)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Map height must be between 10 and 200'
       });
     }
 
@@ -1588,10 +1574,10 @@ router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const result = await query(
-      `INSERT INTO game_maps (name, is_active, is_ranked, width, height)
-       VALUES ($1, true, false, $2, $3)
+      `INSERT INTO game_maps (name, is_active, is_ranked)
+       VALUES ($1, true, false)
        RETURNING id, name, is_ranked, width, height, created_at`,
-      [name, width || null, height || null]
+      [name]
     );
 
     res.status(201).json({
