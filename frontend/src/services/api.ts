@@ -12,6 +12,7 @@ if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
   API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
 } else if (window.location.hostname.endsWith('.wesnoth-tournament-manager.pages.dev')) {
   // PR preview on Cloudflare (e.g., 1949c27b.wesnoth-tournament-manager.pages.dev)
+  // This URL needs to be manually updated when creating a new PR environment on Railway
   API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
 } else if (import.meta.env.VITE_API_URL) {
   // Explicit environment variable as fallback

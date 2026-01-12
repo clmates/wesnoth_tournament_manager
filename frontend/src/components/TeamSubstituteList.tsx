@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './TeamSubstituteList.css';
+import { api } from '../services/api';
 
 interface TeamSubstituteListProps {
   tournamentId: number;
@@ -36,26 +37,12 @@ export const TeamSubstituteList: React.FC<TeamSubstituteListProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
   // Fetch available players
   useEffect(() => {
     const fetchPlayers = async () => {
       try {
-        const response = await fetch(
-          `${API_URL}/tournaments/${tournamentId}/participants`,
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch participants');
-        }
-
-        const data = await response.json();
+        const response = await api.get(`/tournaments/${tournamentId}/participants`);
+        const data = response.data;
         if (data.success && data.data) {
           setPlayers(data.data);
         }
@@ -73,20 +60,8 @@ export const TeamSubstituteList: React.FC<TeamSubstituteListProps> = ({
   useEffect(() => {
     const fetchSubstitutes = async () => {
       try {
-        const response = await fetch(
-          `${API_URL}/tournaments/${tournamentId}/teams`,
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch substitutes');
-        }
-
-        const data: ApiResponse = await response.json();
+        const response = await api.get(`/tournaments/${tournamentId}/teams`);
+        const data: ApiResponse = response.data;
         if (data.success && data.data) {
           const team = data.data.find((t: any) => t.id === teamId);
           if (team && team.substitutes) {
@@ -119,30 +94,19 @@ export const TeamSubstituteList: React.FC<TeamSubstituteListProps> = ({
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `${API_URL}/admin/tournaments/${tournamentId}/teams/${teamId}/substitutes`,
+      const response = await api.post(
+        `/admin/tournaments/${tournamentId}/teams/${teamId}/substitutes`,
         {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify({
-            player_id: selectedPlayer
-          })
+          player_id: selectedPlayer
         }
       );
 
-      const data: ApiResponse = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to add substitute');
-      }
+      const data: ApiResponse = response.data;
 
       setSelectedPlayer('');
       onSubstitutesUpdated();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.message || (err instanceof Error ? err.message : 'Failed to add substitute'));
     } finally {
       setLoading(false);
     }
@@ -157,25 +121,15 @@ export const TeamSubstituteList: React.FC<TeamSubstituteListProps> = ({
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `${API_URL}/admin/tournaments/${tournamentId}/teams/${teamId}/substitutes/${playerId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
+      const response = await api.delete(
+        `/admin/tournaments/${tournamentId}/teams/${teamId}/substitutes/${playerId}`
       );
 
-      const data: ApiResponse = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || 'Failed to remove substitute');
-      }
+      const data: ApiResponse = response.data;
 
       onSubstitutesUpdated();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.response?.data?.message || (err instanceof Error ? err.message : 'Failed to remove substitute'));
     } finally {
       setLoading(false);
     }

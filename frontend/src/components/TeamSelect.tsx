@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './TeamSelect.css';
+import { api } from '../services/api';
 
 interface TeamSelectProps {
   tournamentId: number;
@@ -35,28 +36,17 @@ export const TeamSelect: React.FC<TeamSelectProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
   useEffect(() => {
     const fetchTeams = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_URL}/tournaments/${tournamentId}/teams`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch teams');
-        }
-
-        const data: ApiResponse = await response.json();
+        const response = await api.get(`/tournaments/${tournamentId}/teams`);
+        const data: ApiResponse = response.data;
         if (data.success && data.data) {
           setTeams(data.data);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : 'Failed to fetch teams');
       } finally {
         setLoading(false);
       }

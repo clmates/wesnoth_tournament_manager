@@ -654,10 +654,6 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
             </div>
           ) : (
             <div className="control-buttons">
-              {tournament.status !== 'in_progress' && tournament.status !== 'finished' && (
-                <button onClick={() => setEditMode(true)} className="btn-edit">{t('tournament_create')}</button>
-              )}
-
               {tournament.status === 'registration_open' && (
                 <button onClick={handleCloseRegistration} className="btn-close-reg">{t('tournaments.btn_close_registration')}</button>
               )}

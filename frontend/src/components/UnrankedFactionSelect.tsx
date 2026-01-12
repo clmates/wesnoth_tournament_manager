@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './UnrankedFactionSelect.css';
+import { api } from '../services/api';
 
 interface UnrankedFactionSelectProps {
   selectedFactionIds: number[];
@@ -35,29 +36,18 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
   const [newFactionName, setNewFactionName] = useState('');
   const [creatingFaction, setCreatingFaction] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
   // Fetch unranked factions
   useEffect(() => {
     const fetchFactions = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_URL}/admin/unranked-factions`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch factions');
-        }
-
-        const data: ApiResponse = await response.json();
+        const response = await api.get('/admin/unranked-factions');
+        const data: ApiResponse = response.data;
         if (data.success && data.data) {
           setFactions(data.data);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : 'Failed to fetch factions');
       } finally {
         setLoading(false);
       }
@@ -82,20 +72,11 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
 
     try {
       setCreatingFaction(true);
-      const response = await fetch(`${API_URL}/admin/unranked-factions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ name: newFactionName.trim() })
+      const response = await api.post('/admin/unranked-factions', { 
+        name: newFactionName.trim() 
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create faction');
-      }
+      const data = response.data;
 
       // Add new faction to list
       setFactions([...factions, data.data]);
@@ -106,8 +87,8 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
       // Reset form
       setNewFactionName('');
       setShowModal(false);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error creating faction');
+    } catch (err: any) {
+      alert(err.response?.data?.error || (err instanceof Error ? err.message : 'Error creating faction'));
     } finally {
       setCreatingFaction(false);
     }

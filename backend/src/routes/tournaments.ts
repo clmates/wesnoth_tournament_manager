@@ -2197,9 +2197,9 @@ router.get('/suggestions/by-count', authMiddleware, async (req: AuthRequest, res
 
 /**
  * GET /api/tournaments/:id/standings
- * Get tournament standings
+ * Get tournament standings (PUBLIC - for viewing tournament info)
  */
-router.get('/:id/standings', authMiddleware, async (req: AuthRequest, res) => {
+router.get('/:id/standings', async (req, res) => {
   try {
     const { id } = req.params;
     

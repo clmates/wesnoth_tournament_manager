@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './UnrankedMapSelect.css';
+import { api } from '../services/api';
 
 interface UnrankedMapSelectProps {
   selectedMapIds: number[];
@@ -41,29 +42,18 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
   });
   const [creatingMap, setCreatingMap] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
   // Fetch unranked maps
   useEffect(() => {
     const fetchMaps = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_URL}/admin/unranked-maps`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch maps');
-        }
-
-        const data: ApiResponse = await response.json();
+        const response = await api.get('/admin/unranked-maps');
+        const data: ApiResponse = response.data;
         if (data.success && data.data) {
           setMaps(data.data);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : 'Failed to fetch maps');
       } finally {
         setLoading(false);
       }
@@ -101,24 +91,13 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
 
     try {
       setCreatingMap(true);
-      const response = await fetch(`${API_URL}/admin/unranked-maps`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          name: newMapData.name.trim(),
-          width,
-          height
-        })
+      const response = await api.post('/admin/unranked-maps', {
+        name: newMapData.name.trim(),
+        width,
+        height
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create map');
-      }
+      const data = response.data;
 
       // Add new map to list
       setMaps([...maps, data.data]);
@@ -129,8 +108,8 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
       // Reset form
       setNewMapData({ name: '', width: '', height: '' });
       setShowModal(false);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Error creating map');
+    } catch (err: any) {
+      alert(err.response?.data?.error || (err instanceof Error ? err.message : 'Error creating map'));
     } finally {
       setCreatingMap(false);
     }
