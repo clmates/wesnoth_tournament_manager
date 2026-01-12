@@ -587,6 +587,21 @@
   background-color: #229954;
 }
 
+/* Unranked Assets Grid - Side by side layout */
+.unranked-assets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .unranked-assets-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
 .tournament-form-buttons {
   display: flex;
   gap: 1rem;

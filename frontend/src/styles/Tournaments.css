@@ -1596,21 +1596,23 @@
 
 .unranked-assets-section h3 {
   margin-top: 0;
-  margin-bottom: 1rem;
-  color: #333;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
   font-size: 1.2rem;
+  font-weight: 600;
 }
 
 .assets-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
 }
 
 .assets-group h4 {
-  margin: 0 0 0.75rem 0;
-  color: #555;
+  margin: 0 0 1rem 0;
+  color: #34495e;
   font-size: 1rem;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1624,28 +1626,29 @@
 .asset-badge {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.2rem;
   border-radius: 20px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   display: inline-block;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
 .asset-badge:hover {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .no-assets {
-  color: #999;
+  color: #95a5a6;
   font-style: italic;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   margin: 0.5rem 0 0 0;
 }
 
 @media (max-width: 768px) {
-  .teams-container {
-    grid-template-columns: 1fr;
-  }
-
   .assets-container {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;

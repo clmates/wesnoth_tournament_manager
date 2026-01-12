@@ -134,18 +134,20 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
           <div className="form-section">
             <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
             <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
-            <UnrankedFactionSelect 
-              tournamentId={undefined}
-              selectedFactionIds={unrankedFactions}
-              onChange={onUnrankedFactionsChange}
-              disabled={isLoading}
-            />
-            <UnrankedMapSelect 
-              tournamentId={undefined}
-              selectedMapIds={unrankedMaps}
-              onChange={onUnrankedMapsChange}
-              disabled={isLoading}
-            />
+            <div className="unranked-assets-grid">
+              <UnrankedFactionSelect 
+                tournamentId={undefined}
+                selectedFactionIds={unrankedFactions}
+                onChange={onUnrankedFactionsChange}
+                disabled={isLoading}
+              />
+              <UnrankedMapSelect 
+                tournamentId={undefined}
+                selectedMapIds={unrankedMaps}
+                onChange={onUnrankedMapsChange}
+                disabled={isLoading}
+              />
+            </div>
           </div>
         )}
       </div>

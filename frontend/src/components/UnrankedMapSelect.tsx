@@ -39,6 +39,7 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
     name: ''
   });
   const [creatingMap, setCreatingMap] = useState(false);
+  const [selectAll, setSelectAll] = useState(false);
 
   // Fetch unranked maps
   useEffect(() => {
@@ -60,11 +61,26 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
     fetchMaps();
   }, []);
 
+  // Track select all state
+  useEffect(() => {
+    if (maps.length > 0) {
+      setSelectAll(selectedMapIds.length === maps.length);
+    }
+  }, [selectedMapIds, maps.length]);
+
   const handleMapSelect = (mapId: string) => {
     if (selectedMapIds.includes(mapId)) {
       onChange(selectedMapIds.filter(id => id !== mapId));
     } else {
       onChange([...selectedMapIds, mapId]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      onChange([]);
+    } else {
+      onChange(maps.map(m => m.id));
     }
   };
 
@@ -104,49 +120,63 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
 
   return (
     <div className="unranked-map-select">
-      <div className="map-list">
-        <label className="map-label">Unranked Maps</label>
+      <div className="map-container">
+        <div className="map-header">
+          <h4>Maps</h4>
+          <span className="count">{selectedMapIds.length} / {maps.length}</span>
+        </div>
 
         {error && <div className="error-message">{error}</div>}
 
         {maps.length === 0 ? (
-          <div className="no-maps">No unranked maps available</div>
+          <div className="no-items">No maps available</div>
         ) : (
-          <div className="map-checkboxes">
-            {maps.map((map) => (
-              <label key={map.id} className="map-checkbox">
+          <>
+            <div className="select-all-wrapper">
+              <label className="checkbox-row header-row">
                 <input
                   type="checkbox"
-                  checked={selectedMapIds.includes(map.id)}
-                  onChange={() => handleMapSelect(map.id)}
+                  checked={selectAll}
+                  onChange={handleSelectAll}
                   disabled={disabled}
                 />
-                <span className="map-name">{map.name}</span>
-                {map.width && map.height && (
-                  <span className="map-dimensions">
-                    ({map.width}×{map.height})
-                  </span>
-                )}
-                <span className="map-usage">({map.used_in_tournaments} tournaments)</span>
+                <span className="select-all-text">Select All</span>
               </label>
-            ))}
-          </div>
+            </div>
+
+            <div className="map-table">
+              {maps.map((map) => (
+                <label key={map.id} className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={selectedMapIds.includes(map.id)}
+                    onChange={() => handleMapSelect(map.id)}
+                    disabled={disabled}
+                  />
+                  <span className="map-name">{map.name}</span>
+                  {map.width && map.height && (
+                    <span className="map-dims">{map.width}×{map.height}</span>
+                  )}
+                </label>
+              ))}
+            </div>
+          </>
         )}
 
         <button
-          className="add-map-btn"
+          className="add-btn"
           onClick={() => setShowModal(true)}
           disabled={disabled}
           type="button"
         >
-          + Add New Map
+          + New Map
         </button>
       </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Create New Unranked Map</h3>
+            <h3>Create New Map</h3>
 
             <input
               type="text"

@@ -35,6 +35,7 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [newFactionName, setNewFactionName] = useState('');
   const [creatingFaction, setCreatingFaction] = useState(false);
+  const [selectAll, setSelectAll] = useState(false);
 
   // Fetch unranked factions
   useEffect(() => {
@@ -56,11 +57,26 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
     fetchFactions();
   }, []);
 
+  // Track select all state
+  useEffect(() => {
+    if (factions.length > 0) {
+      setSelectAll(selectedFactionIds.length === factions.length);
+    }
+  }, [selectedFactionIds, factions.length]);
+
   const handleFactionSelect = (factionId: string) => {
     if (selectedFactionIds.includes(factionId)) {
       onChange(selectedFactionIds.filter(id => id !== factionId));
     } else {
       onChange([...selectedFactionIds, factionId]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      onChange([]);
+    } else {
+      onChange(factions.map(f => f.id));
     }
   };
 
@@ -100,44 +116,60 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
 
   return (
     <div className="unranked-faction-select">
-      <div className="faction-list">
-        <label className="faction-label">Unranked Factions</label>
+      <div className="faction-container">
+        <div className="faction-header">
+          <h4>Factions</h4>
+          <span className="count">{selectedFactionIds.length} / {factions.length}</span>
+        </div>
 
         {error && <div className="error-message">{error}</div>}
 
         {factions.length === 0 ? (
-          <div className="no-factions">No unranked factions available</div>
+          <div className="no-items">No factions available</div>
         ) : (
-          <div className="faction-checkboxes">
-            {factions.map((faction) => (
-              <label key={faction.id} className="faction-checkbox">
+          <>
+            <div className="select-all-wrapper">
+              <label className="checkbox-row header-row">
                 <input
                   type="checkbox"
-                  checked={selectedFactionIds.includes(faction.id)}
-                  onChange={() => handleFactionSelect(faction.id)}
+                  checked={selectAll}
+                  onChange={handleSelectAll}
                   disabled={disabled}
                 />
-                <span className="faction-name">{faction.name}</span>
-                <span className="faction-usage">({faction.used_in_tournaments} tournaments)</span>
+                <span className="select-all-text">Select All</span>
               </label>
-            ))}
-          </div>
+            </div>
+
+            <div className="faction-table">
+              {factions.map((faction) => (
+                <label key={faction.id} className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={selectedFactionIds.includes(faction.id)}
+                    onChange={() => handleFactionSelect(faction.id)}
+                    disabled={disabled}
+                  />
+                  <span className="faction-name">{faction.name}</span>
+                </label>
+              ))}
+            </div>
+          </>
         )}
 
         <button
-          className="add-faction-btn"
+          className="add-btn"
           onClick={() => setShowModal(true)}
           disabled={disabled}
           type="button"
         >
-          + Add New Faction
+          + New Faction
         </button>
       </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Create New Unranked Faction</h3>
+            <h3>Create New Faction</h3>
 
             <input
               type="text"
