@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { publicService, tournamentService } from '../services/api';
+import TournamentForm from '../components/TournamentForm';
 import TournamentMatchReportModal from '../components/TournamentMatchReportModal';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import MatchDetailsModal from '../components/MatchDetailsModal';
@@ -29,6 +30,21 @@ interface Tournament {
   created_at: string;
   started_at: string;
   finished_at: string;
+}
+
+interface TournamentFormData {
+  name: string;
+  description: string;
+  tournament_type: string;
+  tournament_mode: 'ranked' | 'unranked' | 'team';
+  max_participants: number | null;
+  round_duration_days: number;
+  auto_advance_round: boolean;
+  general_rounds: number;
+  final_rounds: number;
+  general_rounds_format: 'bo1' | 'bo3' | 'bo5';
+  final_rounds_format: 'bo1' | 'bo3' | 'bo5';
+  started_at?: string;
 }
 
 interface TournamentParticipant {
@@ -106,9 +122,14 @@ const TournamentDetail: React.FC = () => {
   const [determineWinnerData, setDetermineWinnerData] = useState<any>(null);
   const [showDetermineWinnerModal, setShowDetermineWinnerModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
-  const [editData, setEditData] = useState({
+  const [editData, setEditData] = useState<TournamentFormData>({
+    name: '',
     description: '',
+    tournament_type: 'elimination',
+    tournament_mode: 'ranked',
     max_participants: 0,
+    round_duration_days: 7,
+    auto_advance_round: false,
     started_at: '',
     general_rounds: 0,
     final_rounds: 0,
@@ -172,8 +193,13 @@ const TournamentDetail: React.FC = () => {
       
       // Initialize edit data when tournament loads
       setEditData({
+        name: tournamentRes.data.name || '',
         description: tournamentRes.data.description || '',
+        tournament_type: tournamentRes.data.tournament_type || 'elimination',
+        tournament_mode: tournamentRes.data.tournament_mode || 'ranked',
         max_participants: tournamentRes.data.max_participants || 0,
+        round_duration_days: tournamentRes.data.round_duration_days || 7,
+        auto_advance_round: tournamentRes.data.auto_advance_round || false,
         started_at: tournamentRes.data.started_at || '',
         general_rounds: tournamentRes.data.general_rounds || 0,
         final_rounds: tournamentRes.data.final_rounds || 0,
@@ -624,89 +650,19 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           <h3>{t('tournaments.management')}</h3>
           
           {editMode && tournament.status !== 'in_progress' ? (
-            <div className="edit-form">
-              <div className="form-group">
-                <label>{t('label_description')}</label>
-                <textarea
-                  value={editData.description}
-                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                  rows={4}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>{t('label_max_participants')}</label>
-                <input
-                  type="number"
-                  min="2"
-                  max="256"
-                  value={editData.max_participants}
-                  onChange={(e) => setEditData({ ...editData, max_participants: parseInt(e.target.value) })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>{t('label_tournament_start_date')}</label>
-                <input
-                  type="datetime-local"
-                  value={editData.started_at ? editData.started_at.substring(0, 16) : ''}
-                  onChange={(e) => setEditData({ ...editData, started_at: e.target.value })}
-                />
-              </div>
-
-              <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid #ddd' }} />
-
-              <h4 style={{ marginTop: '1rem', marginBottom: '1rem' }}>{t('tournament.round_configuration')}</h4>
-
-              <div className="form-group">
-                <label>{t('label_general_rounds')}</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={editData.general_rounds}
-                  onChange={(e) => setEditData({ ...editData, general_rounds: parseInt(e.target.value) })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>{t('tournament.general_rounds_format') || 'General Rounds Format'}</label>
-                <select
-                  value={editData.general_rounds_format}
-                  onChange={(e) => setEditData({ ...editData, general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5' })}
-                >
-                  <option value="bo1">{t('match_format.bo1')}</option>
-                  <option value="bo3">{t('match_format.bo3')}</option>
-                  <option value="bo5">{t('match_format.bo5')}</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>{t('label_final_rounds')}</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={editData.final_rounds}
-                  onChange={(e) => setEditData({ ...editData, final_rounds: parseInt(e.target.value) })}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>{t('tournament.final_rounds_format') || 'Final Rounds Format'}</label>
-                <select
-                  value={editData.final_rounds_format}
-                  onChange={(e) => setEditData({ ...editData, final_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5' })}
-                >
-                  <option value="bo1">{t('match_format.bo1')}</option>
-                  <option value="bo3">{t('match_format.bo3')}</option>
-                  <option value="bo5">{t('match_format.bo5')}</option>
-                </select>
-              </div>
-
-              <div className="button-group">
-                <button onClick={handleSaveChanges} className="btn-save">{t('btn_confirm')}</button>
-                <button onClick={() => setEditMode(false)} className="btn-cancel">{t('btn_cancel')}</button>
-              </div>
-            </div>
+            <TournamentForm 
+              mode="edit"
+              formData={editData}
+              onFormDataChange={setEditData}
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveChanges();
+              }}
+              unrankedFactions={unrankedFactions.map(f => f.id)}
+              onUnrankedFactionsChange={() => {}} // Edit mode doesn't change unranked assets
+              unrankedMaps={unrankedMaps.map(m => m.id)}
+              onUnrankedMapsChange={() => {}} // Edit mode doesn't change unranked assets
+            />
           ) : (
             <div className="control-buttons">
               {tournament.status !== 'prepared' && tournament.status !== 'in_progress' && tournament.status !== 'finished' && (
