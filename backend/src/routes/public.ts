@@ -606,7 +606,7 @@ router.get('/tournaments/:id/unranked-assets', async (req, res) => {
 
     // Get tournament
     const tournamentResult = await query(
-      'SELECT id, tournament_type FROM tournaments WHERE id = $1',
+      'SELECT id, tournament_mode FROM tournaments WHERE id = $1',
       [id]
     );
 
@@ -615,15 +615,6 @@ router.get('/tournaments/:id/unranked-assets', async (req, res) => {
     }
 
     const tournament = tournamentResult.rows[0];
-
-    // If not an unranked tournament, return empty
-    if (tournament.tournament_type !== 'unranked') {
-      return res.json({
-        success: true,
-        tournament_type: tournament.tournament_type,
-        data: { factions: [], maps: [] }
-      });
-    }
 
     // Get factions for this tournament
     const factions = await query(
@@ -647,7 +638,7 @@ router.get('/tournaments/:id/unranked-assets', async (req, res) => {
 
     res.json({
       success: true,
-      tournament_type: tournament.tournament_type,
+      tournament_mode: tournament.tournament_mode,
       data: {
         factions: factions.rows,
         maps: maps.rows

@@ -633,7 +633,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       </div>
 
       {/* Tournament Assets Section */}
-      {(tournament.tournament_mode === 'unranked' || tournament.tournament_mode === 'team') && (unrankedFactions.length > 0 || unrankedMaps.length > 0) && (
+      {(unrankedFactions.length > 0 || unrankedMaps.length > 0) && (
         <div className="unranked-assets-section">
           <h3>{t('tournament.unranked_assets', 'Tournament Assets')}</h3>
           

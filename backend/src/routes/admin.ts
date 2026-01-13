@@ -1718,7 +1718,7 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
 
     // Get tournament
     const tournamentResult = await query(
-      `SELECT id, organizer_id, tournament_type, status
+      `SELECT id, organizer_id, tournament_mode, status
        FROM tournaments WHERE id = $1`,
       [id]
     );
@@ -1738,14 +1738,6 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
       if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
         return res.status(403).json({ success: false, error: 'Not authorized to modify this tournament' });
       }
-    }
-
-    // Validate tournament type
-    if (tournament.tournament_type !== 'unranked') {
-      return res.status(400).json({
-        success: false,
-        error: 'Unranked assets can only be assigned to unranked tournaments'
-      });
     }
 
     // Validate tournament status
