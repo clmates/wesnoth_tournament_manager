@@ -94,6 +94,8 @@ const MyTournaments: React.FC = () => {
       }
       
       console.log('Creating tournament with payload:', payload);
+      console.log('Unranked Factions:', unrankedFactions);
+      console.log('Unranked Maps:', unrankedMaps);
       await tournamentService.createTournament(payload);
       setError('');
       setFormData({ 
