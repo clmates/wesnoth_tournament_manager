@@ -53,6 +53,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
   const [maps, setMaps] = useState<GameMap[]>([]);
   const [factions, setFactions] = useState<Faction[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [tournamentAssets, setTournamentAssets] = useState<{ maps: GameMap[]; factions: Faction[] } | null>(null);
 
   // Determine who is winner and who is loser
   const isPlayer1 = currentUserId === player1Id;
@@ -69,36 +70,51 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
         
         let mapsResponse, factionsResponse;
         
-        if (tournamentMode === 'unranked') {
-          // For unranked tournaments, fetch tournament-specific assets
+        // If this is a tournament match, load tournament-specific assets
+        if (tournamentId) {
           try {
-            const tourResponse = await api.get(`/tournaments/${tournamentId}?include=unranked_assets`);
-            mapsResponse = { data: tourResponse.data?.unranked_maps || [] };
-            factionsResponse = { data: tourResponse.data?.unranked_factions || [] };
+            const tourAssetsRes = await api.get(`/public/tournaments/${tournamentId}/unranked-assets`);
+            if (tourAssetsRes.data.success && (tourAssetsRes.data.data.factions.length > 0 || tourAssetsRes.data.data.maps.length > 0)) {
+              // Tournament has specific assets - use those
+              setTournamentAssets({
+                maps: tourAssetsRes.data.data.maps,
+                factions: tourAssetsRes.data.data.factions
+              });
+              mapsResponse = tourAssetsRes.data.data.maps;
+              factionsResponse = tourAssetsRes.data.data.factions;
+            } else {
+              // Tournament has no specific assets - load all ranked assets
+              const results = await Promise.all([
+                api.get('/public/maps?is_ranked=true'),
+                api.get('/public/factions?is_ranked=true'),
+              ]);
+              mapsResponse = results[0].data;
+              factionsResponse = results[1].data;
+            }
           } catch (err) {
-            // Fallback to all maps and factions
+            // Fallback to ranked assets if tournament assets fail
             const results = await Promise.all([
-              api.get('/public/maps'),
-              api.get('/public/factions'),
+              api.get('/public/maps?is_ranked=true'),
+              api.get('/public/factions?is_ranked=true'),
             ]);
-            mapsResponse = results[0];
-            factionsResponse = results[1];
+            mapsResponse = results[0].data;
+            factionsResponse = results[1].data;
           }
         } else {
-          // For ranked/team tournaments, use all maps and factions
+          // Global report match - only ranked assets
           const results = await Promise.all([
-            api.get('/public/maps'),
-            api.get('/public/factions'),
+            api.get('/public/maps?is_ranked=true'),
+            api.get('/public/factions?is_ranked=true'),
           ]);
-          mapsResponse = results[0];
-          factionsResponse = results[1];
+          mapsResponse = results[0].data;
+          factionsResponse = results[1].data;
         }
         
-        setMaps(mapsResponse.data || []);
-        setFactions(factionsResponse.data || []);
+        setMaps(mapsResponse || []);
+        setFactions(factionsResponse || []);
         
-        if ((!mapsResponse.data || mapsResponse.data.length === 0) || 
-            (!factionsResponse.data || factionsResponse.data.length === 0)) {
+        if ((!mapsResponse || mapsResponse.length === 0) || 
+            (!factionsResponse || factionsResponse.length === 0)) {
           setError('No maps or factions available. Please contact an administrator.');
         }
       } catch (err) {
@@ -110,7 +126,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
     };
 
     loadData();
-  }, [tournamentMode, tournamentId]);
+  }, [tournamentId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -185,6 +201,26 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
 
     if (!formData.map || !formData.winner_faction || !formData.loser_faction) {
       setError('Map and factions are required');
+      return;
+    }
+
+    // Validate map is in allowed assets
+    const mapExists = maps.some(m => m.name === formData.map);
+    if (!mapExists) {
+      setError(`Map "${formData.map}" is not in the allowed list for this tournament`);
+      return;
+    }
+
+    // Validate factions are in allowed assets
+    const winnerFactionExists = factions.some(f => f.name === formData.winner_faction);
+    if (!winnerFactionExists) {
+      setError(`Faction "${formData.winner_faction}" is not in the allowed list for this tournament`);
+      return;
+    }
+
+    const loserFactionExists = factions.some(f => f.name === formData.loser_faction);
+    if (!loserFactionExists) {
+      setError(`Faction "${formData.loser_faction}" is not in the allowed list for this tournament`);
       return;
     }
 
