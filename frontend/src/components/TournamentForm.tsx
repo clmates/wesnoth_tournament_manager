@@ -172,7 +172,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         <div className="form-section">
           <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
           <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
-          <div className="unranked-assets-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="unranked-assets-grid">
             <UnrankedFactionSelect 
               tournamentId={undefined}
               selectedFactionIds={unrankedFactions}
@@ -194,7 +194,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         <div className="form-section">
           <h3>{t('tournament.team_assets', 'Team Tournament Assets')}</h3>
           <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
-          <div className="unranked-assets-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="unranked-assets-grid">
             <UnrankedFactionSelect 
               tournamentId={undefined}
               selectedFactionIds={unrankedFactions}
@@ -216,7 +216,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         <div className="form-section">
           <h3>{t('tournament.ranked_assets', 'Ranked Tournament Assets')}</h3>
           <p className="info-note">{t('tournament.select_allowed_ranked_factions_maps', 'Select which ranked factions and maps are allowed in this tournament')}</p>
-          <div className="unranked-assets-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="unranked-assets-grid">
             <UnrankedFactionSelect 
               tournamentId={undefined}
               selectedFactionIds={unrankedFactions}

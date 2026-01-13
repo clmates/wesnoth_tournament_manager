@@ -1100,10 +1100,10 @@ select option {
   padding: 0.5rem;
 }
 
-/* Unranked Assets Grid Improvements */
+/* Unranked Assets Container - Zone for independent controls */
 .unranked-assets-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 2rem;
   margin-top: 1.5rem;
   padding: 1.5rem;
@@ -1112,9 +1112,21 @@ select option {
   border: 1px solid #e0e6ed;
 }
 
+/* Each asset control (faction/map) takes equal space with independent scroll */
+.unranked-assets-grid > * {
+  flex: 1 1 calc(50% - 1rem);
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
 @media (max-width: 1024px) {
   .unranked-assets-grid {
-    grid-template-columns: 1fr;
     gap: 1.5rem;
+  }
+  
+  .unranked-assets-grid > * {
+    flex: 1 1 100%;
+    min-width: 100%;
   }
 }
