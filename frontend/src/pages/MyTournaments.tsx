@@ -86,8 +86,9 @@ const MyTournaments: React.FC = () => {
         ...formData,
       };
       
-      // Add unranked assets if this is an unranked tournament
-      if (formData.tournament_mode === 'unranked') {
+      // Add assets for all tournament modes (ranked, unranked, team)
+      // Assets are always included if selected
+      if (unrankedFactions.length > 0 || unrankedMaps.length > 0) {
         payload.unranked_factions = unrankedFactions;
         payload.unranked_maps = unrankedMaps;
       }

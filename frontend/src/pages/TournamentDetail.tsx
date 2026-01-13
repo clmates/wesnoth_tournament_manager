@@ -244,7 +244,7 @@ const TournamentDetail: React.FC = () => {
 
   // Fetch unranked tournament assets
   useEffect(() => {
-    if (tournament?.tournament_type === 'unranked' && id) {
+    if (tournament?.tournament_mode === 'unranked' && id) {
       const fetchUnrankedAssets = async () => {
         try {
           const response = await publicService.getTournamentUnrankedAssets(id);
@@ -585,7 +585,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       </div>
 
       {/* Unranked Tournament Assets Section */}
-      {tournament.tournament_type === 'unranked' && (
+      {tournament.tournament_mode === 'unranked' && (
         <div className="unranked-assets-section">
           <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
           
