@@ -1,4 +1,1 @@
-/* Single Page Application redirect */
-/* All requests should be routed to index.html */
-/* Then React Router handles the routing */
 * /index.html 200
