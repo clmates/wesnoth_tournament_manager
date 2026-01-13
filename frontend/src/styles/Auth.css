@@ -957,53 +957,50 @@
   margin: 0 10px 0 0;
 }
 
-/* Table Styling - Generic fallback for forms (not for component-based selectors) */
-/* Use .unranked-faction-select and .unranked-map-select for component selectors instead */
-.faction-table,
-.map-table {
+/* Table Styling - DEPRECATED: Use component-specific selectors instead */
+/* Generic fallback - only for non-component contexts (if any) */
+/* NOTE: .unranked-faction-select and .unranked-map-select styles take precedence */
+
+/* Component-based selectors have higher specificity and take precedence */
+.unranked-faction-select .faction-table,
+.unranked-map-select .map-table {
   display: table;
   width: 100%;
   border-collapse: collapse;
 }
 
-.faction-table .checkbox-row,
-.map-table .checkbox-row {
+.unranked-faction-select .faction-table .checkbox-row,
+.unranked-map-select .map-table .checkbox-row {
   display: table-row;
   border-bottom: 1px solid #eee;
   transition: background-color 0.15s;
 }
 
-.faction-table .checkbox-row:hover,
-.map-table .checkbox-row:hover {
+.unranked-faction-select .faction-table .checkbox-row:hover,
+.unranked-map-select .map-table .checkbox-row:hover {
   background-color: #f9f9f9;
 }
 
-.faction-table .checkbox-row:last-child,
-.map-table .checkbox-row:last-child {
+.unranked-faction-select .faction-table .checkbox-row:last-child,
+.unranked-map-select .map-table .checkbox-row:last-child {
   border-bottom: none;
 }
 
-.faction-table .checkbox-row > *,
-.map-table .checkbox-row > * {
+.unranked-faction-select .faction-table .checkbox-row > *,
+.unranked-map-select .map-table .checkbox-row > * {
   display: table-cell;
   padding: 10px 8px;
   vertical-align: middle;
 }
 
-.faction-name,
-.map-name {
+.unranked-faction-select .faction-name,
+.unranked-map-select .map-name {
   text-align: left;
 }
 
-.map-dims {
+.unranked-map-select .map-dims {
   text-align: center;
   white-space: nowrap;
-}
-
-/* Component-based selectors take precedence over generic ones */
-.unranked-faction-select .faction-table,
-.unranked-map-select .map-table {
-  /* Inherits from component CSS files with higher specificity */
 }
 
 /* Radio Button Group Styling */
