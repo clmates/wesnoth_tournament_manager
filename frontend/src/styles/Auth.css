@@ -916,17 +916,16 @@
 }
 
 /* Tournament Form Button Styles */
-.button-group {
+.form-section.button-group {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
-  background: transparent !important;
-  border-left: none !important;
+  padding: 1.5rem;
+  background: white;
+  border-left: none;
 }
 
-.button-group .btn-submit {
+.form-section.button-group > .btn-submit {
   padding: 0.75rem 2rem;
   background-color: #27ae60;
   color: white;
@@ -938,12 +937,12 @@
   transition: all 0.3s;
 }
 
-.button-group .btn-submit:hover:not(:disabled) {
+.form-section.button-group > .btn-submit:hover:not(:disabled) {
   background-color: #229954;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.button-group .btn-submit:disabled {
+.form-section.button-group > .btn-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

@@ -73,6 +73,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
 
   return (
     <form className="tournament-form expanded-form" onSubmit={onSubmit}>
+      {/* SECTION 1: BASIC INFORMATION */}
       <div className="form-section">
         <h3>{t('tournament.basic_info')}</h3>
         <input
@@ -92,8 +93,8 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
           disabled={isLoading}
         />
         
-        {/* Match Type (Ranked/Unranked/Team) - FIRST choice */}
-        <div className="form-row">
+        {/* Tournament Mode Selector (Ranked/Unranked/Team) */}
+        <div className="form-group">
           <label>{t('tournament.match_type', 'Match Type')}:</label>
           <div className="radio-group">
             <label className="radio-label">
@@ -124,62 +125,115 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                 onChange={(e) => onFormDataChange({ ...formData, tournament_mode: e.target.value as any })}
                 disabled={isLoading || mode === 'edit'}
               />
-              {t('tournament.team', 'Team (2v2)')}
+              {t('tournament.team', 'Team (2v2, no ELO)')}
             </label>
           </div>
         </div>
-
-        {/* Unranked Tournament - Show faction and map selectors */}
-        {formData.tournament_mode === 'unranked' && (
-          <div className="form-section">
-            <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
-            <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
-            <div className="unranked-assets-grid">
-              <UnrankedFactionSelect 
-                tournamentId={undefined}
-                selectedFactionIds={unrankedFactions}
-                onChange={onUnrankedFactionsChange}
-                disabled={isLoading}
-              />
-              <UnrankedMapSelect 
-                tournamentId={undefined}
-                selectedMapIds={unrankedMaps}
-                onChange={onUnrankedMapsChange}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
+      {/* SECTION 2: TOURNAMENT TYPE AND PARTICIPANTS */}
       <div className="form-section">
-        {/* Tournament Format (Swiss, Elimination, League) - SECOND choice */}
+        <h3>{t('tournament.format_settings', 'Format Settings')}</h3>
         <div className="form-row">
-          <select
-            value={formData.tournament_type}
-            onChange={(e) => handleTournamentTypeChange(e.target.value)}
-            required
-            disabled={isLoading || mode === 'edit'}
-          >
-            <option value="elimination">{t('option_type_elimination')}</option>
-            <option value="league">{t('option_type_league')}</option>
-            <option value="swiss">{t('option_type_swiss')}</option>
-            <option value="swiss_elimination">{t('option_type_swiss_elimination', 'Swiss-Elimination Mix')}</option>
-          </select>
-          <input
-            type="number"
-            placeholder={t('label_max_participants')}
-            min="2"
-            max="256"
-            value={formData.max_participants || ''}
-            onChange={(e) => onFormDataChange({ 
-              ...formData, 
-              max_participants: e.target.value ? parseInt(e.target.value) : null 
-            })}
-            disabled={isLoading}
-          />
+          <div className="form-group">
+            <label>{t('tournament.tournament_format', 'Tournament Format')}</label>
+            <select
+              value={formData.tournament_type}
+              onChange={(e) => handleTournamentTypeChange(e.target.value)}
+              required
+              disabled={isLoading || mode === 'edit'}
+            >
+              <option value="elimination">{t('option_type_elimination')}</option>
+              <option value="league">{t('option_type_league')}</option>
+              <option value="swiss">{t('option_type_swiss')}</option>
+              <option value="swiss_elimination">{t('option_type_swiss_elimination', 'Swiss-Elimination Mix')}</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>{t('label_max_participants', 'Max Participants')}</label>
+            <input
+              type="number"
+              placeholder={t('label_max_participants')}
+              min="2"
+              max="256"
+              value={formData.max_participants || ''}
+              onChange={(e) => onFormDataChange({ 
+                ...formData, 
+                max_participants: e.target.value ? parseInt(e.target.value) : null 
+              })}
+              disabled={isLoading}
+            />
+          </div>
         </div>
       </div>
+
+      {/* SECTION 3: UNRANKED ASSETS (conditional) */}
+      {formData.tournament_mode === 'unranked' && (
+        <div className="form-section">
+          <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
+          <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
+          <div className="unranked-assets-grid">
+            <UnrankedFactionSelect 
+              tournamentId={undefined}
+              selectedFactionIds={unrankedFactions}
+              onChange={onUnrankedFactionsChange}
+              disabled={isLoading}
+            />
+            <UnrankedMapSelect 
+              tournamentId={undefined}
+              selectedMapIds={unrankedMaps}
+              onChange={onUnrankedMapsChange}
+              disabled={isLoading}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 3B: TEAM ASSETS (same as unranked) */}
+      {formData.tournament_mode === 'team' && (
+        <div className="form-section">
+          <h3>{t('tournament.team_assets', 'Team Tournament Assets')}</h3>
+          <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
+          <div className="unranked-assets-grid">
+            <UnrankedFactionSelect 
+              tournamentId={undefined}
+              selectedFactionIds={unrankedFactions}
+              onChange={onUnrankedFactionsChange}
+              disabled={isLoading}
+            />
+            <UnrankedMapSelect 
+              tournamentId={undefined}
+              selectedMapIds={unrankedMaps}
+              onChange={onUnrankedMapsChange}
+              disabled={isLoading}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 3C: RANKED ASSETS (only ranked factions/maps) */}
+      {formData.tournament_mode === 'ranked' && (
+        <div className="form-section">
+          <h3>{t('tournament.ranked_assets', 'Ranked Tournament Assets')}</h3>
+          <p className="info-note">{t('tournament.select_allowed_ranked_factions_maps', 'Select which ranked factions and maps are allowed in this tournament')}</p>
+          <div className="unranked-assets-grid">
+            <UnrankedFactionSelect 
+              tournamentId={undefined}
+              selectedFactionIds={unrankedFactions}
+              onChange={onUnrankedFactionsChange}
+              disabled={isLoading}
+              isRankedOnly={true}
+            />
+            <UnrankedMapSelect 
+              tournamentId={undefined}
+              selectedMapIds={unrankedMaps}
+              onChange={onUnrankedMapsChange}
+              disabled={isLoading}
+              isRankedOnly={true}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="form-section">
         <div className="section-header">

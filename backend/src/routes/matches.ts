@@ -401,8 +401,8 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         tournamentMode = tournamentResult.rows[0].tournament_mode || 'ranked';
       }
 
-      // For unranked tournaments, validate faction and map against allowed assets
-      if (tournamentMode === 'unranked') {
+      // For unranked and team tournaments, validate faction and map against allowed assets
+      if (tournamentMode === 'unranked' || tournamentMode === 'team') {
         const factionCheck = await query(
           `SELECT id FROM tournament_unranked_factions 
            WHERE tournament_id = $1 AND (LOWER(faction_name) = LOWER($2) OR LOWER(faction_name) = LOWER($3))`,
@@ -410,7 +410,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         );
         
         if (factionCheck.rows.length === 0) {
-          return res.status(400).json({ error: 'Invalid faction for this unranked tournament' });
+          return res.status(400).json({ error: 'Invalid faction for this tournament' });
         }
 
         const mapCheck = await query(
@@ -420,7 +420,30 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         );
         
         if (mapCheck.rows.length === 0) {
-          return res.status(400).json({ error: 'Invalid map for this unranked tournament' });
+          return res.status(400).json({ error: 'Invalid map for this tournament' });
+        }
+      }
+
+      // For ranked tournaments, validate faction and map against allowed ranked assets
+      if (tournamentMode === 'ranked') {
+        const factionCheck = await query(
+          `SELECT id FROM tournament_unranked_factions 
+           WHERE tournament_id = $1 AND is_ranked = true AND (LOWER(faction_name) = LOWER($2) OR LOWER(faction_name) = LOWER($3))`,
+          [tournament_id, winner_faction, loser_faction]
+        );
+        
+        if (factionCheck.rows.length === 0) {
+          return res.status(400).json({ error: 'Invalid faction for this ranked tournament' });
+        }
+
+        const mapCheck = await query(
+          `SELECT id FROM tournament_unranked_maps 
+           WHERE tournament_id = $1 AND is_ranked = true AND LOWER(map_name) = LOWER($2)`,
+          [tournament_id, map]
+        );
+        
+        if (mapCheck.rows.length === 0) {
+          return res.status(400).json({ error: 'Invalid map for this ranked tournament' });
         }
       }
     }

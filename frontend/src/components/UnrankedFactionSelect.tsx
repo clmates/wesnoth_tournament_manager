@@ -7,6 +7,7 @@ interface UnrankedFactionSelectProps {
   onChange: (factionIds: string[]) => void;
   disabled?: boolean;
   tournamentId?: string;
+  isRankedOnly?: boolean;
 }
 
 interface Faction {
@@ -27,7 +28,8 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
   selectedFactionIds,
   onChange,
   disabled = false,
-  tournamentId
+  tournamentId,
+  isRankedOnly = false
 }) => {
   const [factions, setFactions] = useState<Faction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,9 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
         const response = await api.get('/admin/unranked-factions');
         const data: ApiResponse = response.data;
         if (data.success && data.data) {
-          setFactions(data.data);
+          // Filter by ranked status if isRankedOnly is true
+          const filtered = isRankedOnly ? data.data.filter(f => f.is_ranked) : data.data;
+          setFactions(filtered);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch factions');
@@ -55,7 +59,7 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
     };
 
     fetchFactions();
-  }, []);
+  }, [isRankedOnly]);
 
   // Track select all state
   useEffect(() => {
@@ -156,17 +160,19 @@ export const UnrankedFactionSelect: React.FC<UnrankedFactionSelectProps> = ({
           </>
         )}
 
-        <button
-          className="add-btn"
-          onClick={() => setShowModal(true)}
-          disabled={disabled}
-          type="button"
-        >
-          + New Faction
-        </button>
+        {!isRankedOnly && (
+          <button
+            className="add-btn"
+            onClick={() => setShowModal(true)}
+            disabled={disabled}
+            type="button"
+          >
+            + New Faction
+          </button>
+        )}
       </div>
 
-      {showModal && (
+      {!isRankedOnly && showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>Create New Faction</h3>

@@ -7,6 +7,7 @@ interface UnrankedMapSelectProps {
   onChange: (mapIds: string[]) => void;
   disabled?: boolean;
   tournamentId?: string;
+  isRankedOnly?: boolean;
 }
 
 interface Map {
@@ -29,7 +30,8 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
   selectedMapIds,
   onChange,
   disabled = false,
-  tournamentId
+  tournamentId,
+  isRankedOnly = false
 }) => {
   const [maps, setMaps] = useState<Map[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +51,9 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
         const response = await api.get('/admin/unranked-maps');
         const data: ApiResponse = response.data;
         if (data.success && data.data) {
-          setMaps(data.data);
+          // Filter by ranked status if isRankedOnly is true
+          const filtered = isRankedOnly ? data.data.filter(m => m.is_ranked) : data.data;
+          setMaps(filtered);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch maps');
@@ -59,7 +63,7 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
     };
 
     fetchMaps();
-  }, []);
+  }, [isRankedOnly]);
 
   // Track select all state
   useEffect(() => {
@@ -163,17 +167,19 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
           </>
         )}
 
-        <button
-          className="add-btn"
-          onClick={() => setShowModal(true)}
-          disabled={disabled}
-          type="button"
-        >
-          + New Map
-        </button>
+        {!isRankedOnly && (
+          <button
+            className="add-btn"
+            onClick={() => setShowModal(true)}
+            disabled={disabled}
+            type="button"
+          >
+            + New Map
+          </button>
+        )}
       </div>
 
-      {showModal && (
+      {!isRankedOnly && showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>Create New Map</h3>
