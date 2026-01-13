@@ -134,7 +134,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
       {/* SECTION 2: TOURNAMENT TYPE AND PARTICIPANTS */}
       <div className="form-section">
         <h3>{t('tournament.format_settings', 'Format Settings')}</h3>
-        <div className="form-row">
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <div className="form-group">
             <label>{t('tournament.tournament_format', 'Tournament Format')}</label>
             <select
@@ -143,17 +143,17 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
               required
               disabled={isLoading || mode === 'edit'}
             >
-              <option value="elimination">{t('option_type_elimination')}</option>
-              <option value="league">{t('option_type_league')}</option>
-              <option value="swiss">{t('option_type_swiss')}</option>
-              <option value="swiss_elimination">{t('option_type_swiss_elimination', 'Swiss-Elimination Mix')}</option>
+              <option value="elimination">Elimination</option>
+              <option value="league">League</option>
+              <option value="swiss">Swiss</option>
+              <option value="swiss_elimination">Swiss-Elimination Mix</option>
             </select>
           </div>
           <div className="form-group">
-            <label>{t('label_max_participants', 'Max Participants')}</label>
+            <label>Max Participants</label>
             <input
               type="number"
-              placeholder={t('label_max_participants')}
+              placeholder="Max Participants"
               min="2"
               max="256"
               value={formData.max_participants || ''}
@@ -172,7 +172,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         <div className="form-section">
           <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
           <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
-          <div className="unranked-assets-grid">
+          <div className="unranked-assets-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <UnrankedFactionSelect 
               tournamentId={undefined}
               selectedFactionIds={unrankedFactions}
@@ -194,7 +194,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         <div className="form-section">
           <h3>{t('tournament.team_assets', 'Team Tournament Assets')}</h3>
           <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
-          <div className="unranked-assets-grid">
+          <div className="unranked-assets-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <UnrankedFactionSelect 
               tournamentId={undefined}
               selectedFactionIds={unrankedFactions}
@@ -216,7 +216,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         <div className="form-section">
           <h3>{t('tournament.ranked_assets', 'Ranked Tournament Assets')}</h3>
           <p className="info-note">{t('tournament.select_allowed_ranked_factions_maps', 'Select which ranked factions and maps are allowed in this tournament')}</p>
-          <div className="unranked-assets-grid">
+          <div className="unranked-assets-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <UnrankedFactionSelect 
               tournamentId={undefined}
               selectedFactionIds={unrankedFactions}
@@ -307,14 +307,15 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                 })}
                 disabled={isLoading}
               >
-                <option value="bo1">{t('match_format.bo1')}</option>
-                <option value="bo3">{t('match_format.bo3')}</option>
-                <option value="bo5">{t('match_format.bo5')}</option>
+                <option value="bo1">Best of 1 (Single match)</option>
+                <option value="bo3">Best of 3 (First to 2 wins)</option>
+                <option value="bo5">Best of 5 (First to 3 wins)</option>
               </select>
+              <small>Best of format for all preliminary elimination rounds</small>
             </div>
 
             <div className="form-group">
-              <label>Finals Match Format</label>
+              <label>Final Match Format</label>
               <select
                 value={roundTypeConfig.finalRoundsFormat}
                 onChange={(e) => setRoundTypeConfig({
@@ -323,10 +324,11 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                 })}
                 disabled={isLoading}
               >
-                <option value="bo1">{t('match_format.bo1')}</option>
-                <option value="bo3">{t('match_format.bo3')}</option>
-                <option value="bo5">{t('match_format.bo5')}</option>
+                <option value="bo1">Best of 1 (Single match)</option>
+                <option value="bo3">Best of 3 (First to 2 wins)</option>
+                <option value="bo5">Best of 5 (First to 3 wins)</option>
               </select>
+              <small>Best of format for the final match</small>
             </div>
           </div>
         )}
@@ -337,42 +339,41 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             {/* LEAGUE TOURNAMENT */}
             {formData.tournament_type === 'league' && (
               <>
-                <h4>{t('tournament.league_configuration', 'League Configuration')}</h4>
-                <p className="info-text">{t('tournament.league_description', 'All participants play against each other')}</p>
-                
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>{t('tournament.league_rounds', 'League Format')}</label>
-                    <select
-                      value={formData.general_rounds}
-                      onChange={(e) => onFormDataChange({
-                        ...formData,
-                        general_rounds: parseInt(e.target.value),
-                      })}
-                      disabled={isLoading}
-                    >
-                      <option value="1">{t('tournament.single_round', 'Single Round (Ida)')}</option>
-                      <option value="2">{t('tournament.double_round', 'Double Round (Ida y Vuelta)')}</option>
-                    </select>
-                    <p className="field-hint">{formData.general_rounds === 1 ? t('tournament.single_round_hint', 'Each player plays every other player once') : t('tournament.double_round_hint', 'Each player plays every other player twice (home and away)')}</p>
-                  </div>
-
-                  <div className="form-group">
-                    <label>{t('tournament.match_format', 'Match Format')}</label>
-                    <select
-                      value={formData.general_rounds_format}
-                      onChange={(e) => onFormDataChange({
-                        ...formData,
-                        general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                      })}
-                      disabled={isLoading}
-                    >
-                      <option value="bo1">{t('match_format.bo1')}</option>
-                      <option value="bo3">{t('match_format.bo3')}</option>
-                      <option value="bo5">{t('match_format.bo5')}</option>
-                    </select>
-                    <p className="field-hint">{t('tournament.match_format_hint', 'Each league matchup consists of this many games')}</p>
-                  </div>
+                <h4>League Format Configuration</h4>
+                <p className="info-text">Configure the League tournament format</p>
+                <div className="form-group">
+                  <label>League Format</label>
+                  <select
+                    value={formData.general_rounds}
+                    onChange={(e) => onFormDataChange({
+                      ...formData,
+                      general_rounds: parseInt(e.target.value),
+                    })}
+                    disabled={isLoading}
+                  >
+                    <option value="1">Single Round (Ida) - Each team plays once</option>
+                    <option value="2">Double Round (Ida y Vuelta) - Each team plays twice</option>
+                  </select>
+                  <small>Select whether teams play once or twice against each other</small>
+                </div>
+                <div className="form-group">
+                  <label>Match Format</label>
+                  <select
+                    value={formData.general_rounds_format}
+                    onChange={(e) => onFormDataChange({
+                      ...formData,
+                      general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                    })}
+                    disabled={isLoading}
+                  >
+                    <option value="bo1">Best of 1 (Single match)</option>
+                    <option value="bo3">Best of 3 (First to 2 wins)</option>
+                    <option value="bo5">Best of 5 (First to 3 wins)</option>
+                  </select>
+                  <small>Number of games in each match</small>
+                </div>
+                <div className="round-summary">
+                  <p><strong>Format:</strong> {formData.general_rounds === 2 ? 'Double Round (Ida y Vuelta)' : 'Single Round (Ida)'} ({formData.general_rounds_format?.toUpperCase()})</p>
                 </div>
               </>
             )}
@@ -380,41 +381,41 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             {/* SWISS TOURNAMENT */}
             {formData.tournament_type === 'swiss' && (
               <>
-                <h4>{t('tournament.swiss_configuration', 'Swiss System Configuration')}</h4>
-                <p className="info-text">{t('tournament.swiss_description', 'Players are paired based on their current score. Fewer matches than league, fairer than elimination.')}</p>
-                
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>{t('tournament.swiss_rounds', 'Number of Rounds')}</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={formData.general_rounds}
-                      onChange={(e) => onFormDataChange({
-                        ...formData,
-                        general_rounds: parseInt(e.target.value),
-                      })}
-                      disabled={isLoading}
-                    />
-                    <p className="field-hint">{t('tournament.swiss_rounds_hint', '1-10 rounds recommended. More rounds = more matches and fairer ranking.')}</p>
-                  </div>
-
-                  <div className="form-group">
-                    <label>{t('tournament.match_format', 'Match Format')}</label>
-                    <select
-                      value={formData.general_rounds_format}
-                      onChange={(e) => onFormDataChange({
-                        ...formData,
-                        general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                      })}
-                      disabled={isLoading}
-                    >
-                      <option value="bo1">{t('match_format.bo1')}</option>
-                      <option value="bo3">{t('match_format.bo3')}</option>
-                      <option value="bo5">{t('match_format.bo5')}</option>
-                    </select>
-                  </div>
+                <h4>Swiss Rounds Configuration</h4>
+                <p className="info-text">Configure the Swiss round tournament</p>
+                <div className="form-group">
+                  <label>Number of Swiss Rounds</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={formData.general_rounds}
+                    onChange={(e) => onFormDataChange({
+                      ...formData,
+                      general_rounds: parseInt(e.target.value),
+                    })}
+                    disabled={isLoading}
+                  />
+                  <small>Number of Swiss system rounds to run (typically 3-7 rounds for Swiss tournaments)</small>
+                </div>
+                <div className="form-group">
+                  <label>Match Format</label>
+                  <select
+                    value={formData.general_rounds_format}
+                    onChange={(e) => onFormDataChange({
+                      ...formData,
+                      general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                    })}
+                    disabled={isLoading}
+                  >
+                    <option value="bo1">Best of 1 (Single match)</option>
+                    <option value="bo3">Best of 3 (First to 2 wins)</option>
+                    <option value="bo5">Best of 5 (First to 3 wins)</option>
+                  </select>
+                  <small>Number of games in each match</small>
+                </div>
+                <div className="round-summary">
+                  <p><strong>Total Rounds:</strong> {formData.general_rounds} Swiss rounds ({formData.general_rounds_format?.toUpperCase()})</p>
                 </div>
               </>
             )}
@@ -422,20 +423,19 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             {/* SWISS-ELIMINATION HYBRID TOURNAMENT */}
             {formData.tournament_type === 'swiss_elimination' && (
               <>
-                <h4>{t('tournament.hybrid_configuration', 'Swiss-Elimination Configuration')}</h4>
-                <p className="info-text">{t('tournament.hybrid_description', 'Swiss round-robin phase followed by single/double elimination finals.')}</p>
-                
+                <h4>Swiss-Elimination Mix Configuration</h4>
+                <p className="info-text">Configure both the Swiss phase and the Elimination phase</p>
                 <div className="info-box info">
-                  <p>📊 {t('tournament.hybrid_explanation', 'First play Swiss rounds with fair pairings, then top players advance to elimination bracket.')}</p>
+                  <p>ℹ️ This tournament combines a Swiss phase for qualification with an elimination phase for final ranking</p>
                 </div>
-
-                <div className="form-row">
+                <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px', marginBottom: '15px' }}>
+                  <h5 style={{ marginTop: 0 }}>Swiss Phase (Qualifying)</h5>
                   <div className="form-group">
-                    <label>{t('tournament.swiss_rounds_phase', 'Swiss Rounds')}</label>
+                    <label>Number of Swiss Rounds</label>
                     <input
                       type="number"
                       min="1"
-                      max="10"
+                      max="20"
                       value={formData.general_rounds}
                       onChange={(e) => onFormDataChange({
                         ...formData,
@@ -443,11 +443,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                       })}
                       disabled={isLoading}
                     />
-                    <p className="field-hint">{t('tournament.swiss_phase_hint', 'Players ranked by points, top scorers advance to finals')}</p>
+                    <small>Number of Swiss rounds in the qualifying phase</small>
                   </div>
-
                   <div className="form-group">
-                    <label>{t('tournament.swiss_format', 'Swiss Format')}</label>
+                    <label>Match Format</label>
                     <select
                       value={formData.general_rounds_format}
                       onChange={(e) => onFormDataChange({
@@ -456,19 +455,21 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                       })}
                       disabled={isLoading}
                     >
-                      <option value="bo1">{t('match_format.bo1')}</option>
-                      <option value="bo3">{t('match_format.bo3')}</option>
-                      <option value="bo5">{t('match_format.bo5')}</option>
+                      <option value="bo1">Best of 1 (Single match)</option>
+                      <option value="bo3">Best of 3 (First to 2 wins)</option>
+                      <option value="bo5">Best of 5 (First to 3 wins)</option>
                     </select>
+                    <small>Number of games in each Swiss match</small>
                   </div>
                 </div>
-
-                <div className="form-row">
+                <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px' }}>
+                  <h5 style={{ marginTop: 0 }}>Elimination Phase (Finals)</h5>
                   <div className="form-group">
-                    <label>{t('tournament.elimination_rounds', 'Elimination Rounds')}</label>
+                    <label>Number of Elimination Rounds</label>
                     <input
                       type="number"
                       min="1"
+                      max="10"
                       value={formData.final_rounds}
                       onChange={(e) => onFormDataChange({
                         ...formData,
@@ -476,11 +477,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                       })}
                       disabled={isLoading}
                     />
-                    <p className="field-hint">{formData.final_rounds === 1 ? t('tournament.elim_1_round', 'Final - 2 players') : formData.final_rounds === 2 ? t('tournament.elim_2_rounds', 'Semifinals & Final - 4 players') : formData.final_rounds === 3 ? t('tournament.elim_3_rounds', 'Quarterfinals, Semifinals & Final - 8 players') : t('tournament.elim_n_rounds', `${Math.pow(2, formData.final_rounds)} players in finals`)}</p>
+                    <small>Number of elimination rounds (e.g., Quarterfinals, Semifinals, Finals)</small>
                   </div>
-
                   <div className="form-group">
-                    <label>{t('tournament.finals_format', 'Finals Format')}</label>
+                    <label>Match Format</label>
                     <select
                       value={formData.final_rounds_format}
                       onChange={(e) => onFormDataChange({
@@ -489,11 +489,17 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                       })}
                       disabled={isLoading}
                     >
-                      <option value="bo1">{t('match_format.bo1')}</option>
-                      <option value="bo3">{t('match_format.bo3')}</option>
-                      <option value="bo5">{t('match_format.bo5')}</option>
+                      <option value="bo1">Best of 1 (Single match)</option>
+                      <option value="bo3">Best of 3 (First to 2 wins)</option>
+                      <option value="bo5">Best of 5 (First to 3 wins)</option>
                     </select>
+                    <small>Number of games in each elimination match</small>
                   </div>
+                </div>
+                <div className="round-summary" style={{ marginTop: '15px' }}>
+                  <p><strong>Total Rounds:</strong> {formData.general_rounds + formData.final_rounds}</p>
+                  <p className="info-text">Swiss Phase: {formData.general_rounds} rounds ({formData.general_rounds_format?.toUpperCase()})</p>
+                  <p className="info-text">Elimination Phase: {formData.final_rounds} rounds ({formData.final_rounds_format?.toUpperCase()})</p>
                 </div>
               </>
             )}

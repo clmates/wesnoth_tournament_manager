@@ -15,36 +15,41 @@
 .faction-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   width: 100%;
-  background: #f9f9f9;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .faction-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
-  background-color: #f0f0f0;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 12px 14px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
   font-weight: 600;
 }
 
 .faction-header h4 {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   text-transform: uppercase;
-  color: #333;
+  color: #495057;
   letter-spacing: 0.5px;
+  font-weight: 600;
 }
 
 .faction-header .count {
   font-size: 12px;
-  color: #666;
+  color: #868e96;
   font-weight: 500;
+  background: #e9ecef;
+  padding: 2px 8px;
+  border-radius: 12px;
 }
 
 .no-items {
@@ -63,8 +68,8 @@
 }
 
 .select-all-wrapper {
-  border-bottom: 1px solid #e0e0e0;
-  background-color: #f5f5f5;
+  border-bottom: 1px solid #e9ecef;
+  background-color: #f8f9fa;
   display: table;
   width: 100%;
   border-collapse: collapse;
@@ -74,51 +79,51 @@
   display: table-row;
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.15s;
+  transition: background-color 0.15s ease;
 }
 
 .checkbox-row:hover {
-  background-color: #efefef;
+  background-color: #f8f9fa;
 }
 
 .checkbox-row.header-row {
   font-weight: 600;
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
 }
 
 .checkbox-row.header-row:hover {
-  background-color: #f0f0f0;
+  background-color: #e9ecef;
 }
 
 .checkbox-row input[type="checkbox"] {
   cursor: pointer;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   margin: 0;
-  accent-color: #2196f3;
+  accent-color: #4CAF50;
   display: table-cell;
-  padding: 8px;
+  padding: 10px 12px;
   vertical-align: middle;
 }
 
 .checkbox-row input[type="checkbox"]:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
 .select-all-text {
   font-size: 13px;
-  color: #333;
+  color: #212529;
   font-weight: 500;
   display: table-cell;
-  padding: 10px 8px;
+  padding: 10px 12px;
   vertical-align: middle;
 }
 
 .faction-table {
   flex: 1;
   overflow-y: auto;
-  max-height: 300px;
+  max-height: 280px;
   background: #fff;
   display: table;
   width: 100%;
@@ -127,11 +132,11 @@
 
 .faction-table .checkbox-row {
   display: table-row;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .faction-table .checkbox-row:hover {
-  background-color: #f9f9f9;
+  background-color: #fafbfc;
 }
 
 .faction-table .checkbox-row:last-child {
@@ -140,7 +145,7 @@
 
 .faction-table .checkbox-row > * {
   display: table-cell;
-  padding: 10px 8px;
+  padding: 10px 12px;
   vertical-align: middle;
 }
 
@@ -148,10 +153,11 @@
   flex: 1;
   min-width: 100px;
   font-size: 13px;
-  color: #333;
+  color: #212529;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 400;
 }
 
 .faction-badge {
@@ -161,15 +167,15 @@
 .add-btn {
   padding: 10px 14px;
   background-color: #fff;
-  border: 2px solid #e0e0e0;
-  border-top: 2px solid #2196f3;
-  color: #2196f3;
-  font-size: 13px;
+  border: 1px solid #dee2e6;
+  border-top: 2px solid #4CAF50;
+  color: #4CAF50;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,10 +183,10 @@
 }
 
 .add-btn:hover:not(:disabled) {
-  background-color: #f0f7ff;
-  border-color: #1976d2;
-  color: #1976d2;
-  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+  background-color: #f8f9fa;
+  border-color: #3f8f40;
+  color: #3f8f40;
+  box-shadow: 0 1px 3px rgba(76, 175, 80, 0.2);
 }
 
 .add-btn:disabled {
