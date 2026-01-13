@@ -256,7 +256,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay tournament-match-report-modal" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
