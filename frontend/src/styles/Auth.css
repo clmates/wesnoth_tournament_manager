@@ -957,51 +957,8 @@
   margin: 0 10px 0 0;
 }
 
-/* Table Styling - DEPRECATED: Use component-specific selectors instead */
-/* Generic fallback - only for non-component contexts (if any) */
-/* NOTE: .unranked-faction-select and .unranked-map-select styles take precedence */
-
-/* Component-based selectors have higher specificity and take precedence */
-.unranked-faction-select .faction-table,
-.unranked-map-select .map-table {
-  display: table;
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.unranked-faction-select .faction-table .checkbox-row,
-.unranked-map-select .map-table .checkbox-row {
-  display: table-row;
-  border-bottom: 1px solid #eee;
-  transition: background-color 0.15s;
-}
-
-.unranked-faction-select .faction-table .checkbox-row:hover,
-.unranked-map-select .map-table .checkbox-row:hover {
-  background-color: #f9f9f9;
-}
-
-.unranked-faction-select .faction-table .checkbox-row:last-child,
-.unranked-map-select .map-table .checkbox-row:last-child {
-  border-bottom: none;
-}
-
-.unranked-faction-select .faction-table .checkbox-row > *,
-.unranked-map-select .map-table .checkbox-row > * {
-  display: table-cell;
-  padding: 10px 8px;
-  vertical-align: middle;
-}
-
-.unranked-faction-select .faction-name,
-.unranked-map-select .map-name {
-  text-align: left;
-}
-
-.unranked-map-select .map-dims {
-  text-align: center;
-  white-space: nowrap;
-}
+/* Table Styling - Component-specific styles are in component CSS files */
+/* Do NOT add table styles here - use UnrankedFactionSelect.css and UnrankedMapSelect.css instead */
 
 /* Radio Button Group Styling */
 .radio-group {
