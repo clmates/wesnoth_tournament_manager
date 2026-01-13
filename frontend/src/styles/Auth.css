@@ -957,7 +957,8 @@
   margin: 0 10px 0 0;
 }
 
-/* Table Styling */
+/* Table Styling - Generic fallback for forms (not for component-based selectors) */
+/* Use .unranked-faction-select and .unranked-map-select for component selectors instead */
 .faction-table,
 .map-table {
   display: table;
@@ -997,6 +998,12 @@
 .map-dims {
   text-align: center;
   white-space: nowrap;
+}
+
+/* Component-based selectors take precedence over generic ones */
+.unranked-faction-select .faction-table,
+.unranked-map-select .map-table {
+  /* Inherits from component CSS files with higher specificity */
 }
 
 /* Radio Button Group Styling */
