@@ -1220,72 +1220,6 @@
 }
 
 /* Match Details Modal */
-.modal-overlay {
-  display: flex;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  max-width: 1200px;
-  width: 100%;
-  max-height: 85vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid #e0e0e0;
-  flex-shrink: 0;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.3rem;
-  color: #333;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #999;
-  transition: color 0.3s;
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-btn:hover {
-  color: #333;
-}
-
-.modal-body {
-  padding: 1.5rem;
-  flex: 1;
-  overflow-y: auto;
-}
-
 .detail-header {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1428,40 +1362,6 @@
   border-radius: 3px;
   font-size: 0.85rem;
   font-weight: 600;
-}
-
-/* Modal Footer Styles */
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-top: 1px solid #e0e0e0;
-  flex-shrink: 0;
-}
-
-.modal-small {
-  max-width: 500px;
-  width: 100%;
-  max-height: auto;
-}
-
-.cancel-btn,
-.close-modal-btn {
-  padding: 0.6rem 1.2rem;
-  background: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  color: #333;
-  transition: all 0.3s;
-}
-
-.cancel-btn:hover,
-.close-modal-btn:hover {
-  background: #e0e0e0;
-  border-color: #ccc;
 }
 
 .delete-btn {
