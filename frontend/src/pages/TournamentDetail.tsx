@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { publicService, tournamentService } from '../services/api';
+import { publicService, tournamentService, api } from '../services/api';
 import TournamentForm from '../components/TournamentForm';
 import TournamentMatchReportModal from '../components/TournamentMatchReportModal';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
@@ -168,12 +168,9 @@ const TournamentDetail: React.FC = () => {
       // Load teams if it's a team tournament
       if (tournamentRes.data.tournament_mode === 'team') {
         try {
-          const teamsRes = await fetch(`${import.meta.env.VITE_API_URL}/tournaments/${id}/teams`);
-          if (teamsRes.ok) {
-            const teamsData = await teamsRes.json();
-            if (teamsData.success && teamsData.data) {
-              setTeams(teamsData.data);
-            }
+          const teamsRes = await api.get(`/tournaments/${id}/teams`);
+          if (teamsRes.data.success && teamsRes.data.data) {
+            setTeams(teamsRes.data.data);
           }
         } catch (err) {
           console.error('Error fetching teams:', err);
@@ -259,23 +256,6 @@ const TournamentDetail: React.FC = () => {
             setUnrankedFactions(selectedRes.data.data.factions || []);
             setUnrankedMaps(selectedRes.data.data.maps || []);
           }
-
-          // Fetch ALL available assets
-          const factionsRes = await fetch(`${import.meta.env.VITE_API_URL}/admin/unranked-factions`);
-          if (factionsRes.ok) {
-            const factionsData = await factionsRes.json();
-            if (factionsData.success && factionsData.data) {
-              setAllFactions(factionsData.data);
-            }
-          }
-
-          const mapsRes = await fetch(`${import.meta.env.VITE_API_URL}/admin/unranked-maps`);
-          if (mapsRes.ok) {
-            const mapsData = await mapsRes.json();
-            if (mapsData.success && mapsData.data) {
-              setAllMaps(mapsData.data);
-            }
-          }
         } catch (err) {
           console.error('Error fetching tournament assets:', err);
         }
@@ -283,6 +263,28 @@ const TournamentDetail: React.FC = () => {
       fetchAssets();
     }
   }, [tournament?.id, id]);
+
+  // Fetch ALL available assets only in edit mode
+  useEffect(() => {
+    if (editMode && tournament) {
+      const fetchAllAssets = async () => {
+        try {
+          const factionsRes = await api.get('/admin/unranked-factions');
+          if (factionsRes.data.success && factionsRes.data.data) {
+            setAllFactions(factionsRes.data.data);
+          }
+
+          const mapsRes = await api.get('/admin/unranked-maps');
+          if (mapsRes.data.success && mapsRes.data.data) {
+            setAllMaps(mapsRes.data.data);
+          }
+        } catch (err) {
+          console.error('Error fetching available assets:', err);
+        }
+      };
+      fetchAllAssets();
+    }
+  }, [editMode, tournament?.id]);
 
   const handleTeamJoinSubmit = async (teamName: string, teammateName: string) => {
     try {
@@ -441,16 +443,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       if ((tournament?.tournament_mode === 'unranked' || tournament?.tournament_mode === 'team') && 
           (unrankedFactions.length > 0 || unrankedMaps.length > 0)) {
         try {
-          await fetch(`${import.meta.env.VITE_API_URL}/admin/tournaments/${id}/unranked-assets`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({
-              faction_ids: unrankedFactions.map(f => f.id),
-              map_ids: unrankedMaps.map(m => m.id)
-            })
+          await api.put(`/admin/tournaments/${id}/unranked-assets`, {
+            faction_ids: unrankedFactions.map(f => f.id),
+            map_ids: unrankedMaps.map(m => m.id)
           });
         } catch (assetErr) {
           console.error('Error updating assets:', assetErr);

@@ -281,7 +281,9 @@ export const publicService = {
   },
   getTournamentById: (id: string) => api.get(`/public/tournaments/${id}`),
   getTournamentParticipants: (id: string) => api.get(`/public/tournaments/${id}/participants`),
-  getTournamentMatches: (id: string) => api.get(`/public/tournaments/${id}/matches`),  getTournamentUnrankedAssets: (id: string) => api.get(`/tournaments/${id}/unranked-assets`),  getMatch: (id: string) => api.get(`/matches/${id}`),
+  getTournamentMatches: (id: string) => api.get(`/public/tournaments/${id}/matches`),
+  getTournamentUnrankedAssets: (id: string) => api.get(`/public/tournaments/${id}/unranked-assets`),
+  getMatch: (id: string) => api.get(`/matches/${id}`),
   getDebug: () => api.get('/public/debug'),
   getPlayerOfMonth: () => api.get('/public/player-of-month'),
 };
