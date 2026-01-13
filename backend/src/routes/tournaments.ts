@@ -139,10 +139,18 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     // Add allowed factions and maps for all tournament modes (ranked, unranked, team)
     if (unranked_factions || unranked_maps) {
       try {
+        console.log(`Adding assets to tournament ${tournamentId}:`, {
+          factions_count: unranked_factions?.length || 0,
+          maps_count: unranked_maps?.length || 0,
+          factions: unranked_factions,
+          maps: unranked_maps
+        });
+
         // Add factions
         if (unranked_factions && Array.isArray(unranked_factions)) {
           for (const faction of unranked_factions) {
             const factionId = faction.id || faction;
+            console.log(`Inserting faction ${factionId} into tournament ${tournamentId}`);
             await query(
               `INSERT INTO tournament_unranked_factions (tournament_id, faction_id)
                VALUES ($1, $2)
@@ -156,6 +164,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         if (unranked_maps && Array.isArray(unranked_maps)) {
           for (const map of unranked_maps) {
             const mapId = map.id || map;
+            console.log(`Inserting map ${mapId} into tournament ${tournamentId}`);
             await query(
               `INSERT INTO tournament_unranked_maps (tournament_id, map_id)
                VALUES ($1, $2)
@@ -164,6 +173,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             );
           }
         }
+        
+        console.log(`Successfully added assets to tournament ${tournamentId}`);
       } catch (assetError) {
         console.error('Error adding tournament assets:', assetError);
         // Don't fail tournament creation if adding assets fails

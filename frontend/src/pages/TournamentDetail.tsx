@@ -105,6 +105,8 @@ const TournamentDetail: React.FC = () => {
   const [teams, setTeams] = useState<any[]>([]);
   const [unrankedFactions, setUnrankedFactions] = useState<Array<{ id: string; name: string }>>([]);
   const [unrankedMaps, setUnrankedMaps] = useState<Array<{ id: string; name: string }>>([]);
+  const [allFactions, setAllFactions] = useState<Array<{ id: string; name: string }>>([]);
+  const [allMaps, setAllMaps] = useState<Array<{ id: string; name: string }>>([]);
   const [showTeamJoinModal, setShowTeamJoinModal] = useState(false);
   const [joiningTeamLoading, setJoiningTeamLoading] = useState(false);
   const [matchConfirmationMap, setMatchConfirmationMap] = useState<Record<string, string>>({});
@@ -242,23 +244,45 @@ const TournamentDetail: React.FC = () => {
     }
   };
 
-  // Fetch unranked tournament assets
+  // Fetch tournament assets for all modes
   useEffect(() => {
-    if (tournament?.tournament_mode === 'unranked' && id) {
-      const fetchUnrankedAssets = async () => {
+    if (tournament && id) {
+      const fetchAssets = async () => {
         try {
-          const response = await publicService.getTournamentUnrankedAssets(id);
-          if (response.data.success) {
-            setUnrankedFactions(response.data.data.factions || []);
-            setUnrankedMaps(response.data.data.maps || []);
+          // Fetch selected assets for this tournament
+          const selectedRes = await publicService.getTournamentUnrankedAssets(id);
+          if (selectedRes.data.success) {
+            console.log('Tournament assets loaded:', {
+              factions: selectedRes.data.data.factions,
+              maps: selectedRes.data.data.maps
+            });
+            setUnrankedFactions(selectedRes.data.data.factions || []);
+            setUnrankedMaps(selectedRes.data.data.maps || []);
+          }
+
+          // Fetch ALL available assets
+          const factionsRes = await fetch(`${import.meta.env.VITE_API_URL}/admin/unranked-factions`);
+          if (factionsRes.ok) {
+            const factionsData = await factionsRes.json();
+            if (factionsData.success && factionsData.data) {
+              setAllFactions(factionsData.data);
+            }
+          }
+
+          const mapsRes = await fetch(`${import.meta.env.VITE_API_URL}/admin/unranked-maps`);
+          if (mapsRes.ok) {
+            const mapsData = await mapsRes.json();
+            if (mapsData.success && mapsData.data) {
+              setAllMaps(mapsData.data);
+            }
           }
         } catch (err) {
-          console.error('Error fetching unranked assets:', err);
+          console.error('Error fetching tournament assets:', err);
         }
       };
-      fetchUnrankedAssets();
+      fetchAssets();
     }
-  }, [tournament?.tournament_type, id]);
+  }, [tournament?.id, id]);
 
   const handleTeamJoinSubmit = async (teamName: string, teammateName: string) => {
     try {
@@ -409,7 +433,31 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       if (editData.started_at) {
         updateObj.started_at = editData.started_at;
       }
+      
+      // Save tournament configuration
       await tournamentService.updateTournament(id!, updateObj);
+
+      // Save assets if tournament mode is unranked or team
+      if ((tournament?.tournament_mode === 'unranked' || tournament?.tournament_mode === 'team') && 
+          (unrankedFactions.length > 0 || unrankedMaps.length > 0)) {
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL}/admin/tournaments/${id}/unranked-assets`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+              faction_ids: unrankedFactions.map(f => f.id),
+              map_ids: unrankedMaps.map(m => m.id)
+            })
+          });
+        } catch (assetErr) {
+          console.error('Error updating assets:', assetErr);
+          // Don't fail the whole operation if asset update fails
+        }
+      }
+
       setSuccess(t('success_tournament_configuration_updated'));
       setEditMode(false);
       fetchTournamentData();
@@ -584,37 +632,33 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <p><strong>{t('label_description')}:</strong> {tournament.description}</p>
       </div>
 
-      {/* Unranked Tournament Assets Section */}
-      {tournament.tournament_mode === 'unranked' && (
+      {/* Tournament Assets Section */}
+      {(tournament.tournament_mode === 'unranked' || tournament.tournament_mode === 'team') && (unrankedFactions.length > 0 || unrankedMaps.length > 0) && (
         <div className="unranked-assets-section">
-          <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
+          <h3>{t('tournament.unranked_assets', 'Tournament Assets')}</h3>
           
           <div className="assets-container">
-            <div className="assets-group">
-              <h4>{t('tournament.allowed_factions', 'Allowed Factions')}</h4>
-              {unrankedFactions.length > 0 ? (
+            {unrankedFactions.length > 0 && (
+              <div className="assets-group">
+                <h4>{t('tournament.allowed_factions', 'Allowed Factions')}</h4>
                 <div className="assets-list">
                   {unrankedFactions.map((faction) => (
                     <span key={faction.id} className="asset-badge">{faction.name}</span>
                   ))}
                 </div>
-              ) : (
-                <p className="no-assets">{t('tournament.no_factions', 'No factions selected')}</p>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="assets-group">
-              <h4>{t('tournament.allowed_maps', 'Allowed Maps')}</h4>
-              {unrankedMaps.length > 0 ? (
+            {unrankedMaps.length > 0 && (
+              <div className="assets-group">
+                <h4>{t('tournament.allowed_maps', 'Allowed Maps')}</h4>
                 <div className="assets-list">
                   {unrankedMaps.map((map) => (
                     <span key={map.id} className="asset-badge">{map.name}</span>
                   ))}
                 </div>
-              ) : (
-                <p className="no-assets">{t('tournament.no_maps', 'No maps selected')}</p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -659,9 +703,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                 handleSaveChanges();
               }}
               unrankedFactions={unrankedFactions.map(f => f.id)}
-              onUnrankedFactionsChange={() => {}} // Edit mode doesn't change unranked assets
+              onUnrankedFactionsChange={(factionIds: string[]) => {
+                // Convert selected IDs back to objects by filtering allFactions
+                const selected = allFactions.filter(f => factionIds.includes(f.id));
+                setUnrankedFactions(selected);
+              }}
               unrankedMaps={unrankedMaps.map(m => m.id)}
-              onUnrankedMapsChange={() => {}} // Edit mode doesn't change unranked assets
+              onUnrankedMapsChange={(mapIds: string[]) => {
+                // Convert selected IDs back to objects by filtering allMaps
+                const selected = allMaps.filter(m => mapIds.includes(m.id));
+                setUnrankedMaps(selected);
+              }}
             />
           ) : (
             <div className="control-buttons">
