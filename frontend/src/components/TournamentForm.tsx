@@ -18,11 +18,6 @@ interface TournamentFormData {
   started_at?: string;
 }
 
-interface RoundTypeConfig {
-  generalRoundsFormat: 'bo1' | 'bo3' | 'bo5';
-  finalRoundsFormat: 'bo1' | 'bo3' | 'bo5';
-}
-
 interface TournamentFormProps {
   mode: 'create' | 'edit';
   formData: TournamentFormData;
@@ -47,10 +42,6 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
   isLoading = false,
 }) => {
   const { t } = useTranslation();
-  const [roundTypeConfig, setRoundTypeConfig] = useState<RoundTypeConfig>({
-    generalRoundsFormat: 'bo3',
-    finalRoundsFormat: 'bo5',
-  });
 
   // Determine tournament type options based on mode and status
   const canConfigureRounds = () => {
@@ -61,14 +52,6 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
 
   const handleTournamentTypeChange = (newType: string) => {
     onFormDataChange({ ...formData, tournament_type: newType });
-    
-    // Reset round config when type changes
-    if (newType === 'elimination') {
-      setRoundTypeConfig({
-        generalRoundsFormat: 'bo3',
-        finalRoundsFormat: 'bo5',
-      });
-    }
   };
 
   return (
@@ -300,10 +283,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             <div className="form-group">
               <label>Preliminary Rounds Match Format</label>
               <select
-                value={roundTypeConfig.generalRoundsFormat}
-                onChange={(e) => setRoundTypeConfig({
-                  ...roundTypeConfig,
-                  generalRoundsFormat: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                value={formData.general_rounds_format}
+                onChange={(e) => onFormDataChange({
+                  ...formData,
+                  general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
                 })}
                 disabled={isLoading}
               >
@@ -317,10 +300,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             <div className="form-group">
               <label>Final Match Format</label>
               <select
-                value={roundTypeConfig.finalRoundsFormat}
-                onChange={(e) => setRoundTypeConfig({
-                  ...roundTypeConfig,
-                  finalRoundsFormat: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                value={formData.final_rounds_format}
+                onChange={(e) => onFormDataChange({
+                  ...formData,
+                  final_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
                 })}
                 disabled={isLoading}
               >

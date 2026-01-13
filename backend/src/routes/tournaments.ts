@@ -36,8 +36,10 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Validate round configuration - only validate if max_participants is set
-    // At least one round must be configured when max_participants is set
-    if (max_participants && max_participants > 0) {
+    // At least one round must be configured when max_participants is set (except for elimination which auto-calculates)
+    const tournamentTypeLower = tournament_type.toLowerCase();
+    
+    if (max_participants && max_participants > 0 && tournamentTypeLower !== 'elimination') {
       if ((general_rounds || 0) < 0 || (final_rounds || 0) < 0) {
         return res.status(400).json({ error: 'Round values cannot be negative' });
       }
@@ -56,7 +58,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Validate tournament type-specific configurations
-    const tournamentTypeLower = tournament_type.toLowerCase();
+    // (already validated tournamentTypeLower is declared above)
     
     if (tournamentTypeLower === 'league') {
       // League: only general_rounds, must be 1 or 2
