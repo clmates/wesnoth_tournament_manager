@@ -404,8 +404,9 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       // For unranked and team tournaments, validate faction and map against allowed assets
       if (tournamentMode === 'unranked' || tournamentMode === 'team') {
         const factionCheck = await query(
-          `SELECT id FROM tournament_unranked_factions 
-           WHERE tournament_id = $1 AND (LOWER(faction_name) = LOWER($2) OR LOWER(faction_name) = LOWER($3))`,
+          `SELECT id FROM tournament_unranked_factions tuf
+           JOIN factions f ON tuf.faction_id = f.id
+           WHERE tuf.tournament_id = $1 AND (LOWER(f.name) = LOWER($2) OR LOWER(f.name) = LOWER($3))`,
           [tournament_id, winner_faction, loser_faction]
         );
         
@@ -414,8 +415,9 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         }
 
         const mapCheck = await query(
-          `SELECT id FROM tournament_unranked_maps 
-           WHERE tournament_id = $1 AND LOWER(map_name) = LOWER($2)`,
+          `SELECT id FROM tournament_unranked_maps tum
+           JOIN game_maps gm ON tum.map_id = gm.id
+           WHERE tum.tournament_id = $1 AND LOWER(gm.name) = LOWER($2)`,
           [tournament_id, map]
         );
         
@@ -427,8 +429,9 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       // For ranked tournaments, validate faction and map against allowed ranked assets
       if (tournamentMode === 'ranked') {
         const factionCheck = await query(
-          `SELECT id FROM tournament_unranked_factions 
-           WHERE tournament_id = $1 AND is_ranked = true AND (LOWER(faction_name) = LOWER($2) OR LOWER(faction_name) = LOWER($3))`,
+          `SELECT id FROM tournament_unranked_factions tuf
+           JOIN factions f ON tuf.faction_id = f.id
+           WHERE tuf.tournament_id = $1 AND (LOWER(f.name) = LOWER($2) OR LOWER(f.name) = LOWER($3))`,
           [tournament_id, winner_faction, loser_faction]
         );
         
@@ -437,8 +440,9 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         }
 
         const mapCheck = await query(
-          `SELECT id FROM tournament_unranked_maps 
-           WHERE tournament_id = $1 AND is_ranked = true AND LOWER(map_name) = LOWER($2)`,
+          `SELECT id FROM tournament_unranked_maps tum
+           JOIN game_maps gm ON tum.map_id = gm.id
+           WHERE tum.tournament_id = $1 AND LOWER(gm.name) = LOWER($2)`,
           [tournament_id, map]
         );
         
