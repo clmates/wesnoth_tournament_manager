@@ -1,9 +1,11 @@
 .report-match-container {
+  width: 100%;
   max-width: 600px;
-  margin: 0 auto;
+  margin: 0 auto !important;
   padding: 40px 20px;
   min-height: calc(100vh - 70px);
-  background: #f5f7fa;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  display: block;
 }
 
 .report-match-form-wrapper {
