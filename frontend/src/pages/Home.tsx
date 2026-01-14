@@ -10,18 +10,26 @@ import '../styles/Home.css';
 // Determine API URL based on frontend hostname and Vite environment variables
 let API_URL: string;
 
-if (window.location.hostname.includes('main.')) {
+if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
   // Main deployment on Cloudflare Pages
-  API_URL = import.meta.env.VITE_API_URL || 'https://wesnothtournamentmanager-main.up.railway.app/api';
+  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
   console.log('🔍 Main deployment detected, using main backend');
+} else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+  // Production deployment (Cloudflare Pages production)
+  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+  console.log('🔍 Production deployment detected');
+} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+  // PR preview on Cloudflare (e.g., d6d2e341.wesnoth-tournament-manager.pages.dev)
+  API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+  console.log('🔍 PR preview detected, using PR backend');
 } else if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1') {
   // Local development
   API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
   console.log('🔍 Local development detected');
 } else {
-  // Production deployment (Cloudflare Pages default or custom domain)
-  API_URL = import.meta.env.VITE_API_URL || 'https://wesnothtournamentmanager-production.up.railway.app/api';
-  console.log('🔍 Production deployment detected');
+  // Fallback
+  API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  console.log('🔍 Fallback API URL used');
 }
 
 console.log(`📊 Using API_URL: ${API_URL}`);
