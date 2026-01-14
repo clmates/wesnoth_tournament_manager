@@ -44,18 +44,18 @@ BEGIN
     WITH opponent_wins AS (
       SELECT DISTINCT
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
-          ELSE tm.player_1_id
+          WHEN tm.player1_id = v_user.user_id THEN tm.player2_id
+          ELSE tm.player1_id
         END as opponent_id,
         COALESCE(tp.tournament_wins, 0) as opp_wins
       FROM tournament_round_matches tm
       LEFT JOIN tournament_participants tp ON tp.tournament_id = p_tournament_id AND tp.user_id = 
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
-          ELSE tm.player_1_id
+          WHEN tm.player1_id = v_user.user_id THEN tm.player2_id
+          ELSE tm.player1_id
         END
       WHERE tm.tournament_id = p_tournament_id
-        AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+        AND (tm.player1_id = v_user.user_id OR tm.player2_id = v_user.user_id)
         AND tm.series_status = 'completed'
     )
     SELECT COALESCE(AVG(opp_wins * 3), 0)::DECIMAL(8,2) INTO v_omp
@@ -63,12 +63,12 @@ BEGIN
 
     -- 3. GWP (Game Win Percentage) = (Games won / Total games played) * 100
     SELECT 
-      COALESCE(SUM(CASE WHEN tm.player_1_id = v_user.user_id THEN tm.player_1_wins ELSE tm.player_2_wins END), 0),
-      COALESCE(SUM(CASE WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_wins ELSE tm.player_1_wins END), 0)
+      COALESCE(SUM(CASE WHEN tm.player1_id = v_user.user_id THEN tm.player1_wins ELSE tm.player2_wins END), 0),
+      COALESCE(SUM(CASE WHEN tm.player1_id = v_user.user_id THEN tm.player2_wins ELSE tm.player1_wins END), 0)
     INTO v_games_won, v_games_lost
     FROM tournament_round_matches tm
     WHERE tm.tournament_id = p_tournament_id
-      AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+      AND (tm.player1_id = v_user.user_id OR tm.player2_id = v_user.user_id)
       AND tm.series_status = 'completed';
 
     v_total_games_played := v_games_won + v_games_lost;
@@ -83,20 +83,20 @@ BEGIN
     WITH opponent_gwp AS (
       SELECT DISTINCT
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
-          ELSE tm.player_1_id
+          WHEN tm.player1_id = v_user.user_id THEN tm.player2_id
+          ELSE tm.player1_id
         END as opponent_id,
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_wins
-          ELSE tm.player_1_wins
+          WHEN tm.player1_id = v_user.user_id THEN tm.player2_wins
+          ELSE tm.player1_wins
         END as opp_wins,
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_1_wins
-          ELSE tm.player_2_wins
+          WHEN tm.player1_id = v_user.user_id THEN tm.player1_wins
+          ELSE tm.player2_wins
         END as opp_losses
       FROM tournament_round_matches tm
       WHERE tm.tournament_id = p_tournament_id
-        AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+        AND (tm.player1_id = v_user.user_id OR tm.player2_id = v_user.user_id)
         AND tm.series_status = 'completed'
     )
     SELECT COALESCE(AVG(
@@ -116,6 +116,7 @@ BEGIN
   END LOOP;
 END;
 $$ LANGUAGE plpgsql;
+
 
 CREATE OR REPLACE FUNCTION calculate_league_tiebreakers(
   p_tournament_id UUID
@@ -154,18 +155,18 @@ BEGIN
     WITH opponent_wins AS (
       SELECT DISTINCT
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
-          ELSE tm.player_1_id
+          WHEN tm.player1_id = v_user.user_id THEN tm.player2_id
+          ELSE tm.player1_id
         END as opponent_id,
         COALESCE(tp.tournament_wins, 0) as opp_wins
       FROM tournament_round_matches tm
       LEFT JOIN tournament_participants tp ON tp.tournament_id = p_tournament_id AND tp.user_id = 
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
-          ELSE tm.player_1_id
+          WHEN tm.player1_id = v_user.user_id THEN tm.player2_id
+          ELSE tm.player1_id
         END
       WHERE tm.tournament_id = p_tournament_id
-        AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+        AND (tm.player1_id = v_user.user_id OR tm.player2_id = v_user.user_id)
         AND tm.series_status = 'completed'
     )
     SELECT COALESCE(AVG(opp_wins * 3), 0)::DECIMAL(8,2) INTO v_omp
@@ -173,12 +174,12 @@ BEGIN
 
     -- 3. GWP (Game Win Percentage) = (Games won / Total games played) * 100
     SELECT 
-      COALESCE(SUM(CASE WHEN tm.player_1_id = v_user.user_id THEN tm.player_1_wins ELSE tm.player_2_wins END), 0),
-      COALESCE(SUM(CASE WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_wins ELSE tm.player_1_wins END), 0)
+      COALESCE(SUM(CASE WHEN tm.player1_id = v_user.user_id THEN tm.player1_wins ELSE tm.player2_wins END), 0),
+      COALESCE(SUM(CASE WHEN tm.player1_id = v_user.user_id THEN tm.player2_wins ELSE tm.player1_wins END), 0)
     INTO v_games_won, v_games_lost
     FROM tournament_round_matches tm
     WHERE tm.tournament_id = p_tournament_id
-      AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+      AND (tm.player1_id = v_user.user_id OR tm.player2_id = v_user.user_id)
       AND tm.series_status = 'completed';
 
     v_total_games_played := v_games_won + v_games_lost;
@@ -193,20 +194,20 @@ BEGIN
     WITH opponent_gwp AS (
       SELECT DISTINCT
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
-          ELSE tm.player_1_id
+          WHEN tm.player1_id = v_user.user_id THEN tm.player2_id
+          ELSE tm.player1_id
         END as opponent_id,
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_wins
-          ELSE tm.player_1_wins
+          WHEN tm.player1_id = v_user.user_id THEN tm.player2_wins
+          ELSE tm.player1_wins
         END as opp_wins,
         CASE 
-          WHEN tm.player_1_id = v_user.user_id THEN tm.player_1_wins
-          ELSE tm.player_2_wins
+          WHEN tm.player1_id = v_user.user_id THEN tm.player1_wins
+          ELSE tm.player2_wins
         END as opp_losses
       FROM tournament_round_matches tm
       WHERE tm.tournament_id = p_tournament_id
-        AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+        AND (tm.player1_id = v_user.user_id OR tm.player2_id = v_user.user_id)
         AND tm.series_status = 'completed'
     )
     SELECT COALESCE(AVG(
