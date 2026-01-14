@@ -400,7 +400,7 @@ const User: React.FC = () => {
                       matches={filteredMatches}
                       currentPlayerId={userId || ''}
                       onViewDetails={openMatchDetails}
-                      onOpenConfirmation={onOpenConfirmation}
+                      onOpenConfirmation={openConfirmation}
                       onDownloadReplay={async (matchId, replayFilePath) => {
                         try {
                           let API_URL: string;
