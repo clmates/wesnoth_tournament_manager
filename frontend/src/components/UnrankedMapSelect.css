@@ -48,56 +48,6 @@
   font-weight: 600;
 }
 
-/* UnrankedMapSelect - Clean, simple styling */
-
-.unranked-map-select {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.unranked-map-select.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-  color: #666;
-  font-size: 14px;
-}
-
-/* Main container for header, table, and button */
-.map-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 0;
-}
-
-/* Header with title and count */
-.map-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1rem;
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  border-bottom: 1px solid #e0e0e0;
-  font-weight: 600;
-  color: white;
-  flex-shrink: 0;
-}
-
-.map-header h4 {
-  margin: 0;
-  font-size: 0.95rem;
-  color: white;
-  font-weight: 600;
-}
-
 .map-header .count {
   font-size: 0.875rem;
   color: white;
@@ -750,9 +700,4 @@
 
 .modal-buttons button.create-btn:hover:not(:disabled) {
   background-color: #1976d2;
-}
-
-.modal-buttons button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
