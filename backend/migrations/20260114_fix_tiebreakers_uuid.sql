@@ -1,0 +1,286 @@
+-- Fix: Update tiebreakers function to accept UUID instead of INT
+-- tournaments.id is UUID, not INT, so the functions need to be updated
+
+DROP FUNCTION IF EXISTS update_tournament_tiebreakers(INT);
+DROP FUNCTION IF EXISTS calculate_swiss_tiebreakers(INT);
+DROP FUNCTION IF EXISTS update_league_tiebreakers(INT);
+DROP FUNCTION IF EXISTS calculate_league_tiebreakers(INT);
+
+-- Recreate with UUID parameter
+CREATE OR REPLACE FUNCTION calculate_swiss_tiebreakers(
+  p_tournament_id UUID
+)
+RETURNS TABLE (
+  user_id UUID,
+  total_points INT,
+  omp DECIMAL(8,2),
+  gwp DECIMAL(5,2),
+  ogp DECIMAL(5,2)
+) AS $$
+DECLARE
+  v_user RECORD;
+  v_total_points INT;
+  v_omp DECIMAL(8,2);
+  v_gwp DECIMAL(5,2);
+  v_ogp DECIMAL(5,2);
+  v_total_games_played INT;
+  v_games_won INT;
+  v_games_lost INT;
+BEGIN
+  -- Iterate through all players in the tournament
+  FOR v_user IN 
+    SELECT DISTINCT tp.user_id
+    FROM tournament_participants tp
+    WHERE tp.tournament_id = p_tournament_id
+    ORDER BY tp.user_id
+  LOOP
+    -- 1. TOTAL POINTS (count of wins * 3)
+    SELECT COALESCE(tp.tournament_wins, 0) * 3 INTO v_total_points
+    FROM tournament_participants tp
+    WHERE tp.tournament_id = p_tournament_id
+      AND tp.user_id = v_user.user_id;
+
+    -- 2. OMP (Opponent Match Points) = Average points of all opponents faced
+    WITH opponent_wins AS (
+      SELECT DISTINCT
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
+          ELSE tm.player_1_id
+        END as opponent_id,
+        COALESCE(tp.tournament_wins, 0) as opp_wins
+      FROM tournament_round_matches tm
+      LEFT JOIN tournament_participants tp ON tp.tournament_id = p_tournament_id AND tp.user_id = 
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
+          ELSE tm.player_1_id
+        END
+      WHERE tm.tournament_id = p_tournament_id
+        AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+        AND tm.series_status = 'completed'
+    )
+    SELECT COALESCE(AVG(opp_wins * 3), 0)::DECIMAL(8,2) INTO v_omp
+    FROM opponent_wins;
+
+    -- 3. GWP (Game Win Percentage) = (Games won / Total games played) * 100
+    SELECT 
+      COALESCE(SUM(CASE WHEN tm.player_1_id = v_user.user_id THEN tm.player_1_wins ELSE tm.player_2_wins END), 0),
+      COALESCE(SUM(CASE WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_wins ELSE tm.player_1_wins END), 0)
+    INTO v_games_won, v_games_lost
+    FROM tournament_round_matches tm
+    WHERE tm.tournament_id = p_tournament_id
+      AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+      AND tm.series_status = 'completed';
+
+    v_total_games_played := v_games_won + v_games_lost;
+
+    IF v_total_games_played > 0 THEN
+      v_gwp := (v_games_won::DECIMAL / v_total_games_played * 100)::DECIMAL(5,2);
+    ELSE
+      v_gwp := 0;
+    END IF;
+
+    -- 4. OGP (Opponent Game Percentage) = Average GWP of opponents
+    WITH opponent_gwp AS (
+      SELECT DISTINCT
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
+          ELSE tm.player_1_id
+        END as opponent_id,
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_wins
+          ELSE tm.player_1_wins
+        END as opp_wins,
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_1_wins
+          ELSE tm.player_2_wins
+        END as opp_losses
+      FROM tournament_round_matches tm
+      WHERE tm.tournament_id = p_tournament_id
+        AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+        AND tm.series_status = 'completed'
+    )
+    SELECT COALESCE(AVG(
+      CASE 
+        WHEN (opp_wins + opp_losses) > 0 THEN (opp_wins::DECIMAL / (opp_wins + opp_losses) * 100)
+        ELSE 0
+      END
+    ), 0)::DECIMAL(5,2) INTO v_ogp
+    FROM opponent_gwp;
+
+    RETURN QUERY SELECT 
+      v_user.user_id,
+      v_total_points,
+      v_omp,
+      v_gwp,
+      v_ogp;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION calculate_league_tiebreakers(
+  p_tournament_id UUID
+)
+RETURNS TABLE (
+  user_id UUID,
+  total_points INT,
+  omp DECIMAL(8,2),
+  gwp DECIMAL(5,2),
+  ogp DECIMAL(5,2)
+) AS $$
+DECLARE
+  v_user RECORD;
+  v_total_points INT;
+  v_omp DECIMAL(8,2);
+  v_gwp DECIMAL(5,2);
+  v_ogp DECIMAL(5,2);
+  v_total_games_played INT;
+  v_games_won INT;
+  v_games_lost INT;
+BEGIN
+  -- Iterate through all players in the tournament (league)
+  FOR v_user IN 
+    SELECT DISTINCT tp.user_id
+    FROM tournament_participants tp
+    WHERE tp.tournament_id = p_tournament_id
+    ORDER BY tp.user_id
+  LOOP
+    -- 1. TOTAL POINTS (count of wins * 3)
+    SELECT COALESCE(tp.tournament_wins, 0) * 3 INTO v_total_points
+    FROM tournament_participants tp
+    WHERE tp.tournament_id = p_tournament_id
+      AND tp.user_id = v_user.user_id;
+
+    -- 2. OMP (Opponent Match Points) = Average points of all opponents faced
+    WITH opponent_wins AS (
+      SELECT DISTINCT
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
+          ELSE tm.player_1_id
+        END as opponent_id,
+        COALESCE(tp.tournament_wins, 0) as opp_wins
+      FROM tournament_round_matches tm
+      LEFT JOIN tournament_participants tp ON tp.tournament_id = p_tournament_id AND tp.user_id = 
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
+          ELSE tm.player_1_id
+        END
+      WHERE tm.tournament_id = p_tournament_id
+        AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+        AND tm.series_status = 'completed'
+    )
+    SELECT COALESCE(AVG(opp_wins * 3), 0)::DECIMAL(8,2) INTO v_omp
+    FROM opponent_wins;
+
+    -- 3. GWP (Game Win Percentage) = (Games won / Total games played) * 100
+    SELECT 
+      COALESCE(SUM(CASE WHEN tm.player_1_id = v_user.user_id THEN tm.player_1_wins ELSE tm.player_2_wins END), 0),
+      COALESCE(SUM(CASE WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_wins ELSE tm.player_1_wins END), 0)
+    INTO v_games_won, v_games_lost
+    FROM tournament_round_matches tm
+    WHERE tm.tournament_id = p_tournament_id
+      AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+      AND tm.series_status = 'completed';
+
+    v_total_games_played := v_games_won + v_games_lost;
+
+    IF v_total_games_played > 0 THEN
+      v_gwp := (v_games_won::DECIMAL / v_total_games_played * 100)::DECIMAL(5,2);
+    ELSE
+      v_gwp := 0;
+    END IF;
+
+    -- 4. OGP (Opponent Game Percentage) = Average GWP of opponents
+    WITH opponent_gwp AS (
+      SELECT DISTINCT
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_id
+          ELSE tm.player_1_id
+        END as opponent_id,
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_2_wins
+          ELSE tm.player_1_wins
+        END as opp_wins,
+        CASE 
+          WHEN tm.player_1_id = v_user.user_id THEN tm.player_1_wins
+          ELSE tm.player_2_wins
+        END as opp_losses
+      FROM tournament_round_matches tm
+      WHERE tm.tournament_id = p_tournament_id
+        AND (tm.player_1_id = v_user.user_id OR tm.player_2_id = v_user.user_id)
+        AND tm.series_status = 'completed'
+    )
+    SELECT COALESCE(AVG(
+      CASE 
+        WHEN (opp_wins + opp_losses) > 0 THEN (opp_wins::DECIMAL / (opp_wins + opp_losses) * 100)
+        ELSE 0
+      END
+    ), 0)::DECIMAL(5,2) INTO v_ogp
+    FROM opponent_gwp;
+
+    RETURN QUERY SELECT 
+      v_user.user_id,
+      v_total_points,
+      v_omp,
+      v_gwp,
+      v_ogp;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_tournament_tiebreakers(
+  p_tournament_id UUID
+)
+RETURNS TABLE (
+  updated_count INT,
+  error_message TEXT
+) AS $$
+DECLARE
+  v_updated INT := 0;
+  v_error TEXT := NULL;
+BEGIN
+  -- Update tournament_participants with calculated tiebreakers
+  UPDATE tournament_participants tp
+  SET 
+    omp = t.omp,
+    gwp = t.gwp,
+    ogp = t.ogp
+  FROM (SELECT * FROM calculate_swiss_tiebreakers(p_tournament_id)) t
+  WHERE tp.tournament_id = p_tournament_id
+    AND tp.user_id = t.user_id;
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+
+  RETURN QUERY SELECT v_updated, v_error;
+EXCEPTION WHEN OTHERS THEN
+  RETURN QUERY SELECT 0, SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION update_league_tiebreakers(
+  p_tournament_id UUID
+)
+RETURNS TABLE (
+  updated_count INT,
+  error_message TEXT
+) AS $$
+DECLARE
+  v_updated INT := 0;
+  v_error TEXT := NULL;
+BEGIN
+  -- Update tournament_participants with calculated tiebreakers for league tournaments
+  UPDATE tournament_participants tp
+  SET 
+    omp = t.omp,
+    gwp = t.gwp,
+    ogp = t.ogp
+  FROM (SELECT * FROM calculate_league_tiebreakers(p_tournament_id)) t
+  WHERE tp.tournament_id = p_tournament_id
+    AND tp.user_id = t.user_id;
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+
+  RETURN QUERY SELECT v_updated, v_error;
+EXCEPTION WHEN OTHERS THEN
+  RETURN QUERY SELECT 0, SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
