@@ -262,8 +262,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <h2>{t('report_match_tournament_title', { tournament: tournamentName })}</h2>
-            <p style={{ color: '#888', margin: '4px 0 0 0', fontSize: '14px' }}>{tournamentName}</p>
+            <h2>{t('report_match_title')} - {tournamentName}</h2>
           </div>
           <button className="close-btn" onClick={onClose} disabled={loading}>&times;</button>
         </div>
