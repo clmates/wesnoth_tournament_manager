@@ -449,9 +449,6 @@ async function generateSwissMatches(
   }
 }
 
-  return matches;
-}
-
 /**
  * Generates League matches
  * All participants play each round, new pairings each time
