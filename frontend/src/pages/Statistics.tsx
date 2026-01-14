@@ -42,7 +42,7 @@ const Statistics: React.FC = () => {
       </p>
 
       <BalanceEventImpactPanel 
-        eventId={selectedEventId} 
+        eventId={selectedEventId ?? undefined} 
         onEventChange={setSelectedEventId}
         onComparisonDataChange={handleComparisonDataChange}
       />
