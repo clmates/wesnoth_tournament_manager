@@ -404,7 +404,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       // For unranked and team tournaments, validate faction and map against allowed assets
       if (tournamentMode === 'unranked' || tournamentMode === 'team') {
         const factionCheck = await query(
-          `SELECT id FROM tournament_unranked_factions tuf
+          `SELECT tuf.id FROM tournament_unranked_factions tuf
            JOIN factions f ON tuf.faction_id = f.id
            WHERE tuf.tournament_id = $1 AND (LOWER(f.name) = LOWER($2) OR LOWER(f.name) = LOWER($3))`,
           [tournament_id, winner_faction, loser_faction]
@@ -415,7 +415,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         }
 
         const mapCheck = await query(
-          `SELECT id FROM tournament_unranked_maps tum
+          `SELECT tum.id FROM tournament_unranked_maps tum
            JOIN game_maps gm ON tum.map_id = gm.id
            WHERE tum.tournament_id = $1 AND LOWER(gm.name) = LOWER($2)`,
           [tournament_id, map]
@@ -426,28 +426,26 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         }
       }
 
-      // For ranked tournaments, validate faction and map against allowed ranked assets
+      // For ranked tournaments, validate faction and map against global assets (not restricted to tournament)
       if (tournamentMode === 'ranked') {
         const factionCheck = await query(
-          `SELECT id FROM tournament_unranked_factions tuf
-           JOIN factions f ON tuf.faction_id = f.id
-           WHERE tuf.tournament_id = $1 AND (LOWER(f.name) = LOWER($2) OR LOWER(f.name) = LOWER($3))`,
-          [tournament_id, winner_faction, loser_faction]
+          `SELECT id FROM factions 
+           WHERE (LOWER(name) = LOWER($1) OR LOWER(name) = LOWER($2))`,
+          [winner_faction, loser_faction]
         );
         
         if (factionCheck.rows.length === 0) {
-          return res.status(400).json({ error: 'Invalid faction for this ranked tournament' });
+          return res.status(400).json({ error: 'Invalid faction' });
         }
 
         const mapCheck = await query(
-          `SELECT id FROM tournament_unranked_maps tum
-           JOIN game_maps gm ON tum.map_id = gm.id
-           WHERE tum.tournament_id = $1 AND LOWER(gm.name) = LOWER($2)`,
-          [tournament_id, map]
+          `SELECT id FROM game_maps 
+           WHERE LOWER(name) = LOWER($1)`,
+          [map]
         );
         
         if (mapCheck.rows.length === 0) {
-          return res.status(400).json({ error: 'Invalid map for this ranked tournament' });
+          return res.status(400).json({ error: 'Invalid map' });
         }
       }
     }
