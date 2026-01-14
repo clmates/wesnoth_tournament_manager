@@ -534,9 +534,21 @@ router.get('/players/:id', async (req, res) => {
 // Get all maps (public endpoint - only active)
 router.get('/maps', async (req, res) => {
   try {
-    const result = await query(
-      `SELECT id, name, created_at, usage_count FROM public.game_maps WHERE is_active = true ORDER BY name ASC`
-    );
+    const isRanked = req.query.is_ranked === 'true';
+    let query_str = `SELECT id, name, created_at, usage_count FROM public.game_maps WHERE is_active = true`;
+    
+    if (isRanked) {
+      query_str += ` AND is_ranked = true`;
+      console.log('🔍 GET /public/maps?is_ranked=true - Filtering to ranked only');
+    } else {
+      console.log('🔍 GET /public/maps - No ranking filter');
+    }
+    
+    query_str += ` ORDER BY name ASC`;
+    console.log('🔍 Maps query:', query_str);
+    
+    const result = await query(query_str);
+    console.log('🔍 Maps count returned:', result.rows.length);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching maps:', error);
@@ -547,9 +559,21 @@ router.get('/maps', async (req, res) => {
 // Get all factions (public endpoint - only active)
 router.get('/factions', async (req, res) => {
   try {
-    const result = await query(
-      `SELECT id, name, description, icon_path, created_at FROM public.factions WHERE is_active = true ORDER BY name ASC`
-    );
+    const isRanked = req.query.is_ranked === 'true';
+    let query_str = `SELECT id, name, description, icon_path, created_at FROM public.factions WHERE is_active = true`;
+    
+    if (isRanked) {
+      query_str += ` AND is_ranked = true`;
+      console.log('🔍 GET /public/factions?is_ranked=true - Filtering to ranked only');
+    } else {
+      console.log('🔍 GET /public/factions - No ranking filter');
+    }
+    
+    query_str += ` ORDER BY name ASC`;
+    console.log('🔍 Factions query:', query_str);
+    
+    const result = await query(query_str);
+    console.log('🔍 Factions count returned:', result.rows.length);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching factions:', error);

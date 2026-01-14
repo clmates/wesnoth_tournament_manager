@@ -54,12 +54,17 @@ const ReportMatch: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        console.log('🔍 DEBUG ReportMatch - Starting fetchData...');
         // Load ranked maps, factions and users from API
         const [mapsResponse, factionsResponse, usersResponse] = await Promise.all([
           api.get('/public/maps?is_ranked=true'),
           api.get('/public/factions?is_ranked=true'),
           userService.getAllUsers(),
         ]);
+        console.log('🔍 DEBUG ReportMatch - Fetched maps (is_ranked=true):', mapsResponse.data);
+        console.log('🔍 DEBUG ReportMatch - Fetched factions (is_ranked=true):', factionsResponse.data);
+        console.log('🔍 DEBUG ReportMatch - Maps count:', mapsResponse.data?.length || 0);
+        console.log('🔍 DEBUG ReportMatch - Factions count:', factionsResponse.data?.length || 0);
         setMaps(mapsResponse.data || []);
         setFactions(factionsResponse.data || []);
         setUsers((usersResponse as any)?.data?.data || (usersResponse as any)?.data || []);
@@ -69,7 +74,7 @@ const ReportMatch: React.FC = () => {
           setError('No maps or factions available. Please contact an administrator.');
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
+        console.error('❌ Error fetching data:', err);
         setError('Failed to load maps and factions. Please try again later.');
       } finally {
         setLoading(false);
