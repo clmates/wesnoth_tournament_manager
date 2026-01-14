@@ -7,8 +7,7 @@ import { parseReplayFile, getOpponentFromReplay, getMapFromReplay, getPlayerFact
 import MainLayout from '../components/MainLayout';
 import OpponentSelector from '../components/OpponentSelector';
 import FileUploadInput from '../components/FileUploadInput';
-// TEMP DEBUG: Commented out CSS to test if it breaks global CSS
-// import '../styles/ReportMatch.css';
+import '../styles/ReportMatch.css';
 
 interface GameMap {
   id: string;

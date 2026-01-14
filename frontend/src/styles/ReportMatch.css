@@ -3,8 +3,7 @@
   margin: 0 auto;
   padding: 40px 20px;
   min-height: calc(100vh - 70px);
-  background: red !important; /* DEBUG: If you see RED, CSS is loading */
-  border: 10px solid lime; /* DEBUG: Lime border to see dimensions */
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
 .report-match-form-wrapper {
@@ -142,7 +141,6 @@
   cursor: not-allowed;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .report-match-form-wrapper {
     padding: 25px;
@@ -166,7 +164,6 @@
   }
 }
 
-/* Modal Styles for Tournament Match Report */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -260,6 +257,8 @@
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.3s;
+  background: white;
+  color: #2c3e50;
 }
 
 .tournament-match-report .form-group input:focus,
@@ -302,7 +301,6 @@
   background: #2980b9;
 }
 
-/* Tournament Match Report Modal Actions */
 .tournament-match-report .form-actions {
   display: flex;
   gap: 1rem;
