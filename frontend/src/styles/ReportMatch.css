@@ -1,9 +1,9 @@
 .report-match-container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 40px 20px;
-  min-height: calc(100vh - 70px);
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  max-width: 600px !important;
+  margin: 0 auto !important;
+  padding: 40px 20px !important;
+  min-height: calc(100vh - 70px) !important;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%) !important;
 }
 
 .report-match-form-wrapper {
