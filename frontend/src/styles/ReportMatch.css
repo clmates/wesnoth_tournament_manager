@@ -3,7 +3,8 @@
   margin: 0 auto;
   padding: 40px 20px;
   min-height: calc(100vh - 70px);
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: red !important; /* DEBUG: If you see RED, CSS is loading */
+  border: 10px solid lime; /* DEBUG: Lime border to see dimensions */
 }
 
 .report-match-form-wrapper {

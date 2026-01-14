@@ -23,6 +23,10 @@ const ReportMatch: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
+  
+  console.log('🔍 DEBUG: ReportMatch component LOADED');
+  console.log('🔍 DEBUG: CSS imported:', '../styles/ReportMatch.css');
+  
   const [users, setUsers] = useState<any[]>([]);
   const [maps, setMaps] = useState<GameMap[]>([]);
   const [factions, setFactions] = useState<Faction[]>([]);
