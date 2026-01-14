@@ -2132,7 +2132,7 @@ router.post('/tournaments/:id/calculate-tiebreakers', authMiddleware, async (req
 
     // Check if user is tournament organizer
     const tournamentResult = await query(
-      'SELECT id, organizer_id, tournament_mode FROM tournaments WHERE id = $1',
+      'SELECT id, creator_id, tournament_mode FROM tournaments WHERE id = $1',
       [id]
     );
 
@@ -2141,7 +2141,7 @@ router.post('/tournaments/:id/calculate-tiebreakers', authMiddleware, async (req
     }
 
     const tournament = tournamentResult.rows[0];
-    if (tournament.organizer_id !== req.userId) {
+    if (tournament.creator_id !== req.userId) {
       return res.status(403).json({ success: false, error: 'Only tournament organizer can calculate tiebreakers' });
     }
 
