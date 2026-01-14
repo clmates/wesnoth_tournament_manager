@@ -1,6 +1,7 @@
 -- Fix: Correct column names in Swiss tiebreaker functions
 -- The original migration used player_1_id but the actual columns are player1_id (no underscores)
 -- Also convert data types from INT to UUID to match the actual schema
+-- OMP calculation: 1 point per win (not 3), since there are no draws
 
 -- Drop old functions with INT parameter signature
 DROP FUNCTION IF EXISTS update_tournament_tiebreakers(INT);
@@ -35,7 +36,7 @@ BEGIN
     WHERE tp.tournament_id = p_tournament_id
     ORDER BY tp.user_id
   LOOP
-    SELECT COALESCE(tp.tournament_wins, 0) * 3 INTO v_total_points
+    SELECT COALESCE(tp.tournament_wins, 0) INTO v_total_points
     FROM tournament_participants tp
     WHERE tp.tournament_id = p_tournament_id
       AND tp.user_id = v_user.user_id;
@@ -57,7 +58,7 @@ BEGIN
         AND (tm.player1_id = v_user.user_id OR tm.player2_id = v_user.user_id)
         AND tm.series_status = 'completed'
     )
-    SELECT COALESCE(AVG(opp_wins * 3), 0)::DECIMAL(8,2) INTO v_omp
+    SELECT COALESCE(AVG(opp_wins), 0)::DECIMAL(8,2) INTO v_omp
     FROM opponent_wins;
 
     SELECT 
@@ -140,7 +141,7 @@ BEGIN
     WHERE tp.tournament_id = p_tournament_id
     ORDER BY tp.user_id
   LOOP
-    SELECT COALESCE(tp.tournament_wins, 0) * 3 INTO v_total_points
+    SELECT COALESCE(tp.tournament_wins, 0) INTO v_total_points
     FROM tournament_participants tp
     WHERE tp.tournament_id = p_tournament_id
       AND tp.user_id = v_user.user_id;
@@ -162,7 +163,7 @@ BEGIN
         AND (tm.player1_id = v_user.user_id OR tm.player2_id = v_user.user_id)
         AND tm.series_status = 'completed'
     )
-    SELECT COALESCE(AVG(opp_wins * 3), 0)::DECIMAL(8,2) INTO v_omp
+    SELECT COALESCE(AVG(opp_wins), 0)::DECIMAL(8,2) INTO v_omp
     FROM opponent_wins;
 
     SELECT 
