@@ -54,10 +54,10 @@ const ReportMatch: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Load maps, factions and users from API
+        // Load ranked maps, factions and users from API
         const [mapsResponse, factionsResponse, usersResponse] = await Promise.all([
-          api.get('/public/maps'),
-          api.get('/public/factions'),
+          api.get('/public/maps?is_ranked=true'),
+          api.get('/public/factions?is_ranked=true'),
           userService.getAllUsers(),
         ]);
         setMaps(mapsResponse.data || []);
