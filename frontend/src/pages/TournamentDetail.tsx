@@ -269,22 +269,30 @@ const TournamentDetail: React.FC = () => {
     if (editMode && tournament) {
       const fetchAllAssets = async () => {
         try {
-          const factionsRes = await api.get('/admin/unranked-factions');
-          if (factionsRes.data.success && factionsRes.data.data) {
-            setAllFactions(factionsRes.data.data);
-          }
-
-          const mapsRes = await api.get('/admin/unranked-maps');
-          if (mapsRes.data.success && mapsRes.data.data) {
-            setAllMaps(mapsRes.data.data);
+          console.log('📥 Fetching assets for edit mode. Tournament mode:', tournament.tournament_mode);
+          
+          if (tournament.tournament_mode === 'ranked') {
+            // For ranked tournaments, fetch only ranked assets
+            const factionsRes = await api.get('/public/factions?is_ranked=true');
+            const mapsRes = await api.get('/public/maps?is_ranked=true');
+            console.log('✅ Ranked - Factions:', factionsRes.data.length, 'Maps:', mapsRes.data.length);
+            setAllFactions(factionsRes.data || []);
+            setAllMaps(mapsRes.data || []);
+          } else if (tournament.tournament_mode === 'unranked' || tournament.tournament_mode === 'team') {
+            // For unranked/team tournaments, fetch ALL assets (so organizer can choose which to allow)
+            const factionsRes = await api.get('/admin/unranked-factions');
+            const mapsRes = await api.get('/admin/unranked-maps');
+            console.log('🔵 Unranked/Team - ALL Factions:', factionsRes.data.data?.length, 'ALL Maps:', mapsRes.data.data?.length);
+            setAllFactions(factionsRes.data.data || []);
+            setAllMaps(mapsRes.data.data || []);
           }
         } catch (err) {
-          console.error('Error fetching available assets:', err);
+          console.error('❌ Error fetching available assets:', err);
         }
       };
       fetchAllAssets();
     }
-  }, [editMode, tournament?.id]);
+  }, [editMode, tournament?.id, tournament?.tournament_mode]);
 
   const handleTeamJoinSubmit = async (teamName: string, teammateName: string) => {
     try {
@@ -542,6 +550,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
   const handleStartNextRound = async (currentRoundNumber: number) => {
     try {
+      // For Swiss/Swiss-Elimination tournaments in general phase, calculate tiebreakers first
+      if (tournament && (tournament.tournament_type === 'swiss' || tournament.tournament_type === 'swiss_elimination')) {
+        // Check if we're in general phase (not final elimination phase)
+        const currentRound = rounds.find(r => r.round_number === currentRoundNumber);
+        if (currentRound && currentRound.round_type === 'general') {
+          console.log('🎲 Calculating tiebreakers before generating Swiss pairings...');
+          await api.post(`/admin/tournaments/${id}/calculate-tiebreakers`);
+          console.log('✅ Tiebreakers calculated');
+        }
+      }
+
       await tournamentService.startNextRound(id!);
 
       setSuccess(t('success_round_started', { number: currentRoundNumber + 1 }));

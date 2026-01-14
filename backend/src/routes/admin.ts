@@ -2123,5 +2123,57 @@ router.delete('/tournaments/:id/teams/:teamId', authMiddleware, async (req: Auth
   }
 });
 
+// Calculate tiebreakers (OMP, GWP, OGP) for tournament participants
+// Call this after a round completes, before generating next round pairings
+router.post('/tournaments/:id/calculate-tiebreakers', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`\n🎲 [CALCULATE TIEBREAKERS] Starting tiebreaker calculation for tournament ${id}`);
+
+    // Check if user is tournament organizer
+    const tournamentResult = await query(
+      'SELECT id, organizer_id, tournament_mode FROM tournaments WHERE id = $1',
+      [id]
+    );
+
+    if (tournamentResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Tournament not found' });
+    }
+
+    const tournament = tournamentResult.rows[0];
+    if (tournament.organizer_id !== req.userId) {
+      return res.status(403).json({ success: false, error: 'Only tournament organizer can calculate tiebreakers' });
+    }
+
+    // Calculate tiebreakers
+    const tiebreakersResult = await query(
+      'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
+      [id]
+    );
+
+    if (tiebreakersResult.rows.length === 0) {
+      return res.status(500).json({ success: false, error: 'Failed to calculate tiebreakers' });
+    }
+
+    const { updated_count, error_message } = tiebreakersResult.rows[0];
+    
+    if (error_message) {
+      console.error(`❌ [CALCULATE TIEBREAKERS] Error: ${error_message}`);
+      return res.status(500).json({ success: false, error: error_message });
+    }
+
+    console.log(`✅ [CALCULATE TIEBREAKERS] Calculated tiebreakers for ${updated_count} participants`);
+    
+    res.json({
+      success: true,
+      message: `Tiebreakers calculated for ${updated_count} participants`,
+      updated_count
+    });
+  } catch (error) {
+    console.error('Error calculating tiebreakers:', error);
+    res.status(500).json({ success: false, error: 'Failed to calculate tiebreakers' });
+  }
+});
+
 export default router;
 

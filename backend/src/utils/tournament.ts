@@ -298,46 +298,156 @@ function generateRoundRobinMatches(
 
 /**
  * Generates Swiss system matches
- * Pairs players based on their current score/performance
+ * Pairs players based on their current score and tiebreakers (OMP, GWP, OGP)
+ * Avoids re-pairings when possible
  */
-function generateSwissMatches(
+async function generateSwissMatches(
   participants: any[],
   tournamentId: string,
   roundId: string,
   roundNumber: number
-): any[] {
+): Promise<any[]> {
   const matches: any[] = [];
 
   if (participants.length < 2) {
     return matches;
   }
 
-  // Sort by ELO for Swiss pairing
-  const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
-  
-  // Simple Swiss pairing: pair strongest with second strongest, etc.
-  // For more accurate Swiss, would need access to tournament standings
-  for (let i = 0; i < sorted.length - 1; i += 2) {
-    matches.push({
-      tournament_id: tournamentId,
-      round_id: roundId,
-      player1_id: sorted[i].user_id,
-      player2_id: sorted[i + 1].user_id,
-    });
-  }
+  try {
+    // Get player standings with scores and tiebreakers
+    const standingsResult = await query(
+      `SELECT 
+        tp.user_id,
+        tp.tournament_wins,
+        tp.tournament_losses,
+        tp.elo_rating,
+        tp.omp,
+        tp.gwp,
+        tp.ogp
+       FROM tournament_participants tp
+       WHERE tp.tournament_id = $1 AND tp.user_id = ANY($2)
+       ORDER BY 
+         (tp.tournament_wins - tp.tournament_losses) DESC,
+         tp.omp DESC,
+         tp.gwp DESC,
+         tp.ogp DESC,
+         tp.elo_rating DESC`,
+      [tournamentId, participants.map(p => p.user_id)]
+    );
 
-  // If odd number, highest ELO gets bye
-  if (sorted.length % 2 === 1) {
-    const byePlayer = sorted[0];
-    console.log(`🎯 Swiss Round ${roundNumber}: Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
-    matches.push({
-      tournament_id: tournamentId,
-      round_id: roundId,
-      player1_id: byePlayer.user_id,
-      player2_id: null,
-      is_bye: true,
+    const standings = standingsResult.rows;
+    console.log(`\n🎲 [SWISS PAIRINGS] Round ${roundNumber}: ${standings.length} players`);
+    standings.forEach(p => {
+      const score = (p.tournament_wins - p.tournament_losses);
+      console.log(`  Player ${p.user_id}: ${p.tournament_wins}-${p.tournament_losses} (OMP:${p.omp} GWP:${p.gwp} OGP:${p.ogp} ELO:${p.elo_rating})`);
     });
+
+    // Group by score
+    const scoreGroups: { [key: string]: any[] } = {};
+    standings.forEach(player => {
+      const score = (player.tournament_wins - player.tournament_losses).toString();
+      if (!scoreGroups[score]) {
+        scoreGroups[score] = [];
+      }
+      scoreGroups[score].push(player);
+    });
+
+    console.log(`\n[SCORE GROUPS]:`);
+    Object.keys(scoreGroups).sort((a, b) => parseInt(b) - parseInt(a)).forEach(score => {
+      console.log(`  Score ${score}: ${scoreGroups[score].length} players`);
+    });
+
+    // Get history of pairings to avoid re-matches
+    const pairingHistoryResult = await query(
+      `SELECT DISTINCT 
+        LEAST(player1_id, player2_id) as player_a,
+        GREATEST(player1_id, player2_id) as player_b
+       FROM tournament_matches
+       WHERE tournament_id = $1 AND player1_id IS NOT NULL AND player2_id IS NOT NULL`,
+      [tournamentId]
+    );
+
+    const previousPairings = new Set(
+      pairingHistoryResult.rows.map(row => `${row.player_a}|${row.player_b}`)
+    );
+
+    console.log(`\n[PREVIOUS PAIRINGS]: ${previousPairings.size} historical pairings found`);
+
+    // Pair within each score group
+    const paired = new Set<string>();
+    
+    for (const score of Object.keys(scoreGroups).sort((a, b) => parseInt(b) - parseInt(a))) {
+      const group = scoreGroups[score];
+      console.log(`\n[PAIRING GROUP] Score ${score}:`);
+
+      const available = group.filter(p => !paired.has(p.user_id));
+      
+      for (let i = 0; i < available.length - 1; i++) {
+        // Skip if already paired
+        if (paired.has(available[i].user_id)) continue;
+
+        let paired_with = null;
+
+        // Try to pair with next player without creating a re-match
+        for (let j = i + 1; j < available.length; j++) {
+          if (paired.has(available[j].user_id)) continue;
+
+          const pairing_key = `${Math.min(available[i].user_id, available[j].user_id)}|${Math.max(available[i].user_id, available[j].user_id)}`;
+          
+          // If this pairing hasn't happened before, use it
+          if (!previousPairings.has(pairing_key)) {
+            paired_with = available[j];
+            console.log(`  ✅ Pair ${available[i].user_id} vs ${available[j].user_id} (new pairing)`);
+            break;
+          } else {
+            console.log(`  ⚠️  Avoid ${available[i].user_id} vs ${available[j].user_id} (re-match)`);
+          }
+        }
+
+        // If no new pairing found, use the first available (re-match necessary)
+        if (!paired_with) {
+          for (let j = i + 1; j < available.length; j++) {
+            if (!paired.has(available[j].user_id)) {
+              paired_with = available[j];
+              console.log(`  ⚠️  Pair ${available[i].user_id} vs ${available[j].user_id} (unavoidable re-match)`);
+              break;
+            }
+          }
+        }
+
+        if (paired_with) {
+          matches.push({
+            tournament_id: tournamentId,
+            round_id: roundId,
+            player1_id: available[i].user_id,
+            player2_id: paired_with.user_id,
+          });
+          paired.add(available[i].user_id);
+          paired.add(paired_with.user_id);
+        }
+      }
+    }
+
+    // Handle odd player: best remaining gets bye
+    const unpaired = standings.find(p => !paired.has(p.user_id));
+    if (unpaired) {
+      console.log(`\n✅ BYE: Player ${unpaired.user_id} (${unpaired.tournament_wins}-${unpaired.tournament_losses}) advances automatically`);
+      matches.push({
+        tournament_id: tournamentId,
+        round_id: roundId,
+        player1_id: unpaired.user_id,
+        player2_id: null,
+        is_bye: true,
+      });
+    }
+
+    console.log(`\n[SWISS PAIRINGS RESULT] Generated ${matches.length} pairings`);
+    return matches;
+  } catch (error) {
+    console.error('❌ Error in generateSwissMatches:', error);
+    throw error;
   }
+}
 
   return matches;
 }
@@ -596,7 +706,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       } else if (tournamentType === 'swiss' || tournamentType === 'swiss_elimination') {
         // Swiss: use Swiss pairing system for all participants still in tournament
         console.log(`  → Using SWISS pairings`);
-        pairings = generateSwissMatches(participants, tournamentId, round.id, roundNumber);
+        pairings = await generateSwissMatches(participants, tournamentId, round.id, roundNumber);
       } else {
         // League: all participants play each other
         console.log(`  → Using LEAGUE pairings`);
