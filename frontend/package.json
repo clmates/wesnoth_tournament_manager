@@ -1,6 +1,6 @@
 {
   "name": "wesnoth-tournament-frontend",
-  "version": "1.0.0",
+  "version": "1.0.1-rebuild-css-cloudflare",
   "license": "AGPL-3.0-or-later",
   "description": "Frontend for Wesnoth Tournament Management",
   "type": "module",
