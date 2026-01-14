@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { matchService, api } from '../services/api';
-import { parseReplayFile, getOpponentFromReplay, getMapFromReplay, getPlayerFactionFromReplay } from '../services/replayParser';
-import '../styles/MatchConfirmationModal.css';
+import { parseReplayFile, getMapFromReplay, getPlayerFactionFromReplay } from '../services/replayParser';
+import FileUploadInput from './FileUploadInput';
+import '../styles/ReportMatch.css';
 
 interface TournamentMatchReportProps {
   tournamentMatchId: string;
@@ -40,6 +42,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     map: '',
     winner_faction: '',
@@ -128,22 +131,13 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
     loadData();
   }, [tournamentId]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleReplayFileChange = async (file: File | null) => {
     setFormData((prev) => ({
       ...prev,
       replay: file,
     }));
+
+    if (!file) return;
 
     try {
       setError('');
@@ -193,6 +187,14 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
     } catch (err: any) {
       setError(`Replay parsing error: ${err.message}`);
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -260,25 +262,35 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <h2>Report Tournament Match</h2>
+            <h2>{t('report_match_tournament_title', { tournament: tournamentName })}</h2>
             <p style={{ color: '#888', margin: '4px 0 0 0', fontSize: '14px' }}>{tournamentName}</p>
           </div>
-          <button className="close-btn" onClick={onClose}>&times;</button>
+          <button className="close-btn" onClick={onClose} disabled={loading}>&times;</button>
         </div>
 
         <div className="modal-body">
-          {error && <div className="error-message">{error}</div>}
-          {loadingData && <div style={{ color: '#666', fontSize: '14px', marginBottom: '10px' }}>Loading maps and factions...</div>}
+          <div className="player-info" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+            <strong>{winnerName}</strong> (You) vs <strong>{loserName}</strong>
+          </div>
 
-          <form onSubmit={handleSubmit}>
+          {error && <div className="error-message">{error}</div>}
+          {loadingData && <div style={{ color: '#666', fontSize: '14px', marginBottom: '1rem' }}>{t('loading')}</div>}
+
+          <form onSubmit={handleSubmit} className="report-match-form">
             <div className="form-group">
-              <label>
-                <strong>{winnerName}</strong> (You) vs <strong>{loserName}</strong>
-              </label>
+              <label htmlFor="replay">{t('report_replay')}</label>
+              <FileUploadInput
+                value={formData.replay}
+                onChange={handleReplayFileChange}
+                accept=".gz,.bz2"
+              />
+              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+                {t('report.replay_upload_help')}
+              </small>
             </div>
 
             <div className="form-group">
-              <label htmlFor="map">Map *</label>
+              <label htmlFor="map">{t('report_map')} *</label>
               <select
                 id="map"
                 name="map"
@@ -287,7 +299,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 required
                 disabled={loadingData}
               >
-                <option value="">Select map...</option>
+                <option value="">{t('report.select_map')}</option>
                 {maps.map((map) => (
                   <option key={map.id} value={map.name}>
                     {map.name}
@@ -298,7 +310,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
 
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="winner_faction">Your Faction *</label>
+                <label htmlFor="winner_faction">{t('report.your_faction')} *</label>
                 <select
                   id="winner_faction"
                   name="winner_faction"
@@ -307,7 +319,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                   required
                   disabled={loadingData}
                 >
-                  <option value="">Select faction...</option>
+                  <option value="">{t('report.select_faction')}</option>
                   {factions.map((faction) => (
                     <option key={faction.id} value={faction.name}>
                       {faction.name}
@@ -317,7 +329,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
               </div>
 
               <div className="form-group">
-                <label htmlFor="loser_faction">Opponent Faction *</label>
+                <label htmlFor="loser_faction">{t('report.opponent_faction')} *</label>
                 <select
                   id="loser_faction"
                   name="loser_faction"
@@ -326,7 +338,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                   required
                   disabled={loadingData}
                 >
-                  <option value="">Select faction...</option>
+                  <option value="">{t('report.select_faction')}</option>
                   {factions.map((faction) => (
                     <option key={faction.id} value={faction.name}>
                       {faction.name}
@@ -337,46 +349,32 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
             </div>
 
             <div className="form-group">
-              <label htmlFor="comments">Comments</label>
+              <label htmlFor="comments">{t('report_comments')}</label>
               <textarea
                 id="comments"
                 name="comments"
                 value={formData.comments}
                 onChange={handleInputChange}
-                placeholder="Any additional comments about the match..."
+                placeholder={t('report.comments_placeholder')}
                 rows={4}
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="rating">Rate Your Opponent (1-5)</label>
+              <label htmlFor="rating">{t('report.rate_opponent')}</label>
               <select
                 id="rating"
                 name="rating"
                 value={formData.rating}
                 onChange={handleInputChange}
               >
-                <option value="">No rating</option>
-                <option value="1">1 - Poor</option>
-                <option value="2">2 - Fair</option>
-                <option value="3">3 - Good</option>
-                <option value="4">4 - Very Good</option>
-                <option value="5">5 - Excellent</option>
+                <option value="">{t('report.rating_no')}</option>
+                <option value="1">1 - {t('report.rating_1')}</option>
+                <option value="2">2 - {t('report.rating_2')}</option>
+                <option value="3">3 - {t('report.rating_3')}</option>
+                <option value="4">4 - {t('report.rating_4')}</option>
+                <option value="5">5 - {t('report.rating_5')}</option>
               </select>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="replay">Replay File</label>
-              <input
-                type="file"
-                id="replay"
-                name="replay"
-                onChange={handleFileChange}
-                accept=".gz,.bz2"
-              />
-              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
-                Upload your replay file (.gz or .bz2) or save file to auto-fill map and factions
-              </small>
             </div>
 
             <div className="form-actions">
@@ -386,14 +384,14 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 onClick={onClose}
                 disabled={loading}
               >
-                Cancel
+                {t('btn_cancel')}
               </button>
               <button
                 type="submit"
                 className="btn-submit"
                 disabled={loading}
               >
-                {loading ? 'Reporting...' : 'Report Match'}
+                {loading ? t('report.submitting') : t('report_button')}
               </button>
             </div>
           </form>
