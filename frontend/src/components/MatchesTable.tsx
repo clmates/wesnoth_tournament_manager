@@ -10,7 +10,7 @@ const getApiUrl = (): string => {
     return 'https://wesnothtournamentmanager-main.up.railway.app/api';
   } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
     return 'https://wesnothtournamentmanager-production.up.railway.app/api';
-  } else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+  } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
     return 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
   } else {
     return '/api';

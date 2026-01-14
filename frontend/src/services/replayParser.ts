@@ -90,7 +90,7 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
         backendUrl = 'https://wesnothtournamentmanager-main.up.railway.app/api/matches/preview-replay';
       } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
         backendUrl = 'https://wesnothtournamentmanager-production.up.railway.app/api/matches/preview-replay';
-      } else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+      } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
         backendUrl = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api/matches/preview-replay';
       }
       console.log('[REPLAY] Sending request to', backendUrl);

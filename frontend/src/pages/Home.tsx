@@ -18,8 +18,8 @@ if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
   // Production deployment (Cloudflare Pages production)
   API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
   console.log('🔍 Production deployment detected');
-} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
-  // PR preview on Cloudflare (e.g., d6d2e341.wesnoth-tournament-manager.pages.dev)
+} else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+  // PR preview on Cloudflare (feature-unranked-tournaments.wesnoth-tournament-manager.pages.dev)
   API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
   console.log('🔍 PR preview detected, using PR backend');
 } else if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1') {
