@@ -314,24 +314,25 @@ async function generateSwissMatches(
   }
 
   try {
-    // Get player standings with scores and tiebreakers
+    // Get player standings with scores and tiebreakers (ELO from users table)
     const standingsResult = await query(
       `SELECT 
         tp.user_id,
         tp.tournament_wins,
         tp.tournament_losses,
-        tp.elo_rating,
+        u.elo_rating,
         tp.omp,
         tp.gwp,
         tp.ogp
        FROM tournament_participants tp
+       LEFT JOIN users u ON tp.user_id = u.id
        WHERE tp.tournament_id = $1 AND tp.user_id = ANY($2)
        ORDER BY 
          (tp.tournament_wins - tp.tournament_losses) DESC,
          tp.omp DESC,
          tp.gwp DESC,
          tp.ogp DESC,
-         tp.elo_rating DESC`,
+         u.elo_rating DESC`,
       [tournamentId, participants.map(p => p.user_id)]
     );
 
