@@ -83,6 +83,7 @@ interface TournamentMatch {
   match_status_from_matches?: 'confirmed' | 'disputed' | 'unconfirmed' | 'cancelled' | null;
   winner_faction?: string;
   loser_faction?: string;
+  is_team_mode?: boolean;
   map?: string;
   winner_comments?: string;
   loser_comments?: string;
@@ -1036,9 +1037,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           <table className="matches-table">
                             <thead>
                               <tr>
-                                <th>{t('label_player1')}</th>
+                                <th>{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
                                 <th>{t('vs')}</th>
-                                <th>{t('label_player2')}</th>
+                                <th>{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
                                 <th>{t('label_play_before')}</th>
                                 <th>{t('label_status')}</th>
                               </tr>
@@ -1053,7 +1054,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   playBeforeDate = formatDate(endDate.toISOString());
                                 }
 
-                                // Check if current user is one of the players
+                                // Check if current user is one of the players/teams
                                 const isPlayer = userId === match.player1_id || userId === match.player2_id;
                                 console.log('Match Debug:', {
                                   matchId: match.id,
@@ -1063,14 +1064,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   isPlayer: isPlayer,
                                   match_status: match.match_status,
                                   round_status: round.round_status,
-                                  round_round_status: round.round_status
+                                  is_team_mode: match.is_team_mode
                                 });
                                 
                                 return (
                                   <tr key={match.id}>
-                                    <td><strong><PlayerLink nickname={match.player1_nickname} userId={match.player1_id} /></strong></td>
+                                    <td><strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong></td>
                                     <td>vs</td>
-                                    <td><strong><PlayerLink nickname={match.player2_nickname} userId={match.player2_id} /></strong></td>
+                                    <td><strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong></td>
                                     <td>{playBeforeDate}</td>
                                     <td>
                                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1329,9 +1330,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     <table className="matches-table">
                       <thead>
                         <tr>
-                          <th>{t('label_player1')}</th>
+                          <th>{matchesInRound.length > 0 && matchesInRound[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
                           <th>{t('vs')}</th>
-                          <th>{t('label_player2')}</th>
+                          <th>{matchesInRound.length > 0 && matchesInRound[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
                           <th>{t('label_winner')}</th>
                           <th>{t('label_status')}</th>
                         </tr>
@@ -1340,7 +1341,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         {matchesInRound.map((match) => (
                           <tr key={match.id}>
                             <td>
-                              <strong><PlayerLink nickname={match.player1_nickname} userId={match.player1_id} /></strong>
+                              <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
                               {(match as any).player1_wins !== undefined && (
                                 <span style={{ color: '#666', fontSize: '0.85em' }}>
                                   {' '}({(match as any).player1_wins})
@@ -1349,7 +1350,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             </td>
                             <td>vs</td>
                             <td>
-                              <strong><PlayerLink nickname={match.player2_nickname} userId={match.player2_id} /></strong>
+                              <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
                               {(match as any).player2_wins !== undefined && (
                                 <span style={{ color: '#666', fontSize: '0.85em' }}>
                                   {' '}({(match as any).player2_wins})
@@ -1358,9 +1359,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             </td>
                             <td>
                               {match.winner_id === match.player1_id ? (
-                                <strong style={{ color: '#28a745' }}><PlayerLink nickname={match.player1_nickname} userId={match.player1_id} /></strong>
+                                <strong style={{ color: '#28a745' }}>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
                               ) : match.winner_id === match.player2_id ? (
-                                <strong style={{ color: '#28a745' }}><PlayerLink nickname={match.player2_nickname} userId={match.player2_id} /></strong>
+                                <strong style={{ color: '#28a745' }}>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
                               ) : (
                                 <span style={{ color: '#999' }}>-</span>
                               )}

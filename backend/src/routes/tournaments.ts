@@ -1678,8 +1678,50 @@ router.get('/:tournamentId/rounds/:roundId/matches', async (req, res) => {
   try {
     const { tournamentId, roundId } = req.params;
 
-    const result = await query(
-      `SELECT 
+    // First, get tournament mode
+    const tournamentModeResult = await query(
+      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      [tournamentId]
+    );
+
+    if (tournamentModeResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const isTeamMode = tournamentModeResult.rows[0].tournament_mode === 'team';
+
+    // Build dynamic query based on tournament mode
+    let selectClause, joinClause;
+    
+    if (isTeamMode) {
+      // Team mode: get team names from tournament_teams
+      selectClause = `
+        tm.id,
+        tm.tournament_id,
+        tm.round_id,
+        tm.player1_id,
+        tm.player2_id,
+        tm.winner_id,
+        tm.match_id,
+        tm.match_status,
+        tm.played_at,
+        tt1.name as player1_nickname,
+        tt2.name as player2_nickname,
+        tt_winner.name as winner_nickname,
+        m.id as reported_match_id,
+        m.status as reported_match_status,
+        TRUE as is_team_mode
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
+        LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
+        LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
+        LEFT JOIN matches m ON tm.match_id = m.id
+      `;
+    } else {
+      // 1v1 mode: get player names from users (original behavior)
+      selectClause = `
         tm.id,
         tm.tournament_id,
         tm.round_id,
@@ -1693,12 +1735,21 @@ router.get('/:tournamentId/rounds/:roundId/matches', async (req, res) => {
         u2.nickname as player2_nickname,
         uw.nickname as winner_nickname,
         m.id as reported_match_id,
-        m.status as reported_match_status
-       FROM tournament_matches tm
-       LEFT JOIN users u1 ON tm.player1_id = u1.id
-       LEFT JOIN users u2 ON tm.player2_id = u2.id
-       LEFT JOIN users uw ON tm.winner_id = uw.id
-       LEFT JOIN matches m ON tm.match_id = m.id
+        m.status as reported_match_status,
+        FALSE as is_team_mode
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        LEFT JOIN users u1 ON tm.player1_id = u1.id
+        LEFT JOIN users u2 ON tm.player2_id = u2.id
+        LEFT JOIN users uw ON tm.winner_id = uw.id
+        LEFT JOIN matches m ON tm.match_id = m.id
+      `;
+    }
+
+    const result = await query(
+      `SELECT ${selectClause}
+       ${joinClause}
        WHERE tm.tournament_id = $1 AND tm.round_id = $2
        ORDER BY tm.created_at ASC`,
       [tournamentId, roundId]
@@ -1716,8 +1767,51 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
   try {
     const { tournamentId } = req.params;
 
-    const result = await query(
-      `SELECT 
+    // First, get tournament mode
+    const tournamentModeResult = await query(
+      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      [tournamentId]
+    );
+
+    if (tournamentModeResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const isTeamMode = tournamentModeResult.rows[0].tournament_mode === 'team';
+
+    // Build dynamic query based on tournament mode
+    let selectClause, joinClause;
+    
+    if (isTeamMode) {
+      // Team mode: get team names from tournament_teams
+      selectClause = `
+        trm.id,
+        trm.tournament_id,
+        trm.round_id,
+        trm.player1_id,
+        trm.player2_id,
+        trm.winner_id,
+        trm.player1_wins,
+        trm.player2_wins,
+        trm.best_of,
+        trm.series_status,
+        tr.round_number,
+        tr.round_type,
+        tt1.name as player1_nickname,
+        tt2.name as player2_nickname,
+        tt_winner.name as winner_nickname,
+        TRUE as is_team_mode
+      `;
+      joinClause = `
+        FROM tournament_round_matches trm
+        JOIN tournament_rounds tr ON trm.round_id = tr.id
+        LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
+        LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
+        LEFT JOIN tournament_teams tt_winner ON trm.winner_id = tt_winner.id
+      `;
+    } else {
+      // 1v1 mode: get player names from users (original behavior)
+      selectClause = `
         trm.id,
         trm.tournament_id,
         trm.round_id,
@@ -1732,12 +1826,21 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
         tr.round_type,
         u1.nickname as player1_nickname,
         u2.nickname as player2_nickname,
-        uw.nickname as winner_nickname
-       FROM tournament_round_matches trm
-       JOIN tournament_rounds tr ON trm.round_id = tr.id
-       LEFT JOIN users u1 ON trm.player1_id = u1.id
-       LEFT JOIN users u2 ON trm.player2_id = u2.id
-       LEFT JOIN users uw ON trm.winner_id = uw.id
+        uw.nickname as winner_nickname,
+        FALSE as is_team_mode
+      `;
+      joinClause = `
+        FROM tournament_round_matches trm
+        JOIN tournament_rounds tr ON trm.round_id = tr.id
+        LEFT JOIN users u1 ON trm.player1_id = u1.id
+        LEFT JOIN users u2 ON trm.player2_id = u2.id
+        LEFT JOIN users uw ON trm.winner_id = uw.id
+      `;
+    }
+
+    const result = await query(
+      `SELECT ${selectClause}
+       ${joinClause}
        WHERE trm.tournament_id = $1
        ORDER BY tr.round_number ASC, trm.created_at ASC`,
       [tournamentId]
@@ -1755,8 +1858,62 @@ router.get('/:tournamentId/matches', async (req, res) => {
   try {
     const { tournamentId } = req.params;
 
-    const result = await query(
-      `SELECT 
+    // First, get tournament mode
+    const tournamentModeResult = await query(
+      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      [tournamentId]
+    );
+
+    if (tournamentModeResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const isTeamMode = tournamentModeResult.rows[0].tournament_mode === 'team';
+
+    // Build dynamic query based on tournament mode
+    let selectClause, joinClause;
+    
+    if (isTeamMode) {
+      // Team mode: get team names from tournament_teams
+      selectClause = `
+        tm.id,
+        tm.tournament_id,
+        tm.round_id,
+        tm.player1_id,
+        tm.player2_id,
+        tm.winner_id,
+        tm.match_id,
+        tm.match_status,
+        tm.played_at,
+        tr.round_number,
+        tt1.name as player1_nickname,
+        tt2.name as player2_nickname,
+        COALESCE(tt_winner.name, u_winner_fallback.nickname) as winner_nickname,
+        COALESCE(tt_loser.name, u_loser_fallback.nickname) as loser_nickname,
+        m.status as match_status_from_matches,
+        m.winner_faction,
+        m.loser_faction,
+        m.map,
+        m.winner_comments,
+        m.loser_comments,
+        m.replay_file_path,
+        m.replay_downloads,
+        TRUE as is_team_mode
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        JOIN tournament_rounds tr ON tm.round_id = tr.id
+        LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
+        LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
+        LEFT JOIN matches m ON tm.match_id = m.id
+        LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
+        LEFT JOIN users u_winner_fallback ON m.winner_id = u_winner_fallback.id
+        LEFT JOIN tournament_teams tt_loser ON m.loser_id = tt_loser.id
+        LEFT JOIN users u_loser_fallback ON m.loser_id = u_loser_fallback.id
+      `;
+    } else {
+      // 1v1 mode: get player names from users (original behavior)
+      selectClause = `
         tm.id,
         tm.tournament_id,
         tm.round_id,
@@ -1778,15 +1935,24 @@ router.get('/:tournamentId/matches', async (req, res) => {
         m.winner_comments,
         m.loser_comments,
         m.replay_file_path,
-        m.replay_downloads
-       FROM tournament_matches tm
-       JOIN tournament_rounds tr ON tm.round_id = tr.id
-       LEFT JOIN users u1 ON tm.player1_id = u1.id
-       LEFT JOIN users u2 ON tm.player2_id = u2.id
-       LEFT JOIN matches m ON tm.match_id = m.id
-       LEFT JOIN users uw ON m.winner_id = uw.id
-       LEFT JOIN users uwt ON tm.winner_id = uwt.id
-       LEFT JOIN users ul ON m.loser_id = ul.id
+        m.replay_downloads,
+        FALSE as is_team_mode
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        JOIN tournament_rounds tr ON tm.round_id = tr.id
+        LEFT JOIN users u1 ON tm.player1_id = u1.id
+        LEFT JOIN users u2 ON tm.player2_id = u2.id
+        LEFT JOIN matches m ON tm.match_id = m.id
+        LEFT JOIN users uw ON m.winner_id = uw.id
+        LEFT JOIN users uwt ON tm.winner_id = uwt.id
+        LEFT JOIN users ul ON m.loser_id = ul.id
+      `;
+    }
+
+    const result = await query(
+      `SELECT ${selectClause}
+       ${joinClause}
        WHERE tm.tournament_id = $1
        ORDER BY tr.round_number ASC, tm.created_at ASC`,
       [tournamentId]
