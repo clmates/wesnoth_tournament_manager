@@ -888,7 +888,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   {member.participation_status === 'unconfirmed' && member.id === userId && (
                                     <button 
                                       className="btn-confirm"
-                                      onClick={() => handleConfirmParticipation(member.id)}
+                                      onClick={() => handleConfirmParticipation(member.participant_id)}
                                       title="Confirm your participation"
                                     >
                                       {t('btn_confirm') || 'Confirm'}
@@ -898,14 +898,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                     <>
                                       <button 
                                         className="btn-accept"
-                                        onClick={() => handleAcceptParticipant(member.id)}
+                                        onClick={() => handleAcceptParticipant(member.participant_id)}
                                         title={t('btn_accept')}
                                       >
                                         {t('btn_accept')}
                                       </button>
                                       <button 
                                         className="btn-reject"
-                                        onClick={() => handleRejectParticipant(member.id)}
+                                        onClick={() => handleRejectParticipant(member.participant_id)}
                                         title={t('btn_reject')}
                                       >
                                         {t('btn_reject')}
