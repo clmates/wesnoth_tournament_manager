@@ -133,18 +133,14 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
 
     // Teammate is optional now
     if (teammateName.trim()) {
-      // If teammate is provided, validate them
-      const selectedUser = searchResults.find(u => u.nickname.toLowerCase() === teammateName.toLowerCase());
-      if (!selectedUser && teammateName) {
-        setError('Please select a teammate from the list or leave empty');
-        return;
-      }
-
       // Check not selecting self
       if (teammateName.toLowerCase() === currentUserNickname?.toLowerCase()) {
         setError('You cannot select yourself as teammate');
         return;
       }
+      
+      // Note: Don't validate if user exists here - let backend handle it
+      // This allows writing the full nickname without selecting from list
     }
 
     try {

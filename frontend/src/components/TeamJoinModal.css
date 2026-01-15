@@ -86,6 +86,7 @@
 .teammate-search-container {
   position: relative;
   margin-bottom: 8px;
+  z-index: 100;
 }
 
 .teammate-search-container .searching {
