@@ -160,6 +160,12 @@ const TournamentDetail: React.FC = () => {
       ]);
 
       setTournament(tournamentRes.data);
+      console.log('📋 Tournament loaded:', {
+        id: tournamentRes.data.id,
+        name: tournamentRes.data.name,
+        tournament_type: tournamentRes.data.tournament_type,
+        tournament_mode: tournamentRes.data.tournament_mode
+      });
       setParticipants(participantsRes.data?.standings || []);
       setMatches(matchesRes.data || []);
       setRoundMatches(roundMaturesRes.data || []);
@@ -222,11 +228,16 @@ const TournamentDetail: React.FC = () => {
   };
 
   const handleJoinTournament = async () => {
+    console.log('🔍 handleJoinTournament called with tournament_mode:', tournament?.tournament_mode);
+    console.log('📋 Full tournament object:', tournament);
+    
     if (tournament?.tournament_mode === 'team') {
       // Show team join modal for team tournaments
+      console.log('✅ Showing team join modal for team tournament');
       setShowTeamJoinModal(true);
     } else {
       // Direct join for ranked/unranked tournaments
+      console.log('❌ Direct join (not team mode)');
       try {
         await tournamentService.requestJoinTournament(id!);
         setSuccess(t('success_join_request_sent'));
