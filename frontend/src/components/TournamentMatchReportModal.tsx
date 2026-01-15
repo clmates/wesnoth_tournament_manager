@@ -256,8 +256,15 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
         data.append('replay', formData.replay);
       }
 
-      // Report the match
-      await matchService.reportMatch(data);
+      // Report the match using appropriate endpoint
+      if (tournamentMode === 'team') {
+        // Team mode: use JSON endpoint (no file upload)
+        const jsonData = Object.fromEntries(data.entries());
+        await matchService.reportMatchJson(jsonData);
+      } else {
+        // 1v1 mode: use multipart endpoint (with file upload support)
+        await matchService.reportMatch(data);
+      }
 
       onSuccess();
       onClose();

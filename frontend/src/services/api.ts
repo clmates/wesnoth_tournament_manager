@@ -137,6 +137,7 @@ export const matchService = {
   reportMatch: (data: any) => api.post('/matches/report', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
+  reportMatchJson: (data: any) => api.post('/matches/report-json', data),
   confirmMatch: (id: string, data: any) => api.post(`/matches/${id}/confirm`, data),
   getAllMatches: (page: number = 1, filters?: any) => {
     const params: any = { page };
