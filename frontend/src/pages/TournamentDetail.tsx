@@ -1389,7 +1389,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <div className="tab-content">
           {tournament?.tournament_mode === 'team' ? (
             // Team ranking
-            teams.length > 0 ? (
+            participants.length > 0 ? (
               <table className="ranking-table">
                 <thead>
                   <tr>
@@ -1399,41 +1399,49 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     <th>{t('label_wins')}</th>
                     <th>{t('label_losses')}</th>
                     <th>{t('label_points')}</th>
+                    <th title="Opponent Match Points">OMP</th>
+                    <th title="Game Win Percentage">GWP</th>
+                    <th title="Opponent Game Percentage">OGP</th>
+                    <th>{t('label_status')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {teams
-                    .map((team) => {
-                      // Calculate team stats from members
-                      const teamMembers = participants.filter((p: any) => p.team_id === team.id);
-                      const teamWins = teamMembers.reduce((sum, p) => sum + (p.tournament_wins || 0), 0);
-                      const teamLosses = teamMembers.reduce((sum, p) => sum + (p.tournament_losses || 0), 0);
-                      // Team points should be the same for all members (they share the same points)
-                      const teamPoints = teamMembers.length > 0 ? teamMembers[0].tournament_points || 0 : 0;
-                      
-                      return {
-                        ...team,
-                        teamWins,
-                        teamLosses,
-                        teamPoints,
-                        membersList: teamMembers.map((p: any) => p.nickname).join(', ')
-                      };
-                    })
+                  {participants
                     .sort((a, b) => {
-                      const pointsDiff = b.teamPoints - a.teamPoints;
+                      const pointsDiff = (b.tournament_points || 0) - (a.tournament_points || 0);
                       if (pointsDiff !== 0) return pointsDiff;
-                      return b.teamWins - a.teamWins;
+                      const ompDiff = (Number(b.omp) || 0) - (Number(a.omp) || 0);
+                      if (ompDiff !== 0) return ompDiff;
+                      const gwpDiff = (Number(b.gwp) || 0) - (Number(a.gwp) || 0);
+                      if (gwpDiff !== 0) return gwpDiff;
+                      const ogpDiff = (Number(b.ogp) || 0) - (Number(a.ogp) || 0);
+                      if (ogpDiff !== 0) return ogpDiff;
+                      return (b.tournament_wins || 0) - (a.tournament_wins || 0);
                     })
-                    .map((team, index) => (
-                      <tr key={team.id}>
-                        <td><strong>#{index + 1}</strong></td>
-                        <td><strong>{team.name}</strong></td>
-                        <td>{team.membersList}</td>
-                        <td>{team.teamWins}</td>
-                        <td>{team.teamLosses}</td>
-                        <td><strong>{team.teamPoints}</strong></td>
-                      </tr>
-                    ))}
+                    .map((team, index) => {
+                      // Get team members from the participants list
+                      const teamMembers = participants.filter((p: any) => p.team_id === team.id && p.team_id !== team.id ? p : p.team_position);
+                      const membersList = teamMembers.map((p: any) => p.nickname).join(', ') || team.nickname || 'N/A';
+                      
+                      return (
+                        <tr key={team.id}>
+                          <td><strong>#{index + 1}</strong></td>
+                          <td><strong>{team.nickname}</strong></td>
+                          <td>{membersList}</td>
+                          <td>{team.tournament_wins || 0}</td>
+                          <td>{team.tournament_losses || 0}</td>
+                          <td><strong>{team.tournament_points || 0}</strong></td>
+                          <td>{team.omp != null ? Number(team.omp).toFixed(2) : '-'}</td>
+                          <td>{team.gwp != null ? Number(team.gwp).toFixed(2) : '-'}</td>
+                          <td>{team.ogp != null ? Number(team.ogp).toFixed(2) : '-'}</td>
+                          <td>
+                            <span className={`status-badge status-${normalizeStatus(team.status || undefined)}`}>
+                              {t(`option_${normalizeStatus(team.status || undefined)}`) !== `option_${normalizeStatus(team.status || undefined)}` ? t(`option_${normalizeStatus(team.status || undefined)}`) : (team.status || t('option_active'))}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             ) : (
