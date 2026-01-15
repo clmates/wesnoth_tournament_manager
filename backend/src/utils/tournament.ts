@@ -38,11 +38,12 @@ export async function selectPlayersForEliminationPhase(
     console.log(`Final Rounds: ${finalRounds}`);
     console.log(`Players to Advance: ${playersToAdvance}`);
     
-    // Get the top N players by tournament points and wins
+    // Get the top N players by tournament points, wins, Swiss tiebreakers, and ELO
     const topPlayersResult = await query(
-      `SELECT user_id FROM tournament_participants 
-       WHERE tournament_id = $1 AND participation_status = 'accepted'
-       ORDER BY tournament_points DESC, tournament_wins DESC, user_id
+      `SELECT tp.user_id FROM tournament_participants tp
+       LEFT JOIN users u ON tp.user_id = u.id
+       WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+       ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC, u.elo_rating DESC, tp.user_id
        LIMIT $2`,
       [tournamentId, playersToAdvance]
     );
