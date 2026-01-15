@@ -188,6 +188,7 @@ function generateFirstRoundMatches(
   participants: Participant[],
   tournamentId: string,
   roundId: string,
+  tournamentMode: string = 'ranked',
   tournamentRoundMatches: any[] = []
 ): any[] {
   const matches = [];
@@ -200,6 +201,10 @@ function generateFirstRoundMatches(
 
   // Pair up participants
   for (let i = 0; i < shuffled.length - 1; i += 2) {
+    // For team tournaments, shuffled[i].user_id contains the team_id
+    // For 1v1 tournaments, shuffled[i].user_id contains the user_id
+    // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id, not user_id
+    // This is intentional and documented - it allows reusing existing match infrastructure
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
@@ -211,7 +216,7 @@ function generateFirstRoundMatches(
   // If odd number of participants, highest ELO gets a bye (automatic advancement)
   if (shuffled.length % 2 === 1) {
     const byePlayer = sorted[0]; // Highest ELO player
-    console.log(`🎯 Odd number of participants (${shuffled.length}). Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    console.log(`🎯 Odd number of participants (${shuffled.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
     
     // Mark this player for automatic advancement
     // This will be handled in the next round generation
@@ -230,11 +235,13 @@ function generateFirstRoundMatches(
 /**
  * Generates elimination bracket matches
  * If odd number of remaining players, highest ELO advances automatically (bye)
+ * For team mode: player_id1/2 contain team_id (Option B architecture)
  */
 function generateEliminationMatches(
   winners: any[],
   tournamentId: string,
-  roundId: string
+  roundId: string,
+  tournamentMode: string = 'ranked'
 ): any[] {
   const matches = [];
   
@@ -245,6 +252,7 @@ function generateEliminationMatches(
   const shuffled = [...sorted].sort(() => Math.random() - 0.5);
 
   for (let i = 0; i < shuffled.length - 1; i += 2) {
+    // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
@@ -256,7 +264,7 @@ function generateEliminationMatches(
   // If odd number of players, highest ELO gets bye to next round
   if (shuffled.length % 2 === 1) {
     const byePlayer = sorted[0]; // Highest ELO among remaining
-    console.log(`🏆 Elimination round with odd players (${shuffled.length}). Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    console.log(`🏆 Elimination round with odd players (${shuffled.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
     
     matches.push({
       tournament_id: tournamentId,
@@ -273,11 +281,13 @@ function generateEliminationMatches(
 /**
  * Generates round-robin matches
  * Each player plays against each other player (limited to reasonable count)
+ * For team mode: player_id1/2 contain team_id (Option B architecture)
  */
 function generateRoundRobinMatches(
   participants: any[],
   tournamentId: string,
-  roundId: string
+  roundId: string,
+  tournamentMode: string = 'ranked'
 ): any[] {
   const matches = [];
   const maxMatches = 20; // Limit matches per round for practical reasons
@@ -285,6 +295,7 @@ function generateRoundRobinMatches(
   // Generate round-robin pairings, limited by maxMatches
   for (let i = 0; i < participants.length - 1 && matches.length < maxMatches; i++) {
     for (let j = i + 1; j < participants.length && matches.length < maxMatches; j++) {
+      // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id
       matches.push({
         tournament_id: tournamentId,
         round_id: roundId,
@@ -301,12 +312,14 @@ function generateRoundRobinMatches(
  * Generates Swiss system matches
  * Pairs players based on their current score and tiebreakers (OMP, GWP, OGP)
  * Avoids re-pairings when possible
+ * For team mode: player_id1/2 contain team_id (Option B architecture)
  */
 async function generateSwissMatches(
   participants: any[],
   tournamentId: string,
   roundId: string,
-  roundNumber: number
+  roundNumber: number,
+  tournamentMode: string = 'ranked'
 ): Promise<any[]> {
   const matches: any[] = [];
 
@@ -458,7 +471,8 @@ async function generateSwissMatches(
 function generateLeagueMatches(
   participants: any[],
   tournamentId: string,
-  roundId: string
+  roundId: string,
+  tournamentMode: string = 'ranked'
 ): any[] {
   const matches: any[] = [];
 
@@ -470,6 +484,7 @@ function generateLeagueMatches(
   const shuffled = [...participants].sort(() => Math.random() - 0.5);
   
   for (let i = 0; i < shuffled.length - 1; i += 2) {
+    // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
@@ -482,7 +497,7 @@ function generateLeagueMatches(
   if (shuffled.length % 2 === 1) {
     const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
     const byePlayer = sorted[0];
-    console.log(`🎯 League Round: Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    console.log(`🎯 League Round: ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
@@ -524,9 +539,9 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       return false;
     }
 
-    // Get tournament info
+    // Get tournament info (including tournament_mode for team tournament handling)
     const tournamentResult = await query(
-      `SELECT tournament_type FROM tournaments WHERE id = $1`,
+      `SELECT tournament_type, tournament_mode FROM tournaments WHERE id = $1`,
       [tournamentId]
     );
 
@@ -599,15 +614,32 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
 
     // Get accepted participants for first round, or based on tournament type for subsequent rounds
     let participants;
+    const isteamMode = tournament.tournament_mode === 'team';
+    
     if (roundNumber === 1) {
-      const participantsResult = await query(
-        `SELECT tp.id, tp.user_id, u.elo_rating
-         FROM tournament_participants tp
-         LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'`,
-        [tournamentId]
-      );
-      participants = participantsResult.rows;
+      if (isteamMode) {
+        // Team tournament: get teams instead of individual players
+        // ARCHITECTURE NOTE (Option B): We'll use team.id as if it were user_id for pairing functions
+        // The team_id will be stored in player_id1/2 columns of tournament_matches
+        const teamsResult = await query(
+          `SELECT tt.id as user_id, tt.team_elo_rating as elo_rating
+           FROM tournament_teams tt
+           WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
+          [tournamentId]
+        );
+        participants = teamsResult.rows;
+        console.log(`[ACTIVATE_ROUND] Team mode: ${participants.length} teams for first round`);
+      } else {
+        // 1v1 tournament: get individual players
+        const participantsResult = await query(
+          `SELECT tp.id, tp.user_id, u.elo_rating
+           FROM tournament_participants tp
+           LEFT JOIN users u ON tp.user_id = u.id
+           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'`,
+          [tournamentId]
+        );
+        participants = participantsResult.rows;
+      }
     } else {
       // For subsequent rounds, behavior depends on tournament type AND round type
       const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
@@ -621,8 +653,31 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       
       console.log(`\n[GET_PARTICIPANTS] Round Type check: "${roundType}" (not 'general'? ${roundType !== 'general'})`);
       
-      if (tournamentType === 'elimination') {
-        // Elimination: only get non-eliminated participants (status = 'active')
+      if (isteamMode) {
+        // Team tournament: subsequent rounds
+        if (tournamentType === 'elimination') {
+          // Team elimination: only get active teams
+          const teamsResult = await query(
+            `SELECT tt.id as user_id, tt.team_elo_rating as elo_rating
+             FROM tournament_teams tt
+             WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
+            [tournamentId]
+          );
+          participants = teamsResult.rows;
+          console.log(`[GET_PARTICIPANTS] Team mode elimination: ${participants.length} active teams`);
+        } else {
+          // Team swiss/league: all active teams
+          const teamsResult = await query(
+            `SELECT tt.id as user_id, tt.team_elo_rating as elo_rating
+             FROM tournament_teams tt
+             WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
+            [tournamentId]
+          );
+          participants = teamsResult.rows;
+          console.log(`[GET_PARTICIPANTS] Team mode swiss/league: ${participants.length} active teams`);
+        }
+      } else if (tournamentType === 'elimination') {
+        // 1v1 Elimination: only get non-eliminated participants (status = 'active')
         const participantsResult = await query(
           `SELECT tp.id, tp.user_id, u.elo_rating
            FROM tournament_participants tp
@@ -646,7 +701,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         console.log(`[GET_PARTICIPANTS] Found ${participants.length} active participants for elimination round`);
         console.log(`[GET_PARTICIPANTS] Players: ${participants.map(p => p.user_id).join(', ')}`);
       } else {
-        // Swiss, League, Swiss-Elimination (general rounds): all accepted participants continue
+        // 1v1 Swiss, League, Swiss-Elimination (general rounds): all accepted participants continue
         console.log(`[GET_PARTICIPANTS] Swiss/League round (tournamentType="${tournamentType}", roundType="${roundType}")`);
         const participantsResult = await query(
           `SELECT tp.id, tp.user_id, u.elo_rating
@@ -677,7 +732,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     let pairings;
     if (roundNumber === 1) {
       // First round: pair all participants
-      pairings = generateFirstRoundMatches(participants, tournamentId, round.id);
+      pairings = generateFirstRoundMatches(participants, tournamentId, round.id, tournament.tournament_mode);
     } else {
       // Subsequent rounds: depends on tournament type AND round type
       const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
@@ -697,19 +752,19 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       if (tournamentType === 'elimination') {
         // Elimination: pair winners from previous round
         console.log(`  → Using ELIMINATION pairings`);
-        pairings = generateEliminationMatches(participants, tournamentId, round.id);
+        pairings = generateEliminationMatches(participants, tournamentId, round.id, tournament.tournament_mode);
       } else if (tournamentType === 'swiss_elimination' && roundType !== 'general') {
         // Swiss-Elimination Mix in final phase (not Swiss): use elimination pairings
         console.log(`  → Using ELIMINATION pairings (Swiss-Elimination final phase)`);
-        pairings = generateEliminationMatches(participants, tournamentId, round.id);
+        pairings = generateEliminationMatches(participants, tournamentId, round.id, tournament.tournament_mode);
       } else if (tournamentType === 'swiss' || tournamentType === 'swiss_elimination') {
         // Swiss: use Swiss pairing system for all participants still in tournament
         console.log(`  → Using SWISS pairings`);
-        pairings = await generateSwissMatches(participants, tournamentId, round.id, roundNumber);
+        pairings = await generateSwissMatches(participants, tournamentId, round.id, roundNumber, tournament.tournament_mode);
       } else {
         // League: all participants play each other
         console.log(`  → Using LEAGUE pairings`);
-        pairings = generateLeagueMatches(participants, tournamentId, round.id);
+        pairings = generateLeagueMatches(participants, tournamentId, round.id, tournament.tournament_mode);
       }
       
       console.log(`  Generated ${pairings.length} pairings`);
