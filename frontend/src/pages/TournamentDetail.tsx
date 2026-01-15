@@ -602,6 +602,19 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     return s.toString().toLowerCase().replace(/\s+/g, '_').replace(/-+/g, '_');
   };
 
+  const getModeLabel = (mode?: string) => {
+    switch (mode) {
+      case 'ranked':
+        return 'Ranked (1v1)';
+      case 'unranked':
+        return 'Unranked (1v1)';
+      case 'team':
+        return 'Team (2v2)';
+      default:
+        return mode || 'Unknown';
+    }
+  };
+
   const isCreator = userId === tournament?.creator_id;
   const isAcceptedParticipant = userParticipationStatus === 'accepted';
 
@@ -639,6 +652,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       <div className="tournament-info">
         <p><strong>{t('tournament.col_organizer')}:</strong> <PlayerLink nickname={tournament.creator_nickname} userId={tournament.creator_id} /></p>
         <p><strong>{t('tournament.col_type')}:</strong> {tournament.tournament_type}</p>
+        <p><strong>{t('tournament.mode', 'Tournament Mode')}:</strong> {getModeLabel(tournament.tournament_mode)}</p>
         <p><strong>{t('label_max_participants')}:</strong> {tournament.max_participants || t('unlimited')}</p>
         <p><strong>{t('label_created')}:</strong> {formatDate(tournament.created_at)}</p>
         {tournament.started_at && <p><strong>{t('label_started')}:</strong> {formatDate(tournament.started_at)}</p>}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './TeamJoinModal.css';
-import * as api from '../services/api';
-import { userService } from '../services/api';
+import { api, userService } from '../services/api';
 
 interface User {
   id: string;
@@ -32,7 +31,7 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
-  const [existingTeams, setExistingTeams] = useState<Array<{id: string; name: string; memberCount: number}>>([]);
+  const [existingTeams, setExistingTeams] = useState<Array<{id: string; name: string; member_count: number}>>([]);
   const [showTeamSuggestions, setShowTeamSuggestions] = useState(false);
   const [joinMode, setJoinMode] = useState<'create' | 'join'>('create');
 
@@ -40,16 +39,24 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
   useEffect(() => {
     const fetchExistingTeams = async () => {
       try {
+        console.log('📥 Fetching teams for tournament:', tournamentId);
         const response = await api.get(`/tournaments/${tournamentId}/teams`);
-        const teams = response.data || [];
+        console.log('✅ Teams response:', response);
+        const teams = response.data?.data || [];
         // Filter teams that have only 1 member (have an available slot)
-        const availableTeams = teams.filter((team: any) => team.memberCount === 1);
+        // Note: API returns member_count in snake_case
+        const availableTeams = teams.filter((team: any) => team.member_count === 1);
+        console.log('✅ Available teams (1 member):', availableTeams);
         setExistingTeams(availableTeams);
-      } catch (err) {
-        console.error('Failed to fetch teams:', err);
+      } catch (err: any) {
+        console.error('❌ Failed to fetch teams:', err?.response?.status, err?.response?.data || err.message);
+        // If fetch fails, just show create-only mode
+        setExistingTeams([]);
       }
     };
-    fetchExistingTeams();
+    if (tournamentId) {
+      fetchExistingTeams();
+    }
   }, [tournamentId]);
 
   // Search for teammate when typing
