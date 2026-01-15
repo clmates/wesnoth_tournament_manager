@@ -201,7 +201,14 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
     e.preventDefault();
     setError('');
 
-    if (!formData.map || !formData.winner_faction || !formData.loser_faction) {
+    // Validation: map is always required
+    if (!formData.map) {
+      setError('Map is required');
+      return;
+    }
+
+    // Validation: factions required only in 1v1 mode
+    if (tournamentMode !== 'team' && (!formData.winner_faction || !formData.loser_faction)) {
       setError('Map and factions are required');
       return;
     }
@@ -213,17 +220,19 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
       return;
     }
 
-    // Validate factions are in allowed assets
-    const winnerFactionExists = factions.some(f => f.name === formData.winner_faction);
-    if (!winnerFactionExists) {
-      setError(`Faction "${formData.winner_faction}" is not in the allowed list for this tournament`);
-      return;
-    }
+    // Validate factions are in allowed assets (only for 1v1 mode)
+    if (tournamentMode !== 'team') {
+      const winnerFactionExists = factions.some(f => f.name === formData.winner_faction);
+      if (!winnerFactionExists) {
+        setError(`Faction "${formData.winner_faction}" is not in the allowed list for this tournament`);
+        return;
+      }
 
-    const loserFactionExists = factions.some(f => f.name === formData.loser_faction);
-    if (!loserFactionExists) {
-      setError(`Faction "${formData.loser_faction}" is not in the allowed list for this tournament`);
-      return;
+      const loserFactionExists = factions.some(f => f.name === formData.loser_faction);
+      if (!loserFactionExists) {
+        setError(`Faction "${formData.loser_faction}" is not in the allowed list for this tournament`);
+        return;
+      }
     }
 
     try {
@@ -232,8 +241,11 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
       const data = new FormData();
       data.append('opponent_id', loserId);
       data.append('map', formData.map);
-      data.append('winner_faction', formData.winner_faction);
-      data.append('loser_faction', formData.loser_faction);
+      // Only include factions for 1v1 mode
+      if (tournamentMode !== 'team') {
+        data.append('winner_faction', formData.winner_faction);
+        data.append('loser_faction', formData.loser_faction);
+      }
       data.append('comments', formData.comments);
       data.append('tournament_id', tournamentId);
       data.append('tournament_match_id', tournamentMatchId);
@@ -307,6 +319,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
               </select>
             </div>
 
+            {tournamentMode !== 'team' && (
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="winner_faction">{t('report.your_faction')} *</label>
@@ -346,6 +359,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 </select>
               </div>
             </div>
+            )}
 
             <div className="form-group">
               <label htmlFor="comments">{t('report_comments')}</label>

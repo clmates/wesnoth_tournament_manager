@@ -120,8 +120,25 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { opponent_id, map, winner_faction, loser_faction, comments, rating, tournament_id, tournament_match_id } = req.body;
 
-    if (!opponent_id || !map || !winner_faction || !loser_faction) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // Get tournament mode to determine if factions are required
+    let isTournamentTeamMode = false;
+    if (tournament_id) {
+      const tournamentResult = await query(
+        'SELECT tournament_mode FROM tournaments WHERE id = $1',
+        [tournament_id]
+      );
+      if (tournamentResult.rows.length > 0) {
+        isTournamentTeamMode = tournamentResult.rows[0].tournament_mode === 'team';
+      }
+    }
+
+    // Validate required fields: opponent_id, map required. factions required only for non-team mode
+    if (!opponent_id || !map) {
+      return res.status(400).json({ error: 'Missing required fields: opponent_id and map' });
+    }
+
+    if (!isTournamentTeamMode && (!winner_faction || !loser_faction)) {
+      return res.status(400).json({ error: 'Missing required fields for 1v1 match: winner_faction and loser_faction' });
     }
 
     // Enforce .gz and .bz2 uploads (defensive even with multer filter)
@@ -425,9 +442,27 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     const { opponent_id, map, winner_faction, loser_faction, comments, rating, tournament_id, tournament_match_id } = req.body;
     console.log('📤 [UPLOAD] Match details:', { opponent_id, map, winner_faction, loser_faction, tournament_id, tournament_match_id });
 
-    if (!opponent_id || !map || !winner_faction || !loser_faction) {
+    // Get tournament mode to determine if factions are required
+    let isTournamentTeamMode = false;
+    if (tournament_id) {
+      const tournamentResult = await query(
+        'SELECT tournament_mode FROM tournaments WHERE id = $1',
+        [tournament_id]
+      );
+      if (tournamentResult.rows.length > 0) {
+        isTournamentTeamMode = tournamentResult.rows[0].tournament_mode === 'team';
+      }
+    }
+
+    // Validate required fields: opponent_id, map required. factions required only for non-team mode
+    if (!opponent_id || !map) {
       console.warn('📤 [UPLOAD] Missing required fields');
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: 'Missing required fields: opponent_id and map' });
+    }
+
+    if (!isTournamentTeamMode && (!winner_faction || !loser_faction)) {
+      console.warn('📤 [UPLOAD] Missing faction fields for 1v1 match');
+      return res.status(400).json({ error: 'Missing required fields for 1v1 match: winner_faction and loser_faction' });
     }
 
     // Get winner and opponent data (FIDE system)
