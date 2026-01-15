@@ -468,9 +468,10 @@
   border-left: 4px solid #f44336;
 }
 
-/* Accept/Reject Buttons */
+/* Accept/Reject/Confirm Buttons */
 .btn-accept,
-.btn-reject {
+.btn-reject,
+.btn-confirm {
   padding: 0.4rem 0.8rem;
   margin: 0 0.25rem;
   border: none;
@@ -497,6 +498,15 @@
 
 .btn-reject:hover {
   background: #da190b;
+}
+
+.btn-confirm {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-confirm:hover {
+  background: #0b7dda;
 }
 
 /* Error and Success Messages */
