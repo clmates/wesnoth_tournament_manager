@@ -32,6 +32,25 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
+  const [existingTeams, setExistingTeams] = useState<Array<{id: string; name: string; memberCount: number}>>([]);
+  const [showTeamSuggestions, setShowTeamSuggestions] = useState(false);
+  const [joinMode, setJoinMode] = useState<'create' | 'join'>('create');
+
+  // Fetch existing teams with available slots
+  useEffect(() => {
+    const fetchExistingTeams = async () => {
+      try {
+        const response = await api.get(`/tournaments/${tournamentId}/teams`);
+        const teams = response.data || [];
+        // Filter teams that have only 1 member (have an available slot)
+        const availableTeams = teams.filter((team: any) => team.memberCount === 1);
+        setExistingTeams(availableTeams);
+      } catch (err) {
+        console.error('Failed to fetch teams:', err);
+      }
+    };
+    fetchExistingTeams();
+  }, [tournamentId]);
 
   // Search for teammate when typing
   const handleTeammateSearch = async (value: string) => {
@@ -65,6 +84,29 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
     setShowSuggestions(false);
   };
 
+  const handleSelectTeam = (team: any) => {
+    setTeamName(team.name);
+    setShowTeamSuggestions(false);
+  };
+
+  const handleTeamNameSearch = (value: string) => {
+    setTeamName(value);
+    
+    if (value.length === 0) {
+      setShowTeamSuggestions(false);
+      return;
+    }
+
+    // Show teams that match the search
+    const filtered = existingTeams.filter(t => 
+      t.name.toLowerCase().includes(value.toLowerCase())
+    );
+    
+    if (filtered.length > 0) {
+      setShowTeamSuggestions(true);
+    }
+  };
+
   const handleSubmit = async () => {
     setError(null);
 
@@ -82,27 +124,25 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
       return;
     }
 
-    // Validate teammate
-    if (!teammateName.trim()) {
-      setError('Please enter a teammate name');
-      return;
-    }
+    // Teammate is optional now
+    if (teammateName.trim()) {
+      // If teammate is provided, validate them
+      const selectedUser = searchResults.find(u => u.nickname.toLowerCase() === teammateName.toLowerCase());
+      if (!selectedUser && teammateName) {
+        setError('Please select a teammate from the list or leave empty');
+        return;
+      }
 
-    // Check if teammate is in search results or just typed
-    const selectedUser = searchResults.find(u => u.nickname.toLowerCase() === teammateName.toLowerCase());
-    if (!selectedUser && teammateName) {
-      setError('Please select a teammate from the list');
-      return;
-    }
-
-    // Check not selecting self
-    if (teammateName.toLowerCase() === currentUserNickname?.toLowerCase()) {
-      setError('You cannot select yourself as teammate');
-      return;
+      // Check not selecting self
+      if (teammateName.toLowerCase() === currentUserNickname?.toLowerCase()) {
+        setError('You cannot select yourself as teammate');
+        return;
+      }
     }
 
     try {
-      onSubmit(teamName, teammateName);
+      // Pass empty string if no teammate selected
+      onSubmit(teamName, teammateName || '');
     } catch (err: any) {
       setError(err.message || 'Failed to create team');
     }
@@ -112,70 +152,184 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content team-join-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Create Team</h2>
+          <h2>Join Team Tournament</h2>
           <button className="close-btn" onClick={onClose}>&times;</button>
         </div>
 
         <div className="modal-body">
           {error && <div className="error-message">{error}</div>}
 
+          {/* Mode Tabs */}
+          <div className="mode-tabs">
+            <button
+              className={`tab-btn ${joinMode === 'create' ? 'active' : ''}`}
+              onClick={() => { setJoinMode('create'); setError(null); setTeamName(''); setTeammateName(''); }}
+            >
+              Create New Team
+            </button>
+            {existingTeams.length > 0 && (
+              <button
+                className={`tab-btn ${joinMode === 'join' ? 'active' : ''}`}
+                onClick={() => { setJoinMode('join'); setError(null); setTeamName(''); setTeammateName(''); }}
+              >
+                Join Existing Team ({existingTeams.length})
+              </button>
+            )}
+          </div>
+
           <div className="form-section">
-            {/* Team Name */}
-            <div className="form-group">
-              <label htmlFor="team-name">Team Name *</label>
-              <input
-                id="team-name"
-                type="text"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Enter team name (e.g., Dragon Slayers)"
-                disabled={isLoading}
-                maxLength={50}
-              />
-              <small>You will be assigned Position 1</small>
-            </div>
+            {joinMode === 'create' ? (
+              <>
+                {/* Create New Team Mode */}
+                <div className="form-group">
+                  <label htmlFor="team-name">Team Name *</label>
+                  <input
+                    id="team-name"
+                    type="text"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    placeholder="Enter team name (e.g., Dragon Slayers)"
+                    disabled={isLoading}
+                    maxLength={50}
+                  />
+                  <small>You will be assigned Position 1</small>
+                </div>
 
-            {/* Teammate Search */}
-            <div className="form-group">
-              <label htmlFor="teammate-search">Teammate Name *</label>
-              <div className="teammate-search-container">
-                <input
-                  id="teammate-search"
-                  type="text"
-                  value={teammateName}
-                  onChange={(e) => handleTeammateSearch(e.target.value)}
-                  onFocus={() => teammateName.length >= 2 && setShowSuggestions(true)}
-                  placeholder="Search teammate by nickname..."
-                  disabled={isLoading}
-                  autoComplete="off"
-                />
-                {searching && <span className="searching">Searching...</span>}
-              </div>
+                {/* Teammate Search - Optional */}
+                <div className="form-group">
+                  <label htmlFor="teammate-search">Teammate Name <span className="optional-label">(optional)</span></label>
+                  <div className="teammate-search-container">
+                    <input
+                      id="teammate-search"
+                      type="text"
+                      value={teammateName}
+                      onChange={(e) => handleTeammateSearch(e.target.value)}
+                      onFocus={() => teammateName.length >= 2 && setShowSuggestions(true)}
+                      placeholder="Search teammate by nickname... (optional)"
+                      disabled={isLoading}
+                      autoComplete="off"
+                    />
+                    {searching && <span className="searching">Searching...</span>}
+                  </div>
 
-              {/* Search Suggestions */}
-              {showSuggestions && searchResults.length > 0 && (
-                <div className="suggestions-dropdown">
-                  {searchResults.slice(0, 10).map((user) => (
-                    <div
-                      key={user.id}
-                      className="suggestion-item"
-                      onClick={() => handleSelectTeammate(user)}
-                    >
-                      <span className="nickname">{user.nickname}</span>
-                      {user.elo_rating && <span className="elo">ELO: {user.elo_rating}</span>}
+                  {/* Search Suggestions */}
+                  {showSuggestions && searchResults.length > 0 && (
+                    <div className="suggestions-dropdown">
+                      {searchResults.slice(0, 10).map((user) => (
+                        <div
+                          key={user.id}
+                          className="suggestion-item"
+                          onClick={() => handleSelectTeammate(user)}
+                        >
+                          <span className="nickname">{user.nickname}</span>
+                          {user.elo_rating && <span className="elo">ELO: {user.elo_rating}</span>}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
+                  )}
 
-              {showSuggestions && teammateName.length >= 2 && searchResults.length === 0 && (
-                <div className="suggestions-empty">
-                  No players found. Make sure the nickname is correct.
-                </div>
-              )}
+                  {showSuggestions && teammateName.length >= 2 && searchResults.length === 0 && (
+                    <div className="suggestions-empty">
+                      No players found. Make sure the nickname is correct.
+                    </div>
+                  )}
 
-              <small>Select a player from suggestions. They will be added as Position 2 to the team.</small>
-            </div>
+                  <small>
+                    {teammateName.trim() 
+                      ? 'They will be added as Position 2 (pending confirmation)'
+                      : 'Leave empty to register alone. Another player can join later.'
+                    }
+                  </small>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Join Existing Team Mode */}
+                <div className="form-group">
+                  <label htmlFor="existing-team-search">Select Team to Join *</label>
+                  <div className="teammate-search-container">
+                    <input
+                      id="existing-team-search"
+                      type="text"
+                      value={teamName}
+                      onChange={(e) => handleTeamNameSearch(e.target.value)}
+                      onFocus={() => setShowTeamSuggestions(true)}
+                      placeholder="Search for a team with an available slot..."
+                      disabled={isLoading}
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  {/* Team Suggestions */}
+                  {showTeamSuggestions && existingTeams.length > 0 && (
+                    <div className="suggestions-dropdown">
+                      {existingTeams
+                        .filter(t => t.name.toLowerCase().includes(teamName.toLowerCase()))
+                        .slice(0, 10)
+                        .map((team) => (
+                          <div
+                            key={team.id}
+                            className="suggestion-item"
+                            onClick={() => handleSelectTeam(team)}
+                          >
+                            <span className="nickname">{team.name}</span>
+                            <span className="member-count">1/2 members</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {showTeamSuggestions && teamName.trim() && 
+                    existingTeams.filter(t => t.name.toLowerCase().includes(teamName.toLowerCase())).length === 0 && (
+                    <div className="suggestions-empty">
+                      No teams found with that name.
+                    </div>
+                  )}
+
+                  <small>You will be added as Position 2</small>
+                </div>
+
+                {/* Optional: Invite a teammate */}
+                <div className="form-group">
+                  <label htmlFor="existing-teammate-search">Bring a Teammate <span className="optional-label">(optional)</span></label>
+                  <div className="teammate-search-container">
+                    <input
+                      id="existing-teammate-search"
+                      type="text"
+                      value={teammateName}
+                      onChange={(e) => handleTeammateSearch(e.target.value)}
+                      onFocus={() => teammateName.length >= 2 && setShowSuggestions(true)}
+                      placeholder="Search teammate by nickname... (optional)"
+                      disabled={isLoading}
+                      autoComplete="off"
+                    />
+                    {searching && <span className="searching">Searching...</span>}
+                  </div>
+
+                  {showSuggestions && searchResults.length > 0 && (
+                    <div className="suggestions-dropdown">
+                      {searchResults.slice(0, 10).map((user) => (
+                        <div
+                          key={user.id}
+                          className="suggestion-item"
+                          onClick={() => handleSelectTeammate(user)}
+                        >
+                          <span className="nickname">{user.nickname}</span>
+                          {user.elo_rating && <span className="elo">ELO: {user.elo_rating}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <small>
+                    {teammateName.trim() 
+                      ? 'They will be added as Position 1 (pending confirmation)'
+                      : 'Optional - register alone or with a teammate'
+                    }
+                  </small>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Actions */}
@@ -190,9 +344,9 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
             <button
               className="btn-submit"
               onClick={handleSubmit}
-              disabled={isLoading || !teamName.trim() || !teammateName.trim()}
+              disabled={isLoading || !teamName.trim() || (joinMode === 'join' && !teamName.trim())}
             >
-              {isLoading ? 'Creating Team...' : 'Create Team'}
+              {isLoading ? 'Joining...' : (joinMode === 'create' ? 'Create Team' : 'Join Team')}
             </button>
           </div>
         </div>

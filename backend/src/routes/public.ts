@@ -681,7 +681,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
 
     // Verify tournament exists and is team tournament
     const tournResult = await query(
-      'SELECT id, tournament_type FROM tournaments WHERE id = $1',
+      'SELECT id, tournament_mode FROM tournaments WHERE id = $1',
       [id]
     );
 
@@ -691,32 +691,32 @@ router.get('/tournaments/:id/teams', async (req, res) => {
 
     const tournament = tournResult.rows[0];
 
-    if (tournament.tournament_type !== 'team') {
+    if (tournament.tournament_mode !== 'team') {
       return res.status(400).json({ success: false, error: 'This endpoint is for team tournaments only' });
     }
 
-    // Get teams with members
+    // Get teams with member count
     const teamsResult = await query(
       `SELECT 
-        t.id, t.name,
-        COUNT(tm.id) as member_count,
-        COUNT(ts.id) as substitute_count
-      FROM tournament_teams t
-      LEFT JOIN team_members tm ON t.id = tm.team_id
-      LEFT JOIN team_substitutes ts ON t.id = ts.team_id
-      WHERE t.tournament_id = $1
-      GROUP BY t.id
-      ORDER BY t.name`,
+        tt.id, 
+        tt.name,
+        COUNT(tp.id) as member_count
+      FROM tournament_teams tt
+      LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'accepted')
+      WHERE tt.tournament_id = $1
+      GROUP BY tt.id, tt.name
+      ORDER BY tt.name`,
       [id]
     );
 
     // Get members for each team
     const teams = await Promise.all(teamsResult.rows.map(async (team) => {
       const membersResult = await query(
-        `SELECT u.id, u.nickname FROM team_members tm
-         JOIN users u ON tm.player_id = u.id
-         WHERE tm.team_id = $1
-         ORDER BY tm.position`,
+        `SELECT u.id, u.nickname, tp.team_position 
+         FROM tournament_participants tp
+         JOIN users u ON tp.user_id = u.id
+         WHERE tp.team_id = $1 AND tp.participation_status IN ('pending', 'accepted')
+         ORDER BY tp.team_position`,
         [team.id]
       );
 
@@ -728,7 +728,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
 
     res.json({
       success: true,
-      tournament_type: 'team',
+      tournament_mode: 'team',
       data: teams
     });
   } catch (error) {
