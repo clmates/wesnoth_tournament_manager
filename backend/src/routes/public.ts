@@ -156,6 +156,7 @@ router.get('/tournaments/:id', async (req, res) => {
         u.nickname as creator_nickname,
         t.status, 
         t.tournament_type,
+        t.tournament_mode,
         t.max_participants,
         t.general_rounds,
         t.final_rounds,
