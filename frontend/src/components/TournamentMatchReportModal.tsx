@@ -241,11 +241,9 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
       const data = new FormData();
       data.append('opponent_id', loserId);
       data.append('map', formData.map);
-      // Only include factions for 1v1 mode
-      if (tournamentMode !== 'team') {
-        data.append('winner_faction', formData.winner_faction);
-        data.append('loser_faction', formData.loser_faction);
-      }
+      // Always include factions (empty string for team mode)
+      data.append('winner_faction', formData.winner_faction || '');
+      data.append('loser_faction', formData.loser_faction || '');
       data.append('comments', formData.comments);
       data.append('tournament_id', tournamentId);
       data.append('tournament_match_id', tournamentMatchId);
@@ -256,15 +254,8 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
         data.append('replay', formData.replay);
       }
 
-      // Report the match using appropriate endpoint
-      if (tournamentMode === 'team') {
-        // Team mode: use JSON endpoint (no file upload)
-        const jsonData = Object.fromEntries(data.entries());
-        await matchService.reportMatchJson(jsonData);
-      } else {
-        // 1v1 mode: use multipart endpoint (with file upload support)
-        await matchService.reportMatch(data);
-      }
+      // Report the match using report endpoint (multipart supports team mode with replay)
+      await matchService.reportMatch(data);
 
       onSuccess();
       onClose();

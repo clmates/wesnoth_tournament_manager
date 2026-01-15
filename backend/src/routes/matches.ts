@@ -460,6 +460,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       return res.status(400).json({ error: 'Missing required fields: opponent_id and map' });
     }
 
+    // For non-team mode, require factions
     if (!isTournamentTeamMode && (!winner_faction || !loser_faction)) {
       console.warn('📤 [UPLOAD] Missing faction fields for 1v1 match');
       return res.status(400).json({ error: 'Missing required fields for 1v1 match: winner_faction and loser_faction' });
@@ -493,8 +494,8 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         tournamentMode = tournamentResult.rows[0].tournament_mode || 'ranked';
       }
 
-      // For unranked and team tournaments, validate faction and map against allowed assets
-      if (tournamentMode === 'unranked' || tournamentMode === 'team') {
+      // For unranked tournaments, validate faction and map against allowed assets
+      if (tournamentMode === 'unranked') {
         const factionCheck = await query(
           `SELECT tuf.id FROM tournament_unranked_factions tuf
            JOIN factions f ON tuf.faction_id = f.id
@@ -506,6 +507,20 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
           return res.status(400).json({ error: 'Invalid faction for this tournament' });
         }
 
+        const mapCheck = await query(
+          `SELECT tum.id FROM tournament_unranked_maps tum
+           JOIN game_maps gm ON tum.map_id = gm.id
+           WHERE tum.tournament_id = $1 AND LOWER(gm.name) = LOWER($2)`,
+          [tournament_id, map]
+        );
+        
+        if (mapCheck.rows.length === 0) {
+          return res.status(400).json({ error: 'Invalid map for this tournament' });
+        }
+      }
+
+      // For team tournaments, only validate map (factions are not used)
+      if (tournamentMode === 'team') {
         const mapCheck = await query(
           `SELECT tum.id FROM tournament_unranked_maps tum
            JOIN game_maps gm ON tum.map_id = gm.id
