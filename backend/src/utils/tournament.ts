@@ -622,7 +622,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         // ARCHITECTURE NOTE (Option B): We'll use team.id as if it were user_id for pairing functions
         // The team_id will be stored in player_id1/2 columns of tournament_matches
         const teamsResult = await query(
-          `SELECT tt.id as user_id, tt.team_elo_rating as elo_rating
+          `SELECT tt.id as user_id
            FROM tournament_teams tt
            WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
           [tournamentId]
@@ -658,7 +658,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         if (tournamentType === 'elimination') {
           // Team elimination: only get active teams
           const teamsResult = await query(
-            `SELECT tt.id as user_id, tt.team_elo_rating as elo_rating
+            `SELECT tt.id as user_id
              FROM tournament_teams tt
              WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
             [tournamentId]
@@ -668,7 +668,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         } else {
           // Team swiss/league: all active teams
           const teamsResult = await query(
-            `SELECT tt.id as user_id, tt.team_elo_rating as elo_rating
+            `SELECT tt.id as user_id
              FROM tournament_teams tt
              WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
             [tournamentId]
@@ -1193,22 +1193,20 @@ export async function recalculateTeamRankings(tournamentId: string): Promise<voi
     const teamsResult = await query(
       `SELECT 
         tt.id,
-        tt.team_name,
+        tt.name,
         tt.tournament_wins,
         tt.tournament_losses,
         tt.tournament_points,
         tt.omp,
         tt.gwp,
-        tt.ogp,
-        tt.team_elo_rating
+        tt.ogp
        FROM tournament_teams tt
        WHERE tt.tournament_id = $1 AND tt.status = 'active'
        ORDER BY 
          (tt.tournament_wins - tt.tournament_losses) DESC,
          tt.omp DESC,
          tt.gwp DESC,
-         tt.ogp DESC,
-         tt.team_elo_rating DESC`,
+         tt.ogp DESC`,
       [tournamentId]
     );
 
