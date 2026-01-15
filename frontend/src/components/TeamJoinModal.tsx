@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './TeamJoinModal.css';
 import { api, userService } from '../services/api';
+import OpponentSelector from './OpponentSelector';
 
 interface User {
   id: string;
@@ -26,8 +27,8 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
   currentUserNickname
 }) => {
   const [teamName, setTeamName] = useState('');
+  const [teammateId, setTeammateId] = useState('');
   const [teammateName, setTeammateName] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
@@ -60,35 +61,9 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
   }, [tournamentId]);
 
   // Search for teammate when typing
-  const handleTeammateSearch = async (value: string) => {
-    setTeammateName(value);
-    
-    if (value.length < 2) {
-      setSearchResults([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    try {
-      setSearching(true);
-      const response = await userService.searchUsers(value);
-      const results = response.data || response;
-      
-      // Filter out current user
-      const filtered = results.filter((user: User) => user.nickname.toLowerCase() !== currentUserNickname?.toLowerCase());
-      setSearchResults(filtered);
-      setShowSuggestions(true);
-    } catch (err) {
-      console.error('Failed to search users:', err);
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const handleSelectTeammate = (user: User) => {
-    setTeammateName(user.nickname);
-    setShowSuggestions(false);
+  const handleTeammateChange = (userId: string, user: User | null) => {
+    setTeammateId(userId);
+    setTeammateName(user?.nickname || '');
   };
 
   const handleSelectTeam = (team: any) => {
@@ -198,45 +173,13 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
                   <small>You will be assigned Position 1</small>
                 </div>
 
-                {/* Teammate Search - Optional */}
+                {/* Teammate Selection - Optional */}
                 <div className="form-group">
-                  <label htmlFor="teammate-search">Teammate Name <span className="optional-label">(optional)</span></label>
-                  <div className="teammate-search-container">
-                    <input
-                      id="teammate-search"
-                      type="text"
-                      value={teammateName}
-                      onChange={(e) => handleTeammateSearch(e.target.value)}
-                      onFocus={() => teammateName.length >= 2 && setShowSuggestions(true)}
-                      placeholder="Search teammate by nickname... (optional)"
-                      disabled={isLoading}
-                      autoComplete="off"
-                    />
-                    {searching && <span className="searching">Searching...</span>}
-                  </div>
-
-                  {/* Search Suggestions */}
-                  {showSuggestions && searchResults.length > 0 && (
-                    <div className="suggestions-dropdown">
-                      {searchResults.slice(0, 10).map((user) => (
-                        <div
-                          key={user.id}
-                          className="suggestion-item"
-                          onClick={() => handleSelectTeammate(user)}
-                        >
-                          <span className="nickname">{user.nickname}</span>
-                          {user.elo_rating && <span className="elo">ELO: {user.elo_rating}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {showSuggestions && teammateName.length >= 2 && searchResults.length === 0 && (
-                    <div className="suggestions-empty">
-                      No players found. Make sure the nickname is correct.
-                    </div>
-                  )}
-
+                  <label>Teammate <span className="optional-label">(optional)</span></label>
+                  <OpponentSelector
+                    value={teammateId}
+                    onChange={handleTeammateChange}
+                  />
                   <small>
                     {teammateName.trim() 
                       ? 'They will be added as Position 2 (pending confirmation)'
@@ -294,36 +237,11 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
 
                 {/* Optional: Invite a teammate */}
                 <div className="form-group">
-                  <label htmlFor="existing-teammate-search">Bring a Teammate <span className="optional-label">(optional)</span></label>
-                  <div className="teammate-search-container">
-                    <input
-                      id="existing-teammate-search"
-                      type="text"
-                      value={teammateName}
-                      onChange={(e) => handleTeammateSearch(e.target.value)}
-                      onFocus={() => teammateName.length >= 2 && setShowSuggestions(true)}
-                      placeholder="Search teammate by nickname... (optional)"
-                      disabled={isLoading}
-                      autoComplete="off"
-                    />
-                    {searching && <span className="searching">Searching...</span>}
-                  </div>
-
-                  {showSuggestions && searchResults.length > 0 && (
-                    <div className="suggestions-dropdown">
-                      {searchResults.slice(0, 10).map((user) => (
-                        <div
-                          key={user.id}
-                          className="suggestion-item"
-                          onClick={() => handleSelectTeammate(user)}
-                        >
-                          <span className="nickname">{user.nickname}</span>
-                          {user.elo_rating && <span className="elo">ELO: {user.elo_rating}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
+                  <label>Bring a Teammate <span className="optional-label">(optional)</span></label>
+                  <OpponentSelector
+                    value={teammateId}
+                    onChange={handleTeammateChange}
+                  />
                   <small>
                     {teammateName.trim() 
                       ? 'They will be added as Position 1 (pending confirmation)'
