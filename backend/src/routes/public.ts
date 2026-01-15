@@ -703,7 +703,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
         tt.name,
         COUNT(tp.id) as member_count
       FROM tournament_teams tt
-      LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'accepted')
+      LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
       WHERE tt.tournament_id = $1
       GROUP BY tt.id, tt.name
       ORDER BY tt.name`,
@@ -717,7 +717,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
                 tp.tournament_wins, tp.tournament_losses, tp.tournament_points
          FROM tournament_participants tp
          JOIN users u ON tp.user_id = u.id
-         WHERE tp.team_id = $1 AND tp.participation_status IN ('pending', 'accepted')
+         WHERE tp.team_id = $1 AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
          ORDER BY tp.team_position`,
         [team.id]
       );

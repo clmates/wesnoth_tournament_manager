@@ -492,6 +492,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     }
   };
 
+  const handleConfirmParticipation = async (participantId: string) => {
+    try {
+      await tournamentService.confirmParticipation(id!, participantId);
+      setSuccess(t('success_participation_confirmed') || 'Participation confirmed!');
+      fetchTournamentData();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || t('error_failed_confirm_participation') || 'Failed to confirm participation');
+    }
+  };
+
   const handleRejectParticipant = async (participantId: string) => {
     try {
       await tournamentService.rejectParticipant(id!, participantId);
@@ -595,6 +606,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   const getParticipationStatusColor = (status: string) => {
     const colorMap: { [key: string]: string } = {
       'pending': '#FFC107',
+      'unconfirmed': '#2196F3',
       'accepted': '#4CAF50',
       'denied': '#f44336',
       'cancelled': '#999',
@@ -850,6 +862,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             <th>{t('label_wins')}</th>
                             <th>{t('label_losses')}</th>
                             <th>{t('label_points')}</th>
+                            <th>{t('label_actions')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -862,12 +875,50 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   className="status-badge"
                                   style={{ backgroundColor: getParticipationStatusColor(member.participation_status || 'pending') }}
                                 >
-                                  {member.participation_status ? (member.participation_status === 'pending' ? 'Pending' : 'Accepted') : 'Pending'}
+                                  {member.participation_status === 'unconfirmed' ? 'Unconfirmed' :
+                                   member.participation_status === 'pending' ? 'Pending' : 
+                                   member.participation_status === 'accepted' ? 'Accepted' : 'Pending'}
                                 </span>
                               </td>
                               <td>{member.tournament_wins || 0}</td>
                               <td>{member.tournament_losses || 0}</td>
                               <td>{member.tournament_points || 0}</td>
+                              <td>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                  {member.participation_status === 'unconfirmed' && member.id === userId && (
+                                    <button 
+                                      className="btn-confirm"
+                                      onClick={() => handleConfirmParticipation(member.id)}
+                                      title="Confirm your participation"
+                                    >
+                                      {t('btn_confirm') || 'Confirm'}
+                                    </button>
+                                  )}
+                                  {isCreator && member.participation_status === 'pending' && (
+                                    <>
+                                      <button 
+                                        className="btn-accept"
+                                        onClick={() => handleAcceptParticipant(member.id)}
+                                        title={t('btn_accept')}
+                                      >
+                                        {t('btn_accept')}
+                                      </button>
+                                      <button 
+                                        className="btn-reject"
+                                        onClick={() => handleRejectParticipant(member.id)}
+                                        title={t('btn_reject')}
+                                      >
+                                        {t('btn_reject')}
+                                      </button>
+                                    </>
+                                  )}
+                                  {isCreator && member.participation_status === 'unconfirmed' && (
+                                    <span title="Awaiting player confirmation" style={{ color: '#666', fontSize: '0.9em' }}>
+                                      Awaiting confirmation
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
                             </tr>
                           ))}
                         </tbody>

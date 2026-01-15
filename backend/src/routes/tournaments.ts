@@ -545,7 +545,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
       // Check if current user is already in this tournament
       const userAlreadyInResult = await query(
         `SELECT id FROM tournament_participants 
-         WHERE tournament_id = $1 AND user_id = $2 AND participation_status IN ('pending', 'accepted')`,
+         WHERE tournament_id = $1 AND user_id = $2 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
         [id, req.userId]
       );
       if (userAlreadyInResult.rows.length > 0) {
@@ -573,7 +573,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         // Check if teammate is already in this tournament
         const existingParticipantResult = await query(
           `SELECT id FROM tournament_participants 
-           WHERE tournament_id = $1 AND user_id = $2 AND participation_status IN ('pending', 'accepted')`,
+           WHERE tournament_id = $1 AND user_id = $2 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
           [id, teammateUserId]
         );
         if (existingParticipantResult.rows.length > 0) {
@@ -585,7 +585,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
       const existingTeamResult = await query(
         `SELECT tt.id, COUNT(tp.id) as member_count
          FROM tournament_teams tt
-         LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'accepted')
+         LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
          WHERE tt.tournament_id = $1 AND tt.name = $2
          GROUP BY tt.id
          HAVING COUNT(tp.id) = 1`,
@@ -605,21 +605,21 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         );
         console.log('Player joined team at position 2');
 
-        // If teammate provided, add them as Position 1 (pending confirmation)
+        // If teammate provided, add them as Position 1 (unconfirmed - needs their confirmation)
         if (teammateUserId) {
           await query(
             `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
              VALUES ($1, $2, $3, $4, $5)`,
-            [id, teammateUserId, 'pending', teamId, 1]
+            [id, teammateUserId, 'unconfirmed', teamId, 1]
           );
-          console.log('Teammate added to team at position 1 (pending confirmation)');
+          console.log('Teammate added to team at position 1 (unconfirmed - awaiting confirmation)');
         }
       } else {
         // Check if team already exists with max members
         const fullTeamResult = await query(
           `SELECT tt.id
            FROM tournament_teams tt
-           LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'accepted')
+           LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
            WHERE tt.tournament_id = $1 AND tt.name = $2
            GROUP BY tt.id
            HAVING COUNT(tp.id) >= 2`,
@@ -648,14 +648,14 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         );
         console.log('Player 1 added to new team');
 
-        // If teammate provided, insert as Position 2 (pending confirmation)
+        // If teammate provided, insert as Position 2 (unconfirmed - needs their confirmation)
         if (teammateUserId) {
           await query(
             `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
              VALUES ($1, $2, $3, $4, $5)`,
-            [id, teammateUserId, 'pending', teamId, 2]
+            [id, teammateUserId, 'unconfirmed', teamId, 2]
           );
-          console.log('Player 2 (teammate) added as pending confirmation');
+          console.log('Player 2 (teammate) added as unconfirmed - awaiting confirmation');
         }
       }
     }
@@ -679,7 +679,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     // Get current participant count
     const countResult = await query(
       `SELECT COUNT(*) as count FROM tournament_participants 
-       WHERE tournament_id = $1 AND participation_status IN ('pending', 'accepted')`,
+       WHERE tournament_id = $1 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
       [id]
     );
     const currentCount = countResult.rows[0]?.count || 0;
@@ -758,6 +758,15 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
 
     const participant = participantResult.rows[0];
 
+    // Can only accept pending participants
+    // Unconfirmed participants must first confirm (change to pending) before organizer can accept
+    if (participant.participation_status !== 'pending') {
+      return res.status(400).json({ 
+        error: `Can only accept pending participants. This participant is ${participant.participation_status}. ` +
+               (participant.participation_status === 'unconfirmed' ? 'They must confirm their participation first.' : '')
+      });
+    }
+
     // Update participant status to accepted
     const result = await query(
       `UPDATE tournament_participants 
@@ -800,6 +809,58 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
   } catch (error: any) {
     console.error('Accept participant error:', error.message || error);
     res.status(500).json({ error: 'Failed to accept participant', details: error.message });
+  }
+});
+
+// Confirm participation (player confirms unconfirmed status - typically second team member)
+router.post('/:tournamentId/participants/:participantId/confirm', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { tournamentId, participantId } = req.params;
+
+    // Get participant info
+    const participantResult = await query(
+      `SELECT tp.*, u.nickname FROM tournament_participants tp
+       JOIN users u ON tp.user_id = u.id
+       WHERE tp.id = $1 AND tp.tournament_id = $2`,
+      [participantId, tournamentId]
+    );
+
+    if (participantResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Participant not found' });
+    }
+
+    const participant = participantResult.rows[0];
+
+    // Only the participant themselves can confirm
+    if (participant.user_id !== req.userId) {
+      return res.status(403).json({ error: 'You can only confirm your own participation' });
+    }
+
+    // Can only confirm if status is unconfirmed
+    if (participant.participation_status !== 'unconfirmed') {
+      return res.status(400).json({ error: 'Can only confirm unconfirmed participants. Current status: ' + participant.participation_status });
+    }
+
+    // Update participant status from unconfirmed to pending
+    const result = await query(
+      `UPDATE tournament_participants 
+       SET participation_status = $1 
+       WHERE id = $2 AND tournament_id = $3
+       RETURNING id`,
+      ['pending', participantId, tournamentId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Participant not found' });
+    }
+
+    res.json({ 
+      id: result.rows[0].id,
+      message: 'Participation confirmed! Waiting for organizer approval.'
+    });
+  } catch (error: any) {
+    console.error('Confirm participant error:', error.message || error);
+    res.status(500).json({ error: 'Failed to confirm participation', details: error.message });
   }
 });
 

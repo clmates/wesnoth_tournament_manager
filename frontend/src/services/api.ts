@@ -198,6 +198,8 @@ export const tournamentService = {
   startNextRound: (id: string) => api.post(`/tournaments/${id}/next-round`),
   acceptParticipant: (tournamentId: string, participantId: string) => 
     api.post(`/tournaments/${tournamentId}/participants/${participantId}/accept`),
+  confirmParticipation: (tournamentId: string, participantId: string) => 
+    api.post(`/tournaments/${tournamentId}/participants/${participantId}/confirm`),
   rejectParticipant: (tournamentId: string, participantId: string) => 
     api.post(`/tournaments/${tournamentId}/participants/${participantId}/reject`),
 };
