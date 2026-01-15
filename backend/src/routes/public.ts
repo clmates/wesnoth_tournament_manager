@@ -306,7 +306,7 @@ router.get('/players', async (req, res) => {
     const minMatches = req.query.min_matches ? parseInt(req.query.min_matches as string) : null;
 
     // Build WHERE clause dynamically
-    let whereConditions: string[] = ['is_active = true', 'is_blocked = false'];
+    let whereConditions: string[] = ['is_blocked = false'];
     let params: any[] = [];
     let paramCount = 1;
 
