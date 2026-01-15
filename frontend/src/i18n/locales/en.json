@@ -282,6 +282,7 @@
     "col_organizer": "Organizer",
     "col_status": "Status",
     "col_type": "Type",
+    "col_mode": "Mode",
     "col_winner": "Winner",
     "col_runner_up": "Runner Up",
     "col_last_updated": "Last Updated",

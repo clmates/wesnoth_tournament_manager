@@ -282,6 +282,7 @@
     "col_organizer": "Organizador",
     "col_status": "Estado",
     "col_type": "Tipo",
+    "col_mode": "Modo",
     "col_winner": "Ganador",
     "col_runner_up": "Subcampeón",
     "col_last_updated": "Última actualización",

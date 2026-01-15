@@ -11,6 +11,7 @@ export interface Tournament {
   creator_nickname: string;
   status: string;
   tournament_type: string;
+  tournament_mode?: 'ranked' | 'unranked' | 'team';
   general_rounds: number;
   final_rounds: number;
   general_rounds_format: 'bo1' | 'bo3' | 'bo5';
@@ -137,6 +138,25 @@ const TournamentList: React.FC<TournamentListProps> = ({
     if (translated && translated !== key) return translated;
     const human = (status || '').toString().replace(/_/g, ' ').replace(/-/g, ' ');
     return human.charAt(0).toUpperCase() + human.slice(1);
+  };
+
+  const getTournamentModeLabel = (mode?: string) => {
+    if (!mode) return '-';
+    const modeMap: { [key: string]: string } = {
+      'ranked': 'Ranked (1v1)',
+      'unranked': 'Unranked (1v1)',
+      'team': 'Unranked (2v2)'
+    };
+    return modeMap[mode] || mode;
+  };
+
+  const getTournamentModeColor = (mode?: string) => {
+    const colorMap: { [key: string]: string } = {
+      'ranked': '#1976d2',
+      'unranked': '#ff9800',
+      'team': '#9c27b0'
+    };
+    return colorMap[mode || ''] || '#999';
   };
 
   const getStatusColor = (status: string) => {
@@ -286,6 +306,7 @@ const TournamentList: React.FC<TournamentListProps> = ({
                 <th>{t('tournament.col_organizer')}</th>
                 <th>{t('tournament.col_status')}</th>
                 <th>{t('tournament.col_type')}</th>
+                <th>{t('tournament.col_mode')}</th>
                 <th>{t('tournament.col_winner')}</th>
                 <th>{t('tournament.col_runner_up')}</th>
                 <th>{t('tournament.col_last_updated')}</th>
@@ -306,6 +327,14 @@ const TournamentList: React.FC<TournamentListProps> = ({
                     </span>
                   </td>
                   <td>{tournament.tournament_type}</td>
+                  <td>
+                    <span
+                      className="status-badge"
+                      style={{ backgroundColor: getTournamentModeColor(tournament.tournament_mode) }}
+                    >
+                      {getTournamentModeLabel(tournament.tournament_mode)}
+                    </span>
+                  </td>
                   <td>{tournament.winner_nickname || '-'}</td>
                   <td>{tournament.runner_up_nickname || '-'}</td>
                   <td>{formatDate(tournament.updated_at)}</td>
