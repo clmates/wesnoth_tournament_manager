@@ -2366,7 +2366,7 @@ router.get('/:id/standings', async (req, res) => {
       const teamStandings = await query(
         `SELECT 
           tt.id,
-          tt.team_name as nickname,
+          tt.name as nickname,
           tt.tournament_wins as tournament_wins,
           tt.tournament_losses as tournament_losses,
           tt.tournament_points as tournament_points,
@@ -2375,7 +2375,6 @@ router.get('/:id/standings', async (req, res) => {
           tt.omp,
           tt.gwp,
           tt.ogp,
-          tt.team_elo_rating as elo_rating,
           tt.status,
           COUNT(DISTINCT tp.user_id) as team_size
          FROM tournament_teams tt
