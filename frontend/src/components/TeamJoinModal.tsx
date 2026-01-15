@@ -40,7 +40,7 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
     const fetchExistingTeams = async () => {
       try {
         console.log('📥 Fetching teams for tournament:', tournamentId);
-        const response = await api.get(`/tournaments/${tournamentId}/teams`);
+        const response = await api.get(`/public/tournaments/${tournamentId}/teams`);
         console.log('✅ Teams response:', response);
         const teams = response.data?.data || [];
         // Filter teams that have only 1 member (have an available slot)

@@ -174,7 +174,7 @@ const TournamentDetail: React.FC = () => {
       // Load teams if it's a team tournament
       if (tournamentRes.data.tournament_mode === 'team') {
         try {
-          const teamsRes = await api.get(`/tournaments/${id}/teams`);
+          const teamsRes = await api.get(`/public/tournaments/${id}/teams`);
           if (teamsRes.data.success && teamsRes.data.data) {
             setTeams(teamsRes.data.data);
           }
