@@ -2528,7 +2528,7 @@ router.get('/:id/standings', async (req, res) => {
     const isTournamentTeamMode = tournamentModeResult.rows[0].tournament_mode === 'team';
 
     if (isTournamentTeamMode) {
-      // Team mode: return team standings
+      // Team mode: return team standings with member user_ids
       const teamStandings = await query(
         `SELECT 
           tt.id,
@@ -2542,7 +2542,8 @@ router.get('/:id/standings', async (req, res) => {
           tt.gwp,
           tt.ogp,
           tt.status,
-          COUNT(DISTINCT tp.user_id) as team_size
+          COUNT(DISTINCT tp.user_id) as team_size,
+          ARRAY_AGG(DISTINCT tp.user_id) as member_user_ids
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
          WHERE tt.tournament_id = $1

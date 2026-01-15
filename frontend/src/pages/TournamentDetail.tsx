@@ -100,6 +100,7 @@ const TournamentDetail: React.FC = () => {
 
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [participants, setParticipants] = useState<TournamentParticipant[]>([]);
+  const [userTeamId, setUserTeamId] = useState<string | null>(null);
   const [matches, setMatches] = useState<TournamentMatch[]>([]);
   const [roundMatches, setRoundMatches] = useState<any[]>([]);
   const [rounds, setRounds] = useState<any[]>([]);
@@ -171,6 +172,17 @@ const TournamentDetail: React.FC = () => {
       setMatches(matchesRes.data || []);
       setRoundMatches(roundMaturesRes.data || []);
       setRounds(roundsRes.data || []);
+      
+      // For team mode, extract user's team_id from standings
+      if (tournamentRes.data.tournament_mode === 'team' && userId) {
+        const userTeam = (participantsRes.data?.standings || []).find((p: any) => 
+          p.member_user_ids && p.member_user_ids.includes(userId)
+        );
+        if (userTeam) {
+          setUserTeamId(userTeam.id);
+          console.log('🎯 User team found:', { teamId: userTeam.id, teamName: userTeam.nickname });
+        }
+      }
       
       // Load teams if it's a team tournament
       if (tournamentRes.data.tournament_mode === 'team') {
@@ -1057,9 +1069,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 // Check if current user is one of the players/teams
                                 let isPlayer = false;
                                 if (match.is_team_mode) {
-                                  // Team mode: get user's team_id from participants list
-                                  const userParticipant = participants.find((p) => p.user_id === userId);
-                                  const userTeamId = userParticipant?.team_id;
+                                  // Team mode: compare user's team_id against match player1_id and player2_id
                                   isPlayer = userTeamId === match.player1_id || userTeamId === match.player2_id;
                                 } else {
                                   // 1v1 mode: compare user_id directly
@@ -1167,8 +1177,6 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           // Determine if current user is the loser (for team mode, check team_id)
                           let isCurrentUserLoser = false;
                           if (match.is_team_mode) {
-                            const userParticipant = participants.find((p) => p.user_id === userId);
-                            const userTeamId = userParticipant?.team_id;
                             isCurrentUserLoser = userTeamId === loserId;
                           } else {
                             isCurrentUserLoser = userId === loserId;
