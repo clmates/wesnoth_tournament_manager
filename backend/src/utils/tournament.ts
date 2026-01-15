@@ -813,6 +813,12 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       [round.id]
     );
 
+    // For team tournaments: update current_round and recalculate rankings
+    if (isteamMode) {
+      await updateTeamCurrentRound(tournamentId, roundNumber);
+      await recalculateTeamRankings(tournamentId);
+    }
+
     console.log(`Round ${roundNumber} activated with ${pairings.length} pairings, best_of: ${bestOf}`);
     return true;
   } catch (error) {
@@ -1173,3 +1179,86 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
     throw error;
   }
 }
+
+/**
+ * Calculate and update tournament rankings for team mode
+ * Ranks teams based on: wins-losses difference, then OMP, GWP, OGP, ELO
+ * Updates tournament_ranking column for UI display
+ */
+export async function recalculateTeamRankings(tournamentId: string): Promise<void> {
+  try {
+    console.log(`\n📊 [TEAM_RANKINGS] Recalculating rankings for tournament ${tournamentId}`);
+
+    // Get all active teams ranked by performance
+    const teamsResult = await query(
+      `SELECT 
+        tt.id,
+        tt.team_name,
+        tt.tournament_wins,
+        tt.tournament_losses,
+        tt.tournament_points,
+        tt.omp,
+        tt.gwp,
+        tt.ogp,
+        tt.team_elo_rating
+       FROM tournament_teams tt
+       WHERE tt.tournament_id = $1 AND tt.status = 'active'
+       ORDER BY 
+         (tt.tournament_wins - tt.tournament_losses) DESC,
+         tt.omp DESC,
+         tt.gwp DESC,
+         tt.ogp DESC,
+         tt.team_elo_rating DESC`,
+      [tournamentId]
+    );
+
+    const teams = teamsResult.rows;
+    console.log(`Found ${teams.length} active teams for ranking`);
+
+    // Update ranking for each team
+    for (let i = 0; i < teams.length; i++) {
+      const ranking = i + 1;
+      await query(
+        `UPDATE tournament_teams SET tournament_ranking = $1 WHERE id = $2`,
+        [ranking, teams[i].id]
+      );
+      console.log(`  Team ${teams[i].team_name}: Rank #${ranking} (${teams[i].tournament_wins}W-${teams[i].tournament_losses}L)`);
+    }
+
+    console.log(`✅ Team rankings updated for tournament ${tournamentId}`);
+  } catch (error) {
+    console.error('Error recalculating team rankings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update current_round for team when advancing to next round
+ * Called when a new round is activated
+ */
+export async function updateTeamCurrentRound(tournamentId: string, roundNumber: number): Promise<void> {
+  try {
+    console.log(`\n🔄 [TEAM_ROUND] Updating current_round to ${roundNumber} for tournament ${tournamentId}`);
+
+    // For round 1, all teams start in round 1
+    // For subsequent rounds, only active teams are updated
+    if (roundNumber === 1) {
+      await query(
+        `UPDATE tournament_teams SET current_round = $1 WHERE tournament_id = $2`,
+        [roundNumber, tournamentId]
+      );
+      console.log(`✅ All teams set to current_round = ${roundNumber}`);
+    } else {
+      // Only update active teams (eliminated teams stay at their elimination round)
+      await query(
+        `UPDATE tournament_teams SET current_round = $1 WHERE tournament_id = $2 AND status = 'active'`,
+        [roundNumber, tournamentId]
+      );
+      console.log(`✅ Active teams updated to current_round = ${roundNumber}`);
+    }
+  } catch (error) {
+    console.error('Error updating team current_round:', error);
+    throw error;
+  }
+}
+

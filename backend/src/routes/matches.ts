@@ -268,24 +268,81 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
       );
       console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId}. Rows affected: ${updateResult.rowCount}`);
 
-      // Update tournament_participants stats for winner
-      await query(
-        `UPDATE tournament_participants 
-         SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
-             tournament_points = COALESCE(tournament_points, 0) + 1
-         WHERE tournament_id = $1 AND user_id = $2`,
-        [tournament_id, req.userId]
+      // Update tournament statistics based on tournament mode
+      // Team mode: update tournament_teams (Option B architecture: player_id columns store team_id)
+      // 1v1 mode: update tournament_participants
+      const tournamentModeResult = await query(
+        `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+        [tournament_id]
       );
+      const isTournamentTeamMode = tournamentModeResult.rows.length > 0 && tournamentModeResult.rows[0].tournament_mode === 'team';
 
-      // Update tournament_participants stats for loser
-      await query(
-        `UPDATE tournament_participants 
-         SET tournament_losses = COALESCE(tournament_losses, 0) + 1
-         WHERE tournament_id = $1 AND user_id = $2`,
-        [tournament_id, opponent_id]
-      );
+      if (isTournamentTeamMode) {
+        console.log(`[TEAM_MODE] Updating tournament_teams stats for tournament ${tournament_id}`);
+        
+        // Get team IDs from tournament_participants (each player belongs to a team)
+        const winnerTeamResult = await query(
+          `SELECT tt.id FROM tournament_teams tt
+           JOIN tournament_participants tp ON tp.team_id = tt.id
+           WHERE tt.tournament_id = $1 AND tp.user_id = $2
+           LIMIT 1`,
+          [tournament_id, req.userId]
+        );
 
-      console.log(`Updated tournament_participants for ${tournament_id}: winner=${req.userId}, loser=${opponent_id}`);
+        const loserTeamResult = await query(
+          `SELECT tt.id FROM tournament_teams tt
+           JOIN tournament_participants tp ON tp.team_id = tt.id
+           WHERE tt.tournament_id = $1 AND tp.user_id = $2
+           LIMIT 1`,
+          [tournament_id, opponent_id]
+        );
+
+        if (winnerTeamResult.rows.length > 0 && loserTeamResult.rows.length > 0) {
+          const winnerTeamId = winnerTeamResult.rows[0].id;
+          const loserTeamId = loserTeamResult.rows[0].id;
+
+          // Update winner team stats
+          await query(
+            `UPDATE tournament_teams 
+             SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                 tournament_points = COALESCE(tournament_points, 0) + 1
+             WHERE id = $1`,
+            [winnerTeamId]
+          );
+
+          // Update loser team stats
+          await query(
+            `UPDATE tournament_teams 
+             SET tournament_losses = COALESCE(tournament_losses, 0) + 1
+             WHERE id = $1`,
+            [loserTeamId]
+          );
+
+          console.log(`Updated tournament_teams: winner_team=${winnerTeamId}, loser_team=${loserTeamId}`);
+        } else {
+          console.warn(`Could not find team IDs for players in tournament ${tournament_id}`);
+        }
+      } else {
+        // 1v1 mode: update tournament_participants
+        // Update tournament_participants stats for winner
+        await query(
+          `UPDATE tournament_participants 
+           SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+               tournament_points = COALESCE(tournament_points, 0) + 1
+           WHERE tournament_id = $1 AND user_id = $2`,
+          [tournament_id, req.userId]
+        );
+
+        // Update tournament_participants stats for loser
+        await query(
+          `UPDATE tournament_participants 
+           SET tournament_losses = COALESCE(tournament_losses, 0) + 1
+           WHERE tournament_id = $1 AND user_id = $2`,
+          [tournament_id, opponent_id]
+        );
+
+        console.log(`Updated tournament_participants for ${tournament_id}: winner=${req.userId}, loser=${opponent_id}`);
+      }
 
       // Get tournament_round_match_id and round_id to update Best Of series
       const tmatchResult = await query(
@@ -700,24 +757,75 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       );
       console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId}. Rows affected: ${updateResult.rowCount}`);
 
-      // Update tournament_participants stats for winner
-      await query(
-        `UPDATE tournament_participants 
-         SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
-             tournament_points = COALESCE(tournament_points, 0) + 1
-         WHERE tournament_id = $1 AND user_id = $2`,
-        [tournament_id, req.userId]
-      );
+      // Update tournament statistics based on tournament mode
+      // Team mode: update tournament_teams (Option B architecture: player_id columns store team_id)
+      // 1v1 mode: update tournament_participants
+      if (tournamentMode === 'team') {
+        console.log(`[TEAM_MODE] Updating tournament_teams stats for tournament ${tournament_id}`);
+        
+        // Get team IDs from tournament_participants (each player belongs to a team)
+        const winnerTeamResult = await query(
+          `SELECT tt.id FROM tournament_teams tt
+           JOIN tournament_participants tp ON tp.team_id = tt.id
+           WHERE tt.tournament_id = $1 AND tp.user_id = $2
+           LIMIT 1`,
+          [tournament_id, req.userId]
+        );
 
-      // Update tournament_participants stats for loser
-      await query(
-        `UPDATE tournament_participants 
-         SET tournament_losses = COALESCE(tournament_losses, 0) + 1
-         WHERE tournament_id = $1 AND user_id = $2`,
-        [tournament_id, opponent_id]
-      );
+        const loserTeamResult = await query(
+          `SELECT tt.id FROM tournament_teams tt
+           JOIN tournament_participants tp ON tp.team_id = tt.id
+           WHERE tt.tournament_id = $1 AND tp.user_id = $2
+           LIMIT 1`,
+          [tournament_id, opponent_id]
+        );
 
-      console.log(`Updated tournament_participants for ${tournament_id}: winner=${req.userId}, loser=${opponent_id}`);
+        if (winnerTeamResult.rows.length > 0 && loserTeamResult.rows.length > 0) {
+          const winnerTeamId = winnerTeamResult.rows[0].id;
+          const loserTeamId = loserTeamResult.rows[0].id;
+
+          // Update winner team stats
+          await query(
+            `UPDATE tournament_teams 
+             SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                 tournament_points = COALESCE(tournament_points, 0) + 1
+             WHERE id = $1`,
+            [winnerTeamId]
+          );
+
+          // Update loser team stats
+          await query(
+            `UPDATE tournament_teams 
+             SET tournament_losses = COALESCE(tournament_losses, 0) + 1
+             WHERE id = $1`,
+            [loserTeamId]
+          );
+
+          console.log(`Updated tournament_teams: winner_team=${winnerTeamId}, loser_team=${loserTeamId}`);
+        } else {
+          console.warn(`Could not find team IDs for players in tournament ${tournament_id}`);
+        }
+      } else {
+        // 1v1 mode: update tournament_participants
+        // Update tournament_participants stats for winner
+        await query(
+          `UPDATE tournament_participants 
+           SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+               tournament_points = COALESCE(tournament_points, 0) + 1
+           WHERE tournament_id = $1 AND user_id = $2`,
+          [tournament_id, req.userId]
+        );
+
+        // Update tournament_participants stats for loser
+        await query(
+          `UPDATE tournament_participants 
+           SET tournament_losses = COALESCE(tournament_losses, 0) + 1
+           WHERE tournament_id = $1 AND user_id = $2`,
+          [tournament_id, opponent_id]
+        );
+
+        console.log(`Updated tournament_participants for ${tournament_id}: winner=${req.userId}, loser=${opponent_id}`);
+      }
 
       // Get tournament_round_match_id and round_id to update Best Of series
       const tmatchResult = await query(

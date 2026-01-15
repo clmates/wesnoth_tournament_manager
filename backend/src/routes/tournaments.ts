@@ -2343,22 +2343,69 @@ router.get('/suggestions/by-count', authMiddleware, async (req: AuthRequest, res
 /**
  * GET /api/tournaments/:id/standings
  * Get tournament standings (PUBLIC - for viewing tournament info)
+ * Supports both 1v1 mode (tournament_participants) and team mode (tournament_teams)
  */
 router.get('/:id/standings', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Get standings ordered by points DESC, then by tiebreakers (OMP, GWP, OGP) DESC
-    const standings = await query(
-      `SELECT tp.*, u.nickname, u.elo_rating
-       FROM tournament_participants tp
-       LEFT JOIN users u ON tp.user_id = u.id
-       WHERE tp.tournament_id = $1 
-       ORDER BY tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC`,
+    // Get tournament mode first
+    const tournamentModeResult = await query(
+      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
       [id]
     );
-    
-    res.json({ standings: (standings && standings.rows) ? standings.rows : [] });
+
+    if (tournamentModeResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const isTournamentTeamMode = tournamentModeResult.rows[0].tournament_mode === 'team';
+
+    if (isTournamentTeamMode) {
+      // Team mode: return team standings
+      const teamStandings = await query(
+        `SELECT 
+          tt.id,
+          tt.team_name as nickname,
+          tt.tournament_wins as tournament_wins,
+          tt.tournament_losses as tournament_losses,
+          tt.tournament_points as tournament_points,
+          tt.tournament_ranking as tournament_ranking,
+          tt.current_round as current_round,
+          tt.omp,
+          tt.gwp,
+          tt.ogp,
+          tt.team_elo_rating as elo_rating,
+          tt.status,
+          COUNT(DISTINCT tp.user_id) as team_size
+         FROM tournament_teams tt
+         LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
+         WHERE tt.tournament_id = $1
+         GROUP BY tt.id
+         ORDER BY tt.tournament_ranking IS NULL, tt.tournament_ranking ASC, (tt.tournament_wins - tt.tournament_losses) DESC, tt.omp DESC, tt.gwp DESC, tt.ogp DESC`,
+        [id]
+      );
+
+      res.json({ 
+        standings: (teamStandings && teamStandings.rows) ? teamStandings.rows : [],
+        mode: 'team'
+      });
+    } else {
+      // 1v1 mode: return player standings
+      const playerStandings = await query(
+        `SELECT tp.*, u.nickname, u.elo_rating
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 
+         ORDER BY tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC`,
+        [id]
+      );
+      
+      res.json({ 
+        standings: (playerStandings && playerStandings.rows) ? playerStandings.rows : [],
+        mode: '1v1'
+      });
+    }
   } catch (error) {
     console.error('Error fetching standings:', error);
     res.status(500).json({ error: 'Internal server error' });
