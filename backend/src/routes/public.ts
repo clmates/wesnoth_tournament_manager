@@ -713,7 +713,8 @@ router.get('/tournaments/:id/teams', async (req, res) => {
     // Get members for each team
     const teams = await Promise.all(teamsResult.rows.map(async (team) => {
       const membersResult = await query(
-        `SELECT u.id, u.nickname, tp.team_position 
+        `SELECT u.id, u.nickname, tp.team_position, tp.participation_status,
+                tp.tournament_wins, tp.tournament_losses, tp.tournament_points
          FROM tournament_participants tp
          JOIN users u ON tp.user_id = u.id
          WHERE tp.team_id = $1 AND tp.participation_status IN ('pending', 'accepted')

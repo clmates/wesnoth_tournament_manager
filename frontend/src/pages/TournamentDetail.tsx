@@ -856,13 +856,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           {team.members.map((member: any) => (
                             <tr key={member.id}>
                               <td><PlayerLink nickname={member.nickname} userId={member.id} /></td>
-                              <td>{member.position || '-'}</td>
+                              <td>{member.team_position || '-'}</td>
                               <td>
                                 <span 
                                   className="status-badge"
-                                  style={{ backgroundColor: getParticipationStatusColor(member.participation_status || 'accepted') }}
+                                  style={{ backgroundColor: getParticipationStatusColor(member.participation_status || 'pending') }}
                                 >
-                                  {member.participation_status || 'Accepted'}
+                                  {member.participation_status ? (member.participation_status === 'pending' ? 'Pending' : 'Accepted') : 'Pending'}
                                 </span>
                               </td>
                               <td>{member.tournament_wins || 0}</td>
