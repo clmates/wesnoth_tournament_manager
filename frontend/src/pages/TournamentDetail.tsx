@@ -1055,7 +1055,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 }
 
                                 // Check if current user is one of the players/teams
-                                const isPlayer = userId === match.player1_id || userId === match.player2_id;
+                                let isPlayer = false;
+                                if (match.is_team_mode) {
+                                  // Team mode: get user's team_id from participants list
+                                  const userParticipant = participants.find((p) => p.user_id === userId);
+                                  const userTeamId = userParticipant?.team_id;
+                                  isPlayer = userTeamId === match.player1_id || userTeamId === match.player2_id;
+                                } else {
+                                  // 1v1 mode: compare user_id directly
+                                  isPlayer = userId === match.player1_id || userId === match.player2_id;
+                                }
+
                                 console.log('Match Debug:', {
                                   matchId: match.id,
                                   player1_id: match.player1_id,
@@ -1153,7 +1163,16 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           const winnerId = match.winner_nickname === match.player1_nickname 
                             ? match.player1_id 
                             : match.player2_id;
-                          const isCurrentUserLoser = userId === loserId;
+                          
+                          // Determine if current user is the loser (for team mode, check team_id)
+                          let isCurrentUserLoser = false;
+                          if (match.is_team_mode) {
+                            const userParticipant = participants.find((p) => p.user_id === userId);
+                            const userTeamId = userParticipant?.team_id;
+                            isCurrentUserLoser = userTeamId === loserId;
+                          } else {
+                            isCurrentUserLoser = userId === loserId;
+                          }
                           
                           // If no match_id, it was determined by admin, show "ADMIN" status
                           const isAdminDetermined = !match.match_id;
@@ -1166,7 +1185,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               <td>
                                 <div className="player-block">
                                   <div className="first-row">
-                                    <strong><PlayerLink nickname={match.winner_nickname || '-'} userId={winnerId} /></strong>
+                                    <strong>{match.is_team_mode ? match.winner_nickname : <PlayerLink nickname={match.winner_nickname || '-'} userId={winnerId} />}</strong>
                                   </div>
                                   {match.winner_comments && (
                                     <div className="comments-row winner-comments">
@@ -1178,7 +1197,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               <td>
                                 <div className="player-block">
                                   <div className="first-row">
-                                    <strong><PlayerLink nickname={loserNickname} userId={loserId} /></strong>
+                                    <strong>{match.is_team_mode ? loserNickname : <PlayerLink nickname={loserNickname} userId={loserId} />}</strong>
                                   </div>
                                   {match.loser_comments && (
                                     <div className="comments-row loser-comments">
