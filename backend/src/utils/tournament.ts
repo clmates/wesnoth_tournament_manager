@@ -515,6 +515,10 @@ function generateLeagueMatches(
  */
 export async function activateRound(tournamentId: string, roundNumber: number): Promise<boolean> {
   try {
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`🎯 [ACTIVATE_ROUND] Starting activation for tournament=${tournamentId}, round_number=${roundNumber}`);
+    console.log(`${'='.repeat(80)}`);
+    
     // Get the round with format info
     const roundResult = await query(
       `SELECT tr.id, tr.round_status, tr.tournament_id,
@@ -533,6 +537,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     }
 
     const round = roundResult.rows[0];
+    console.log(`[ACTIVATE_ROUND] Round found: status=${round.round_status}, format=${round.round_format}`);
 
     if (round.round_status !== 'pending') {
       console.warn(`Round ${roundNumber} is already ${round.round_status}`);
@@ -716,8 +721,13 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     }
 
     if (participants.length === 0) {
-      throw new Error('No participants available for this round');
+      const errorMsg = `No participants available for round ${roundNumber}`;
+      console.error(`[ACTIVATE_ROUND] ERROR: ${errorMsg}`);
+      throw new Error(errorMsg);
     }
+
+    console.log(`[ACTIVATE_ROUND] Retrieved ${participants.length} participants for round ${roundNumber}`);
+    console.log(`[ACTIVATE_ROUND] Best Of format: ${bestOf} (wins required: ${winsRequired})`);
 
     // Determine best_of format from round_format (bo1, bo3, bo5)
     const bestOfMap: { [key: string]: 1 | 3 | 5 } = {
@@ -767,13 +777,21 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         pairings = generateLeagueMatches(participants, tournamentId, round.id, tournament.tournament_mode);
       }
       
-      console.log(`  Generated ${pairings.length} pairings`);
+      console.log(`  Generated ${pairings.length} total pairings`);
+      const byeCount = pairings.filter(p => p.is_bye || p.player2_id === null).length;
+      const matchCount = pairings.length - byeCount;
+      console.log(`  → ${matchCount} actual matches, ${byeCount} byes`);
     }
+
+    console.log(`[ACTIVATE_ROUND] Processing ${pairings.length} pairings...`);
+    let matchesCreated = 0;
+    let byesProcessed = 0;
 
     for (const pairing of pairings) {
       // Handle bye (automatic advancement for odd player count)
       if (pairing.is_bye || pairing.player2_id === null) {
-        console.log(`✅ BYE: Player ${pairing.player1_id} advances automatically to next round`);
+        console.log(`✅ BYE: ${tournamentMode === 'team' ? 'Team' : 'Player'} ${pairing.player1_id} advances automatically to next round`);
+        byesProcessed++;
         // No need to create matches for byes
         // The player will automatically be included in next round
         continue;
@@ -803,7 +821,10 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       }
 
       console.log(`Created ${matchesToCreate} initial matches for round_match ${roundMatchId} (Bo${bestOf}, needs ${winsRequired} wins)`);
+      matchesCreated++;
     }
+
+    console.log(`[ACTIVATE_ROUND] Summary: Created ${matchesCreated} series, ${byesProcessed} byes`);
 
     // Update round status to in_progress
     await query(
@@ -819,7 +840,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       await recalculateTeamRankings(tournamentId);
     }
 
-    console.log(`Round ${roundNumber} activated with ${pairings.length} pairings, best_of: ${bestOf}`);
+    console.log(`✅ [ACTIVATE_ROUND] Round ${roundNumber} successfully activated with ${pairings.length} pairings (${matchesCreated} matches + ${byesProcessed} byes), best_of: ${bestOf}`);
     return true;
   } catch (error) {
     console.error('Error activating round:', error);
