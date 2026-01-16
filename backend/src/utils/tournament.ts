@@ -627,7 +627,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         // ARCHITECTURE NOTE (Option B): We'll use team.id as if it were user_id for pairing functions
         // The team_id will be stored in player_id1/2 columns of tournament_matches
         const teamsResult = await query(
-          `SELECT tt.id as user_id
+          `SELECT tt.id as user_id, tt.team_elo as elo_rating
            FROM tournament_teams tt
            WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
           [tournamentId]
@@ -663,7 +663,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         if (tournamentType === 'elimination') {
           // Team elimination: only get active teams
           const teamsResult = await query(
-            `SELECT tt.id as user_id
+            `SELECT tt.id as user_id, tt.team_elo as elo_rating
              FROM tournament_teams tt
              WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
             [tournamentId]
@@ -673,7 +673,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         } else {
           // Team swiss/league: all active teams
           const teamsResult = await query(
-            `SELECT tt.id as user_id
+            `SELECT tt.id as user_id, tt.team_elo as elo_rating
              FROM tournament_teams tt
              WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
             [tournamentId]
