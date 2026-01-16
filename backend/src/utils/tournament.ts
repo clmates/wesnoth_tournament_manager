@@ -726,9 +726,6 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       throw new Error(errorMsg);
     }
 
-    console.log(`[ACTIVATE_ROUND] Retrieved ${participants.length} participants for round ${roundNumber}`);
-    console.log(`[ACTIVATE_ROUND] Best Of format: ${bestOf} (wins required: ${winsRequired})`);
-
     // Determine best_of format from round_format (bo1, bo3, bo5)
     const bestOfMap: { [key: string]: 1 | 3 | 5 } = {
       'bo1': 1,
@@ -737,6 +734,9 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     };
     const bestOf = bestOfMap[round.round_format] || 3;
     const winsRequired = Math.ceil(bestOf / 2);
+
+    console.log(`[ACTIVATE_ROUND] Retrieved ${participants.length} participants for round ${roundNumber}`);
+    console.log(`[ACTIVATE_ROUND] Best Of format: ${bestOf} (wins required: ${winsRequired})`);
 
     // Generate pairings based on round number and tournament type
     let pairings;
@@ -790,7 +790,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     for (const pairing of pairings) {
       // Handle bye (automatic advancement for odd player count)
       if (pairing.is_bye || pairing.player2_id === null) {
-        console.log(`✅ BYE: ${tournamentMode === 'team' ? 'Team' : 'Player'} ${pairing.player1_id} advances automatically to next round`);
+        console.log(`✅ BYE: ${tournament.tournament_mode === 'team' ? 'Team' : 'Player'} ${pairing.player1_id} advances automatically to next round`);
         byesProcessed++;
         // No need to create matches for byes
         // The player will automatically be included in next round
