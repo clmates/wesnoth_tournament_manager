@@ -336,16 +336,19 @@ async function generateSwissMatches(
       standingsResult = await query(
         `SELECT 
           tt.id as user_id,
-          tt.wins as tournament_wins,
-          tt.losses as tournament_losses,
+          tt.tournament_wins,
+          tt.tournament_losses,
           tt.team_elo as elo_rating,
-          0 as omp,
-          0 as gwp,
-          0 as ogp
+          tt.omp,
+          tt.gwp,
+          tt.ogp
          FROM tournament_teams tt
          WHERE tt.tournament_id = $1 AND tt.id = ANY($2)
          ORDER BY 
-           (tt.wins - tt.losses) DESC,
+           (tt.tournament_wins - tt.tournament_losses) DESC,
+           tt.omp DESC,
+           tt.gwp DESC,
+           tt.ogp DESC,
            tt.team_elo DESC`,
         [tournamentId, participants.map(p => p.user_id)]
       );
