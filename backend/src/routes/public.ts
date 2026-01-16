@@ -194,6 +194,7 @@ router.get('/tournaments/:id/participants', async (req, res) => {
       SELECT 
         tp.id,
         tp.user_id,
+        tp.team_id,
         u.nickname,
         u.elo_rating,
         tp.participation_status,
