@@ -1147,11 +1147,17 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
       if (roundNumber === totalRounds) {
         // This is the last round - tournament is about to finish
         
+        // Get tournament mode
+        const tournamentResult = await query(
+          `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+          [tournamentId]
+        );
+        const tournMode = tournamentResult.rows[0]?.tournament_mode || 'ranked';
+        
         // FIRST: Calculate tiebreakers BEFORE marking as finished
         // This ensures rankings are properly ordered by OMP/GWP/OGP for correct winner selection
         console.log(`\n🎲 [TIEBREAKERS] Calculating tournament tiebreakers (OMP, GWP, OGP) BEFORE finishing...`);
         try {
-          const tournMode = tournament.tournament_mode || 'ranked';
           const functionName = tournMode === 'team' ? 'update_team_tiebreakers' : 'update_tournament_tiebreakers';
           const tiebreakersResult = await query(
             `SELECT updated_count, error_message FROM ${functionName}($1)`,
