@@ -80,6 +80,7 @@ interface TournamentMatch {
   player1_nickname: string;
   player2_nickname: string;
   winner_nickname: string | null;
+  loser_nickname?: string;
   match_status_from_matches?: 'confirmed' | 'disputed' | 'unconfirmed' | 'cancelled' | null;
   winner_faction?: string;
   loser_faction?: string;
@@ -1152,7 +1153,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         <th>{t('label_round')}</th>
                         <th>{t('label_winner')}</th>
                         <th>{t('label_loser')}</th>
-                        <th>{t('label_map')}</th>
+                        <th>{tournament?.tournament_mode === 'unranked' ? `${t('label_map')} / Factions` : t('label_map')}</th>
                         <th>Status / Actions</th>
                       </tr>
                     </thead>
@@ -1214,7 +1215,16 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   )}
                                 </div>
                               </td>
-                              <td>{match.map || '-'}</td>
+                              <td>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                  <span>{match.map || '-'}</span>
+                                  {tournament?.tournament_mode === 'unranked' && !match.is_team_mode && (match.winner_faction || match.loser_faction) && (
+                                    <span style={{ fontSize: '0.85em', color: '#666' }}>
+                                      {match.winner_faction || '-'} vs {match.loser_faction || '-'}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
                               <td>
                                 <div className="status-actions-col">
                                   <div className="status-item">

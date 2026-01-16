@@ -219,8 +219,54 @@ router.get('/tournaments/:id/participants', async (req, res) => {
 router.get('/tournaments/:id/matches', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await query(`
-      SELECT 
+    
+    // Get tournament mode
+    const tournamentModeResult = await query(
+      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      [id]
+    );
+
+    if (tournamentModeResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const tournamentMode = tournamentModeResult.rows[0].tournament_mode || 'ranked';
+
+    let selectClause, joinClause;
+
+    if (tournamentMode === 'team') {
+      // Team mode: get team names from tournament_teams
+      selectClause = `
+        tm.id,
+        tm.tournament_id,
+        tm.round_id,
+        tm.player1_id,
+        tm.player2_id,
+        tm.winner_id,
+        tm.match_id,
+        tm.match_status,
+        tm.played_at,
+        tm.created_at,
+        tr.round_number,
+        tr.round_type,
+        tr.round_status,
+        tt1.name as player1_nickname,
+        tt2.name as player2_nickname,
+        tt_winner.name as winner_nickname,
+        tm.map,
+        NULL as winner_faction,
+        NULL as loser_faction
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        JOIN tournament_rounds tr ON tm.round_id = tr.id
+        LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
+        LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
+        LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
+      `;
+    } else if (tournamentMode === 'unranked') {
+      // Unranked 1v1: get player names from users, match details from tournament_matches
+      selectClause = `
         tm.id,
         tm.tournament_id,
         tm.round_id,
@@ -236,12 +282,54 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tr.round_status,
         u1.nickname as player1_nickname,
         u2.nickname as player2_nickname,
-        uw.nickname as winner_nickname
-      FROM tournament_matches tm
-      JOIN tournament_rounds tr ON tm.round_id = tr.id
-      LEFT JOIN users u1 ON tm.player1_id = u1.id
-      LEFT JOIN users u2 ON tm.player2_id = u2.id
-      LEFT JOIN users uw ON tm.winner_id = uw.id
+        uw.nickname as winner_nickname,
+        tm.map,
+        tm.winner_faction,
+        tm.loser_faction
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        JOIN tournament_rounds tr ON tm.round_id = tr.id
+        LEFT JOIN users u1 ON tm.player1_id = u1.id
+        LEFT JOIN users u2 ON tm.player2_id = u2.id
+        LEFT JOIN users uw ON tm.winner_id = uw.id
+      `;
+    } else {
+      // Ranked 1v1: get player names from users (matches data already shown, though not included here for public API)
+      selectClause = `
+        tm.id,
+        tm.tournament_id,
+        tm.round_id,
+        tm.player1_id,
+        tm.player2_id,
+        tm.winner_id,
+        tm.match_id,
+        tm.match_status,
+        tm.played_at,
+        tm.created_at,
+        tr.round_number,
+        tr.round_type,
+        tr.round_status,
+        u1.nickname as player1_nickname,
+        u2.nickname as player2_nickname,
+        uw.nickname as winner_nickname,
+        m.map,
+        m.winner_faction,
+        m.loser_faction
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        JOIN tournament_rounds tr ON tm.round_id = tr.id
+        LEFT JOIN users u1 ON tm.player1_id = u1.id
+        LEFT JOIN users u2 ON tm.player2_id = u2.id
+        LEFT JOIN users uw ON tm.winner_id = uw.id
+        LEFT JOIN matches m ON tm.match_id = m.id
+      `;
+    }
+
+    const result = await query(`
+      SELECT ${selectClause}
+      ${joinClause}
       WHERE tm.tournament_id = $1
       ORDER BY tr.round_number ASC, tm.created_at ASC
     `, [id]);
