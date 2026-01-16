@@ -328,33 +328,57 @@ async function generateSwissMatches(
   }
 
   try {
-    // Get player standings with scores and tiebreakers (ELO from users table)
-    const standingsResult = await query(
-      `SELECT 
-        tp.user_id,
-        tp.tournament_wins,
-        tp.tournament_losses,
-        u.elo_rating,
-        tp.omp,
-        tp.gwp,
-        tp.ogp
-       FROM tournament_participants tp
-       LEFT JOIN users u ON tp.user_id = u.id
-       WHERE tp.tournament_id = $1 AND tp.user_id = ANY($2)
-       ORDER BY 
-         (tp.tournament_wins - tp.tournament_losses) DESC,
-         tp.omp DESC,
-         tp.gwp DESC,
-         tp.ogp DESC,
-         u.elo_rating DESC`,
-      [tournamentId, participants.map(p => p.user_id)]
-    );
+    // Get player/team standings with scores and tiebreakers
+    let standingsResult;
+    
+    if (tournamentMode === 'team') {
+      // Team mode: get standings from tournament_teams (participants are team_ids)
+      standingsResult = await query(
+        `SELECT 
+          tt.id as user_id,
+          tt.wins as tournament_wins,
+          tt.losses as tournament_losses,
+          tt.team_elo as elo_rating,
+          0 as omp,
+          0 as gwp,
+          0 as ogp
+         FROM tournament_teams tt
+         WHERE tt.tournament_id = $1 AND tt.id = ANY($2)
+         ORDER BY 
+           (tt.wins - tt.losses) DESC,
+           tt.team_elo DESC`,
+        [tournamentId, participants.map(p => p.user_id)]
+      );
+    } else {
+      // 1v1 mode: get standings from tournament_participants (participants are user_ids)
+      standingsResult = await query(
+        `SELECT 
+          tp.user_id,
+          tp.tournament_wins,
+          tp.tournament_losses,
+          u.elo_rating,
+          tp.omp,
+          tp.gwp,
+          tp.ogp
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.user_id = ANY($2)
+         ORDER BY 
+           (tp.tournament_wins - tp.tournament_losses) DESC,
+           tp.omp DESC,
+           tp.gwp DESC,
+           tp.ogp DESC,
+           u.elo_rating DESC`,
+        [tournamentId, participants.map(p => p.user_id)]
+      );
+    }
 
     const standings = standingsResult.rows;
-    console.log(`\n🎲 [SWISS PAIRINGS] Round ${roundNumber}: ${standings.length} players`);
+    console.log(`\n🎲 [SWISS PAIRINGS] Round ${roundNumber}: ${standings.length} ${tournamentMode === 'team' ? 'teams' : 'players'}`);
     standings.forEach(p => {
       const score = (p.tournament_wins - p.tournament_losses);
-      console.log(`  Player ${p.user_id}: ${p.tournament_wins}-${p.tournament_losses} (OMP:${p.omp} GWP:${p.gwp} OGP:${p.ogp} ELO:${p.elo_rating})`);
+      const label = tournamentMode === 'team' ? 'Team' : 'Player';
+      console.log(`  ${label} ${p.user_id}: ${p.tournament_wins}-${p.tournament_losses} (OMP:${p.omp} GWP:${p.gwp} OGP:${p.ogp} ELO:${p.elo_rating})`);
     });
 
     // Group by score
@@ -377,7 +401,7 @@ async function generateSwissMatches(
       `SELECT DISTINCT 
         LEAST(player1_id, player2_id) as player_a,
         GREATEST(player1_id, player2_id) as player_b
-       FROM tournament_matches
+       FROM tournament_round_matches
        WHERE tournament_id = $1 AND player1_id IS NOT NULL AND player2_id IS NOT NULL`,
       [tournamentId]
     );
