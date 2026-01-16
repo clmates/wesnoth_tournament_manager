@@ -2145,11 +2145,21 @@ router.post('/tournaments/:id/calculate-tiebreakers', authMiddleware, async (req
       return res.status(403).json({ success: false, error: 'Only tournament organizer can calculate tiebreakers' });
     }
 
-    // Calculate tiebreakers
-    const tiebreakersResult = await query(
-      'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
-      [id]
-    );
+    // Calculate tiebreakers - use appropriate function based on tournament mode
+    let tiebreakersResult;
+    if (tournament.tournament_mode === 'team') {
+      // For team tournaments, update team tiebreakers
+      tiebreakersResult = await query(
+        'SELECT updated_count, error_message FROM update_team_tiebreakers($1)',
+        [id]
+      );
+    } else {
+      // For individual tournaments, update participant tiebreakers
+      tiebreakersResult = await query(
+        'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
+        [id]
+      );
+    }
 
     if (tiebreakersResult.rows.length === 0) {
       return res.status(500).json({ success: false, error: 'Failed to calculate tiebreakers' });
@@ -2162,7 +2172,7 @@ router.post('/tournaments/:id/calculate-tiebreakers', authMiddleware, async (req
       return res.status(500).json({ success: false, error: error_message });
     }
 
-    console.log(`✅ [CALCULATE TIEBREAKERS] Calculated tiebreakers for ${updated_count} participants`);
+    console.log(`✅ [CALCULATE TIEBREAKERS] Calculated tiebreakers for ${updated_count} ${tournament.tournament_mode === 'team' ? 'teams' : 'participants'}`);
     
     res.json({
       success: true,

@@ -95,11 +95,19 @@ export async function selectPlayersForEliminationPhase(
     
     console.log(`${'='.repeat(80)}\n`);
     
+    // Get tournament mode to determine if we're using teams or participants
+    const tournResult = await query(
+      'SELECT tournament_mode FROM tournaments WHERE id = $1',
+      [tournamentId]
+    );
+    const tournamentMode = tournResult.rows[0]?.tournament_mode || 'ranked';
+    
     // Calculate tiebreakers for Swiss phase completion
     console.log(`\n🎲 [TIEBREAKERS] Calculating Swiss tiebreakers (OMP, GWP, OGP)...`);
     try {
+      const functionName = tournamentMode === 'team' ? 'update_team_tiebreakers' : 'update_tournament_tiebreakers';
       const tiebreakersResult = await query(
-        'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
+        `SELECT updated_count, error_message FROM ${functionName}($1)`,
         [tournamentId]
       );
       
@@ -108,7 +116,7 @@ export async function selectPlayersForEliminationPhase(
         if (error_message) {
           console.error(`❌ [TIEBREAKERS] Error: ${error_message}`);
         } else {
-          console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} participants`);
+          console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} ${tournamentMode === 'team' ? 'teams' : 'participants'}`);
         }
       }
     } catch (tiebreakersErr) {
@@ -1143,8 +1151,10 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
         // This ensures rankings are properly ordered by OMP/GWP/OGP for correct winner selection
         console.log(`\n🎲 [TIEBREAKERS] Calculating tournament tiebreakers (OMP, GWP, OGP) BEFORE finishing...`);
         try {
+          const tournMode = tournament.tournament_mode || 'ranked';
+          const functionName = tournMode === 'team' ? 'update_team_tiebreakers' : 'update_tournament_tiebreakers';
           const tiebreakersResult = await query(
-            'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
+            `SELECT updated_count, error_message FROM ${functionName}($1)`,
             [tournamentId]
           );
           
@@ -1153,7 +1163,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
             if (error_message) {
               console.error(`❌ [TIEBREAKERS] Error: ${error_message}`);
             } else {
-              console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} participants`);
+              console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} ${tournMode === 'team' ? 'teams' : 'participants'}`);
             }
           }
         } catch (tiebreakersErr) {
