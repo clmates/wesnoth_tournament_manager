@@ -862,8 +862,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
 
         const loserTeamResult = await query(
           `SELECT tt.id FROM tournament_teams tt
-           JOIN tournament_participants tp ON tp.team_id = tt.id
-           WHERE tt.tournament_id = $1 AND tp.user_id = $2
+           WHERE tt.tournament_id = $1 AND tt.id = $2
            LIMIT 1`,
           [tournament_id, opponent_id]
         );
@@ -942,6 +941,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         );
 
         // Update tournament_participants stats for loser
+        // opponent_id is always a user ID in 1v1 mode
         await query(
           `UPDATE tournament_participants 
            SET tournament_losses = COALESCE(tournament_losses, 0) + 1

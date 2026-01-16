@@ -57,10 +57,54 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
   const [factions, setFactions] = useState<Faction[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [tournamentAssets, setTournamentAssets] = useState<{ maps: GameMap[]; factions: Faction[] } | null>(null);
+  const [currentUserTeamId, setCurrentUserTeamId] = useState<string | null>(null);
+
+  // For team tournaments, find which team the current user belongs to
+  useEffect(() => {
+    if (tournamentMode === 'team') {
+      const determineUserTeam = async () => {
+        try {
+          // Fetch participants to find which team this user belongs to
+          const participantsRes = await api.get(`/public/tournaments/${tournamentId}/participants`);
+          const participants = participantsRes.data;
+          
+          // Find the participant record for current user
+          const userParticipant = participants.find((p: any) => p.user_id === currentUserId);
+          
+          if (userParticipant && userParticipant.team_id) {
+            setCurrentUserTeamId(userParticipant.team_id);
+          }
+        } catch (err) {
+          console.error('Error fetching user team:', err);
+        }
+      };
+      
+      determineUserTeam();
+    }
+  }, [tournamentMode, tournamentId, currentUserId]);
 
   // Determine who is winner and who is loser
-  const isPlayer1 = currentUserId === player1Id;
-  const winnerId = currentUserId;
+  // For team tournaments: compare currentUserTeamId with player1Id and player2Id
+  // For 1v1 tournaments: compare currentUserId with player1Id and player2Id
+  let isPlayer1: boolean;
+  let winnerId: string;
+  
+  if (tournamentMode === 'team') {
+    if (currentUserTeamId) {
+      isPlayer1 = currentUserTeamId === player1Id;
+      winnerId = currentUserTeamId;
+    } else {
+      // Team ID not yet loaded, make an assumption based on user ID match
+      // This shouldn't normally happen but is a fallback
+      isPlayer1 = false;
+      winnerId = currentUserId;
+    }
+  } else {
+    // 1v1 mode: compare user IDs
+    isPlayer1 = currentUserId === player1Id;
+    winnerId = currentUserId;
+  }
+  
   const loserId = isPlayer1 ? player2Id : player1Id;
   const winnerName = isPlayer1 ? player1Name : player2Name;
   const loserName = isPlayer1 ? player2Name : player1Name;
@@ -238,8 +282,23 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
     try {
       setLoading(true);
 
+      // Determine opponent_id based on tournament mode
+      // For team tournaments, the opponent team is already defined in the match
+      // For 1v1 tournaments, opponent_id is the other player
+      let actualOpponentId: string;
+      
+      if (tournamentMode === 'team') {
+        // For team mode, we don't have a specific opponent user ID, but we have the opponent team ID
+        // The backend will deduce the opponent team from the match definition
+        // Use the opponent team ID or leave it empty - backend will handle it
+        actualOpponentId = isPlayer1 ? player2Id : player1Id;
+      } else {
+        // For 1v1 mode, opponent_id is simply the other player
+        actualOpponentId = isPlayer1 ? player2Id : player1Id;
+      }
+
       const data = new FormData();
-      data.append('opponent_id', loserId);
+      data.append('opponent_id', actualOpponentId);
       data.append('map', formData.map);
       // Always include factions (empty string for team mode)
       data.append('winner_faction', formData.winner_faction || '');
