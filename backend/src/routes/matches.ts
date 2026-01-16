@@ -121,159 +121,171 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
     const { opponent_id, map, winner_faction, loser_faction, comments, rating, tournament_id, tournament_match_id } = req.body;
 
     // Get tournament mode to determine if factions are required
-    let isTournamentTeamMode = false;
+    let tournamentMode = 'ranked'; // default
     if (tournament_id) {
       const tournamentResult = await query(
         'SELECT tournament_mode FROM tournaments WHERE id = $1',
         [tournament_id]
       );
       if (tournamentResult.rows.length > 0) {
-        isTournamentTeamMode = tournamentResult.rows[0].tournament_mode === 'team';
+        tournamentMode = tournamentResult.rows[0].tournament_mode || 'ranked';
       }
     }
 
-    // Validate required fields: opponent_id, map required. factions required only for non-team mode
+    const isTournamentTeamMode = tournamentMode === 'team';
+    const isUnranked = tournamentMode === 'unranked';
+
+    // Validate required fields: opponent_id, map required. factions required only for ranked
     if (!opponent_id || !map) {
       return res.status(400).json({ error: 'Missing required fields: opponent_id and map' });
     }
 
-    if (!isTournamentTeamMode && (!winner_faction || !loser_faction)) {
-      return res.status(400).json({ error: 'Missing required fields for 1v1 match: winner_faction and loser_faction' });
+    if (tournamentMode === 'ranked' && (!winner_faction || !loser_faction)) {
+      return res.status(400).json({ error: 'Missing required fields for ranked match: winner_faction and loser_faction' });
     }
 
-    // Enforce .gz and .bz2 uploads (defensive even with multer filter)
-    if (req.file) {
-      const ext = path.extname(req.file.originalname).toLowerCase();
-      if (ext !== '.gz' && ext !== '.bz2') {
-        console.warn('📤 [UPLOAD] Rejected file with invalid extension:', ext);
-        return res.status(400).json({ error: 'Only .gz and .bz2 replay files are allowed' });
+    // For ranked only, get user data (unranked and team don't affect global ELO)
+    let winner: any = null;
+    let loser: any = null;
+
+    if (tournamentMode === 'ranked') {
+      const winnerResult = await query(
+        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
+        [req.userId]
+      );
+      const loserResult = await query(
+        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
+        [opponent_id]
+      );
+
+      if (winnerResult.rows.length === 0 || loserResult.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
       }
+
+      winner = winnerResult.rows[0];
+      loser = loserResult.rows[0];
     }
 
-    // Get winner and opponent data (FIDE system)
-    const winnerResult = await query(
-      'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
-      [req.userId]
-    );
-    const loserResult = await query(
-      'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
-      [opponent_id]
-    );
+    // Use legacy calculateELO and FIDE ratings only for ranked matches
+    let legacyEloChange = 0;
+    let winnerNewRating = 0;
+    let loserNewRating = 0;
 
-    if (winnerResult.rows.length === 0 || loserResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (tournamentMode === 'ranked') {
+      legacyEloChange = calculateELO(winner!.elo_rating, loser!.elo_rating, true);
+      winnerNewRating = calculateNewRating(winner!.elo_rating, loser!.elo_rating, 'win', winner!.matches_played);
+      loserNewRating = calculateNewRating(loser!.elo_rating, winner!.elo_rating, 'loss', loser!.matches_played);
     }
 
-    const winner = winnerResult.rows[0];
-    const loser = loserResult.rows[0];
+    // Insert match ONLY for ranked tournaments
+    let matchId: string | null = null;
 
-    // Use legacy calculateELO for now, store both old and new calculations
-    const legacyEloChange = calculateELO(winner.elo_rating, loser.elo_rating, true);
+    if (tournamentMode === 'ranked') {
+      const matchResult = await query(
+        `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         RETURNING id`,
+        [
+          req.userId,
+          opponent_id,
+          map,
+          winner_faction,
+          loser_faction,
+          comments,
+          rating,
+          null,
+          tournament_id || null,
+          tournamentMode,
+          legacyEloChange,
+          winner!.elo_rating,
+          loser!.elo_rating,
+          winner!.level || 'novato',
+          loser!.level || 'novato',
+        ]
+      );
 
-    // Calculate FIDE ratings for both players
-    const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
-    const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+      matchId = matchResult.rows[0].id;
 
-    // Insert match with legacy elo_change for now
-    const matchResult = await query(
-      `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, winner_rating, replay_file_path, tournament_id, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-       RETURNING id`,
-      [
-        req.userId,
-        opponent_id,
-        map,
-        winner_faction,
-        loser_faction,
-        comments,
-        rating,
-        null,
-        tournament_id || null,
-        legacyEloChange,
-        winner.elo_rating,
-        loser.elo_rating,
-        winner.level || 'novato',
-        loser.level || 'novato',
-      ]
-    );
+      // Calculate new trends: winner gets a win, loser gets a loss
+      const currentWinnerTrend = winner!.trend || '-';
+      const currentLoserTrend = loser!.trend || '-';
+      const winnerTrend = calculateTrend(currentWinnerTrend, true);
+      const loserTrend = calculateTrend(currentLoserTrend, false);
 
-    const matchId = matchResult.rows[0].id;
+      // Update winner: increment matches_played and set new ELO
+      const newWinnerMatches = winner!.matches_played + 1;
+      let winnerIsNowRated = winner!.is_rated;
+      let finalWinnerRating = winnerNewRating;
 
-    // Calculate new trends: winner gets a win, loser gets a loss
-    const currentWinnerTrend = winner.trend || '-';
-    const currentLoserTrend = loser.trend || '-';
-    const winnerTrend = calculateTrend(currentWinnerTrend, true);
-    const loserTrend = calculateTrend(currentLoserTrend, false);
+      // Check if winner should become unrated (drops below 1400 elo)
+      if (winner!.is_rated && finalWinnerRating < 1400) {
+        winnerIsNowRated = false;
+      }
+      // Check if unrated winner should become rated (10 games minimum, rating >= 1400)
+      else if (!winner!.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
+        winnerIsNowRated = true;
+      }
 
-    // Update winner: increment matches_played and set new ELO
-    const newWinnerMatches = winner.matches_played + 1;
-    let winnerIsNowRated = winner.is_rated;
-    let finalWinnerRating = winnerNewRating;
+      await query(
+        `UPDATE users 
+         SET elo_rating = $1, 
+             is_rated = $2, 
+             matches_played = $3,
+             total_wins = total_wins + 1,
+             trend = $6,
+             level = $5,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $4`,
+        [finalWinnerRating, winnerIsNowRated, newWinnerMatches, req.userId, getUserLevel(finalWinnerRating), winnerTrend]
+      );
 
-    // Check if winner should become unrated (drops below 1400 elo)
-    if (winner.is_rated && finalWinnerRating < 1400) {
-      winnerIsNowRated = false;
+      // Update loser: increment matches_played and set new ELO
+      const newLoserMatches = loser!.matches_played + 1;
+      let loserIsNowRated = loser!.is_rated;
+      let finalLoserRating = loserNewRating;
+
+      // Check if loser should become unrated (drops below 1400 elo)
+      if (loser!.is_rated && finalLoserRating < 1400) {
+        loserIsNowRated = false;
+      }
+      // Check if unrated loser should become rated (10 games minimum, rating >= 1400)
+      else if (!loser!.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
+        loserIsNowRated = true;
+      }
+
+      await query(
+        `UPDATE users 
+         SET elo_rating = $1, 
+             is_rated = $2, 
+             matches_played = $3,
+             total_losses = total_losses + 1,
+             trend = $6,
+             level = $5,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $4`,
+        [finalLoserRating, loserIsNowRated, newLoserMatches, opponent_id, getUserLevel(finalLoserRating), loserTrend]
+      );
+
+      // Update match with after-match ELO and level ratings
+      await query(
+        `UPDATE matches 
+         SET winner_elo_after = $1,
+             winner_level_after = $2,
+             loser_elo_after = $3,
+             loser_level_after = $4,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $5`,
+        [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), matchId]
+      );
+
+      console.log(
+        `Match ${matchId}: Winner ${req.userId} (${winner!.elo_rating} -> ${finalWinnerRating}, rated: ${winnerIsNowRated}) vs Loser ${opponent_id} (${loser!.elo_rating} -> ${finalLoserRating}, rated: ${loserIsNowRated})`
+      );
+    } else {
+      // For unranked/team tournaments, log match report only
+      const modeLabel = isTournamentTeamMode ? '[TEAM]' : '[UNRANKED]';
+      console.log(`📤 ${modeLabel} Tournament match report: ${req.userId} (winner) vs ${opponent_id} (loser), map: ${map}`);
     }
-    // Check if unrated winner should become rated (10 games minimum, rating >= 1400)
-    else if (!winner.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
-      winnerIsNowRated = true;
-    }
-
-    await query(
-      `UPDATE users 
-       SET elo_rating = $1, 
-           is_rated = $2, 
-           matches_played = $3,
-           total_wins = total_wins + 1,
-           trend = $6,
-           level = $5,
-           updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $4`,
-      [finalWinnerRating, winnerIsNowRated, newWinnerMatches, req.userId, getUserLevel(finalWinnerRating), winnerTrend]
-    );
-
-    // Update loser: increment matches_played and set new ELO
-    const newLoserMatches = loser.matches_played + 1;
-    let loserIsNowRated = loser.is_rated;
-    let finalLoserRating = loserNewRating;
-
-    // Check if loser should become unrated (drops below 1400 elo)
-    if (loser.is_rated && finalLoserRating < 1400) {
-      loserIsNowRated = false;
-    }
-    // Check if unrated loser should become rated (10 games minimum, rating >= 1400)
-    else if (!loser.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
-      loserIsNowRated = true;
-    }
-
-    await query(
-      `UPDATE users 
-       SET elo_rating = $1, 
-           is_rated = $2, 
-           matches_played = $3,
-           total_losses = total_losses + 1,
-           trend = $6,
-           level = $5,
-           updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $4`,
-      [finalLoserRating, loserIsNowRated, newLoserMatches, opponent_id, getUserLevel(finalLoserRating), loserTrend]
-    );
-
-    // Update match with after-match ELO and level ratings
-    await query(
-      `UPDATE matches 
-       SET winner_elo_after = $1,
-           winner_level_after = $2,
-           loser_elo_after = $3,
-           loser_level_after = $4,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5`,
-      [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), matchId]
-    );
-
-    console.log(
-      `Match ${matchId}: Winner ${req.userId} (${winner.elo_rating} -> ${finalWinnerRating}, rated: ${winnerIsNowRated}) vs Loser ${opponent_id} (${loser.elo_rating} -> ${finalLoserRating}, rated: ${loserIsNowRated})`
-    );
 
     // If this is a tournament match, update tournament_matches and handle Best Of series
     if (tournament_id && tournament_match_id) {
@@ -281,19 +293,14 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
         `UPDATE tournament_matches 
          SET match_id = $1, match_status = 'completed', played_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE id = $2`,
-        [matchId, tournament_match_id]
+        [matchId || null, tournament_match_id]
       );
-      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId}. Rows affected: ${updateResult.rowCount}`);
+      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (tournament mode)'}. Rows affected: ${updateResult.rowCount}`);
 
       // Update tournament statistics based on tournament mode
-      // Team mode: update tournament_teams (Option B architecture: player_id columns store team_id)
-      // 1v1 mode: update tournament_participants
-      const tournamentModeResult = await query(
-        `SELECT tournament_mode FROM tournaments WHERE id = $1`,
-        [tournament_id]
-      );
-      const isTournamentTeamMode = tournamentModeResult.rows.length > 0 && tournamentModeResult.rows[0].tournament_mode === 'team';
-
+      // Team mode: update tournament_teams
+      // 1v1 unranked: update tournament_participants
+      // 1v1 ranked: already updated in matches table, but also update tournament_participants
       if (isTournamentTeamMode) {
         console.log(`[TEAM_MODE] Updating tournament_teams stats for tournament ${tournament_id}`);
         
@@ -340,7 +347,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
           console.warn(`Could not find team IDs for players in tournament ${tournament_id}`);
         }
       } else {
-        // 1v1 mode: update tournament_participants
+        // 1v1 mode (unranked or ranked): update tournament_participants
         // Update tournament_participants stats for winner
         await query(
           `UPDATE tournament_participants 
@@ -466,34 +473,44 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       return res.status(400).json({ error: 'Missing required fields for 1v1 match: winner_faction and loser_faction' });
     }
 
-    // Get winner and opponent data (FIDE system)
-    const winnerResult = await query(
-      'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
-      [req.userId]
-    );
-    const loserResult = await query(
-      'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
-      [opponent_id]
-    );
-
-    if (winnerResult.rows.length === 0 || loserResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const winner = winnerResult.rows[0];
-    const loser = loserResult.rows[0];
-
-    // Determine tournament mode (ranked/unranked/team) and validate assets if needed
+    // Determine tournament mode (ranked/unranked/team) first
     let tournamentMode = 'ranked'; // default
     if (tournament_id) {
-      const tournamentResult = await query(
+      const tournamentModeResult = await query(
         `SELECT tournament_mode FROM tournaments WHERE id = $1`,
         [tournament_id]
       );
-      if (tournamentResult.rows.length > 0) {
-        tournamentMode = tournamentResult.rows[0].tournament_mode || 'ranked';
+      if (tournamentModeResult.rows.length > 0) {
+        tournamentMode = tournamentModeResult.rows[0].tournament_mode || 'ranked';
+      }
+    }
+
+    // For team tournaments, skip opponent lookup and user stats
+    // For unranked tournaments, also skip user lookup (they don't count toward global stats)
+    // Get winner and opponent data only for ranked tournaments
+    let winner: any = null;
+    let loser: any = null;
+
+    if (tournamentMode === 'ranked') {
+      const winnerResult = await query(
+        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
+        [req.userId]
+      );
+      const loserResult = await query(
+        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
+        [opponent_id]
+      );
+
+      if (winnerResult.rows.length === 0 || loserResult.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
       }
 
+      winner = winnerResult.rows[0];
+      loser = loserResult.rows[0];
+    }
+
+    // Validate assets if needed based on tournament mode
+    if (tournament_id) {
       // For unranked tournaments, validate faction and map against allowed assets
       if (tournamentMode === 'unranked') {
         const factionCheck = await query(
@@ -561,10 +578,16 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     let winnerCurrentRank = 0;
     let loserCurrentRank = 0;
     let legacyEloChange = 0;
-    let winnerNewRating = winner.elo_rating;
-    let loserNewRating = loser.elo_rating;
+    let winnerNewRating = 0;
+    let loserNewRating = 0;
 
-    if (tournamentMode === 'ranked') {
+    // Only calculate ELO for non-team tournaments (ranked/unranked have actual users)
+    if (!isTournamentTeamMode) {
+      winnerNewRating = winner.elo_rating;
+      loserNewRating = loser.elo_rating;
+    }
+
+    if (tournamentMode === 'ranked' && !isTournamentTeamMode) {
       const winnerRankResult = await query(
         `SELECT COUNT(*) as rank 
          FROM users u2 
@@ -584,218 +607,230 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
            AND u2.is_rated = true
            AND u2.elo_rating >= 1400
            AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
-        [loser.elo_rating, opponent_id]
+        [loser!.elo_rating, opponent_id]
       );
 
       winnerCurrentRank = parseInt(winnerRankResult.rows[0].rank) + 1;
       loserCurrentRank = parseInt(loserRankResult.rows[0].rank) + 1;
 
       // Use legacy calculateELO for now, store both old and new calculations
-      legacyEloChange = calculateELO(winner.elo_rating, loser.elo_rating, true);
+      legacyEloChange = calculateELO(winner!.elo_rating, loser!.elo_rating, true);
 
       // Calculate FIDE ratings for both players
-      winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
-      loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
-    } else {
+      winnerNewRating = calculateNewRating(winner!.elo_rating, loser!.elo_rating, 'win', winner!.matches_played);
+      loserNewRating = calculateNewRating(loser!.elo_rating, winner!.elo_rating, 'loss', loser!.matches_played);
+    } else if (!isTournamentTeamMode) {
       // For unranked tournaments, no ELO calculation needed
       winnerCurrentRank = 0;
       loserCurrentRank = 0;
       legacyEloChange = 0;
-      winnerNewRating = winner.elo_rating;
-      loserNewRating = loser.elo_rating;
+      winnerNewRating = winner!.elo_rating;
+      loserNewRating = loser!.elo_rating;
     }
 
-    // Upload replay to Supabase if file exists
-    let replayPath = null;
-    if (req.file) {
-      try {
-        console.log('📤 [UPLOAD] Starting Supabase upload...');
-        const fileBuffer = req.file.buffer;
-        if (!fileBuffer) {
-          throw new Error('Uploaded file buffer is missing');
+    // For team tournaments, don't store individual matches in the matches table
+    // Only update tournament_teams stats
+    // For unranked tournaments, also don't store matches (they don't count toward global ranking)
+    // Only RANKED tournaments store matches in the matches table
+    let matchId: string | null = null;
+
+    if (tournamentMode === 'ranked') {
+      // Upload replay to Supabase if file exists (for ranked/unranked only)
+      let replayPath = null;
+      if (req.file) {
+        try {
+          console.log('📤 [UPLOAD] Starting Supabase upload...');
+          const fileBuffer = req.file.buffer;
+          if (!fileBuffer) {
+            throw new Error('Uploaded file buffer is missing');
+          }
+          console.log('📤 [UPLOAD] File buffer size:', fileBuffer.length, 'bytes');
+          
+          // Generate filename using the original filename's extension
+          const ext = path.extname(req.file.originalname) || '.gz';
+          const filename = `replay_${Date.now()}${ext}`;
+          
+          const uploadResult = await uploadReplayToSupabase(filename, fileBuffer);
+          replayPath = uploadResult.path;
+          console.log('✅ [UPLOAD] Replay uploaded to Supabase:', replayPath);
+        } catch (uploadError) {
+          console.error('❌ [UPLOAD] Error uploading to Supabase:', uploadError);
+          // Don't fail the entire request if upload fails - we can retry later
         }
-        console.log('📤 [UPLOAD] File buffer size:', fileBuffer.length, 'bytes');
-        
-        // Generate filename using the original filename's extension
-        const ext = path.extname(req.file.originalname) || '.gz';
-        const filename = `replay_${Date.now()}${ext}`;
-        
-        const uploadResult = await uploadReplayToSupabase(filename, fileBuffer);
-        replayPath = uploadResult.path;
-        console.log('✅ [UPLOAD] Replay uploaded to Supabase:', replayPath);
-      } catch (uploadError) {
-        console.error('❌ [UPLOAD] Error uploading to Supabase:', uploadError);
-        // Don't fail the entire request if upload fails - we can retry later
       }
-    }
-    
-    // Insert match with ranking positions and tournament_mode
-    const matchResult = await query(
-      `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, loser_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, winner_ranking_pos, loser_ranking_pos)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-       RETURNING id`,
-      [
-        req.userId,
-        opponent_id,
-        map,
-        winner_faction,
-        loser_faction,
-        comments,
-        null, // loser_comments will be added when loser confirms/disputes
-        rating,
-        replayPath,
-        tournament_id || null,
-        tournamentMode,
-        legacyEloChange,
-        winner.elo_rating,
-        loser.elo_rating,
-        winner.level || 'novato',
-        loser.level || 'novato',
-        winnerCurrentRank,
-        loserCurrentRank,
-      ]
-    );
+      
+      // Insert match with ranking positions and tournament_mode (only for ranked/unranked)
+      const matchResult = await query(
+        `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, loser_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, winner_ranking_pos, loser_ranking_pos)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+         RETURNING id`,
+        [
+          req.userId,
+          opponent_id,
+          map,
+          winner_faction,
+          loser_faction,
+          comments,
+          null, // loser_comments will be added when loser confirms/disputes
+          rating,
+          replayPath,
+          tournament_id || null,
+          tournamentMode,
+          legacyEloChange,
+          winner.elo_rating,
+          loser.elo_rating,
+          winner.level || 'novato',
+          loser.level || 'novato',
+          winnerCurrentRank,
+          loserCurrentRank,
+        ]
+      );
 
-    const matchId = matchResult.rows[0].id;
-    console.log('📤 [MATCH] Match created with ID:', matchId);
-    console.log('✅ [UPLOAD] Replay stored in Supabase at:', replayPath);
+      matchId = matchResult.rows[0].id;
+      console.log('📤 [MATCH] Match created with ID:', matchId);
+      console.log('✅ [UPLOAD] Replay stored in Supabase at:', replayPath);
 
-    // Calculate new trends: winner gets a win, loser gets a loss
-    const currentWinnerTrend = winner.trend || '-';
-    const currentLoserTrend = loser.trend || '-';
-    const winnerTrend = calculateTrend(currentWinnerTrend, true);
-    const loserTrend = calculateTrend(currentLoserTrend, false);
+      // Calculate new trends: winner gets a win, loser gets a loss
+      const currentWinnerTrend = winner!.trend || '-';
+      const currentLoserTrend = loser!.trend || '-';
+      const winnerTrend = calculateTrend(currentWinnerTrend, true);
+      const loserTrend = calculateTrend(currentLoserTrend, false);
 
-    // Update winner: increment matches_played and set new ELO (only for ranked)
-    const newWinnerMatches = winner.matches_played + (tournamentMode === 'ranked' ? 1 : 0);
-    let winnerIsNowRated = winner.is_rated;
-    let finalWinnerRating = winnerNewRating;
+      // Update winner: increment matches_played and set new ELO (only for ranked)
+      const newWinnerMatches = winner!.matches_played + (tournamentMode === 'ranked' ? 1 : 0);
+      let winnerIsNowRated = winner!.is_rated;
+      let finalWinnerRating = winnerNewRating;
 
-    if (tournamentMode === 'ranked') {
-      // Check if winner should become unrated (drops below 1400 elo)
-      if (winner.is_rated && finalWinnerRating < 1400) {
-        winnerIsNowRated = false;
+      if (tournamentMode === 'ranked') {
+        // Check if winner should become unrated (drops below 1400 elo)
+        if (winner!.is_rated && finalWinnerRating < 1400) {
+          winnerIsNowRated = false;
+        }
+        // Check if unrated winner should become rated (10 games minimum, rating >= 1400)
+        else if (!winner!.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
+          winnerIsNowRated = true;
+        }
+
+        await query(
+          `UPDATE users 
+           SET elo_rating = $1, 
+               is_rated = $2, 
+               matches_played = $3,
+               total_wins = total_wins + 1,
+               trend = $6,
+               level = $5,
+               updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $4`,
+          [finalWinnerRating, winnerIsNowRated, newWinnerMatches, req.userId, getUserLevel(finalWinnerRating), winnerTrend]
+        );
+      } else {
+        // For unranked tournaments, only update trend and wins (no ELO change)
+        await query(
+          `UPDATE users 
+           SET trend = $2,
+               total_wins = total_wins + 1,
+               updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $1`,
+          [req.userId, winnerTrend]
+        );
       }
-      // Check if unrated winner should become rated (10 games minimum, rating >= 1400)
-      else if (!winner.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
-        winnerIsNowRated = true;
+
+      // Update loser: increment matches_played and set new ELO (only for ranked)
+      const newLoserMatches = loser!.matches_played + (tournamentMode === 'ranked' ? 1 : 0);
+      let loserIsNowRated = loser!.is_rated;
+      let finalLoserRating = loserNewRating;
+
+      if (tournamentMode === 'ranked') {
+        // Check if loser should become unrated (drops below 1400 elo)
+        if (loser!.is_rated && finalLoserRating < 1400) {
+          loserIsNowRated = false;
+        }
+        // Check if unrated loser should become rated (10 games minimum, rating >= 1400)
+        else if (!loser!.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
+          loserIsNowRated = true;
+        }
+
+        await query(
+          `UPDATE users 
+           SET elo_rating = $1, 
+               is_rated = $2, 
+               matches_played = $3,
+               total_losses = total_losses + 1,
+               trend = $6,
+               level = $5,
+               updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $4`,
+          [finalLoserRating, loserIsNowRated, newLoserMatches, opponent_id, getUserLevel(finalLoserRating), loserTrend]
+        );
+      } else {
+        // For unranked tournaments, only update trend and losses (no ELO change)
+        await query(
+          `UPDATE users 
+           SET trend = $2,
+               total_losses = total_losses + 1,
+               updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $1`,
+          [opponent_id, loserTrend]
+        );
       }
 
+      // Calculate new ranking positions after ELO update (only for ranked)
+      let winnerNewRank = 0;
+      let loserNewRank = 0;
+      let winnerRankingChange = 0;
+      let loserRankingChange = 0;
+
+      if (tournamentMode === 'ranked') {
+        const winnerNewRankResult = await query(
+          `SELECT COUNT(*) as rank 
+           FROM users u2 
+           WHERE u2.is_active = true 
+             AND u2.is_blocked = false
+             AND u2.is_rated = true
+             AND u2.elo_rating >= 1400
+             AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+          [finalWinnerRating, req.userId]
+        );
+
+        const loserNewRankResult = await query(
+          `SELECT COUNT(*) as rank 
+           FROM users u2 
+           WHERE u2.is_active = true 
+             AND u2.is_blocked = false
+             AND u2.is_rated = true
+             AND u2.elo_rating >= 1400
+             AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+          [finalLoserRating, opponent_id]
+        );
+
+        winnerNewRank = parseInt(winnerNewRankResult.rows[0].rank) + 1;
+        loserNewRank = parseInt(loserNewRankResult.rows[0].rank) + 1;
+        winnerRankingChange = winnerCurrentRank - winnerNewRank;
+        loserRankingChange = loserCurrentRank - loserNewRank;
+      }
+
+      // Update match with after-match ELO, level ratings, and ranking changes
       await query(
-        `UPDATE users 
-         SET elo_rating = $1, 
-             is_rated = $2, 
-             matches_played = $3,
-             total_wins = total_wins + 1,
-             trend = $6,
-             level = $5,
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $4`,
-        [finalWinnerRating, winnerIsNowRated, newWinnerMatches, req.userId, getUserLevel(finalWinnerRating), winnerTrend]
+        `UPDATE matches 
+         SET winner_elo_after = $1,
+             winner_level_after = $2,
+             loser_elo_after = $3,
+             loser_level_after = $4,
+             winner_ranking_change = $5,
+             loser_ranking_change = $6,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $7`,
+        [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), winnerRankingChange, loserRankingChange, matchId]
+      );
+
+      console.log(
+        `Match ${matchId}: Winner ${req.userId} (${winner!.elo_rating} -> ${finalWinnerRating}, rated: ${winnerIsNowRated}) vs Loser ${opponent_id} (${loser!.elo_rating} -> ${finalLoserRating}, rated: ${loserIsNowRated})`
       );
     } else {
-      // For unranked tournaments, only update trend and wins (no ELO change)
-      await query(
-        `UPDATE users 
-         SET trend = $2,
-             total_wins = total_wins + 1,
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $1`,
-        [req.userId, winnerTrend]
-      );
+      // For unranked/team tournaments, log the match report (no match stored in matches table)
+      const modeLabel = tournamentMode === 'team' ? '[TEAM]' : '[UNRANKED]';
+      console.log(`📤 ${modeLabel} Tournament match report: ${req.userId} (winner) vs ${opponent_id} (loser), map: ${map}`);
     }
-
-    // Update loser: increment matches_played and set new ELO (only for ranked)
-    const newLoserMatches = loser.matches_played + (tournamentMode === 'ranked' ? 1 : 0);
-    let loserIsNowRated = loser.is_rated;
-    let finalLoserRating = loserNewRating;
-
-    if (tournamentMode === 'ranked') {
-      // Check if loser should become unrated (drops below 1400 elo)
-      if (loser.is_rated && finalLoserRating < 1400) {
-        loserIsNowRated = false;
-      }
-      // Check if unrated loser should become rated (10 games minimum, rating >= 1400)
-      else if (!loser.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
-        loserIsNowRated = true;
-      }
-
-      await query(
-        `UPDATE users 
-         SET elo_rating = $1, 
-             is_rated = $2, 
-             matches_played = $3,
-             total_losses = total_losses + 1,
-             trend = $6,
-             level = $5,
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $4`,
-        [finalLoserRating, loserIsNowRated, newLoserMatches, opponent_id, getUserLevel(finalLoserRating), loserTrend]
-      );
-    } else {
-      // For unranked tournaments, only update trend and losses (no ELO change)
-      await query(
-        `UPDATE users 
-         SET trend = $2,
-             total_losses = total_losses + 1,
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $1`,
-        [opponent_id, loserTrend]
-      );
-    }
-
-    // Calculate new ranking positions after ELO update (only for ranked)
-    let winnerNewRank = 0;
-    let loserNewRank = 0;
-    let winnerRankingChange = 0;
-    let loserRankingChange = 0;
-
-    if (tournamentMode === 'ranked') {
-      const winnerNewRankResult = await query(
-        `SELECT COUNT(*) as rank 
-         FROM users u2 
-         WHERE u2.is_active = true 
-           AND u2.is_blocked = false
-           AND u2.is_rated = true
-           AND u2.elo_rating >= 1400
-           AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
-        [finalWinnerRating, req.userId]
-      );
-
-      const loserNewRankResult = await query(
-        `SELECT COUNT(*) as rank 
-         FROM users u2 
-         WHERE u2.is_active = true 
-           AND u2.is_blocked = false
-           AND u2.is_rated = true
-           AND u2.elo_rating >= 1400
-           AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
-        [finalLoserRating, opponent_id]
-      );
-
-      winnerNewRank = parseInt(winnerNewRankResult.rows[0].rank) + 1;
-      loserNewRank = parseInt(loserNewRankResult.rows[0].rank) + 1;
-      winnerRankingChange = winnerCurrentRank - winnerNewRank;
-      loserRankingChange = loserCurrentRank - loserNewRank;
-    }
-
-    // Update match with after-match ELO, level ratings, and ranking changes
-    await query(
-      `UPDATE matches 
-       SET winner_elo_after = $1,
-           winner_level_after = $2,
-           loser_elo_after = $3,
-           loser_level_after = $4,
-           winner_ranking_change = $5,
-           loser_ranking_change = $6,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7`,
-      [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), winnerRankingChange, loserRankingChange, matchId]
-    );
-
-    console.log(
-      `Match ${matchId}: Winner ${req.userId} (${winner.elo_rating} -> ${finalWinnerRating}, rated: ${winnerIsNowRated}) vs Loser ${opponent_id} (${loser.elo_rating} -> ${finalLoserRating}, rated: ${loserIsNowRated})`
-    );
 
     // If this is a tournament match, update tournament_matches and handle Best Of series
     if (tournament_id && tournament_match_id) {
@@ -803,9 +838,9 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         `UPDATE tournament_matches 
          SET match_id = $1, match_status = 'completed', played_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE id = $2`,
-        [matchId, tournament_match_id]
+        [matchId || null, tournament_match_id]
       );
-      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId}. Rows affected: ${updateResult.rowCount}`);
+      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (team mode)'}. Rows affected: ${updateResult.rowCount}`);
 
       // Update tournament statistics based on tournament mode
       // Team mode: update tournament_teams (Option B architecture: player_id columns store team_id)
