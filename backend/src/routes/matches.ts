@@ -966,10 +966,10 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         await checkAndUpdateRoundCompletion(roundId, tournament_id);
         
         try {
-          // Update Best Of series state
-          const seriesUpdate = await updateBestOfSeriesDB(tournamentRoundMatchId, req.userId!);
+          // Update Best Of series state with the correct winner ID (team_id for team mode, user_id for 1v1)
+          const seriesUpdate = await updateBestOfSeriesDB(tournamentRoundMatchId, finalWinnerId);
           console.log(
-            `Best Of series ${tournamentRoundMatchId}: winner=${req.userId}, seriesComplete=${seriesUpdate.seriesComplete}, shouldCreateNext=${seriesUpdate.shouldCreateNextMatch}`
+            `Best Of series ${tournamentRoundMatchId}: winner=${finalWinnerId}, seriesComplete=${seriesUpdate.seriesComplete}, shouldCreateNext=${seriesUpdate.shouldCreateNextMatch}`
           );
 
           // If series not complete and we need another match, create it
