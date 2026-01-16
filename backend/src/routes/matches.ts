@@ -842,27 +842,14 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
 
     // If this is a tournament match, update tournament_matches and handle Best Of series
     if (tournament_id && tournament_match_id) {
-      const updateResult = await query(
-        `UPDATE tournament_matches 
-         SET match_id = $1, 
-             match_status = 'completed', 
-             winner_id = $2,
-             loser_id = $3,
-             map = $4,
-             winner_faction = $5,
-             loser_faction = $6,
-             played_at = CURRENT_TIMESTAMP, 
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $7`,
-        [matchId || null, req.userId, opponent_id, map, winner_faction || null, loser_faction || null, tournament_match_id]
-      );
-      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
+      // For team mode, get team IDs FIRST before updating tournament_matches
+      let winnerTeamId: string | null = null;
+      let loserTeamId: string | null = null;
+      let finalWinnerId: string = req.userId!;
+      let finalLoserId: string = opponent_id;
 
-      // Update tournament statistics based on tournament mode
-      // Team mode: update tournament_teams (Option B architecture: player_id columns store team_id)
-      // 1v1 mode: update tournament_participants
       if (tournamentMode === 'team') {
-        console.log(`[TEAM_MODE] Updating tournament_teams stats for tournament ${tournament_id}`);
+        console.log(`[TEAM_MODE] Getting team IDs for players in tournament ${tournament_id}`);
         
         // Get team IDs from tournament_participants (each player belongs to a team)
         const winnerTeamResult = await query(
@@ -881,10 +868,47 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
           [tournament_id, opponent_id]
         );
 
-        if (winnerTeamResult.rows.length > 0 && loserTeamResult.rows.length > 0) {
-          const winnerTeamId = winnerTeamResult.rows[0].id;
-          const loserTeamId = loserTeamResult.rows[0].id;
+        if (winnerTeamResult.rows.length > 0) {
+          winnerTeamId = winnerTeamResult.rows[0].id as string;
+          finalWinnerId = winnerTeamId;
+        } else {
+          console.warn(`Could not find team ID for winner ${req.userId} in tournament ${tournament_id}`);
+        }
 
+        if (loserTeamResult.rows.length > 0) {
+          loserTeamId = loserTeamResult.rows[0].id as string;
+          finalLoserId = loserTeamId;
+        } else {
+          console.warn(`Could not find team ID for loser ${opponent_id} in tournament ${tournament_id}`);
+        }
+
+        console.log(`[TEAM_MODE] Found teams: winner_team=${winnerTeamId}, loser_team=${loserTeamId}`);
+      }
+
+      // Now update tournament_matches with correct winner_id and loser_id (team_id for team mode, user_id for 1v1 mode)
+      const updateResult = await query(
+        `UPDATE tournament_matches 
+         SET match_id = $1, 
+             match_status = 'completed', 
+             winner_id = $2,
+             loser_id = $3,
+             map = $4,
+             winner_faction = $5,
+             loser_faction = $6,
+             played_at = CURRENT_TIMESTAMP, 
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $7`,
+        [matchId || null, finalWinnerId, finalLoserId, map, winner_faction || null, loser_faction || null, tournament_match_id]
+      );
+      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
+
+      // Update tournament statistics based on tournament mode
+      // Team mode: update tournament_teams
+      // 1v1 mode: update tournament_participants
+      if (tournamentMode === 'team') {
+        console.log(`[TEAM_MODE] Updating tournament_teams stats for tournament ${tournament_id}`);
+
+        if (winnerTeamId && loserTeamId) {
           // Update winner team stats
           await query(
             `UPDATE tournament_teams 

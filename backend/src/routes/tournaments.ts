@@ -2043,7 +2043,7 @@ router.post('/:tournamentId/matches/:matchId/result', authMiddleware, async (req
 
     // Verify the user is either the tournament creator or one of the players
     const matchResult = await query(
-      `SELECT tm.*, t.creator_id FROM tournament_matches tm
+      `SELECT tm.*, t.creator_id, t.tournament_mode FROM tournament_matches tm
        JOIN tournaments t ON tm.tournament_id = t.id
        WHERE tm.id = $1 AND tm.tournament_id = $2`,
       [matchId, tournamentId]
@@ -2055,10 +2055,43 @@ router.post('/:tournamentId/matches/:matchId/result', authMiddleware, async (req
 
     const match = matchResult.rows[0];
     const isCreator = match.creator_id === req.userId;
-    const isPlayer = match.player1_id === req.userId || match.player2_id === req.userId;
+    const tournamentMode = match.tournament_mode;
 
-    if (!isCreator && !isPlayer) {
-      return res.status(403).json({ error: 'You cannot record results for this match' });
+    let finalWinnerId = winner_id;
+    let isPlayer = false;
+
+    if (tournamentMode === 'team') {
+      // For team tournaments: validate user is in one of the teams and get their team_id
+      const userTeamResult = await query(
+        `SELECT tp.team_id FROM tournament_participants tp
+         WHERE tp.tournament_id = $1 AND tp.user_id = $2`,
+        [tournamentId, req.userId]
+      );
+
+      if (userTeamResult.rows.length === 0 && !isCreator) {
+        return res.status(403).json({ error: 'You are not a participant in this tournament' });
+      }
+
+      if (userTeamResult.rows.length > 0) {
+        const userTeamId = userTeamResult.rows[0].team_id;
+        isPlayer = match.player1_id === userTeamId || match.player2_id === userTeamId;
+        
+        if (!isCreator && !isPlayer) {
+          return res.status(403).json({ error: 'You cannot record results for this match' });
+        }
+
+        // If the user is reporting, use their team_id as the winner
+        if (!isCreator && isPlayer) {
+          finalWinnerId = userTeamId;
+        }
+      }
+    } else {
+      // For non-team tournaments: check if user is one of the players
+      isPlayer = match.player1_id === req.userId || match.player2_id === req.userId;
+
+      if (!isCreator && !isPlayer) {
+        return res.status(403).json({ error: 'You cannot record results for this match' });
+      }
     }
 
     // Update tournament match with result
@@ -2067,7 +2100,7 @@ router.post('/:tournamentId/matches/:matchId/result', authMiddleware, async (req
        SET winner_id = $1, match_id = $2, match_status = 'completed', played_at = NOW(), updated_at = NOW()
        WHERE id = $3
        RETURNING *`,
-      [winner_id, reported_match_id || null, matchId]
+      [finalWinnerId, reported_match_id || null, matchId]
     );
 
     // NOTE: Best Of series is already updated in /api/matches/report-json
