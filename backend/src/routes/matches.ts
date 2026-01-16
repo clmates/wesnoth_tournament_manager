@@ -291,11 +291,19 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
     if (tournament_id && tournament_match_id) {
       const updateResult = await query(
         `UPDATE tournament_matches 
-         SET match_id = $1, match_status = 'completed', played_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $2`,
-        [matchId || null, tournament_match_id]
+         SET match_id = $1, 
+             match_status = 'completed',
+             winner_id = $2,
+             loser_id = $3,
+             map = $4,
+             winner_faction = $5,
+             loser_faction = $6,
+             played_at = CURRENT_TIMESTAMP, 
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $7`,
+        [matchId || null, req.userId, opponent_id, map, winner_faction || null, loser_faction || null, tournament_match_id]
       );
-      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (tournament mode)'}. Rows affected: ${updateResult.rowCount}`);
+      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
 
       // Update tournament statistics based on tournament mode
       // Team mode: update tournament_teams
@@ -836,11 +844,19 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     if (tournament_id && tournament_match_id) {
       const updateResult = await query(
         `UPDATE tournament_matches 
-         SET match_id = $1, match_status = 'completed', played_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $2`,
-        [matchId || null, tournament_match_id]
+         SET match_id = $1, 
+             match_status = 'completed', 
+             winner_id = $2,
+             loser_id = $3,
+             map = $4,
+             winner_faction = $5,
+             loser_faction = $6,
+             played_at = CURRENT_TIMESTAMP, 
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $7`,
+        [matchId || null, req.userId, opponent_id, map, winner_faction || null, loser_faction || null, tournament_match_id]
       );
-      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (team mode)'}. Rows affected: ${updateResult.rowCount}`);
+      console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
 
       // Update tournament statistics based on tournament mode
       // Team mode: update tournament_teams (Option B architecture: player_id columns store team_id)
