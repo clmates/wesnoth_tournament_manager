@@ -1573,6 +1573,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           isLoading={joiningTeamLoading}
           currentUserId={userId || undefined}
           currentUserNickname={user?.nickname || undefined}
+          externalError={error}
         />
       )}
 

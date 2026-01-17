@@ -16,6 +16,7 @@ interface TeamJoinModalProps {
   isLoading?: boolean;
   currentUserId?: string;
   currentUserNickname?: string;
+  externalError?: string | null;
 }
 
 export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
@@ -24,7 +25,8 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
   onClose,
   isLoading = false,
   currentUserId,
-  currentUserNickname
+  currentUserNickname,
+  externalError
 }) => {
   const [teamName, setTeamName] = useState('');
   const [teammateId, setTeammateId] = useState('');
@@ -59,6 +61,11 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
       fetchExistingTeams();
     }
   }, [tournamentId]);
+
+  // Update error when external error changes
+  useEffect(() => {
+    setError(externalError || null);
+  }, [externalError]);
 
   // Search for teammate when typing
   const handleTeammateChange = (userId: string, user: User | null) => {
