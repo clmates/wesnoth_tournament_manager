@@ -863,8 +863,35 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                 {teams.map((team) => (
                   <div key={team.id} className="team-card">
                     <div className="team-header">
-                      <h3>{team.name}</h3>
-                      <span className="team-size">({team.member_count}/2 members)</span>
+                      <div className="team-title">
+                        <h3>{team.name}</h3>
+                        <span className="team-size">({team.member_count}/2 members)</span>
+                      </div>
+                      <div className="team-stats">
+                        <div className="stat">
+                          <span className="stat-label">{t('label_wins')}</span>
+                          <span className="stat-value">{team.tournament_wins || 0}</span>
+                        </div>
+                        <div className="stat">
+                          <span className="stat-label">{t('label_losses')}</span>
+                          <span className="stat-value">{team.tournament_losses || 0}</span>
+                        </div>
+                        <div className="stat">
+                          <span className="stat-label">{t('label_points')}</span>
+                          <span className="stat-value"><strong>{team.tournament_points || 0}</strong></span>
+                        </div>
+                        <div className="stat">
+                          <span className="stat-label">{t('label_status')}</span>
+                          <span 
+                            className={`status-badge status-${normalizeStatus(team.status || 'active')}`}
+                            style={{ 
+                              backgroundColor: team.status === 'eliminated' ? '#dc3545' : '#28a745'
+                            }}
+                          >
+                            {team.status === 'eliminated' ? 'Eliminated' : 'Active'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                     {team.members && team.members.length > 0 ? (
                       <table className="team-members-table">
@@ -873,9 +900,6 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             <th>{t('label_nickname')}</th>
                             <th>Position</th>
                             <th>{t('label_status')}</th>
-                            <th>{t('label_wins')}</th>
-                            <th>{t('label_losses')}</th>
-                            <th>{t('label_points')}</th>
                             <th>{t('label_actions')}</th>
                           </tr>
                         </thead>
@@ -894,9 +918,6 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                    member.participation_status === 'accepted' ? 'Accepted' : 'Pending'}
                                 </span>
                               </td>
-                              <td>{member.tournament_wins || 0}</td>
-                              <td>{member.tournament_losses || 0}</td>
-                              <td>{member.tournament_points || 0}</td>
                               <td>
                                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                   {member.participation_status === 'unconfirmed' && member.id === userId && (
