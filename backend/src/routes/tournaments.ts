@@ -1016,6 +1016,7 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
 
     // Check participants based on tournament mode
     let participantCount = 0;
+    let incompleteParticipants = false;
     
     if (tournament.tournament_mode === 'team') {
       // For team tournaments: count complete teams (all members accepted)
@@ -1039,10 +1040,16 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
 
       // For team tournaments, require at least 2 complete teams
       if (participantCount < 2) {
-        return res.status(400).json({ 
-          error: `Team tournaments require at least 2 complete teams. Currently have ${participantCount} complete team(s).`,
-          requiresConfirmation: false
-        });
+        incompleteParticipants = true;
+        // If not confirmed, ask for confirmation
+        if (!confirm) {
+          return res.status(200).json({ 
+            action: 'confirm_delete',
+            message: `Team tournaments require at least 2 complete teams. Currently have ${participantCount} complete team(s). Delete tournament?`,
+            requiresConfirmation: true
+          });
+        }
+        // If confirmed, proceed to delete tournament
       }
     } else {
       // For 1v1 tournaments: count accepted individual participants
@@ -1054,28 +1061,36 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
       participantCount = parseInt(participantsCheck.rows[0].count, 10);
 
       console.log(`[CLOSE_REGISTRATION] 1v1 tournament: ${participantCount} accepted participants`);
+
+      // For 1v1 tournaments, require at least 2 participants
+      if (participantCount < 2) {
+        incompleteParticipants = true;
+        // If not confirmed, ask for confirmation
+        if (!confirm) {
+          return res.status(200).json({ 
+            action: 'confirm_delete',
+            message: `Tournaments require at least 2 participants. Currently have ${participantCount} participant(s). Delete tournament?`,
+            requiresConfirmation: true
+          });
+        }
+        // If confirmed, proceed to delete tournament
+      }
     }
 
-    // If no participants
-    if (participantCount === 0) {
-      // If not confirmed, ask for confirmation
-      if (!confirm) {
-        return res.status(200).json({ 
-          action: 'confirm_delete',
-          message: 'No participants registered. Delete tournament?',
-          requiresConfirmation: true
-        });
-      }
-
+    // If insufficient participants or incomplete team tournament (after confirmation)
+    if (incompleteParticipants) {
       // Delete tournament and all related data
       await query('DELETE FROM tournament_rounds WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM tournament_matches WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM tournament_round_matches WHERE tournament_id = $1', [id]);
       await query('DELETE FROM matches WHERE tournament_id = $1', [id]);
       await query('DELETE FROM tournament_participants WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM tournament_teams WHERE tournament_id = $1', [id]);
       await query('DELETE FROM tournaments WHERE id = $1', [id]);
 
       return res.status(200).json({ 
         action: 'deleted',
-        message: 'Tournament deleted successfully (no participants)'
+        message: 'Tournament deleted successfully (insufficient participants)'
       });
     }
 
