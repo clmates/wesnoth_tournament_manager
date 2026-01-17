@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../config/database.js';
+import { getWinnerAndRunnerUp } from '../utils/tournament.js';
 
 const router = Router();
 
@@ -100,43 +101,16 @@ router.get('/tournaments', async (req, res) => {
       let winner_id = null, winner_nickname = null, runner_up_id = null, runner_up_nickname = null;
       
       if (t.status === 'finished') {
-        // For team mode, fetch from tournament_teams; for 1v1 mode, fetch from tournament_participants
-        if (t.tournament_mode === 'team') {
-          const rankingResult = await query(`
-            SELECT tt.id, tt.name
-            FROM tournament_teams tt
-            WHERE tt.tournament_id = $1
-            ORDER BY tt.tournament_ranking ASC
-            LIMIT 2
-          `, [t.id]);
-          
-          if (rankingResult.rows.length > 0) {
-            winner_id = rankingResult.rows[0].id;
-            winner_nickname = rankingResult.rows[0].name;
-          }
-          if (rankingResult.rows.length > 1) {
-            runner_up_id = rankingResult.rows[1].id;
-            runner_up_nickname = rankingResult.rows[1].name;
-          }
-        } else {
-          // 1v1 mode (ranked or unranked)
-          const rankingResult = await query(`
-            SELECT tp.user_id, u.nickname
-            FROM tournament_participants tp
-            LEFT JOIN users u ON tp.user_id = u.id
-            WHERE tp.tournament_id = $1
-            ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC
-            LIMIT 2
-          `, [t.id]);
-          
-          if (rankingResult.rows.length > 0) {
-            winner_id = rankingResult.rows[0].user_id;
-            winner_nickname = rankingResult.rows[0].nickname;
-          }
-          if (rankingResult.rows.length > 1) {
-            runner_up_id = rankingResult.rows[1].user_id;
-            runner_up_nickname = rankingResult.rows[1].nickname;
-          }
+        // Use tournament-type-aware function to get winner and runner-up
+        const { winner, runnerUp } = await getWinnerAndRunnerUp(t.id);
+        
+        if (winner) {
+          winner_id = winner.id;
+          winner_nickname = winner.nickname;
+        }
+        if (runnerUp) {
+          runner_up_id = runnerUp.id;
+          runner_up_nickname = runnerUp.nickname;
         }
       }
 
