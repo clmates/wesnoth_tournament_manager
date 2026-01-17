@@ -1113,21 +1113,10 @@ export async function completeRound(roundId: string, tournamentId: string): Prom
         );
 
         if (tournamentResult.rows.length > 0 && tournamentResult.rows[0].discord_thread_id) {
-          // Get winner and runner up
-          const rankingResult = await query(
-            `SELECT tp.user_id, u.nickname, tp.tournament_points, tp.tournament_wins
-             FROM tournament_participants tp
-             LEFT JOIN users u ON tp.user_id = u.id
-             WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
-             ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC
-             LIMIT 2`,
-            [tournamentId]
-          );
+          // Get winner and runner-up based on tournament type
+          const { winner, runnerUp } = await getWinnerAndRunnerUp(tournamentId);
 
-          if (rankingResult.rows.length > 0) {
-            const winner = rankingResult.rows[0];
-            const runnerUp = rankingResult.rows.length > 1 ? rankingResult.rows[1] : null;
-
+          if (winner) {
             await discordService.postTournamentFinished(
               tournamentResult.rows[0].discord_thread_id,
               tournamentResult.rows[0].name,
@@ -1329,24 +1318,16 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
           // Don't fail the tournament finish if tiebreakers calculation fails
         }
 
-        // THEN: Get ranking with proper tiebreaker ordering
-        const rankingResult = await query(
-          `SELECT user_id FROM tournament_participants 
-           WHERE tournament_id = $1 
-           ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC
-           LIMIT 1`,
-          [tournamentId]
-        );
+        // THEN: Get winner and runner-up based on tournament type
+        const { winner, runnerUp } = await getWinnerAndRunnerUp(tournamentId);
 
-        if (rankingResult.rows.length > 0) {
-          const winnerId = rankingResult.rows[0].user_id;
-          
+        if (winner) {
           // NOW mark as finished
           await query(
             `UPDATE tournaments SET status = 'finished', finished_at = NOW() WHERE id = $1`,
             [tournamentId]
           );
-          console.log(`🏆 Tournament ${tournamentId} finished - Winner: ${winnerId}`);
+          console.log(`🏆 Tournament ${tournamentId} finished - Winner: ${winner.nickname}`);
 
           // Notify Discord of tournament finish
           try {
@@ -1356,28 +1337,15 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
             );
 
             if (tournamentResult.rows.length > 0 && tournamentResult.rows[0].discord_thread_id) {
-              // Get detailed ranking with nicknames for winner and runner-up
-              const detailedRankingResult = await query(
-                `SELECT tp.user_id, u.nickname, tp.tournament_points, tp.tournament_wins
-                 FROM tournament_participants tp
-                 LEFT JOIN users u ON tp.user_id = u.id
-                 WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
-                 ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC
-                 LIMIT 2`,
-                [tournamentId]
+              const winnerNickname = winner.nickname || 'Unknown';
+              const runnerUpNickname = runnerUp?.nickname || 'N/A';
+              
+              await discordService.postTournamentFinished(
+                tournamentResult.rows[0].discord_thread_id,
+                tournamentResult.rows[0].name,
+                winnerNickname,
+                runnerUpNickname
               );
-
-              if (detailedRankingResult.rows.length > 0) {
-                const winner = detailedRankingResult.rows[0];
-                const runnerUp = detailedRankingResult.rows.length > 1 ? detailedRankingResult.rows[1] : null;
-
-                await discordService.postTournamentFinished(
-                  tournamentResult.rows[0].discord_thread_id,
-                  tournamentResult.rows[0].name,
-                  winner.nickname || 'Unknown',
-                  runnerUp ? runnerUp.nickname : 'N/A'
-                );
-              }
             }
           } catch (discordErr) {
             console.error('Discord tournament finished notification error:', discordErr);
@@ -1476,3 +1444,161 @@ export async function updateTeamCurrentRound(tournamentId: string, roundNumber: 
   }
 }
 
+/**
+ * Get winner and runner-up based on tournament type
+ * For elimination/swiss_elimination: uses final match participants
+ * For swiss/league: uses statistics-based ranking
+ * Handles both team and 1v1 modes
+ */
+export async function getWinnerAndRunnerUp(
+  tournamentId: string
+): Promise<{ winner: { id: string; nickname: string } | null; runnerUp: { id: string; nickname: string } | null }> {
+  try {
+    // Step 1: Detect tournament mode and type
+    const tournResult = await query(
+      `SELECT tournament_mode, tournament_type FROM tournaments WHERE id = $1`,
+      [tournamentId]
+    );
+
+    if (tournResult.rows.length === 0) {
+      console.error(`Tournament ${tournamentId} not found`);
+      return { winner: null, runnerUp: null };
+    }
+
+    const isTeamMode = tournResult.rows[0].tournament_mode === 'team';
+    const tournamentType = tournResult.rows[0].tournament_type?.toLowerCase() || 'swiss';
+
+    // Step 2: Detect tournament type category
+    const isElimination = tournamentType === 'elimination' || tournamentType === 'swiss_elimination';
+
+    console.log(`[WINNER_RUNNERUP] Tournament mode: ${isTeamMode ? 'team' : '1v1'}, Type: ${tournamentType}, IsElimination: ${isElimination}`);
+
+    if (isElimination) {
+      // ELIMINATION/SWISS_ELIMINATION: Get final match participants
+      console.log(`[WINNER_RUNNERUP] Using ELIMINATION logic - finding final match`);
+
+      if (isTeamMode) {
+        // Team mode - final match from tournament_teams
+        const finalMatchResult = await query(
+          `SELECT trm.winner_id, trm.player1_id, trm.player2_id
+           FROM tournament_round_matches trm
+           WHERE trm.tournament_id = $1 AND trm.series_status = 'completed'
+           ORDER BY trm.created_at DESC
+           LIMIT 1`,
+          [tournamentId]
+        );
+
+        if (finalMatchResult.rows.length === 0) {
+          console.log(`[WINNER_RUNNERUP] No completed matches found`);
+          return { winner: null, runnerUp: null };
+        }
+
+        const finalMatch = finalMatchResult.rows[0];
+        const winnerId = finalMatch.winner_id;
+        const runnerUpId = finalMatch.player1_id === winnerId ? finalMatch.player2_id : finalMatch.player1_id;
+
+        // Get team details
+        const winnerResult = await query(
+          `SELECT id, team_name as nickname FROM tournament_teams WHERE id = $1`,
+          [winnerId]
+        );
+        const runnerUpResult = await query(
+          `SELECT id, team_name as nickname FROM tournament_teams WHERE id = $1`,
+          [runnerUpId]
+        );
+
+        const winner = winnerResult.rows[0] || null;
+        const runnerUp = runnerUpResult.rows[0] || null;
+
+        console.log(`[WINNER_RUNNERUP] Winner: ${winner?.nickname}, Runner-up: ${runnerUp?.nickname}`);
+        return { winner, runnerUp };
+      } else {
+        // 1v1 mode - final match from tournament_participants
+        const finalMatchResult = await query(
+          `SELECT trm.winner_id, trm.player1_id, trm.player2_id
+           FROM tournament_round_matches trm
+           WHERE trm.tournament_id = $1 AND trm.series_status = 'completed'
+           ORDER BY trm.created_at DESC
+           LIMIT 1`,
+          [tournamentId]
+        );
+
+        if (finalMatchResult.rows.length === 0) {
+          console.log(`[WINNER_RUNNERUP] No completed matches found`);
+          return { winner: null, runnerUp: null };
+        }
+
+        const finalMatch = finalMatchResult.rows[0];
+        const winnerId = finalMatch.winner_id;
+        const runnerUpId = finalMatch.player1_id === winnerId ? finalMatch.player2_id : finalMatch.player1_id;
+
+        // Get player details
+        const winnerResult = await query(
+          `SELECT u.id, u.nickname FROM users u WHERE u.id = $1`,
+          [winnerId]
+        );
+        const runnerUpResult = await query(
+          `SELECT u.id, u.nickname FROM users u WHERE u.id = $1`,
+          [runnerUpId]
+        );
+
+        const winner = winnerResult.rows[0] || null;
+        const runnerUp = runnerUpResult.rows[0] || null;
+
+        console.log(`[WINNER_RUNNERUP] Winner: ${winner?.nickname}, Runner-up: ${runnerUp?.nickname}`);
+        return { winner, runnerUp };
+      }
+    } else {
+      // SWISS/LEAGUE: Get top 2 by statistics
+      console.log(`[WINNER_RUNNERUP] Using SWISS/LEAGUE logic - ranking by statistics`);
+
+      if (isTeamMode) {
+        // Team mode - top 2 teams por stats
+        const topTeamsResult = await query(
+          `SELECT id, team_name as nickname, tournament_points, tournament_wins, omp, gwp, ogp
+           FROM tournament_teams
+           WHERE tournament_id = $1 AND status = 'active'
+           ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC
+           LIMIT 2`,
+          [tournamentId]
+        );
+
+        if (topTeamsResult.rows.length === 0) {
+          console.log(`[WINNER_RUNNERUP] No teams found`);
+          return { winner: null, runnerUp: null };
+        }
+
+        const winner = topTeamsResult.rows[0] || null;
+        const runnerUp = topTeamsResult.rows[1] || null;
+
+        console.log(`[WINNER_RUNNERUP] Winner: ${winner?.nickname}, Runner-up: ${runnerUp?.nickname}`);
+        return { winner, runnerUp };
+      } else {
+        // 1v1 mode - top 2 players por stats
+        const topPlayersResult = await query(
+          `SELECT u.id, u.nickname, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp
+           FROM tournament_participants tp
+           LEFT JOIN users u ON tp.user_id = u.id
+           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+           ORDER BY tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC
+           LIMIT 2`,
+          [tournamentId]
+        );
+
+        if (topPlayersResult.rows.length === 0) {
+          console.log(`[WINNER_RUNNERUP] No players found`);
+          return { winner: null, runnerUp: null };
+        }
+
+        const winner = topPlayersResult.rows[0] || null;
+        const runnerUp = topPlayersResult.rows[1] || null;
+
+        console.log(`[WINNER_RUNNERUP] Winner: ${winner?.nickname}, Runner-up: ${runnerUp?.nickname}`);
+        return { winner, runnerUp };
+      }
+    }
+  } catch (error) {
+    console.error('[WINNER_RUNNERUP] Error getting winner and runner-up:', error);
+    return { winner: null, runnerUp: null };
+  }
+}
