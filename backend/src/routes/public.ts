@@ -786,16 +786,20 @@ router.get('/tournaments/:id/teams', async (req, res) => {
       return res.status(400).json({ success: false, error: 'This endpoint is for team tournaments only' });
     }
 
-    // Get teams with member count
+    // Get teams with stats from tournament_teams
     const teamsResult = await query(
       `SELECT 
         tt.id, 
         tt.name,
+        tt.tournament_wins,
+        tt.tournament_losses,
+        tt.tournament_points,
+        tt.status,
         COUNT(tp.id) as member_count
       FROM tournament_teams tt
       LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
       WHERE tt.tournament_id = $1
-      GROUP BY tt.id, tt.name
+      GROUP BY tt.id, tt.name, tt.tournament_wins, tt.tournament_losses, tt.tournament_points, tt.status
       ORDER BY tt.name`,
       [id]
     );
@@ -803,8 +807,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
     // Get members for each team
     const teams = await Promise.all(teamsResult.rows.map(async (team) => {
       const membersResult = await query(
-        `SELECT tp.id as participant_id, u.id, u.nickname, tp.team_position, tp.participation_status,
-                tp.tournament_wins, tp.tournament_losses, tp.tournament_points
+        `SELECT tp.id as participant_id, u.id, u.nickname, tp.team_position, tp.participation_status
          FROM tournament_participants tp
          JOIN users u ON tp.user_id = u.id
          WHERE tp.team_id = $1 AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
