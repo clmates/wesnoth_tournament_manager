@@ -781,7 +781,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
           [tournamentId]
         );
         
-        const elimCount = eliminatedCount.rows[0].count;
+        const elimCount = parseInt(eliminatedCount.rows[0].count);
         console.log(`[DEBUG] elimCount = ${elimCount}, type: ${typeof elimCount}`);
         console.log(`Currently eliminated players: ${elimCount}`);
         
