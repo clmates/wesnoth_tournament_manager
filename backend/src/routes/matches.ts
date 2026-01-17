@@ -589,12 +589,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     let winnerNewRating = 0;
     let loserNewRating = 0;
 
-    // Only calculate ELO for non-team tournaments (ranked/unranked have actual users)
-    if (!isTournamentTeamMode) {
-      winnerNewRating = winner.elo_rating;
-      loserNewRating = loser.elo_rating;
-    }
-
+    // Only calculate ELO for ranked 1v1 tournaments
     if (tournamentMode === 'ranked' && !isTournamentTeamMode) {
       const winnerRankResult = await query(
         `SELECT COUNT(*) as rank 
@@ -604,7 +599,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
            AND u2.is_rated = true
            AND u2.elo_rating >= 1400
            AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
-        [winner.elo_rating, req.userId]
+        [winner!.elo_rating, req.userId]
       );
 
       const loserRankResult = await query(
@@ -627,13 +622,6 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       // Calculate FIDE ratings for both players
       winnerNewRating = calculateNewRating(winner!.elo_rating, loser!.elo_rating, 'win', winner!.matches_played);
       loserNewRating = calculateNewRating(loser!.elo_rating, winner!.elo_rating, 'loss', loser!.matches_played);
-    } else if (!isTournamentTeamMode) {
-      // For unranked tournaments, no ELO calculation needed
-      winnerCurrentRank = 0;
-      loserCurrentRank = 0;
-      legacyEloChange = 0;
-      winnerNewRating = winner!.elo_rating;
-      loserNewRating = loser!.elo_rating;
     }
 
     // For team tournaments, don't store individual matches in the matches table
