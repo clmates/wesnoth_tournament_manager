@@ -1021,10 +1021,14 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       [round.id]
     );
 
-    // For team tournaments: update current_round and recalculate rankings
+    // Update current_round and recalculate rankings based on tournament mode
     if (isteamMode) {
       await updateTeamCurrentRound(tournamentId, roundNumber);
-      await recalculateTeamRankings(tournamentId);
+      await recalculateTeamRankingsForTournament(tournamentId);
+    } else {
+      // 1v1 mode
+      await updateParticipantCurrentRound(tournamentId, roundNumber);
+      await recalculateParticipantRankings(tournamentId);
     }
 
     console.log(`✅ [ACTIVATE_ROUND] Round ${roundNumber} successfully activated with ${pairings.length} pairings (${matchesCreated} matches + ${byesProcessed} byes), best_of: ${bestOf}`);
@@ -1243,6 +1247,26 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
       );
       console.log(`✅ Round ${roundNumber} marked as completed for tournament ${tournamentId}`);
 
+      // Get tournament mode to recalculate rankings appropriately
+      const modeResult = await query(
+        `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+        [tournamentId]
+      );
+      const tournMode = modeResult.rows[0]?.tournament_mode || 'ranked';
+
+      // Recalculate rankings after round completion
+      try {
+        if (tournMode === 'team') {
+          await recalculateTeamRankingsForTournament(tournamentId);
+        } else {
+          await recalculateParticipantRankings(tournamentId);
+        }
+        console.log(`✅ Updated ${tournMode === 'team' ? 'team' : 'participant'} rankings after round completion`);
+      } catch (rankingErr) {
+        console.error(`Error recalculating rankings after round ${roundNumber}:`, rankingErr);
+        // Don't fail the round completion if ranking update fails
+      }
+
       // Check if this is the last Swiss round in a Swiss-Elimination Mix tournament
       const currentRoundInfo = await query(
         `SELECT tr.round_type, t.tournament_type, t.general_rounds, t.final_rounds
@@ -1410,6 +1434,37 @@ export async function recalculateTeamRankings(tournamentId: string): Promise<voi
     console.log(`✅ Team rankings updated for tournament ${tournamentId}`);
   } catch (error) {
     console.error('Error recalculating team rankings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update current_round for participant (1v1) when advancing to next round
+ * Called when a new round is activated
+ * For round 1: all participants start at round 1
+ * For subsequent rounds: only active participants advance, eliminated stay at elimination round
+ */
+export async function updateParticipantCurrentRound(tournamentId: string, roundNumber: number): Promise<void> {
+  try {
+    console.log(`\n🔄 [PARTICIPANT_ROUND] Updating current_round to ${roundNumber} for tournament ${tournamentId}`);
+
+    if (roundNumber === 1) {
+      // For round 1, all participants start in round 1
+      await query(
+        `UPDATE tournament_participants SET current_round = $1 WHERE tournament_id = $2`,
+        [roundNumber, tournamentId]
+      );
+      console.log(`✅ All participants set to current_round = ${roundNumber}`);
+    } else {
+      // Only update active participants (eliminated ones stay at their elimination round)
+      await query(
+        `UPDATE tournament_participants SET current_round = $1 WHERE tournament_id = $2 AND status = 'active'`,
+        [roundNumber, tournamentId]
+      );
+      console.log(`✅ Active participants updated to current_round = ${roundNumber}`);
+    }
+  } catch (error) {
+    console.error('Error updating participant current_round:', error);
     throw error;
   }
 }
@@ -1600,5 +1655,212 @@ export async function getWinnerAndRunnerUp(
   } catch (error) {
     console.error('[WINNER_RUNNERUP] Error getting winner and runner-up:', error);
     return { winner: null, runnerUp: null };
+  }
+}
+
+/**
+ * Check if tournament is currently in elimination phase
+ * Used to determine ranking logic (elimination vs swiss/league)
+ */
+export async function isInEliminationPhase(tournamentId: string): Promise<boolean> {
+  try {
+    // Check for active rounds in elimination phase
+    const activeElimResult = await query(
+      `SELECT COUNT(*) as count FROM tournament_rounds 
+       WHERE tournament_id = $1 AND round_status = 'in_progress' 
+       AND round_classification IN ('semifinal', 'final')`,
+      [tournamentId]
+    );
+
+    if (parseInt(activeElimResult.rows[0].count) > 0) {
+      return true;
+    }
+
+    // Check if latest completed round is in elimination phase
+    const latestRoundResult = await query(
+      `SELECT round_classification FROM tournament_rounds 
+       WHERE tournament_id = $1 AND round_status = 'completed'
+       ORDER BY round_number DESC LIMIT 1`,
+      [tournamentId]
+    );
+
+    if (latestRoundResult.rows.length > 0) {
+      return ['semifinal', 'final'].includes(latestRoundResult.rows[0].round_classification);
+    }
+
+    return false;
+  } catch (error) {
+    console.error('[IS_ELIMINATION_PHASE] Error checking elimination phase:', error);
+    return false;
+  }
+}
+
+/**
+ * Recalculate and update tournament rankings for 1v1 mode
+ * Ranks participants based on:
+ * - Elimination phase: by status (active first), current_round (higher first), then statistics
+ * - Swiss/League phase: by statistics (tournament_points, omp, gwp, ogp)
+ * Updates tournament_ranking column for UI display and includes both active and eliminated
+ */
+export async function recalculateParticipantRankings(tournamentId: string): Promise<void> {
+  try {
+    console.log(`\n📊 [RECALC_RANKINGS_1V1] Recalculating rankings for 1v1 tournament ${tournamentId}`);
+
+    const isElimination = await isInEliminationPhase(tournamentId);
+    console.log(`   Phase: ${isElimination ? 'ELIMINATION' : 'SWISS/LEAGUE'}`);
+
+    let participantsResult;
+
+    if (isElimination) {
+      // Elimination phase: active participants first, then by current_round desc, then by stats
+      participantsResult = await query(
+        `SELECT 
+          tp.id,
+          tp.status,
+          tp.current_round,
+          tp.tournament_points,
+          tp.omp,
+          tp.gwp,
+          tp.ogp,
+          u.nickname
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         ORDER BY 
+           CASE WHEN tp.status = 'active' THEN 0 ELSE 1 END,
+           tp.current_round DESC,
+           tp.tournament_points DESC,
+           tp.omp DESC,
+           tp.gwp DESC,
+           tp.ogp DESC`,
+        [tournamentId]
+      );
+      console.log(`   Sorting by: status (active first) → current_round DESC → statistics`);
+    } else {
+      // Swiss/League phase: by statistics only
+      participantsResult = await query(
+        `SELECT 
+          tp.id,
+          tp.status,
+          tp.current_round,
+          tp.tournament_points,
+          tp.omp,
+          tp.gwp,
+          tp.ogp,
+          u.nickname
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         ORDER BY 
+           tp.tournament_points DESC,
+           tp.omp DESC,
+           tp.gwp DESC,
+           tp.ogp DESC`,
+        [tournamentId]
+      );
+      console.log(`   Sorting by: statistics only (points → omp → gwp → ogp)`);
+    }
+
+    const participants = participantsResult.rows;
+    console.log(`   Found ${participants.length} participants for ranking`);
+
+    // Update ranking for each participant
+    for (let i = 0; i < participants.length; i++) {
+      const ranking = i + 1;
+      await query(
+        `UPDATE tournament_participants SET tournament_ranking = $1 WHERE id = $2`,
+        [ranking, participants[i].id]
+      );
+      console.log(`   ${participants[i].nickname}: Rank #${ranking} (${participants[i].status}, Round ${participants[i].current_round}, ${participants[i].tournament_points}pts)`);
+    }
+
+    console.log(`✅ [RECALC_RANKINGS_1V1] Participant rankings updated`);
+  } catch (error) {
+    console.error('[RECALC_RANKINGS_1V1] Error recalculating participant rankings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recalculate and update tournament rankings for team mode
+ * Ranks teams based on:
+ * - Elimination phase: by status (active first), current_round (higher first), then statistics
+ * - Swiss/League phase: by statistics (tournament_points, omp, gwp, ogp)
+ * Updates tournament_ranking column for UI display and includes both active and eliminated
+ */
+export async function recalculateTeamRankingsForTournament(tournamentId: string): Promise<void> {
+  try {
+    console.log(`\n📊 [RECALC_RANKINGS_TEAM] Recalculating rankings for team tournament ${tournamentId}`);
+
+    const isElimination = await isInEliminationPhase(tournamentId);
+    console.log(`   Phase: ${isElimination ? 'ELIMINATION' : 'SWISS/LEAGUE'}`);
+
+    let teamsResult;
+
+    if (isElimination) {
+      // Elimination phase: active teams first, then by current_round desc, then by stats
+      teamsResult = await query(
+        `SELECT 
+          tt.id,
+          tt.name,
+          tt.status,
+          tt.current_round,
+          tt.tournament_points,
+          tt.omp,
+          tt.gwp,
+          tt.ogp
+         FROM tournament_teams tt
+         WHERE tt.tournament_id = $1
+         ORDER BY 
+           CASE WHEN tt.status = 'active' THEN 0 ELSE 1 END,
+           tt.current_round DESC,
+           tt.tournament_points DESC,
+           tt.omp DESC,
+           tt.gwp DESC,
+           tt.ogp DESC`,
+        [tournamentId]
+      );
+      console.log(`   Sorting by: status (active first) → current_round DESC → statistics`);
+    } else {
+      // Swiss/League phase: by statistics only
+      teamsResult = await query(
+        `SELECT 
+          tt.id,
+          tt.name,
+          tt.status,
+          tt.current_round,
+          tt.tournament_points,
+          tt.omp,
+          tt.gwp,
+          tt.ogp
+         FROM tournament_teams tt
+         WHERE tt.tournament_id = $1
+         ORDER BY 
+           tt.tournament_points DESC,
+           tt.omp DESC,
+           tt.gwp DESC,
+           tt.ogp DESC`,
+        [tournamentId]
+      );
+      console.log(`   Sorting by: statistics only (points → omp → gwp → ogp)`);
+    }
+
+    const teams = teamsResult.rows;
+    console.log(`   Found ${teams.length} teams for ranking`);
+
+    // Update ranking for each team
+    for (let i = 0; i < teams.length; i++) {
+      const ranking = i + 1;
+      await query(
+        `UPDATE tournament_teams SET tournament_ranking = $1 WHERE id = $2`,
+        [ranking, teams[i].id]
+      );
+      console.log(`   ${teams[i].name}: Rank #${ranking} (${teams[i].status}, Round ${teams[i].current_round}, ${teams[i].tournament_points}pts)`);
+    }
+
+    console.log(`✅ [RECALC_RANKINGS_TEAM] Team rankings updated`);
+  } catch (error) {
+    console.error('[RECALC_RANKINGS_TEAM] Error recalculating team rankings:', error);
+    throw error;
   }
 }
