@@ -45,11 +45,13 @@ export async function selectPlayersForEliminationPhase(
     );
     const tournamentMode = tournResultFirst.rows[0]?.tournament_mode || 'ranked';
     console.log(`Tournament Mode: ${tournamentMode}`);
+    console.log(`[DEBUG] selectPlayersForEliminationPhase() - Starting with tourney mode: ${tournamentMode}`);
     
     // Calculate tiebreakers FIRST before selecting players
     console.log(`\n🎲 [TIEBREAKERS] Calculating Swiss tiebreakers (OMP, GWP, OGP)...`);
     try {
       const functionName = tournamentMode === 'team' ? 'update_team_tiebreakers' : 'update_tournament_tiebreakers';
+      console.log(`[DEBUG] Using tiebreaker function: ${functionName}`);
       const tiebreakersResult = await query(
         `SELECT updated_count, error_message FROM ${functionName}($1)`,
         [tournamentId]
@@ -57,6 +59,7 @@ export async function selectPlayersForEliminationPhase(
       
       if (tiebreakersResult.rows.length > 0) {
         const { updated_count, error_message } = tiebreakersResult.rows[0];
+        console.log(`[DEBUG] Tiebreaker result - updated: ${updated_count}, error: ${error_message}`);
         if (error_message) {
           console.error(`❌ [TIEBREAKERS] Error: ${error_message}`);
         } else {
@@ -72,6 +75,7 @@ export async function selectPlayersForEliminationPhase(
     let fullRankingResult: any;
 
     // Get top players based on tournament mode
+    console.log(`[DEBUG] Checking tournament mode: is team mode? ${tournamentMode === 'team'}`);
     if (tournamentMode === 'team') {
       // Team mode: select from tournament_teams
       console.log(`\n[SELECT_PLAYERS] Using TEAM MODE - querying tournament_teams`);
@@ -159,6 +163,7 @@ export async function selectPlayersForEliminationPhase(
         [tournamentId, playersToAdvance]
       );
 
+      console.log(`[DEBUG] 1v1 query returned ${topPlayersResult.rows.length} rows`);
       if (topPlayersResult.rows.length === 0) {
         console.log(`❌ [SELECT_PLAYERS] No players found to advance to elimination phase`);
         return false;
@@ -195,6 +200,7 @@ export async function selectPlayersForEliminationPhase(
          AND user_id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
         [tournamentId, ...topPlayerIds]
       );
+      console.log(`[DEBUG] UPDATE active result - rowCount: ${activateResult.rowCount}`);
       console.log(`✅ [SELECT_PLAYERS] Updated ${activateResult.rowCount} advancing players to ACTIVE`);
 
       // Mark all other players as eliminated
@@ -207,6 +213,7 @@ export async function selectPlayersForEliminationPhase(
          AND user_id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
         [tournamentId, ...topPlayerIds]
       );
+      console.log(`[DEBUG] UPDATE eliminated result - rowCount: ${result.rowCount}`);
       console.log(`🚫 [SELECT_PLAYERS] Updated ${result.rowCount} eliminated players`);
 
       // Verify the update
@@ -767,6 +774,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         console.log(`Players to advance: ${Math.pow(2, final_rounds)}`);
         
         // Check if players have already been selected (should have at least some eliminated)
+        console.log(`\n[DEBUG] About to query eliminated players...`);
         const eliminatedCount = await query(
           `SELECT COUNT(*) as count FROM tournament_participants 
            WHERE tournament_id = $1 AND status = 'eliminated'`,
@@ -774,13 +782,15 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         );
         
         const elimCount = eliminatedCount.rows[0].count;
+        console.log(`[DEBUG] elimCount = ${elimCount}, type: ${typeof elimCount}`);
         console.log(`Currently eliminated players: ${elimCount}`);
         
         // If no players are eliminated yet, run the selection
+        console.log(`[DEBUG] Checking condition: elimCount === 0? ${elimCount === 0}`);
         if (elimCount === 0) {
           console.log(`\n⚠️  [ACTIVATE_ROUND] No eliminated players detected. Running selectPlayersForEliminationPhase()...`);
-          await selectPlayersForEliminationPhase(tournamentId, final_rounds);
-          console.log(`✅ [ACTIVATE_ROUND] selectPlayersForEliminationPhase() completed`);
+          const selectionResult = await selectPlayersForEliminationPhase(tournamentId, final_rounds);
+          console.log(`✅ [ACTIVATE_ROUND] selectPlayersForEliminationPhase() completed with result: ${selectionResult}`);
         } else {
           console.log(`\n⏭️  [ACTIVATE_ROUND] Already have ${elimCount} eliminated players, skipping selection`);
         }
