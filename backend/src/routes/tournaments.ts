@@ -998,7 +998,7 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
 
     // Verify tournament creator
     const tournamentCheck = await query(
-      'SELECT creator_id, status, discord_thread_id, name, tournament_type, max_participants, total_rounds FROM tournaments WHERE id = $1', 
+      'SELECT creator_id, status, discord_thread_id, name, tournament_type, tournament_mode, max_participants, total_rounds FROM tournaments WHERE id = $1', 
       [id]
     );
     if (tournamentCheck.rows.length === 0) {
@@ -1014,13 +1014,47 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
       return res.status(400).json({ error: 'Tournament registration is not open' });
     }
 
-    // Check if there are any accepted participants
-    const participantsCheck = await query(
-      'SELECT COUNT(*) as count FROM tournament_participants WHERE tournament_id = $1 AND participation_status = $2',
-      [id, 'accepted']
-    );
+    // Check participants based on tournament mode
+    let participantCount = 0;
+    
+    if (tournament.tournament_mode === 'team') {
+      // For team tournaments: count complete teams (all members accepted)
+      const teamsCheckResult = await query(
+        `SELECT tt.id, COUNT(tp.id) as member_count, SUM(CASE WHEN tp.participation_status = 'accepted' THEN 1 ELSE 0 END) as accepted_count
+         FROM tournament_teams tt
+         LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
+         WHERE tt.tournament_id = $1
+         GROUP BY tt.id`,
+        [id]
+      );
 
-    const participantCount = parseInt(participantsCheck.rows[0].count, 10);
+      // Count complete teams (all members accepted)
+      const completeTeams = teamsCheckResult.rows.filter((team: any) => 
+        team.member_count === team.accepted_count && team.member_count > 0
+      );
+
+      participantCount = completeTeams.length;
+
+      console.log(`[CLOSE_REGISTRATION] Team mode tournament: ${completeTeams.length} complete teams out of ${teamsCheckResult.rows.length} total teams`);
+
+      // For team tournaments, require at least 2 complete teams
+      if (participantCount < 2) {
+        return res.status(400).json({ 
+          error: `Team tournaments require at least 2 complete teams. Currently have ${participantCount} complete team(s).`,
+          requiresConfirmation: false
+        });
+      }
+    } else {
+      // For 1v1 tournaments: count accepted individual participants
+      const participantsCheck = await query(
+        'SELECT COUNT(*) as count FROM tournament_participants WHERE tournament_id = $1 AND participation_status = $2',
+        [id, 'accepted']
+      );
+
+      participantCount = parseInt(participantsCheck.rows[0].count, 10);
+
+      console.log(`[CLOSE_REGISTRATION] 1v1 tournament: ${participantCount} accepted participants`);
+    }
 
     // If no participants
     if (participantCount === 0) {
