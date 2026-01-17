@@ -121,9 +121,9 @@ export async function updateBestOfSeriesDB(
 
     // If series is now complete, mark the loser as eliminated (conditionally based on tournament type and round type)
     if (seriesComplete && seriesLoserId) {
-      // Get tournament_id, tournament_type, and round_type from the round
+      // Get tournament_id, tournament_type, tournament_mode and round_type from the round
       const roundResult = await query(
-        `SELECT tr.tournament_id, t.tournament_type, tr.round_type
+        `SELECT tr.tournament_id, t.tournament_type, t.tournament_mode, tr.round_type
          FROM tournament_round_matches trm
          JOIN tournament_rounds tr ON trm.round_id = tr.id
          JOIN tournaments t ON tr.tournament_id = t.id
@@ -132,7 +132,7 @@ export async function updateBestOfSeriesDB(
       );
 
       if (roundResult.rows.length > 0) {
-        const { tournament_id, tournament_type, round_type } = roundResult.rows[0];
+        const { tournament_id, tournament_type, tournament_mode, round_type } = roundResult.rows[0];
 
         // Determine if we should eliminate the loser
         let shouldEliminate = false;
@@ -148,16 +148,28 @@ export async function updateBestOfSeriesDB(
         // For swiss_elimination during general rounds: never eliminate
 
         if (shouldEliminate) {
-          await query(
-            `UPDATE tournament_participants
-             SET status = 'eliminated'
-             WHERE tournament_id = $1 AND user_id = $2`,
-            [tournament_id, seriesLoserId]
-          );
-          console.log(`[bestOf] 🚫 Player ${seriesLoserId} eliminated from tournament ${tournament_id}`);
+          // For team mode tournaments, mark the team as eliminated
+          if (tournament_mode === 'team') {
+            await query(
+              `UPDATE tournament_teams
+               SET status = 'eliminated'
+               WHERE tournament_id = $1 AND id = $2`,
+              [tournament_id, seriesLoserId]
+            );
+            console.log(`[bestOf] 🚫 Team ${seriesLoserId} eliminated from tournament ${tournament_id}`);
+          } else {
+            // For 1v1 tournaments, mark the player as eliminated
+            await query(
+              `UPDATE tournament_participants
+               SET status = 'eliminated'
+               WHERE tournament_id = $1 AND user_id = $2`,
+              [tournament_id, seriesLoserId]
+            );
+            console.log(`[bestOf] 🚫 Player ${seriesLoserId} eliminated from tournament ${tournament_id}`);
+          }
         } else {
           // For other formats/rounds: keep players active
-          console.log(`[bestOf] ✅ Player ${seriesLoserId} stays in tournament (${tournament_type}, ${round_type} round)`);
+          console.log(`[bestOf] ✅ Player/Team ${seriesLoserId} stays in tournament (${tournament_type}, ${round_type} round)`);
         }
       }
     }
