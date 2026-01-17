@@ -38,12 +38,13 @@ export async function selectPlayersForEliminationPhase(
     console.log(`Final Rounds: ${finalRounds}`);
     console.log(`Players to Advance: ${playersToAdvance}`);
     
-    // Get tournament mode first for determining tiebreaker calculation
+    // Get tournament mode to determine which table to use
     const tournResultFirst = await query(
       'SELECT tournament_mode FROM tournaments WHERE id = $1',
       [tournamentId]
     );
     const tournamentMode = tournResultFirst.rows[0]?.tournament_mode || 'ranked';
+    console.log(`Tournament Mode: ${tournamentMode}`);
     
     // Calculate tiebreakers FIRST before selecting players
     console.log(`\n🎲 [TIEBREAKERS] Calculating Swiss tiebreakers (OMP, GWP, OGP)...`);
@@ -66,83 +67,162 @@ export async function selectPlayersForEliminationPhase(
       console.error('[TIEBREAKERS] Error calculating tiebreakers:', tiebreakersErr);
       // Don't fail the tournament if tiebreakers calculation fails
     }
-    
-    // Get the top N players by tournament points, wins, Swiss tiebreakers, and ELO
-    // Using COALESCE to handle NULL values properly in ordering
-    const topPlayersResult = await query(
-      `SELECT tp.user_id FROM tournament_participants tp
-       LEFT JOIN users u ON tp.user_id = u.id
-       WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
-       ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
-                COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
-                COALESCE(u.elo_rating, 0) DESC, tp.user_id
-       LIMIT $2`,
-      [tournamentId, playersToAdvance]
-    );
 
-    if (topPlayersResult.rows.length === 0) {
-      console.log(`❌ [SELECT_PLAYERS] No players found to advance to elimination phase`);
-      return false;
+    let topPlayerIds: string[];
+    let fullRankingResult: any;
+
+    // Get top players based on tournament mode
+    if (tournamentMode === 'team') {
+      // Team mode: select from tournament_teams
+      console.log(`\n[SELECT_PLAYERS] Using TEAM MODE - querying tournament_teams`);
+      
+      const topPlayersResult = await query(
+        `SELECT tt.id as user_id FROM tournament_teams tt
+         WHERE tt.tournament_id = $1 AND tt.status = 'active'
+         ORDER BY tt.tournament_points DESC, tt.tournament_wins DESC,
+                  COALESCE(tt.omp, 0) DESC, COALESCE(tt.gwp, 0) DESC, COALESCE(tt.ogp, 0) DESC,
+                  COALESCE(tt.team_elo, 0) DESC, tt.id
+         LIMIT $2`,
+        [tournamentId, playersToAdvance]
+      );
+
+      if (topPlayersResult.rows.length === 0) {
+        console.log(`❌ [SELECT_PLAYERS] No teams found to advance to elimination phase`);
+        return false;
+      }
+
+      topPlayerIds = topPlayersResult.rows.map((row: any) => row.user_id);
+      console.log(`✅ [SELECT_PLAYERS] Top ${topPlayerIds.length} teams advancing: ${topPlayerIds.join(', ')}`);
+
+      // Get full ranking for verification
+      fullRankingResult = await query(
+        `SELECT tt.id as user_id, tt.tournament_points, tt.tournament_wins, tt.omp, tt.gwp, tt.ogp, tt.team_elo as elo_rating, tt.team_name
+         FROM tournament_teams tt
+         WHERE tt.tournament_id = $1 AND tt.status = 'active'
+         ORDER BY tt.tournament_points DESC, tt.tournament_wins DESC,
+                  COALESCE(tt.omp, 0) DESC, COALESCE(tt.gwp, 0) DESC, COALESCE(tt.ogp, 0) DESC,
+                  COALESCE(tt.team_elo, 0) DESC, tt.id`,
+        [tournamentId]
+      );
+
+      console.log(`\n[SELECT_PLAYERS] Full team ranking (for verification):`);
+      fullRankingResult.rows.forEach((row: any, idx: number) => {
+        const isAdvancing = topPlayerIds.includes(row.user_id) ? '✅' : '❌';
+        console.log(`  ${isAdvancing} #${idx + 1} ${row.team_name} (${row.user_id}): ${row.tournament_points}pts, ${row.tournament_wins}W, OMP=${row.omp}, GWP=${row.gwp}, OGP=${row.ogp}, ELO=${row.elo_rating}`);
+      });
+
+      // Mark advancing teams as 'active' and others as 'eliminated'
+      console.log(`\n[SELECT_PLAYERS] Updating status for advancing teams...`);
+      const activateResult = await query(
+        `UPDATE tournament_teams
+         SET status = 'active'
+         WHERE tournament_id = $1 
+         AND id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+        [tournamentId, ...topPlayerIds]
+      );
+      console.log(`✅ [SELECT_PLAYERS] Updated ${activateResult.rowCount} advancing teams to ACTIVE`);
+
+      console.log(`\n[SELECT_PLAYERS] Updating status for eliminated teams...`);
+      const result = await query(
+        `UPDATE tournament_teams
+         SET status = 'eliminated'
+         WHERE tournament_id = $1 
+         AND id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+        [tournamentId, ...topPlayerIds]
+      );
+      console.log(`🚫 [SELECT_PLAYERS] Updated ${result.rowCount} eliminated teams`);
+
+      // Verify the update
+      const verifyResult = await query(
+        `SELECT status, COUNT(*) as count FROM tournament_teams
+         WHERE tournament_id = $1
+         GROUP BY status`,
+        [tournamentId]
+      );
+
+      console.log(`\n[SELECT_PLAYERS] Verification - Final team status distribution:`);
+      verifyResult.rows.forEach((row: any) => {
+        console.log(`  ${row.status}: ${row.count} teams`);
+      });
+    } else {
+      // Ranked/Unranked 1v1 mode: select from tournament_participants
+      console.log(`\n[SELECT_PLAYERS] Using 1V1 MODE (ranked/unranked) - querying tournament_participants`);
+
+      const topPlayersResult = await query(
+        `SELECT tp.user_id FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
+                  COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
+                  COALESCE(u.elo_rating, 0) DESC, tp.user_id
+         LIMIT $2`,
+        [tournamentId, playersToAdvance]
+      );
+
+      if (topPlayersResult.rows.length === 0) {
+        console.log(`❌ [SELECT_PLAYERS] No players found to advance to elimination phase`);
+        return false;
+      }
+
+      topPlayerIds = topPlayersResult.rows.map((row: any) => row.user_id);
+      console.log(`✅ [SELECT_PLAYERS] Top ${topPlayerIds.length} players advancing: ${topPlayerIds.join(', ')}`);
+
+      // Get full ranking for verification
+      fullRankingResult = await query(
+        `SELECT tp.user_id, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp, u.elo_rating
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
+                  COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
+                  COALESCE(u.elo_rating, 0) DESC, tp.user_id`,
+        [tournamentId]
+      );
+
+      console.log(`\n[SELECT_PLAYERS] Full player ranking (for verification):`);
+      fullRankingResult.rows.forEach((row: any, idx: number) => {
+        const isAdvancing = topPlayerIds.includes(row.user_id) ? '✅' : '❌';
+        console.log(`  ${isAdvancing} #${idx + 1} ${row.user_id}: ${row.tournament_points}pts, ${row.tournament_wins}W, OMP=${row.omp}, GWP=${row.gwp}, OGP=${row.ogp}, ELO=${row.elo_rating}`);
+      });
+
+      // Mark advancing players as 'active'
+      console.log(`\n[SELECT_PLAYERS] Updating status for advancing players...`);
+      const activateResult = await query(
+        `UPDATE tournament_participants
+         SET status = 'active'
+         WHERE tournament_id = $1 
+         AND participation_status = 'accepted'
+         AND user_id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+        [tournamentId, ...topPlayerIds]
+      );
+      console.log(`✅ [SELECT_PLAYERS] Updated ${activateResult.rowCount} advancing players to ACTIVE`);
+
+      // Mark all other players as eliminated
+      console.log(`\n[SELECT_PLAYERS] Updating status for eliminated players...`);
+      const result = await query(
+        `UPDATE tournament_participants
+         SET status = 'eliminated'
+         WHERE tournament_id = $1 
+         AND participation_status = 'accepted'
+         AND user_id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+        [tournamentId, ...topPlayerIds]
+      );
+      console.log(`🚫 [SELECT_PLAYERS] Updated ${result.rowCount} eliminated players`);
+
+      // Verify the update
+      const verifyResult = await query(
+        `SELECT status, COUNT(*) as count FROM tournament_participants
+         WHERE tournament_id = $1
+         GROUP BY status`,
+        [tournamentId]
+      );
+
+      console.log(`\n[SELECT_PLAYERS] Verification - Final player status distribution:`);
+      verifyResult.rows.forEach((row: any) => {
+        console.log(`  ${row.status}: ${row.count} players`);
+      });
     }
 
-    const topPlayerIds = topPlayersResult.rows.map((row: any) => row.user_id);
-    console.log(`✅ [SELECT_PLAYERS] Top ${topPlayerIds.length} players advancing: ${topPlayerIds.join(', ')}`);
-    
-    // Debug: Log the full ranking to verify correctness
-    const fullRankingResult = await query(
-      `SELECT tp.user_id, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp, u.elo_rating
-       FROM tournament_participants tp
-       LEFT JOIN users u ON tp.user_id = u.id
-       WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
-       ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
-                COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
-                COALESCE(u.elo_rating, 0) DESC, tp.user_id`,
-      [tournamentId]
-    );
-    
-    console.log(`\n[SELECT_PLAYERS] Full ranking (for verification):`);
-    fullRankingResult.rows.forEach((row: any, idx: number) => {
-      const isAdvancing = topPlayerIds.includes(row.user_id) ? '✅' : '❌';
-      console.log(`  ${isAdvancing} #${idx + 1} ${row.user_id}: ${row.tournament_points}pts, ${row.tournament_wins}W, OMP=${row.omp}, GWP=${row.gwp}, OGP=${row.ogp}, ELO=${row.elo_rating}`);
-    });
-    
-    // First, explicitly mark advancing players as 'active'
-    console.log(`\n[SELECT_PLAYERS] Updating status for advancing players...`);
-    const activateResult = await query(
-      `UPDATE tournament_participants
-       SET status = 'active'
-       WHERE tournament_id = $1 
-       AND participation_status = 'accepted'
-       AND user_id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
-      [tournamentId, ...topPlayerIds]
-    );
-    console.log(`✅ [SELECT_PLAYERS] Updated ${activateResult.rowCount} advancing players to ACTIVE`);
-    
-    // Then mark all other players as eliminated - use NOT IN for clarity
-    console.log(`\n[SELECT_PLAYERS] Updating status for eliminated players...`);
-    const result = await query(
-      `UPDATE tournament_participants
-       SET status = 'eliminated'
-       WHERE tournament_id = $1 
-       AND participation_status = 'accepted'
-       AND user_id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
-      [tournamentId, ...topPlayerIds]
-    );
-    console.log(`🚫 [SELECT_PLAYERS] Updated ${result.rowCount} eliminated players`);
-    
-    // Verify the update
-    const verifyResult = await query(
-      `SELECT status, COUNT(*) as count FROM tournament_participants
-       WHERE tournament_id = $1
-       GROUP BY status`,
-      [tournamentId]
-    );
-    
-    console.log(`\n[SELECT_PLAYERS] Verification - Final status distribution:`);
-    verifyResult.rows.forEach((row: any) => {
-      console.log(`  ${row.status}: ${row.count} players`);
-    });
-    
     console.log(`${'='.repeat(80)}\n`);
     
     return true;
