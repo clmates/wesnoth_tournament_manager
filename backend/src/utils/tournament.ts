@@ -1499,11 +1499,11 @@ export async function getWinnerAndRunnerUp(
 
         // Get team details
         const winnerResult = await query(
-          `SELECT id, team_name as nickname FROM tournament_teams WHERE id = $1`,
+          `SELECT id, name as nickname FROM tournament_teams WHERE id = $1`,
           [winnerId]
         );
         const runnerUpResult = await query(
-          `SELECT id, team_name as nickname FROM tournament_teams WHERE id = $1`,
+          `SELECT id, name as nickname FROM tournament_teams WHERE id = $1`,
           [runnerUpId]
         );
 
