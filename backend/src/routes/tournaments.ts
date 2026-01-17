@@ -247,7 +247,61 @@ router.get('/my', authMiddleware, async (req: AuthRequest, res) => {
       [userId]
     );
 
-    res.json(result.rows);
+    // For each tournament, if status = 'finished', fetch winner and runner-up
+    const tournaments = await Promise.all(result.rows.map(async (t: any) => {
+      let winner_id = null, winner_nickname = null, runner_up_id = null, runner_up_nickname = null;
+      
+      if (t.status === 'finished') {
+        // For team mode, fetch from tournament_teams; for 1v1 mode, fetch from tournament_participants
+        if (t.tournament_mode === 'team') {
+          const rankingResult = await query(`
+            SELECT tt.id, tt.name
+            FROM tournament_teams tt
+            WHERE tt.tournament_id = $1
+            ORDER BY tt.tournament_ranking ASC
+            LIMIT 2
+          `, [t.id]);
+          
+          if (rankingResult.rows.length > 0) {
+            winner_id = rankingResult.rows[0].id;
+            winner_nickname = rankingResult.rows[0].name;
+          }
+          if (rankingResult.rows.length > 1) {
+            runner_up_id = rankingResult.rows[1].id;
+            runner_up_nickname = rankingResult.rows[1].name;
+          }
+        } else {
+          // 1v1 mode (ranked or unranked)
+          const rankingResult = await query(`
+            SELECT tp.user_id, u.nickname
+            FROM tournament_participants tp
+            LEFT JOIN users u ON tp.user_id = u.id
+            WHERE tp.tournament_id = $1
+            ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC
+            LIMIT 2
+          `, [t.id]);
+          
+          if (rankingResult.rows.length > 0) {
+            winner_id = rankingResult.rows[0].user_id;
+            winner_nickname = rankingResult.rows[0].nickname;
+          }
+          if (rankingResult.rows.length > 1) {
+            runner_up_id = rankingResult.rows[1].user_id;
+            runner_up_nickname = rankingResult.rows[1].nickname;
+          }
+        }
+      }
+
+      return {
+        ...t,
+        winner_id,
+        winner_nickname,
+        runner_up_id,
+        runner_up_nickname
+      };
+    }));
+
+    res.json(tournaments);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch my tournaments' });
   }
@@ -2618,9 +2672,9 @@ router.get('/:id/standings', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Get tournament mode first
+    // Get tournament mode and type first
     const tournamentModeResult = await query(
-      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      `SELECT tournament_mode, tournament_type FROM tournaments WHERE id = $1`,
       [id]
     );
 
@@ -2629,9 +2683,32 @@ router.get('/:id/standings', async (req, res) => {
     }
 
     const isTournamentTeamMode = tournamentModeResult.rows[0].tournament_mode === 'team';
+    const tournamentType = tournamentModeResult.rows[0].tournament_type;
+    const isSwissElimination = tournamentType === 'swiss_elimination';
 
     if (isTournamentTeamMode) {
       // Team mode: return team standings with member user_ids
+      let orderBy = 'tt.tournament_ranking IS NULL, tt.tournament_ranking ASC, (tt.tournament_wins - tt.tournament_losses) DESC, tt.omp DESC, tt.gwp DESC, tt.ogp DESC';
+      
+      // For Swiss-Elimination Mix: Order by current_round (how far they advanced) first
+      if (isSwissElimination) {
+        orderBy = `
+          CASE 
+            WHEN tt.status = 'active' THEN 0  -- Active team (winner) comes first
+            ELSE 1                              -- Eliminated teams after
+          END,
+          tt.current_round DESC,  -- Furthest round first
+          CASE 
+            WHEN tt.status = 'active' THEN 0   -- Among same round, active first
+            ELSE 1
+          END,
+          (tt.tournament_wins - tt.tournament_losses) DESC, 
+          tt.omp DESC, 
+          tt.gwp DESC, 
+          tt.ogp DESC
+        `;
+      }
+      
       const teamStandings = await query(
         `SELECT 
           tt.id,
@@ -2651,7 +2728,7 @@ router.get('/:id/standings', async (req, res) => {
          LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
          WHERE tt.tournament_id = $1
          GROUP BY tt.id
-         ORDER BY tt.tournament_ranking IS NULL, tt.tournament_ranking ASC, (tt.tournament_wins - tt.tournament_losses) DESC, tt.omp DESC, tt.gwp DESC, tt.ogp DESC`,
+         ORDER BY ${orderBy}`,
         [id]
       );
 
@@ -2661,12 +2738,33 @@ router.get('/:id/standings', async (req, res) => {
       });
     } else {
       // 1v1 mode: return player standings
+      let orderBy1v1 = 'tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC';
+      
+      // For Swiss-Elimination Mix: Order by current_round (how far they advanced) first
+      if (isSwissElimination) {
+        orderBy1v1 = `
+          CASE 
+            WHEN tp.status = 'active' THEN 0  -- Active player (winner) comes first
+            ELSE 1                              -- Eliminated players after
+          END,
+          tp.current_round DESC,  -- Furthest round first
+          CASE 
+            WHEN tp.status = 'active' THEN 0   -- Among same round, active first
+            ELSE 1
+          END,
+          (tp.tournament_wins - tp.tournament_losses) DESC,
+          tp.omp DESC, 
+          tp.gwp DESC, 
+          tp.ogp DESC
+        `;
+      }
+      
       const playerStandings = await query(
         `SELECT tp.*, u.nickname, u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
          WHERE tp.tournament_id = $1 
-         ORDER BY tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC`,
+         ORDER BY ${orderBy1v1}`,
         [id]
       );
       
