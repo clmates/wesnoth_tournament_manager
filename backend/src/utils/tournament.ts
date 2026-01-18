@@ -570,64 +570,44 @@ async function generateSwissMatches(
 
     console.log(`\n[PREVIOUS PAIRINGS]: ${previousPairings.size} historical pairings found`);
 
-    // Pair within each score group
+    // PHASE 1: Pair within each score group, collect unpaired players
     const paired = new Set<string>();
-    const byesAssigned = new Set<string>();
+    const unpairedByScore: { [score: string]: any[] } = {};
     
     for (const score of Object.keys(scoreGroups).sort((a, b) => parseInt(b) - parseInt(a))) {
       const group = scoreGroups[score];
       console.log(`\n[PAIRING GROUP] Score ${score}:`);
 
-      // Get available players in this group (not yet paired in any group)
+      // Get available players in this group
       const available = group.filter(p => !paired.has(p.user_id));
       
-      // If odd number in this group, assign BYE to highest ELO player in group
-      if (available.length % 2 === 1) {
-        const byePlayer = available.reduce((prev, current) => 
-          (current.elo_rating || 0) > (prev.elo_rating || 0) ? current : prev
-        );
-        console.log(`  ✅ BYE: ${byePlayer.user_id} (${byePlayer.tournament_wins}-${byePlayer.tournament_losses}, ELO: ${byePlayer.elo_rating})`);
-        matches.push({
-          tournament_id: tournamentId,
-          round_id: roundId,
-          player1_id: byePlayer.user_id,
-          player2_id: null,
-          is_bye: true,
-        });
-        paired.add(byePlayer.user_id);
-        byesAssigned.add(byePlayer.user_id);
-      }
-      
-      // Now pair the remaining players in this group
-      const toBeParied = available.filter(p => !byesAssigned.has(p.user_id));
-      for (let i = 0; i < toBeParied.length - 1; i++) {
-        // Skip if already paired
-        if (paired.has(toBeParied[i].user_id)) continue;
+      // Pair as many as possible within this score group
+      for (let i = 0; i < available.length - 1; i++) {
+        if (paired.has(available[i].user_id)) continue;
 
         let paired_with = null;
 
         // Try to pair with next player without creating a re-match
-        for (let j = i + 1; j < toBeParied.length; j++) {
-          if (paired.has(toBeParied[j].user_id)) continue;
+        for (let j = i + 1; j < available.length; j++) {
+          if (paired.has(available[j].user_id)) continue;
 
-          const pairing_key = `${Math.min(toBeParied[i].user_id, toBeParied[j].user_id)}|${Math.max(toBeParied[i].user_id, toBeParied[j].user_id)}`;
+          const pairing_key = `${Math.min(available[i].user_id, available[j].user_id)}|${Math.max(available[i].user_id, available[j].user_id)}`;
           
-          // If this pairing hasn't happened before, use it
           if (!previousPairings.has(pairing_key)) {
-            paired_with = toBeParied[j];
-            console.log(`  ✅ Pair ${toBeParied[i].user_id} vs ${toBeParied[j].user_id} (new pairing)`);
+            paired_with = available[j];
+            console.log(`  ✅ Pair ${available[i].user_id} vs ${available[j].user_id} (new pairing)`);
             break;
           } else {
-            console.log(`  ⚠️  Avoid ${toBeParied[i].user_id} vs ${toBeParied[j].user_id} (re-match)`);
+            console.log(`  ⚠️  Avoid ${available[i].user_id} vs ${available[j].user_id} (re-match)`);
           }
         }
 
         // If no new pairing found, use the first available (re-match necessary)
         if (!paired_with) {
-          for (let j = i + 1; j < toBeParied.length; j++) {
-            if (!paired.has(toBeParied[j].user_id)) {
-              paired_with = toBeParied[j];
-              console.log(`  ⚠️  Pair ${toBeParied[i].user_id} vs ${toBeParied[j].user_id} (unavoidable re-match)`);
+          for (let j = i + 1; j < available.length; j++) {
+            if (!paired.has(available[j].user_id)) {
+              paired_with = available[j];
+              console.log(`  ⚠️  Pair ${available[i].user_id} vs ${available[j].user_id} (unavoidable re-match)`);
               break;
             }
           }
@@ -637,26 +617,81 @@ async function generateSwissMatches(
           matches.push({
             tournament_id: tournamentId,
             round_id: roundId,
-            player1_id: toBeParied[i].user_id,
+            player1_id: available[i].user_id,
             player2_id: paired_with.user_id,
           });
-          paired.add(toBeParied[i].user_id);
+          paired.add(available[i].user_id);
           paired.add(paired_with.user_id);
+        }
+      }
+
+      // Collect unpaired players from this score group
+      const remainingUnpaired = available.filter(p => !paired.has(p.user_id));
+      if (remainingUnpaired.length > 0) {
+        unpairedByScore[score] = remainingUnpaired;
+        console.log(`  ⏸️  Unpaired in this group: ${remainingUnpaired.map(p => `${p.user_id}(ELO:${p.elo_rating})`).join(', ')}`);
+      }
+    }
+
+    // PHASE 2: Try to pair unpaired players from different score groups
+    console.log(`\n[CROSS-GROUP PAIRING] Attempting to pair unpaired players from different score groups...`);
+    const scoreList = Object.keys(unpairedByScore).sort((a, b) => parseInt(b) - parseInt(a));
+    
+    for (let s = 0; s < scoreList.length - 1; s++) {
+      const score1 = scoreList[s];
+      const score2 = scoreList[s + 1];
+      const group1 = unpairedByScore[score1].filter(p => !paired.has(p.user_id));
+      const group2 = unpairedByScore[score2].filter(p => !paired.has(p.user_id));
+
+      console.log(`  Trying Score ${score1} vs Score ${score2}: ${group1.length} vs ${group2.length} unpaired`);
+
+      // Pair from score1 with score2
+      for (const player1 of group1) {
+        if (paired.has(player1.user_id)) continue;
+
+        for (const player2 of group2) {
+          if (paired.has(player2.user_id)) continue;
+
+          const pairing_key = `${Math.min(player1.user_id, player2.user_id)}|${Math.max(player1.user_id, player2.user_id)}`;
+          
+          if (!previousPairings.has(pairing_key)) {
+            console.log(`    ✅ Cross-pair ${player1.user_id}(Score ${score1}) vs ${player2.user_id}(Score ${score2}) (new pairing)`);
+            matches.push({
+              tournament_id: tournamentId,
+              round_id: roundId,
+              player1_id: player1.user_id,
+              player2_id: player2.user_id,
+            });
+            paired.add(player1.user_id);
+            paired.add(player2.user_id);
+            break;
+          }
         }
       }
     }
 
-    // Safety check: if any player is still unpaired (shouldn't happen), assign bye
-    const unpaired = standings.find(p => !paired.has(p.user_id));
-    if (unpaired) {
-      console.log(`\n⚠️  SAFETY: Unpaired player ${unpaired.user_id} (${unpaired.tournament_wins}-${unpaired.tournament_losses}) gets bye`);
-      matches.push({
-        tournament_id: tournamentId,
-        round_id: roundId,
-        player1_id: unpaired.user_id,
-        player2_id: null,
-        is_bye: true,
-      });
+    // PHASE 3: Only if total player count is odd, assign bye to remaining unpaired
+    const totalUnpaired = standings.filter(p => !paired.has(p.user_id));
+    if (totalUnpaired.length > 0) {
+      if (totalUnpaired.length === 1 && standings.length % 2 === 1) {
+        // Odd total, one player left - give bye to highest ELO
+        const byePlayer = totalUnpaired[0];
+        console.log(`\n✅ FINAL BYE: ${byePlayer.user_id} (${byePlayer.tournament_wins}-${byePlayer.tournament_losses}, ELO: ${byePlayer.elo_rating}) - odd total player count`);
+        matches.push({
+          tournament_id: tournamentId,
+          round_id: roundId,
+          player1_id: byePlayer.user_id,
+          player2_id: null,
+          is_bye: true,
+        });
+        paired.add(byePlayer.user_id);
+      } else if (totalUnpaired.length > 0) {
+        // This should not happen - all even total tournaments should be fully paired
+        console.error(`❌ ERROR: ${totalUnpaired.length} unpaired players remain but tournament has even total count!`);
+        totalUnpaired.forEach(p => {
+          console.error(`  Unpaired: ${p.user_id}`);
+        });
+      }
     }
 
     console.log(`\n[SWISS PAIRINGS RESULT] Generated ${matches.length} pairings`);
@@ -724,10 +759,14 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     
     // Get the round with format info
     const roundResult = await query(
-      `SELECT tr.id, tr.round_status, tr.tournament_id,
-              CASE WHEN tr.round_number <= t.general_rounds 
-                   THEN t.general_rounds_format 
-                   ELSE t.final_rounds_format 
+      `SELECT tr.id, tr.round_status, tr.tournament_id, t.tournament_type,
+              CASE 
+                WHEN tr.round_number <= t.general_rounds 
+                THEN t.general_rounds_format 
+                -- For swiss_elimination: final format only for the grand final (last round)
+                WHEN t.tournament_type = 'swiss_elimination' AND tr.round_number < (t.general_rounds + t.final_rounds)
+                THEN t.general_rounds_format
+                ELSE t.final_rounds_format 
               END as round_format
        FROM tournament_rounds tr
        JOIN tournaments t ON tr.tournament_id = t.id

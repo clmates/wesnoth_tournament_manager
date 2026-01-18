@@ -407,29 +407,53 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             {formData.tournament_type === 'swiss_elimination' && (
               <>
                 <h4>Swiss-Elimination Mix Configuration</h4>
-                <p className="info-text">Configure both the Swiss phase and the Elimination phase</p>
+                <p className="info-text">Configure Swiss qualifying rounds and elimination bracket with different match formats</p>
                 <div className="info-box info">
-                  <p>ℹ️ This tournament combines a Swiss phase for qualification with an elimination phase for final ranking</p>
+                  <p>ℹ️ This tournament combines a Swiss phase for qualification with an elimination phase for final ranking. You can set different match formats for qualification and the grand final.</p>
                 </div>
+                
+                {/* Rounds Configuration */}
                 <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px', marginBottom: '15px' }}>
-                  <h5 style={{ marginTop: 0 }}>Swiss Phase (Qualifying)</h5>
-                  <div className="form-group">
-                    <label>Number of Swiss Rounds</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="20"
-                      value={formData.general_rounds}
-                      onChange={(e) => onFormDataChange({
-                        ...formData,
-                        general_rounds: parseInt(e.target.value),
-                      })}
-                      disabled={isLoading}
-                    />
-                    <small>Number of Swiss rounds in the qualifying phase</small>
+                  <h5 style={{ marginTop: 0 }}>Rounds Configuration</h5>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                    <div className="form-group">
+                      <label>Number of Swiss Rounds</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={formData.general_rounds}
+                        onChange={(e) => onFormDataChange({
+                          ...formData,
+                          general_rounds: parseInt(e.target.value),
+                        })}
+                        disabled={isLoading}
+                      />
+                      <small>Qualifying rounds using Swiss system</small>
+                    </div>
+                    <div className="form-group">
+                      <label>Number of Elimination Rounds</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={formData.final_rounds}
+                        onChange={(e) => onFormDataChange({
+                          ...formData,
+                          final_rounds: parseInt(e.target.value),
+                        })}
+                        disabled={isLoading}
+                      />
+                      <small>Total elimination rounds (includes grand final)</small>
+                    </div>
                   </div>
+                </div>
+
+                {/* Match Formats */}
+                <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px', marginBottom: '15px' }}>
+                  <h5 style={{ marginTop: 0 }}>Match Formats</h5>
                   <div className="form-group">
-                    <label>Match Format</label>
+                    <label>General Format (Swiss Rounds + Elimination except Final)</label>
                     <select
                       value={formData.general_rounds_format}
                       onChange={(e) => onFormDataChange({
@@ -442,28 +466,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                       <option value="bo3">Best of 3 (First to 2 wins)</option>
                       <option value="bo5">Best of 5 (First to 3 wins)</option>
                     </select>
-                    <small>Number of games in each Swiss match</small>
-                  </div>
-                </div>
-                <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px' }}>
-                  <h5 style={{ marginTop: 0 }}>Elimination Phase (Finals)</h5>
-                  <div className="form-group">
-                    <label>Number of Elimination Rounds</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={formData.final_rounds}
-                      onChange={(e) => onFormDataChange({
-                        ...formData,
-                        final_rounds: parseInt(e.target.value),
-                      })}
-                      disabled={isLoading}
-                    />
-                    <small>Number of elimination rounds (e.g., Quarterfinals, Semifinals, Finals)</small>
+                    <small>Used for Swiss rounds and all elimination rounds except the grand final</small>
                   </div>
                   <div className="form-group">
-                    <label>Match Format</label>
+                    <label>Final Format (Grand Final)</label>
                     <select
                       value={formData.final_rounds_format}
                       onChange={(e) => onFormDataChange({
@@ -476,13 +482,19 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                       <option value="bo3">Best of 3 (First to 2 wins)</option>
                       <option value="bo5">Best of 5 (First to 3 wins)</option>
                     </select>
-                    <small>Number of games in each elimination match</small>
+                    <small>Used only for the grand final match</small>
                   </div>
                 </div>
+
+                {/* Summary */}
                 <div className="round-summary" style={{ marginTop: '15px' }}>
-                  <p><strong>Total Rounds:</strong> {formData.general_rounds + formData.final_rounds}</p>
-                  <p className="info-text">Swiss Phase: {formData.general_rounds} rounds ({formData.general_rounds_format?.toUpperCase()})</p>
-                  <p className="info-text">Elimination Phase: {formData.final_rounds} rounds ({formData.final_rounds_format?.toUpperCase()})</p>
+                  <p><strong>Tournament Structure:</strong></p>
+                  <p className="info-text">• Swiss Phase: {formData.general_rounds} rounds ({formData.general_rounds_format?.toUpperCase()})</p>
+                  {formData.final_rounds > 1 && (
+                    <p className="info-text">• Qualification Phase: {formData.final_rounds - 1} rounds ({formData.general_rounds_format?.toUpperCase()}) [Quarters, Semis, etc]</p>
+                  )}
+                  <p className="info-text">• Grand Final: 1 round ({formData.final_rounds_format?.toUpperCase()})</p>
+                  <p className="info-text"><strong>Total Rounds:</strong> {formData.general_rounds + formData.final_rounds}</p>
                 </div>
               </>
             )}
