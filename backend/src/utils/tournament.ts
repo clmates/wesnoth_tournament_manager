@@ -906,25 +906,27 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       if (isteamMode) {
         // Team tournament: subsequent rounds
         if (tournamentType === 'elimination') {
-          // Team elimination: only get active teams
+          // Team elimination: only get active teams, ordered by ranking
           const teamsResult = await query(
-            `SELECT tt.id as user_id, tt.team_elo as elo_rating
+            `SELECT tt.id as user_id, tt.team_elo as elo_rating, tt.tournament_ranking
              FROM tournament_teams tt
-             WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
+             WHERE tt.tournament_id = $1 AND tt.status = 'active'
+             ORDER BY tt.tournament_ranking ASC`,
             [tournamentId]
           );
           participants = teamsResult.rows;
-          console.log(`[GET_PARTICIPANTS] Team mode elimination: ${participants.length} active teams`);
+          console.log(`[GET_PARTICIPANTS] Team mode elimination: ${participants.length} active teams (ordered by ranking)`);
         } else {
-          // Team swiss/league: all active teams
+          // Team swiss/league: all active teams, ordered by ranking
           const teamsResult = await query(
-            `SELECT tt.id as user_id, tt.team_elo as elo_rating
+            `SELECT tt.id as user_id, tt.team_elo as elo_rating, tt.tournament_ranking
              FROM tournament_teams tt
-             WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
+             WHERE tt.tournament_id = $1 AND tt.status = 'active'
+             ORDER BY tt.tournament_ranking ASC`,
             [tournamentId]
           );
           participants = teamsResult.rows;
-          console.log(`[GET_PARTICIPANTS] Team mode swiss/league: ${participants.length} active teams`);
+          console.log(`[GET_PARTICIPANTS] Team mode swiss/league: ${participants.length} active teams (ordered by ranking)`);
         }
       } else if (tournamentType === 'elimination') {
         // 1v1 Elimination: only get non-eliminated participants (status = 'active')
