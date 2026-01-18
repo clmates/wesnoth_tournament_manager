@@ -738,18 +738,54 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           <div className="config-item">
             <strong>{t('label_auto_advance_rounds')}:</strong> {tournament.auto_advance_round ? t('yes') : t('no')}
           </div>
-          <div className="config-item">
-            <strong>{t('label_general_rounds')}:</strong> {tournament.general_rounds}
-          </div>
-          <div className="config-item">
-            <strong>{t('label_general_rounds_format')}:</strong> {t('match_format.' + tournament.general_rounds_format)}
-          </div>
-          <div className="config-item">
-            <strong>{t('label_final_rounds')}:</strong> {tournament.final_rounds}
-          </div>
-          <div className="config-item">
-            <strong>{t('label_final_rounds_format')}:</strong> {t('match_format.' + tournament.final_rounds_format)}
-          </div>
+
+          {/* For swiss_elimination tournaments, show structured information */}
+          {tournament.tournament_type === 'swiss_elimination' ? (
+            <>
+              <div className="config-item">
+                <strong>Swiss Rounds:</strong> {tournament.general_rounds}
+              </div>
+              <div className="config-item">
+                <strong>Elimination Rounds:</strong> {tournament.final_rounds}
+              </div>
+              <div className="config-item">
+                <strong>General Format (Swiss + Elimination except Final):</strong> {t('match_format.' + tournament.general_rounds_format)}
+              </div>
+              <div className="config-item">
+                <strong>Final Format (Grand Final):</strong> {t('match_format.' + tournament.final_rounds_format)}
+              </div>
+              <div className="config-item" style={{ gridColumn: '1 / -1' }}>
+                <strong>Tournament Structure:</strong>
+                <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                  <li>Swiss Phase: {tournament.general_rounds} rounds ({t('match_format.' + tournament.general_rounds_format)})</li>
+                  {tournament.final_rounds > 1 && (
+                    <li>Qualification Phase: {tournament.final_rounds - 1} rounds ({t('match_format.' + tournament.general_rounds_format)})</li>
+                  )}
+                  <li>Grand Final: 1 round ({t('match_format.' + tournament.final_rounds_format)})</li>
+                </ul>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* For other tournament types, show standard fields */}
+              <div className="config-item">
+                <strong>{t('label_general_rounds')}:</strong> {tournament.general_rounds}
+              </div>
+              <div className="config-item">
+                <strong>{t('label_general_rounds_format')}:</strong> {t('match_format.' + tournament.general_rounds_format)}
+              </div>
+              {tournament.final_rounds > 0 && (
+                <>
+                  <div className="config-item">
+                    <strong>{t('label_final_rounds')}:</strong> {tournament.final_rounds}
+                  </div>
+                  <div className="config-item">
+                    <strong>{t('label_final_rounds_format')}:</strong> {t('match_format.' + tournament.final_rounds_format)}
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       </div>
 
