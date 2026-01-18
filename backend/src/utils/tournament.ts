@@ -100,7 +100,7 @@ export async function selectPlayersForEliminationPhase(
 
       // Get full ranking for verification
       fullRankingResult = await query(
-        `SELECT tt.id as user_id, tt.tournament_points, tt.tournament_wins, tt.omp, tt.gwp, tt.ogp, tt.team_elo as elo_rating, tt.team_name
+        `SELECT tt.id as user_id, tt.tournament_points, tt.tournament_wins, tt.omp, tt.gwp, tt.ogp, tt.team_elo as elo_rating, tt.name as team_name
          FROM tournament_teams tt
          WHERE tt.tournament_id = $1 AND tt.status = 'active'
          ORDER BY tt.tournament_points DESC, tt.tournament_wins DESC,
@@ -1703,7 +1703,7 @@ export async function getWinnerAndRunnerUp(
       if (isTeamMode) {
         // Team mode - top 2 teams por stats
         const topTeamsResult = await query(
-          `SELECT id, team_name as nickname, tournament_points, tournament_wins, omp, gwp, ogp
+          `SELECT id, name as nickname, tournament_points, tournament_wins, omp, gwp, ogp
            FROM tournament_teams
            WHERE tournament_id = $1 AND status = 'active'
            ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC
