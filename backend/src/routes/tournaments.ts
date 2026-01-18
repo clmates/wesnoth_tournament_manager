@@ -2747,7 +2747,12 @@ router.get('/:id/standings', async (req, res) => {
           tt.status,
           COUNT(DISTINCT tp.user_id) as team_size,
           ARRAY_AGG(DISTINCT tp.user_id) as member_user_ids,
-          COALESCE(SUM(u.elo_rating), 0) as team_total_elo
+          COALESCE(SUM(u.elo_rating), 0) as team_total_elo,
+          JSON_AGG(JSON_BUILD_OBJECT(
+            'user_id', tp.user_id,
+            'nickname', u.nickname,
+            'elo_rating', u.elo_rating
+          ) ORDER BY u.elo_rating DESC) FILTER (WHERE tp.user_id IS NOT NULL) as members_with_elo
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
          LEFT JOIN users u ON tp.user_id = u.id

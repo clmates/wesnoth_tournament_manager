@@ -900,8 +900,15 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   <div key={team.id} className="team-card">
                     <div className="team-header">
                       <div className="team-title">
-                        <h3>{team.name}</h3>
-                        <span className="team-size">({team.member_count}/2 members)</span>
+                        <h3>
+                          {team.name}
+                          <span className="team-size">({team.member_count}/2 members)</span>
+                        </h3>
+                        {team.team_total_elo && (
+                          <div className="team-elo">
+                            <strong>Total ELO:</strong> {team.team_total_elo}
+                          </div>
+                        )}
                       </div>
                       <div className="team-stats">
                         <div className="stat">
@@ -934,6 +941,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         <thead>
                           <tr>
                             <th>{t('label_nickname')}</th>
+                            <th>{t('label_elo')}</th>
                             <th>Position</th>
                             <th>{t('label_status')}</th>
                             <th>{t('label_actions')}</th>
@@ -943,6 +951,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           {team.members.map((member: any) => (
                             <tr key={member.id}>
                               <td><PlayerLink nickname={member.nickname} userId={member.id} /></td>
+                              <td>{member.elo_rating || (team.members_with_elo && team.members_with_elo.find((m: any) => m.user_id === member.id)?.elo_rating) || '-'}</td>
                               <td>{member.team_position || '-'}</td>
                               <td>
                                 <span 
