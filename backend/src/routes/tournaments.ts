@@ -2710,7 +2710,7 @@ router.get('/:id/standings', async (req, res) => {
 
     if (isTournamentTeamMode) {
       // Team mode: return team standings with member user_ids
-      let orderBy = 'tt.tournament_ranking IS NULL, tt.tournament_ranking ASC, (tt.tournament_wins - tt.tournament_losses) DESC, tt.omp DESC, tt.gwp DESC, tt.ogp DESC';
+      let orderBy = 'tt.tournament_ranking IS NULL, tt.tournament_ranking ASC, (tt.tournament_wins - tt.tournament_losses) DESC, tt.omp DESC, tt.gwp DESC, tt.ogp DESC, team_total_elo DESC';
       
       // For Swiss-Elimination Mix: Order by current_round (how far they advanced) first
       if (isSwissElimination) {
@@ -2727,7 +2727,8 @@ router.get('/:id/standings', async (req, res) => {
           (tt.tournament_wins - tt.tournament_losses) DESC, 
           tt.omp DESC, 
           tt.gwp DESC, 
-          tt.ogp DESC
+          tt.ogp DESC,
+          team_total_elo DESC
         `;
       }
       
@@ -2745,9 +2746,11 @@ router.get('/:id/standings', async (req, res) => {
           tt.ogp,
           tt.status,
           COUNT(DISTINCT tp.user_id) as team_size,
-          ARRAY_AGG(DISTINCT tp.user_id) as member_user_ids
+          ARRAY_AGG(DISTINCT tp.user_id) as member_user_ids,
+          COALESCE(SUM(u.elo_rating), 0) as team_total_elo
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
+         LEFT JOIN users u ON tp.user_id = u.id
          WHERE tt.tournament_id = $1
          GROUP BY tt.id
          ORDER BY ${orderBy}`,
@@ -2760,7 +2763,7 @@ router.get('/:id/standings', async (req, res) => {
       });
     } else {
       // 1v1 mode: return player standings
-      let orderBy1v1 = 'tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC';
+      let orderBy1v1 = 'tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC, u.elo_rating DESC';
       
       // For Swiss-Elimination Mix: Order by current_round (how far they advanced) first
       if (isSwissElimination) {
@@ -2777,7 +2780,8 @@ router.get('/:id/standings', async (req, res) => {
           (tp.tournament_wins - tp.tournament_losses) DESC,
           tp.omp DESC, 
           tp.gwp DESC, 
-          tp.ogp DESC
+          tp.ogp DESC,
+          u.elo_rating DESC
         `;
       }
       
