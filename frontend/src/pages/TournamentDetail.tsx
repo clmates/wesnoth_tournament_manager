@@ -185,18 +185,6 @@ const TournamentDetail: React.FC = () => {
         }
       }
       
-      // Load teams if it's a team tournament
-      if (tournamentRes.data.tournament_mode === 'team') {
-        try {
-          const teamsRes = await api.get(`/public/tournaments/${id}/teams`);
-          if (teamsRes.data.success && teamsRes.data.data) {
-            setTeams(teamsRes.data.data);
-          }
-        } catch (err) {
-          console.error('Error fetching teams:', err);
-        }
-      }
-      
       console.log('Fetched data:', {
         tournament: tournamentRes.data,
         matches: matchesRes.data,
@@ -893,16 +881,16 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       {activeTab === 'participants' && (
         <div className="tab-content">
           {tournament?.tournament_mode === 'team' ? (
-            // Team view: Group participants by team
-            teams.length > 0 ? (
+            // Team view: Group participants by team from standings (which has team_total_elo and members_with_elo)
+            participants.length > 0 ? (
               <div className="teams-container">
-                {teams.map((team) => (
+                {participants.map((team: any) => (
                   <div key={team.id} className="team-card">
                     <div className="team-header">
                       <div className="team-title">
                         <h3>
-                          {team.name}
-                          <span className="team-size">({team.member_count}/2 members)</span>
+                          {team.nickname}
+                          <span className="team-size">({team.team_size}/2 members)</span>
                         </h3>
                         {team.team_total_elo && (
                           <div className="team-elo">
@@ -936,7 +924,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         </div>
                       </div>
                     </div>
-                    {team.members && team.members.length > 0 ? (
+                    {team.members_with_elo && team.members_with_elo.length > 0 ? (
                       <table className="team-members-table">
                         <thead>
                           <tr>
@@ -948,25 +936,25 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           </tr>
                         </thead>
                         <tbody>
-                          {team.members.map((member: any) => (
-                            <tr key={member.id}>
-                              <td><PlayerLink nickname={member.nickname} userId={member.id} /></td>
-                              <td>{member.elo_rating || (team.members_with_elo && team.members_with_elo.find((m: any) => m.user_id === member.id)?.elo_rating) || '-'}</td>
+                          {team.members_with_elo.map((member: any) => (
+                            <tr key={member.user_id}>
+                              <td><PlayerLink nickname={member.nickname} userId={member.user_id} /></td>
+                              <td>{member.elo_rating || '-'}</td>
                               <td>{member.team_position || '-'}</td>
                               <td>
-                                <span 
+                                <span
                                   className="status-badge"
                                   style={{ backgroundColor: getParticipationStatusColor(member.participation_status || 'pending') }}
                                 >
                                   {member.participation_status === 'unconfirmed' ? 'Unconfirmed' :
-                                   member.participation_status === 'pending' ? 'Pending' : 
+                                   member.participation_status === 'pending' ? 'Pending' :
                                    member.participation_status === 'accepted' ? 'Accepted' : 'Pending'}
                                 </span>
                               </td>
                               <td>
                                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                  {member.participation_status === 'unconfirmed' && member.id === userId && (
-                                    <button 
+                                  {member.participation_status === 'unconfirmed' && member.user_id === userId && (
+                                    <button
                                       className="btn-confirm"
                                       onClick={() => handleConfirmParticipation(member.participant_id)}
                                       title="Confirm your participation"
@@ -976,14 +964,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   )}
                                   {isCreator && member.participation_status === 'pending' && (
                                     <>
-                                      <button 
+                                      <button
                                         className="btn-accept"
                                         onClick={() => handleAcceptParticipant(member.participant_id)}
                                         title={t('btn_accept')}
                                       >
                                         {t('btn_accept')}
                                       </button>
-                                      <button 
+                                      <button
                                         className="btn-reject"
                                         onClick={() => handleRejectParticipant(member.participant_id)}
                                         title={t('btn_reject')}
@@ -1005,16 +993,6 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       </table>
                     ) : (
                       <p className="no-members">No members</p>
-                    )}
-                    {team.substitutes && team.substitutes.length > 0 && (
-                      <div className="team-substitutes">
-                        <strong>Substitutes:</strong>
-                        <ul>
-                          {team.substitutes.map((sub: any) => (
-                            <li key={sub.id}>{sub.nickname} (#{sub.substitute_order})</li>
-                          ))}
-                        </ul>
-                      </div>
                     )}
                   </div>
                 ))}
