@@ -1000,8 +1000,27 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       if (pairing.is_bye || pairing.player2_id === null) {
         console.log(`✅ BYE: ${tournament.tournament_mode === 'team' ? 'Team' : 'Player'} ${pairing.player1_id} advances automatically to next round`);
         byesProcessed++;
-        // No need to create matches for byes
-        // The player will automatically be included in next round
+        
+        // Register automatic win for bye player
+        if (isteamMode) {
+          await query(
+            `UPDATE tournament_teams 
+             SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                 tournament_points = COALESCE(tournament_points, 0) + 1
+             WHERE tournament_id = $1 AND id = $2`,
+            [tournamentId, pairing.player1_id]
+          );
+          console.log(`  → Team ${pairing.player1_id}: +1 win, +1 point`);
+        } else {
+          await query(
+            `UPDATE tournament_participants 
+             SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                 tournament_points = COALESCE(tournament_points, 0) + 1
+             WHERE tournament_id = $1 AND user_id = $2`,
+            [tournamentId, pairing.player1_id]
+          );
+          console.log(`  → Player ${pairing.player1_id}: +1 win, +1 point`);
+        }
         continue;
       }
 
