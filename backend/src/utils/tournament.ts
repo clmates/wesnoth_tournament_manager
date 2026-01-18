@@ -1908,8 +1908,8 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
           tt.ogp,
           COALESCE(SUM(u.elo_rating), 0) as team_total_elo
          FROM tournament_teams tt
-         LEFT JOIN team_members tm ON tt.id = tm.team_id
-         LEFT JOIN users u ON tm.user_id = u.id
+         LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
+         LEFT JOIN users u ON tp.user_id = u.id
          WHERE tt.tournament_id = $1
          GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
          ORDER BY 
@@ -1937,8 +1937,8 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
           tt.ogp,
           COALESCE(SUM(u.elo_rating), 0) as team_total_elo
          FROM tournament_teams tt
-         LEFT JOIN team_members tm ON tt.id = tm.team_id
-         LEFT JOIN users u ON tm.user_id = u.id
+         LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
+         LEFT JOIN users u ON tp.user_id = u.id
          WHERE tt.tournament_id = $1
          GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
          ORDER BY 
