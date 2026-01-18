@@ -1298,6 +1298,19 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
           
           // Execute player selection for elimination phase
           await selectPlayersForEliminationPhase(tournamentId, final_rounds);
+          
+          // Recalculate rankings after elimination to reflect new status
+          console.log(`\n🔄 [SWISS_ELIMINATION] Recalculating rankings after player selection...`);
+          try {
+            if (tournMode === 'team') {
+              await recalculateTeamRankingsForTournament(tournamentId);
+            } else {
+              await recalculateParticipantRankings(tournamentId);
+            }
+            console.log(`✅ [SWISS_ELIMINATION] Rankings recalculated after elimination`);
+          } catch (rankingErr) {
+            console.error(`⚠️  [SWISS_ELIMINATION] Error recalculating rankings after elimination:`, rankingErr);
+          }
         } else {
           console.log(`\n⏭️  [SWISS_ELIMINATION] Not executing selectPlayersForEliminationPhase() - conditions not met`);
         }
