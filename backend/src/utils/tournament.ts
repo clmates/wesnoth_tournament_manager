@@ -1256,14 +1256,15 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
 
       // Recalculate rankings after round completion
       try {
+        console.log(`\n🔄 [RECALC_RANKINGS] Recalculating ${tournMode === 'team' ? 'team' : 'participant'} rankings for tournament ${tournamentId}`);
         if (tournMode === 'team') {
           await recalculateTeamRankingsForTournament(tournamentId);
         } else {
           await recalculateParticipantRankings(tournamentId);
         }
-        console.log(`✅ Updated ${tournMode === 'team' ? 'team' : 'participant'} rankings after round completion`);
+        console.log(`✅ [RECALC_RANKINGS] Updated ${tournMode === 'team' ? 'team' : 'participant'} rankings after round completion\n`);
       } catch (rankingErr) {
-        console.error(`Error recalculating rankings after round ${roundNumber}:`, rankingErr);
+        console.error(`\n❌ Error recalculating rankings after round ${roundNumber}:`, rankingErr);
         // Don't fail the round completion if ranking update fails
       }
 
@@ -1712,7 +1713,7 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
     let participantsResult;
 
     if (isElimination) {
-      // Elimination phase: active participants first, then by current_round desc, then by stats
+      // Elimination phase: active participants first, then by current_round desc, then by stats, then by ELO
       participantsResult = await query(
         `SELECT 
           tp.id,
@@ -1722,7 +1723,8 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
           tp.omp,
           tp.gwp,
           tp.ogp,
-          u.nickname
+          u.nickname,
+          u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
          WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
@@ -1732,12 +1734,13 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
            tp.tournament_points DESC,
            tp.omp DESC,
            tp.gwp DESC,
-           tp.ogp DESC`,
+           tp.ogp DESC,
+           u.elo_rating DESC`,
         [tournamentId]
       );
-      console.log(`   Sorting by: status (active first) → current_round DESC → statistics`);
+      console.log(`   Sorting by: status (active first) → current_round DESC → statistics → ELO DESC`);
     } else {
-      // Swiss/League phase: by statistics only
+      // Swiss/League phase: by statistics only, then by ELO as tiebreaker
       participantsResult = await query(
         `SELECT 
           tp.id,
@@ -1747,7 +1750,8 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
           tp.omp,
           tp.gwp,
           tp.ogp,
-          u.nickname
+          u.nickname,
+          u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
          WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
@@ -1755,10 +1759,11 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
            tp.tournament_points DESC,
            tp.omp DESC,
            tp.gwp DESC,
-           tp.ogp DESC`,
+           tp.ogp DESC,
+           u.elo_rating DESC`,
         [tournamentId]
       );
-      console.log(`   Sorting by: statistics only (points → omp → gwp → ogp)`);
+      console.log(`   Sorting by: statistics (points → omp → gwp → ogp) → ELO DESC`);
     }
 
     const participants = participantsResult.rows;
@@ -1771,7 +1776,7 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
         `UPDATE tournament_participants SET tournament_ranking = $1 WHERE id = $2`,
         [ranking, participants[i].id]
       );
-      console.log(`   ${participants[i].nickname}: Rank #${ranking} (${participants[i].status}, Round ${participants[i].current_round}, ${participants[i].tournament_points}pts)`);
+      console.log(`   ${participants[i].nickname}: Rank #${ranking} (${participants[i].status}, Round ${participants[i].current_round}, ${participants[i].tournament_points}pts, ELO: ${participants[i].elo_rating})`);
     }
 
     console.log(`✅ [RECALC_RANKINGS_1V1] Participant rankings updated`);
@@ -1808,21 +1813,26 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
           tt.tournament_points,
           tt.omp,
           tt.gwp,
-          tt.ogp
+          tt.ogp,
+          COALESCE(SUM(u.elo_rating), 0) as team_total_elo
          FROM tournament_teams tt
+         LEFT JOIN team_members tm ON tt.id = tm.team_id
+         LEFT JOIN users u ON tm.user_id = u.id
          WHERE tt.tournament_id = $1
+         GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
          ORDER BY 
            CASE WHEN tt.status = 'active' THEN 0 ELSE 1 END,
            tt.current_round DESC,
            tt.tournament_points DESC,
            tt.omp DESC,
            tt.gwp DESC,
-           tt.ogp DESC`,
+           tt.ogp DESC,
+           team_total_elo DESC`,
         [tournamentId]
       );
-      console.log(`   Sorting by: status (active first) → current_round DESC → statistics`);
+      console.log(`   Sorting by: status (active first) → current_round DESC → statistics → team ELO sum DESC`);
     } else {
-      // Swiss/League phase: by statistics only
+      // Swiss/League phase: by statistics only, then by team ELO sum as tiebreaker
       teamsResult = await query(
         `SELECT 
           tt.id,
@@ -1832,17 +1842,22 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
           tt.tournament_points,
           tt.omp,
           tt.gwp,
-          tt.ogp
+          tt.ogp,
+          COALESCE(SUM(u.elo_rating), 0) as team_total_elo
          FROM tournament_teams tt
+         LEFT JOIN team_members tm ON tt.id = tm.team_id
+         LEFT JOIN users u ON tm.user_id = u.id
          WHERE tt.tournament_id = $1
+         GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
          ORDER BY 
            tt.tournament_points DESC,
            tt.omp DESC,
            tt.gwp DESC,
-           tt.ogp DESC`,
+           tt.ogp DESC,
+           team_total_elo DESC`,
         [tournamentId]
       );
-      console.log(`   Sorting by: statistics only (points → omp → gwp → ogp)`);
+      console.log(`   Sorting by: statistics (points → omp → gwp → ogp) → team ELO sum DESC`);
     }
 
     const teams = teamsResult.rows;
@@ -1855,7 +1870,7 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
         `UPDATE tournament_teams SET tournament_ranking = $1 WHERE id = $2`,
         [ranking, teams[i].id]
       );
-      console.log(`   ${teams[i].name}: Rank #${ranking} (${teams[i].status}, Round ${teams[i].current_round}, ${teams[i].tournament_points}pts)`);
+      console.log(`   ${teams[i].name}: Rank #${ranking} (${teams[i].status}, Round ${teams[i].current_round}, ${teams[i].tournament_points}pts, Team ELO sum: ${teams[i].team_total_elo})`);
     }
 
     console.log(`✅ [RECALC_RANKINGS_TEAM] Team rankings updated`);

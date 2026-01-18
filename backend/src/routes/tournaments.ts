@@ -980,7 +980,7 @@ router.get('/:id/ranking', async (req, res) => {
        FROM tournament_participants tp
        JOIN users u ON tp.user_id = u.id
        WHERE tp.tournament_id = $1
-       ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC`,
+       ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, u.elo_rating DESC`,
       [id]
     );
 
