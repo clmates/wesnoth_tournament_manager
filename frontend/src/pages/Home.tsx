@@ -10,18 +10,26 @@ import '../styles/Home.css';
 // Determine API URL based on frontend hostname and Vite environment variables
 let API_URL: string;
 
-if (window.location.hostname.includes('main.')) {
+if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
   // Main deployment on Cloudflare Pages
-  API_URL = import.meta.env.VITE_API_URL || 'https://wesnothtournamentmanager-main.up.railway.app/api';
+  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
   console.log('🔍 Main deployment detected, using main backend');
+} else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+  // Production deployment (Cloudflare Pages production)
+  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+  console.log('🔍 Production deployment detected');
+} else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+  // PR preview on Cloudflare (feature-unranked-tournaments.wesnoth-tournament-manager.pages.dev)
+  API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+  console.log('🔍 PR preview detected, using PR backend');
 } else if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1') {
   // Local development
   API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
   console.log('🔍 Local development detected');
 } else {
-  // Production deployment (Cloudflare Pages default or custom domain)
-  API_URL = import.meta.env.VITE_API_URL || 'https://wesnothtournamentmanager-production.up.railway.app/api';
-  console.log('🔍 Production deployment detected');
+  // Fallback
+  API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  console.log('🔍 Fallback API URL used');
 }
 
 console.log(`📊 Using API_URL: ${API_URL}`);
@@ -165,24 +173,20 @@ const Home: React.FC = () => {
             // Test debug endpoint first
             const debugUrl = `${API_URL}/public/debug`;
             console.log(`🔍 Testing debug endpoint: ${debugUrl}`);
-            const debugRes = await fetch(debugUrl);
-            const debugText = await debugRes.text();
-            console.log(`📊 Debug response (${debugRes.status}): ${debugText.substring(0, 100)}`);
+            const debugRes = await publicService.getDebug();
+            console.log(`📊 Debug response (${debugRes.status}):`, debugRes.data);
             
             // Now try player of month
             const pomUrl = `${API_URL}/public/player-of-month`;
             console.log(`🔍 Fetching player of month from: ${pomUrl}`);
             
-            const pomRes = await fetch(pomUrl);
-            console.log(`📊 Response status: ${pomRes.status} ${pomRes.statusText}`);
-            console.log(`📊 Response headers:`, Array.from(pomRes.headers.entries()));
+            const pomRes = await publicService.getPlayerOfMonth();
+            console.log(`📊 Response status: ${pomRes.status}`);
+            console.log(`📊 Response headers:`, pomRes.headers);
             
-            const pomText = await pomRes.text();
-            console.log(`📊 Response text (first 300 chars): ${pomText.substring(0, 300)}`);
-            
-            if (pomRes.ok) {
+            if (pomRes.status === 200) {
               try {
-                const pomData = JSON.parse(pomText);
+                const pomData = pomRes.data;
                 console.log('✅ Player of month data:', pomData);
                 setPlayerOfMonth(pomData);
                 setPlayerMonthlyStats({
@@ -192,8 +196,8 @@ const Home: React.FC = () => {
                 });
                 setCachedData('player-of-month', pomData);
               } catch (parseErr) {
-                console.error('❌ Failed to parse JSON:', parseErr);
-                console.error('Raw response:', pomText);
+                console.error('❌ Failed to parse data:', parseErr);
+                console.error('Response:', pomRes.data);
               }
             } else {
               console.warn(`⚠️ Player of month not available (${pomRes.status})`);

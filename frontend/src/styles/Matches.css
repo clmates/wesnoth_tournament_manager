@@ -340,7 +340,6 @@
   background: #45a049;
 }
 
-
 .player-col {
   text-align: left;
 }
@@ -402,14 +401,6 @@
 .rating-change {
   font-size: 0.75rem;
   font-weight: 600;
-}
-
-.rating-change.positive {
-  color: #4CAF50;
-}
-
-.rating-change.negative {
-  color: #f44336;
 }
 
 .ranking-block {

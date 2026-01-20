@@ -376,8 +376,7 @@ router.get('/all', async (req, res) => {
   try {
     const result = await query(
       `SELECT id, nickname, elo_rating, level, is_rated, country, avatar, created_at FROM users 
-       WHERE is_active = true 
-         AND is_blocked = false
+       WHERE is_blocked = false
        ORDER BY created_at DESC
        LIMIT 500`
     );

@@ -468,9 +468,10 @@
   border-left: 4px solid #f44336;
 }
 
-/* Accept/Reject Buttons */
+/* Accept/Reject/Confirm Buttons */
 .btn-accept,
-.btn-reject {
+.btn-reject,
+.btn-confirm {
   padding: 0.4rem 0.8rem;
   margin: 0 0.25rem;
   border: none;
@@ -497,6 +498,15 @@
 
 .btn-reject:hover {
   background: #da190b;
+}
+
+.btn-confirm {
+  background: #2196F3;
+  color: white;
+}
+
+.btn-confirm:hover {
+  background: #0b7dda;
 }
 
 /* Error and Success Messages */
@@ -1220,72 +1230,6 @@
 }
 
 /* Match Details Modal */
-.modal-overlay {
-  display: flex;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  max-width: 1200px;
-  width: 100%;
-  max-height: 85vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid #e0e0e0;
-  flex-shrink: 0;
-}
-
-.modal-header h2 {
-  margin: 0;
-  font-size: 1.3rem;
-  color: #333;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #999;
-  transition: color 0.3s;
-  padding: 0;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.close-btn:hover {
-  color: #333;
-}
-
-.modal-body {
-  padding: 1.5rem;
-  flex: 1;
-  overflow-y: auto;
-}
-
 .detail-header {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1430,40 +1374,6 @@
   font-weight: 600;
 }
 
-/* Modal Footer Styles */
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-top: 1px solid #e0e0e0;
-  flex-shrink: 0;
-}
-
-.modal-small {
-  max-width: 500px;
-  width: 100%;
-  max-height: auto;
-}
-
-.cancel-btn,
-.close-modal-btn {
-  padding: 0.6rem 1.2rem;
-  background: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  color: #333;
-  transition: all 0.3s;
-}
-
-.cancel-btn:hover,
-.close-modal-btn:hover {
-  background: #e0e0e0;
-  border-color: #ccc;
-}
-
 .delete-btn {
   padding: 0.6rem 1.2rem;
   background: #e74c3c;
@@ -1480,3 +1390,211 @@
   border-color: #a93226;
 }
 
+/* Team Tournament Styles */
+.teams-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.team-card {
+  border: 2px solid #3498db;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
+  transition: all 0.3s ease;
+}
+
+.team-card:hover {
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+  transform: translateY(-2px);
+}
+
+.team-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #3498db;
+  flex-wrap: wrap;
+}
+
+.team-title {
+  flex: 0 1 auto;
+}
+
+.team-header h3 {
+  margin: 0 0 0.25rem 0;
+  color: #2c3e50;
+  font-size: 1.25rem;
+}
+
+.team-size {
+  font-size: 0.875rem;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.team-stats {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.team-stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.team-stats .stat-label {
+  font-size: 0.75rem;
+  color: #7f8c8d;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.team-stats .stat-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.team-members-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.team-members-table thead {
+  background: #ecf0f1;
+}
+
+.team-members-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #2c3e50;
+  border-bottom: 1px solid #bdc3c7;
+}
+
+.team-members-table td {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.team-members-table tbody tr:hover {
+  background-color: #e8f4f8;
+}
+
+.no-members {
+  color: #7f8c8d;
+  font-style: italic;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.team-substitutes {
+  background: white;
+  padding: 0.75rem;
+  border-radius: 4px;
+  border-left: 3px solid #e67e22;
+  margin-top: 1rem;
+}
+
+.team-substitutes strong {
+  color: #e67e22;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.team-substitutes ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.team-substitutes li {
+  margin: 0.25rem 0;
+  color: #2c3e50;
+}
+
+/* Unranked Assets Section */
+.unranked-assets-section {
+  background: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  border: 1px solid #e0e0e0;
+}
+
+.unranked-assets-section h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.assets-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.assets-group h4 {
+  margin: 0 0 1rem 0;
+  color: #34495e;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.assets-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.asset-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: inline-block;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.asset-badge:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.no-assets {
+  color: #95a5a6;
+  font-style: italic;
+  font-size: 0.9rem;
+  margin: 0.5rem 0 0 0;
+}
+
+@media (max-width: 768px) {
+  .assets-container {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}

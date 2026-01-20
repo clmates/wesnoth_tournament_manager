@@ -1,7 +1,21 @@
 import axios from 'axios';
 
-// Use the same API URL configuration as the main api service
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// Determine API URL based on environment at runtime (not build time)
+const getApiBaseUrl = (): string => {
+  if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+    return 'https://wesnothtournamentmanager-main.up.railway.app/api';
+  } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+    return 'https://wesnothtournamentmanager-production.up.railway.app/api';
+  } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+    return 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+  } else if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1') {
+    return import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  } else {
+    return import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  }
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

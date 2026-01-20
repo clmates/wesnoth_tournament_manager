@@ -17,9 +17,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// CORS configuration - allow both Netlify and Cloudflare URLs
+// CORS configuration - allow Cloudflare Pages and custom domains
 const allowedOrigins = [
-  'https://wesnoth-tournament-manager.netlify.app',    // Netlify (old)
   'https://wesnoth-tournament-manager.pages.dev',       // Cloudflare Pages (production)
   'https://main.wesnoth-tournament-manager.pages.dev',  // Cloudflare Pages preview (main branch)
   'https://wesnoth.playranked.org',                     // PlayRanked custom domain
@@ -29,8 +28,14 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      callback(null, true);
+    } else if (allowedOrigins.includes(origin)) {
+      // Exact match
+      callback(null, true);
+    } else if (origin.endsWith('.wesnoth-tournament-manager.pages.dev')) {
+      // Allow all subdomains of wesnoth-tournament-manager.pages.dev (main, PR previews, etc.)
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
