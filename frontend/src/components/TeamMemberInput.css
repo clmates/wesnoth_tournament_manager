@@ -1,0 +1,141 @@
+.team-member-input {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.team-member-input h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.error-message {
+  background-color: #ffebee;
+  color: #d32f2f;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.member-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.member-name {
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.position {
+  font-size: 12px;
+  color: #666;
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.remove-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  background: #ff5252;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.remove-btn:hover:not(:disabled) {
+  background: #d32f2f;
+}
+
+.remove-btn:disabled {
+  background: #bdbdbd;
+  cursor: not-allowed;
+}
+
+.no-members {
+  color: #999;
+  font-style: italic;
+  font-size: 13px;
+  margin: 0;
+  padding: 8px;
+}
+
+.add-member-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+}
+
+.player-select,
+.position-select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 13px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.player-select:focus,
+.position-select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.player-select:disabled,
+.position-select:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.add-btn {
+  padding: 8px 12px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.add-btn:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.add-btn:disabled {
+  background: #bdbdbd;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .add-member-form {
+    grid-template-columns: 1fr;
+  }
+}

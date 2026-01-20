@@ -1,9 +1,9 @@
 .report-match-container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 40px 20px;
-  min-height: calc(100vh - 70px);
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  max-width: 600px !important;
+  margin: 0 auto !important;
+  padding: 40px 20px !important;
+  min-height: calc(100vh - 70px) !important;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%) !important;
 }
 
 .report-match-form-wrapper {
@@ -58,6 +58,9 @@
 .form-group label {
   font-weight: 600;
   color: #2c3e50;
+  margin-bottom: 0.5rem;
+}
+
 .form-group input,
 .form-group select,
 .form-group textarea {
@@ -67,7 +70,8 @@
   font-size: 0.95em;
   transition: all 0.3s ease;
   font-family: inherit;
-  background: #f8f9fa;
+  background: white;
+  color: #2c3e50;
 }
 
 .form-group input:focus,
@@ -77,10 +81,6 @@
   border-color: #3498db;
   box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
   background-color: white;
-} outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-  background-color: #f9f9f9;
 }
 
 .form-group textarea {
@@ -141,7 +141,6 @@
   cursor: not-allowed;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .report-match-form-wrapper {
     padding: 25px;
@@ -165,7 +164,6 @@
   }
 }
 
-/* Modal Styles for Tournament Match Report */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -259,6 +257,8 @@
   font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.3s;
+  background: white;
+  color: #2c3e50;
 }
 
 .tournament-match-report .form-group input:focus,
@@ -301,13 +301,13 @@
   background: #2980b9;
 }
 
-.form-actions {
+.tournament-match-report .form-actions {
   display: flex;
   gap: 1rem;
   margin-top: 2rem;
 }
 
-.form-actions button {
+.tournament-match-report .form-actions button {
   flex: 1;
   padding: 0.75rem 1.5rem;
   border: none;
@@ -318,28 +318,28 @@
   transition: all 0.3s;
 }
 
-.btn-submit {
+.tournament-match-report .btn-submit {
   background: #27ae60;
   color: white;
 }
 
-.btn-submit:hover:not(:disabled) {
+.tournament-match-report .btn-submit:hover:not(:disabled) {
   background: #229954;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
 }
 
-.btn-submit:disabled {
+.tournament-match-report .btn-submit:disabled {
   background: #95a5a6;
   cursor: not-allowed;
 }
 
-.btn-cancel {
+.tournament-match-report .btn-cancel {
   background: #95a5a6;
   color: white;
 }
 
-.btn-cancel:hover {
+.tournament-match-report .btn-cancel:hover {
   background: #7f8c8d;
 }
 

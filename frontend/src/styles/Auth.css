@@ -587,6 +587,21 @@
   background-color: #229954;
 }
 
+/* Unranked Assets Grid - Side by side layout */
+.unranked-assets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .unranked-assets-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
 .tournament-form-buttons {
   display: flex;
   gap: 1rem;
@@ -897,5 +912,178 @@
   .form-group-selectors {
     grid-template-columns: 1fr;
     gap: 1rem;
+  }
+}
+
+/* Tournament Form Button Styles */
+.form-section.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: white;
+  border-left: none;
+}
+
+.form-section.button-group > .btn-submit {
+  padding: 0.75rem 2rem;
+  background-color: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.form-section.button-group > .btn-submit:hover:not(:disabled) {
+  background-color: #229954;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-section.button-group > .btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Checkbox Row Styles for Tables */
+.checkbox-row {
+  display: table-row;
+}
+
+.checkbox-row input[type="checkbox"] {
+  padding: 0;
+  margin: 0 10px 0 0;
+}
+
+/* Table Styling - Component-specific styles are in component CSS files */
+/* Do NOT add table styles here - use UnrankedFactionSelect.css and UnrankedMapSelect.css instead */
+
+/* Radio Button Group Styling */
+.radio-group {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0;
+  padding: 1rem;
+  background-color: #f5f7fa;
+  border-radius: 6px;
+  border: 1px solid #e0e6ed;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: #2c3e50;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.radio-label:hover {
+  background-color: #eef2f7;
+}
+
+.radio-label input[type="radio"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+  accent-color: #3498db;
+  flex-shrink: 0;
+}
+
+.radio-label input[type="radio"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Select/Dropdown Styling for Best of formats and other selects */
+select {
+  appearance: none;
+}
+
+.form-row select,
+.round-format-select select,
+.form-group select {
+  padding: 0.75rem 1rem;
+  border: 2px solid #bdc3c7;
+  border-radius: 4px;
+  background-color: white;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%232c3e50" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1.5rem;
+  padding-right: 2.5rem;
+}
+
+.form-row select:hover,
+.round-format-select select:hover,
+.form-group select:hover {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.form-row select:focus,
+.round-format-select select:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 8px rgba(52, 152, 219, 0.4);
+  background-color: #f0f8ff;
+}
+
+.form-row select:disabled,
+.round-format-select select:disabled,
+.form-group select:disabled {
+  background-color: #ecf0f1;
+  color: #95a5a6;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+select option {
+  background-color: white;
+  color: #2c3e50;
+  padding: 0.5rem;
+}
+
+/* Unranked Assets Container - Zone for independent controls */
+.unranked-assets-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e6ed;
+}
+
+/* Each asset control (faction/map) takes equal space with independent scroll */
+.unranked-assets-grid > * {
+  flex: 1 1 calc(50% - 1rem);
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 1024px) {
+  .unranked-assets-grid {
+    gap: 1.5rem;
+  }
+  
+  .unranked-assets-grid > * {
+    flex: 1 1 100%;
+    min-width: 100%;
   }
 }

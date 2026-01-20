@@ -3,15 +3,19 @@ import axios, { AxiosError } from 'axios';
 // Determine API URL based on environment
 let API_URL: string;
 
-if (import.meta.env.VITE_API_URL) {
-  // Explicit environment variable takes precedence
-  API_URL = import.meta.env.VITE_API_URL;
-} else if (window.location.hostname.includes('main.')) {
-  // Preview environment (main branch on Cloudflare)
+// Check hostname first (more specific than environment variables)
+if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+  // Main branch preview on Cloudflare
   API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+} else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
   // Production environment (production branch on Cloudflare)
   API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+} else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+  // PR preview on Cloudflare (feature-unranked-tournaments.wesnoth-tournament-manager.pages.dev)
+  API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+} else if (import.meta.env.VITE_API_URL) {
+  // Explicit environment variable as fallback
+  API_URL = import.meta.env.VITE_API_URL;
 } else {
   // Development/fallback
   API_URL = '/api';
@@ -133,6 +137,7 @@ export const matchService = {
   reportMatch: (data: any) => api.post('/matches/report', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
+  reportMatchJson: (data: any) => api.post('/matches/report-json', data),
   confirmMatch: (id: string, data: any) => api.post(`/matches/${id}/confirm`, data),
   getAllMatches: (page: number = 1, filters?: any) => {
     const params: any = { page };
@@ -175,7 +180,8 @@ export const tournamentService = {
   getAllTournaments: () => api.get('/tournaments'),
   getMyTournaments: () => api.get('/tournaments/my'),
   joinTournament: (id: string) => api.post(`/tournaments/${id}/join`),
-  requestJoinTournament: (id: string) => api.post(`/tournaments/${id}/request-join`),
+  requestJoinTournament: (id: string, data?: { team_name?: string; teammate_name?: string }) => 
+    api.post(`/tournaments/${id}/request-join`, data || {}),
   getTournamentRounds: (id: string) => api.get(`/tournaments/${id}/rounds`),
   getTournamentRanking: (id: string) => api.get(`/tournaments/${id}/ranking`),
   getTournamentStandings: (id: string, roundId?: string) => 
@@ -193,6 +199,8 @@ export const tournamentService = {
   startNextRound: (id: string) => api.post(`/tournaments/${id}/next-round`),
   acceptParticipant: (tournamentId: string, participantId: string) => 
     api.post(`/tournaments/${tournamentId}/participants/${participantId}/accept`),
+  confirmParticipation: (tournamentId: string, participantId: string) => 
+    api.post(`/tournaments/${tournamentId}/participants/${participantId}/confirm`),
   rejectParticipant: (tournamentId: string, participantId: string) => 
     api.post(`/tournaments/${tournamentId}/participants/${participantId}/reject`),
 };
@@ -276,7 +284,10 @@ export const publicService = {
   getTournamentById: (id: string) => api.get(`/public/tournaments/${id}`),
   getTournamentParticipants: (id: string) => api.get(`/public/tournaments/${id}/participants`),
   getTournamentMatches: (id: string) => api.get(`/public/tournaments/${id}/matches`),
+  getTournamentUnrankedAssets: (id: string) => api.get(`/public/tournaments/${id}/unranked-assets`),
   getMatch: (id: string) => api.get(`/matches/${id}`),
+  getDebug: () => api.get('/public/debug'),
+  getPlayerOfMonth: () => api.get('/public/player-of-month'),
 };
 
 export { api };

@@ -38,82 +38,199 @@ export async function selectPlayersForEliminationPhase(
     console.log(`Final Rounds: ${finalRounds}`);
     console.log(`Players to Advance: ${playersToAdvance}`);
     
-    // Get the top N players by tournament points and wins
-    const topPlayersResult = await query(
-      `SELECT user_id FROM tournament_participants 
-       WHERE tournament_id = $1 AND participation_status = 'accepted'
-       ORDER BY tournament_points DESC, tournament_wins DESC, user_id
-       LIMIT $2`,
-      [tournamentId, playersToAdvance]
-    );
-
-    if (topPlayersResult.rows.length === 0) {
-      console.log(`❌ [SELECT_PLAYERS] No players found to advance to elimination phase`);
-      return false;
-    }
-
-    const topPlayerIds = topPlayersResult.rows.map((row: any) => row.user_id);
-    console.log(`✅ [SELECT_PLAYERS] Top ${topPlayerIds.length} players advancing: ${topPlayerIds.join(', ')}`);
-    
-    // First, explicitly mark advancing players as 'active'
-    console.log(`\n[SELECT_PLAYERS] Updating status for advancing players...`);
-    const activateResult = await query(
-      `UPDATE tournament_participants
-       SET status = 'active'
-       WHERE tournament_id = $1 
-       AND participation_status = 'accepted'
-       AND user_id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
-      [tournamentId, ...topPlayerIds]
-    );
-    console.log(`✅ [SELECT_PLAYERS] Updated ${activateResult.rowCount} advancing players to ACTIVE`);
-    
-    // Then mark all other players as eliminated - use NOT IN for clarity
-    console.log(`\n[SELECT_PLAYERS] Updating status for eliminated players...`);
-    const result = await query(
-      `UPDATE tournament_participants
-       SET status = 'eliminated'
-       WHERE tournament_id = $1 
-       AND participation_status = 'accepted'
-       AND user_id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
-      [tournamentId, ...topPlayerIds]
-    );
-    console.log(`🚫 [SELECT_PLAYERS] Updated ${result.rowCount} eliminated players`);
-    
-    // Verify the update
-    const verifyResult = await query(
-      `SELECT status, COUNT(*) as count FROM tournament_participants
-       WHERE tournament_id = $1
-       GROUP BY status`,
+    // Get tournament mode to determine which table to use
+    const tournResultFirst = await query(
+      'SELECT tournament_mode FROM tournaments WHERE id = $1',
       [tournamentId]
     );
+    const tournamentMode = tournResultFirst.rows[0]?.tournament_mode || 'ranked';
+    console.log(`Tournament Mode: ${tournamentMode}`);
+    console.log(`[DEBUG] selectPlayersForEliminationPhase() - Starting with tourney mode: ${tournamentMode}`);
     
-    console.log(`\n[SELECT_PLAYERS] Verification - Final status distribution:`);
-    verifyResult.rows.forEach((row: any) => {
-      console.log(`  ${row.status}: ${row.count} players`);
-    });
-    
-    console.log(`${'='.repeat(80)}\n`);
-    
-    // Calculate tiebreakers for Swiss phase completion
+    // Calculate tiebreakers FIRST before selecting players
     console.log(`\n🎲 [TIEBREAKERS] Calculating Swiss tiebreakers (OMP, GWP, OGP)...`);
     try {
+      const functionName = tournamentMode === 'team' ? 'update_team_tiebreakers' : 'update_tournament_tiebreakers';
+      console.log(`[DEBUG] Using tiebreaker function: ${functionName}`);
       const tiebreakersResult = await query(
-        'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
+        `SELECT updated_count, error_message FROM ${functionName}($1)`,
         [tournamentId]
       );
       
       if (tiebreakersResult.rows.length > 0) {
         const { updated_count, error_message } = tiebreakersResult.rows[0];
+        console.log(`[DEBUG] Tiebreaker result - updated: ${updated_count}, error: ${error_message}`);
         if (error_message) {
           console.error(`❌ [TIEBREAKERS] Error: ${error_message}`);
         } else {
-          console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} participants`);
+          console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} ${tournamentMode === 'team' ? 'teams' : 'participants'}`);
         }
       }
     } catch (tiebreakersErr) {
       console.error('[TIEBREAKERS] Error calculating tiebreakers:', tiebreakersErr);
       // Don't fail the tournament if tiebreakers calculation fails
     }
+
+    let topPlayerIds: string[];
+    let fullRankingResult: any;
+
+    // Get top players based on tournament mode
+    console.log(`[DEBUG] Checking tournament mode: is team mode? ${tournamentMode === 'team'}`);
+    if (tournamentMode === 'team') {
+      // Team mode: select from tournament_teams
+      console.log(`\n[SELECT_PLAYERS] Using TEAM MODE - querying tournament_teams`);
+      
+      const topPlayersResult = await query(
+        `SELECT tt.id as user_id FROM tournament_teams tt
+         WHERE tt.tournament_id = $1 AND tt.status = 'active'
+         ORDER BY tt.tournament_points DESC, tt.tournament_wins DESC,
+                  COALESCE(tt.omp, 0) DESC, COALESCE(tt.gwp, 0) DESC, COALESCE(tt.ogp, 0) DESC,
+                  COALESCE(tt.team_elo, 0) DESC, tt.id
+         LIMIT $2`,
+        [tournamentId, playersToAdvance]
+      );
+
+      if (topPlayersResult.rows.length === 0) {
+        console.log(`❌ [SELECT_PLAYERS] No teams found to advance to elimination phase`);
+        return false;
+      }
+
+      topPlayerIds = topPlayersResult.rows.map((row: any) => row.user_id);
+      console.log(`✅ [SELECT_PLAYERS] Top ${topPlayerIds.length} teams advancing: ${topPlayerIds.join(', ')}`);
+
+      // Get full ranking for verification
+      fullRankingResult = await query(
+        `SELECT tt.id as user_id, tt.tournament_points, tt.tournament_wins, tt.omp, tt.gwp, tt.ogp, tt.team_elo as elo_rating, tt.name as team_name
+         FROM tournament_teams tt
+         WHERE tt.tournament_id = $1 AND tt.status = 'active'
+         ORDER BY tt.tournament_points DESC, tt.tournament_wins DESC,
+                  COALESCE(tt.omp, 0) DESC, COALESCE(tt.gwp, 0) DESC, COALESCE(tt.ogp, 0) DESC,
+                  COALESCE(tt.team_elo, 0) DESC, tt.id`,
+        [tournamentId]
+      );
+
+      console.log(`\n[SELECT_PLAYERS] Full team ranking (for verification):`);
+      fullRankingResult.rows.forEach((row: any, idx: number) => {
+        const isAdvancing = topPlayerIds.includes(row.user_id) ? '✅' : '❌';
+        console.log(`  ${isAdvancing} #${idx + 1} ${row.team_name} (${row.user_id}): ${row.tournament_points}pts, ${row.tournament_wins}W, OMP=${row.omp}, GWP=${row.gwp}, OGP=${row.ogp}, ELO=${row.elo_rating}`);
+      });
+
+      // Mark advancing teams as 'active' and others as 'eliminated'
+      console.log(`\n[SELECT_PLAYERS] Updating status for advancing teams...`);
+      const activateResult = await query(
+        `UPDATE tournament_teams
+         SET status = 'active'
+         WHERE tournament_id = $1 
+         AND id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+        [tournamentId, ...topPlayerIds]
+      );
+      console.log(`✅ [SELECT_PLAYERS] Updated ${activateResult.rowCount} advancing teams to ACTIVE`);
+
+      console.log(`\n[SELECT_PLAYERS] Updating status for eliminated teams...`);
+      const result = await query(
+        `UPDATE tournament_teams
+         SET status = 'eliminated'
+         WHERE tournament_id = $1 
+         AND id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+        [tournamentId, ...topPlayerIds]
+      );
+      console.log(`🚫 [SELECT_PLAYERS] Updated ${result.rowCount} eliminated teams`);
+
+      // Verify the update
+      const verifyResult = await query(
+        `SELECT status, COUNT(*) as count FROM tournament_teams
+         WHERE tournament_id = $1
+         GROUP BY status`,
+        [tournamentId]
+      );
+
+      console.log(`\n[SELECT_PLAYERS] Verification - Final team status distribution:`);
+      verifyResult.rows.forEach((row: any) => {
+        console.log(`  ${row.status}: ${row.count} teams`);
+      });
+    } else {
+      // Ranked/Unranked 1v1 mode: select from tournament_participants
+      console.log(`\n[SELECT_PLAYERS] Using 1V1 MODE (ranked/unranked) - querying tournament_participants`);
+
+      const topPlayersResult = await query(
+        `SELECT tp.user_id FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
+                  COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
+                  COALESCE(u.elo_rating, 0) DESC, tp.user_id
+         LIMIT $2`,
+        [tournamentId, playersToAdvance]
+      );
+
+      console.log(`[DEBUG] 1v1 query returned ${topPlayersResult.rows.length} rows`);
+      if (topPlayersResult.rows.length === 0) {
+        console.log(`❌ [SELECT_PLAYERS] No players found to advance to elimination phase`);
+        return false;
+      }
+
+      topPlayerIds = topPlayersResult.rows.map((row: any) => row.user_id);
+      console.log(`✅ [SELECT_PLAYERS] Top ${topPlayerIds.length} players advancing: ${topPlayerIds.join(', ')}`);
+
+      // Get full ranking for verification
+      fullRankingResult = await query(
+        `SELECT tp.user_id, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp, u.elo_rating
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
+                  COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
+                  COALESCE(u.elo_rating, 0) DESC, tp.user_id`,
+        [tournamentId]
+      );
+
+      console.log(`\n[SELECT_PLAYERS] Full player ranking (for verification):`);
+      fullRankingResult.rows.forEach((row: any, idx: number) => {
+        const isAdvancing = topPlayerIds.includes(row.user_id) ? '✅' : '❌';
+        console.log(`  ${isAdvancing} #${idx + 1} ${row.user_id}: ${row.tournament_points}pts, ${row.tournament_wins}W, OMP=${row.omp}, GWP=${row.gwp}, OGP=${row.ogp}, ELO=${row.elo_rating}`);
+      });
+
+      // Mark advancing players as 'active'
+      console.log(`\n[SELECT_PLAYERS] Updating status for advancing players...`);
+      const activateResult = await query(
+        `UPDATE tournament_participants
+         SET status = 'active'
+         WHERE tournament_id = $1 
+         AND participation_status = 'accepted'
+         AND user_id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+        [tournamentId, ...topPlayerIds]
+      );
+      console.log(`[DEBUG] UPDATE active result - rowCount: ${activateResult.rowCount}`);
+      console.log(`✅ [SELECT_PLAYERS] Updated ${activateResult.rowCount} advancing players to ACTIVE`);
+
+      // Mark all other players as eliminated
+      console.log(`\n[SELECT_PLAYERS] Updating status for eliminated players...`);
+      const result = await query(
+        `UPDATE tournament_participants
+         SET status = 'eliminated'
+         WHERE tournament_id = $1 
+         AND participation_status = 'accepted'
+         AND user_id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
+        [tournamentId, ...topPlayerIds]
+      );
+      console.log(`[DEBUG] UPDATE eliminated result - rowCount: ${result.rowCount}`);
+      console.log(`🚫 [SELECT_PLAYERS] Updated ${result.rowCount} eliminated players`);
+
+      // Verify the update
+      const verifyResult = await query(
+        `SELECT status, COUNT(*) as count FROM tournament_participants
+         WHERE tournament_id = $1
+         GROUP BY status`,
+        [tournamentId]
+      );
+
+      console.log(`\n[SELECT_PLAYERS] Verification - Final player status distribution:`);
+      verifyResult.rows.forEach((row: any) => {
+        console.log(`  ${row.status}: ${row.count} players`);
+      });
+    }
+
+    console.log(`${'='.repeat(80)}\n`);
     
     return true;
   } catch (error) {
@@ -187,6 +304,7 @@ function generateFirstRoundMatches(
   participants: Participant[],
   tournamentId: string,
   roundId: string,
+  tournamentMode: string = 'ranked',
   tournamentRoundMatches: any[] = []
 ): any[] {
   const matches = [];
@@ -199,6 +317,10 @@ function generateFirstRoundMatches(
 
   // Pair up participants
   for (let i = 0; i < shuffled.length - 1; i += 2) {
+    // For team tournaments, shuffled[i].user_id contains the team_id
+    // For 1v1 tournaments, shuffled[i].user_id contains the user_id
+    // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id, not user_id
+    // This is intentional and documented - it allows reusing existing match infrastructure
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
@@ -210,7 +332,7 @@ function generateFirstRoundMatches(
   // If odd number of participants, highest ELO gets a bye (automatic advancement)
   if (shuffled.length % 2 === 1) {
     const byePlayer = sorted[0]; // Highest ELO player
-    console.log(`🎯 Odd number of participants (${shuffled.length}). Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    console.log(`🎯 Odd number of participants (${shuffled.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
     
     // Mark this player for automatic advancement
     // This will be handled in the next round generation
@@ -229,41 +351,83 @@ function generateFirstRoundMatches(
 /**
  * Generates elimination bracket matches
  * If odd number of remaining players, highest ELO advances automatically (bye)
+ * For team mode: player_id1/2 contain team_id (Option B architecture)
  */
 function generateEliminationMatches(
   winners: any[],
   tournamentId: string,
-  roundId: string
+  roundId: string,
+  tournamentMode: string = 'ranked',
+  useSeeding: boolean = false
 ): any[] {
   const matches = [];
   
-  // Sort by ELO rating (descending) to identify bye candidate
-  const sorted = [...winners].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
+  // For Swiss-Elimination final rounds or when explicitly requested, use proper seeding (1v4, 2v3, etc)
+  // Otherwise use random shuffling (for pure elimination tournaments from previous round winners)
+  let pairedPlayers: any[];
   
-  // Shuffle for bracket arrangement
-  const shuffled = [...sorted].sort(() => Math.random() - 0.5);
-
-  for (let i = 0; i < shuffled.length - 1; i += 2) {
-    matches.push({
-      tournament_id: tournamentId,
-      round_id: roundId,
-      player1_id: shuffled[i].user_id,
-      player2_id: shuffled[i + 1].user_id,
-    });
-  }
-
-  // If odd number of players, highest ELO gets bye to next round
-  if (shuffled.length % 2 === 1) {
-    const byePlayer = sorted[0]; // Highest ELO among remaining
-    console.log(`🏆 Elimination round with odd players (${shuffled.length}). Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+  if (useSeeding && winners.length > 2) {
+    // Proper seeding for elimination brackets: 1 vs (n), 2 vs (n-1), etc
+    console.log(`[SEEDING] Using Swiss-based seeding for elimination bracket with ${winners.length} participants`);
+    pairedPlayers = winners; // Keep in ranking order - will pair seed1 vs seedN, seed2 vs seed(N-1), etc
     
-    matches.push({
-      tournament_id: tournamentId,
-      round_id: roundId,
-      player1_id: byePlayer.user_id,
-      player2_id: null, // Null indicates bye
-      is_bye: true,
-    });
+    for (let i = 0; i < Math.floor(pairedPlayers.length / 2); i++) {
+      const seed1Index = i;
+      const seed2Index = pairedPlayers.length - 1 - i;
+      console.log(`[SEEDING] Match ${i + 1}: Seed ${i + 1} (${pairedPlayers[seed1Index].user_id}) vs Seed ${pairedPlayers.length - i} (${pairedPlayers[seed2Index].user_id})`);
+      
+      matches.push({
+        tournament_id: tournamentId,
+        round_id: roundId,
+        player1_id: pairedPlayers[seed1Index].user_id,
+        player2_id: pairedPlayers[seed2Index].user_id,
+      });
+    }
+    
+    // If odd number of players, highest seed gets bye to next round
+    if (pairedPlayers.length % 2 === 1) {
+      const byePlayer = pairedPlayers[0]; // Top seed advances with bye
+      console.log(`🏆 Elimination round with odd players (${pairedPlayers.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (Seed 1) advances automatically (BYE)`);
+      
+      matches.push({
+        tournament_id: tournamentId,
+        round_id: roundId,
+        player1_id: byePlayer.user_id,
+        player2_id: null, // Null indicates bye
+        is_bye: true,
+      });
+    }
+  } else {
+    // Random shuffling for pure elimination tournaments
+    // Sort by ELO rating (descending) to identify bye candidate
+    const sorted = [...winners].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
+    
+    // Shuffle for bracket arrangement
+    const shuffled = [...sorted].sort(() => Math.random() - 0.5);
+
+    for (let i = 0; i < shuffled.length - 1; i += 2) {
+      // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id
+      matches.push({
+        tournament_id: tournamentId,
+        round_id: roundId,
+        player1_id: shuffled[i].user_id,
+        player2_id: shuffled[i + 1].user_id,
+      });
+    }
+
+    // If odd number of players, highest ELO gets bye to next round
+    if (shuffled.length % 2 === 1) {
+      const byePlayer = sorted[0]; // Highest ELO among remaining
+      console.log(`🏆 Elimination round with odd players (${shuffled.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+      
+      matches.push({
+        tournament_id: tournamentId,
+        round_id: roundId,
+        player1_id: byePlayer.user_id,
+        player2_id: null, // Null indicates bye
+        is_bye: true,
+      });
+    }
   }
 
   return matches;
@@ -272,11 +436,13 @@ function generateEliminationMatches(
 /**
  * Generates round-robin matches
  * Each player plays against each other player (limited to reasonable count)
+ * For team mode: player_id1/2 contain team_id (Option B architecture)
  */
 function generateRoundRobinMatches(
   participants: any[],
   tournamentId: string,
-  roundId: string
+  roundId: string,
+  tournamentMode: string = 'ranked'
 ): any[] {
   const matches = [];
   const maxMatches = 20; // Limit matches per round for practical reasons
@@ -284,6 +450,7 @@ function generateRoundRobinMatches(
   // Generate round-robin pairings, limited by maxMatches
   for (let i = 0; i < participants.length - 1 && matches.length < maxMatches; i++) {
     for (let j = i + 1; j < participants.length && matches.length < maxMatches; j++) {
+      // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id
       matches.push({
         tournament_id: tournamentId,
         round_id: roundId,
@@ -298,48 +465,241 @@ function generateRoundRobinMatches(
 
 /**
  * Generates Swiss system matches
- * Pairs players based on their current score/performance
+ * Pairs players based on their current score and tiebreakers (OMP, GWP, OGP)
+ * Avoids re-pairings when possible
+ * For team mode: player_id1/2 contain team_id (Option B architecture)
  */
-function generateSwissMatches(
+async function generateSwissMatches(
   participants: any[],
   tournamentId: string,
   roundId: string,
-  roundNumber: number
-): any[] {
+  roundNumber: number,
+  tournamentMode: string = 'ranked'
+): Promise<any[]> {
   const matches: any[] = [];
 
   if (participants.length < 2) {
     return matches;
   }
 
-  // Sort by ELO for Swiss pairing
-  const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
-  
-  // Simple Swiss pairing: pair strongest with second strongest, etc.
-  // For more accurate Swiss, would need access to tournament standings
-  for (let i = 0; i < sorted.length - 1; i += 2) {
-    matches.push({
-      tournament_id: tournamentId,
-      round_id: roundId,
-      player1_id: sorted[i].user_id,
-      player2_id: sorted[i + 1].user_id,
-    });
-  }
+  try {
+    // Get player/team standings with scores and tiebreakers
+    let standingsResult;
+    
+    if (tournamentMode === 'team') {
+      // Team mode: get standings from tournament_teams (participants are team_ids)
+      standingsResult = await query(
+        `SELECT 
+          tt.id as user_id,
+          tt.tournament_wins,
+          tt.tournament_losses,
+          tt.team_elo as elo_rating,
+          tt.omp,
+          tt.gwp,
+          tt.ogp
+         FROM tournament_teams tt
+         WHERE tt.tournament_id = $1 AND tt.id = ANY($2)
+         ORDER BY 
+           (tt.tournament_wins - tt.tournament_losses) DESC,
+           tt.omp DESC,
+           tt.gwp DESC,
+           tt.ogp DESC,
+           tt.team_elo DESC`,
+        [tournamentId, participants.map(p => p.user_id)]
+      );
+    } else {
+      // 1v1 mode: get standings from tournament_participants (participants are user_ids)
+      standingsResult = await query(
+        `SELECT 
+          tp.user_id,
+          tp.tournament_wins,
+          tp.tournament_losses,
+          u.elo_rating,
+          tp.omp,
+          tp.gwp,
+          tp.ogp
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.user_id = ANY($2)
+         ORDER BY 
+           (tp.tournament_wins - tp.tournament_losses) DESC,
+           tp.omp DESC,
+           tp.gwp DESC,
+           tp.ogp DESC,
+           u.elo_rating DESC`,
+        [tournamentId, participants.map(p => p.user_id)]
+      );
+    }
 
-  // If odd number, highest ELO gets bye
-  if (sorted.length % 2 === 1) {
-    const byePlayer = sorted[0];
-    console.log(`🎯 Swiss Round ${roundNumber}: Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
-    matches.push({
-      tournament_id: tournamentId,
-      round_id: roundId,
-      player1_id: byePlayer.user_id,
-      player2_id: null,
-      is_bye: true,
+    const standings = standingsResult.rows;
+    console.log(`\n🎲 [SWISS PAIRINGS] Round ${roundNumber}: ${standings.length} ${tournamentMode === 'team' ? 'teams' : 'players'}`);
+    standings.forEach(p => {
+      const score = (p.tournament_wins - p.tournament_losses);
+      const label = tournamentMode === 'team' ? 'Team' : 'Player';
+      console.log(`  ${label} ${p.user_id}: ${p.tournament_wins}-${p.tournament_losses} (OMP:${p.omp} GWP:${p.gwp} OGP:${p.ogp} ELO:${p.elo_rating})`);
     });
-  }
 
-  return matches;
+    // Group by score
+    const scoreGroups: { [key: string]: any[] } = {};
+    standings.forEach(player => {
+      const score = (player.tournament_wins - player.tournament_losses).toString();
+      if (!scoreGroups[score]) {
+        scoreGroups[score] = [];
+      }
+      scoreGroups[score].push(player);
+    });
+
+    console.log(`\n[SCORE GROUPS]:`);
+    Object.keys(scoreGroups).sort((a, b) => parseInt(b) - parseInt(a)).forEach(score => {
+      console.log(`  Score ${score}: ${scoreGroups[score].length} players`);
+    });
+
+    // Get history of pairings to avoid re-matches
+    const pairingHistoryResult = await query(
+      `SELECT DISTINCT 
+        LEAST(player1_id, player2_id) as player_a,
+        GREATEST(player1_id, player2_id) as player_b
+       FROM tournament_round_matches
+       WHERE tournament_id = $1 AND player1_id IS NOT NULL AND player2_id IS NOT NULL`,
+      [tournamentId]
+    );
+
+    const previousPairings = new Set(
+      pairingHistoryResult.rows.map(row => `${row.player_a}|${row.player_b}`)
+    );
+
+    console.log(`\n[PREVIOUS PAIRINGS]: ${previousPairings.size} historical pairings found`);
+
+    // PHASE 1: Pair within each score group, collect unpaired players
+    const paired = new Set<string>();
+    const unpairedByScore: { [score: string]: any[] } = {};
+    
+    for (const score of Object.keys(scoreGroups).sort((a, b) => parseInt(b) - parseInt(a))) {
+      const group = scoreGroups[score];
+      console.log(`\n[PAIRING GROUP] Score ${score}:`);
+
+      // Get available players in this group
+      const available = group.filter(p => !paired.has(p.user_id));
+      
+      // Pair as many as possible within this score group
+      for (let i = 0; i < available.length - 1; i++) {
+        if (paired.has(available[i].user_id)) continue;
+
+        let paired_with = null;
+
+        // Try to pair with next player without creating a re-match
+        for (let j = i + 1; j < available.length; j++) {
+          if (paired.has(available[j].user_id)) continue;
+
+          const pairing_key = `${Math.min(available[i].user_id, available[j].user_id)}|${Math.max(available[i].user_id, available[j].user_id)}`;
+          
+          if (!previousPairings.has(pairing_key)) {
+            paired_with = available[j];
+            console.log(`  ✅ Pair ${available[i].user_id} vs ${available[j].user_id} (new pairing)`);
+            break;
+          } else {
+            console.log(`  ⚠️  Avoid ${available[i].user_id} vs ${available[j].user_id} (re-match)`);
+          }
+        }
+
+        // If no new pairing found, use the first available (re-match necessary)
+        if (!paired_with) {
+          for (let j = i + 1; j < available.length; j++) {
+            if (!paired.has(available[j].user_id)) {
+              paired_with = available[j];
+              console.log(`  ⚠️  Pair ${available[i].user_id} vs ${available[j].user_id} (unavoidable re-match)`);
+              break;
+            }
+          }
+        }
+
+        if (paired_with) {
+          matches.push({
+            tournament_id: tournamentId,
+            round_id: roundId,
+            player1_id: available[i].user_id,
+            player2_id: paired_with.user_id,
+          });
+          paired.add(available[i].user_id);
+          paired.add(paired_with.user_id);
+        }
+      }
+
+      // Collect unpaired players from this score group
+      const remainingUnpaired = available.filter(p => !paired.has(p.user_id));
+      if (remainingUnpaired.length > 0) {
+        unpairedByScore[score] = remainingUnpaired;
+        console.log(`  ⏸️  Unpaired in this group: ${remainingUnpaired.map(p => `${p.user_id}(ELO:${p.elo_rating})`).join(', ')}`);
+      }
+    }
+
+    // PHASE 2: Try to pair unpaired players from different score groups
+    console.log(`\n[CROSS-GROUP PAIRING] Attempting to pair unpaired players from different score groups...`);
+    const scoreList = Object.keys(unpairedByScore).sort((a, b) => parseInt(b) - parseInt(a));
+    
+    for (let s = 0; s < scoreList.length - 1; s++) {
+      const score1 = scoreList[s];
+      const score2 = scoreList[s + 1];
+      const group1 = unpairedByScore[score1].filter(p => !paired.has(p.user_id));
+      const group2 = unpairedByScore[score2].filter(p => !paired.has(p.user_id));
+
+      console.log(`  Trying Score ${score1} vs Score ${score2}: ${group1.length} vs ${group2.length} unpaired`);
+
+      // Pair from score1 with score2
+      for (const player1 of group1) {
+        if (paired.has(player1.user_id)) continue;
+
+        for (const player2 of group2) {
+          if (paired.has(player2.user_id)) continue;
+
+          const pairing_key = `${Math.min(player1.user_id, player2.user_id)}|${Math.max(player1.user_id, player2.user_id)}`;
+          
+          if (!previousPairings.has(pairing_key)) {
+            console.log(`    ✅ Cross-pair ${player1.user_id}(Score ${score1}) vs ${player2.user_id}(Score ${score2}) (new pairing)`);
+            matches.push({
+              tournament_id: tournamentId,
+              round_id: roundId,
+              player1_id: player1.user_id,
+              player2_id: player2.user_id,
+            });
+            paired.add(player1.user_id);
+            paired.add(player2.user_id);
+            break;
+          }
+        }
+      }
+    }
+
+    // PHASE 3: Only if total player count is odd, assign bye to remaining unpaired
+    const totalUnpaired = standings.filter(p => !paired.has(p.user_id));
+    if (totalUnpaired.length > 0) {
+      if (totalUnpaired.length === 1 && standings.length % 2 === 1) {
+        // Odd total, one player left - give bye to highest ELO
+        const byePlayer = totalUnpaired[0];
+        console.log(`\n✅ FINAL BYE: ${byePlayer.user_id} (${byePlayer.tournament_wins}-${byePlayer.tournament_losses}, ELO: ${byePlayer.elo_rating}) - odd total player count`);
+        matches.push({
+          tournament_id: tournamentId,
+          round_id: roundId,
+          player1_id: byePlayer.user_id,
+          player2_id: null,
+          is_bye: true,
+        });
+        paired.add(byePlayer.user_id);
+      } else if (totalUnpaired.length > 0) {
+        // This should not happen - all even total tournaments should be fully paired
+        console.error(`❌ ERROR: ${totalUnpaired.length} unpaired players remain but tournament has even total count!`);
+        totalUnpaired.forEach(p => {
+          console.error(`  Unpaired: ${p.user_id}`);
+        });
+      }
+    }
+
+    console.log(`\n[SWISS PAIRINGS RESULT] Generated ${matches.length} pairings`);
+    return matches;
+  } catch (error) {
+    console.error('❌ Error in generateSwissMatches:', error);
+    throw error;
+  }
 }
 
 /**
@@ -349,7 +709,8 @@ function generateSwissMatches(
 function generateLeagueMatches(
   participants: any[],
   tournamentId: string,
-  roundId: string
+  roundId: string,
+  tournamentMode: string = 'ranked'
 ): any[] {
   const matches: any[] = [];
 
@@ -361,6 +722,7 @@ function generateLeagueMatches(
   const shuffled = [...participants].sort(() => Math.random() - 0.5);
   
   for (let i = 0; i < shuffled.length - 1; i += 2) {
+    // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
@@ -373,7 +735,7 @@ function generateLeagueMatches(
   if (shuffled.length % 2 === 1) {
     const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
     const byePlayer = sorted[0];
-    console.log(`🎯 League Round: Player ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    console.log(`🎯 League Round: ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
@@ -391,12 +753,20 @@ function generateLeagueMatches(
  */
 export async function activateRound(tournamentId: string, roundNumber: number): Promise<boolean> {
   try {
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`🎯 [ACTIVATE_ROUND] Starting activation for tournament=${tournamentId}, round_number=${roundNumber}`);
+    console.log(`${'='.repeat(80)}`);
+    
     // Get the round with format info
     const roundResult = await query(
-      `SELECT tr.id, tr.round_status, tr.tournament_id,
-              CASE WHEN tr.round_number <= t.general_rounds 
-                   THEN t.general_rounds_format 
-                   ELSE t.final_rounds_format 
+      `SELECT tr.id, tr.round_status, tr.tournament_id, t.tournament_type,
+              CASE 
+                WHEN tr.round_number <= t.general_rounds 
+                THEN t.general_rounds_format 
+                -- For swiss_elimination: final format only for the grand final (last round)
+                WHEN t.tournament_type = 'swiss_elimination' AND tr.round_number < (t.general_rounds + t.final_rounds)
+                THEN t.general_rounds_format
+                ELSE t.final_rounds_format 
               END as round_format
        FROM tournament_rounds tr
        JOIN tournaments t ON tr.tournament_id = t.id
@@ -409,15 +779,16 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     }
 
     const round = roundResult.rows[0];
+    console.log(`[ACTIVATE_ROUND] Round found: status=${round.round_status}, format=${round.round_format}`);
 
     if (round.round_status !== 'pending') {
       console.warn(`Round ${roundNumber} is already ${round.round_status}`);
       return false;
     }
 
-    // Get tournament info
+    // Get tournament info (including tournament_mode for team tournament handling)
     const tournamentResult = await query(
-      `SELECT tournament_type FROM tournaments WHERE id = $1`,
+      `SELECT tournament_type, tournament_mode FROM tournaments WHERE id = $1`,
       [tournamentId]
     );
 
@@ -463,20 +834,23 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         console.log(`Players to advance: ${Math.pow(2, final_rounds)}`);
         
         // Check if players have already been selected (should have at least some eliminated)
+        console.log(`\n[DEBUG] About to query eliminated players...`);
         const eliminatedCount = await query(
           `SELECT COUNT(*) as count FROM tournament_participants 
            WHERE tournament_id = $1 AND status = 'eliminated'`,
           [tournamentId]
         );
         
-        const elimCount = eliminatedCount.rows[0].count;
+        const elimCount = parseInt(eliminatedCount.rows[0].count);
+        console.log(`[DEBUG] elimCount = ${elimCount}, type: ${typeof elimCount}`);
         console.log(`Currently eliminated players: ${elimCount}`);
         
         // If no players are eliminated yet, run the selection
+        console.log(`[DEBUG] Checking condition: elimCount === 0? ${elimCount === 0}`);
         if (elimCount === 0) {
           console.log(`\n⚠️  [ACTIVATE_ROUND] No eliminated players detected. Running selectPlayersForEliminationPhase()...`);
-          await selectPlayersForEliminationPhase(tournamentId, final_rounds);
-          console.log(`✅ [ACTIVATE_ROUND] selectPlayersForEliminationPhase() completed`);
+          const selectionResult = await selectPlayersForEliminationPhase(tournamentId, final_rounds);
+          console.log(`✅ [ACTIVATE_ROUND] selectPlayersForEliminationPhase() completed with result: ${selectionResult}`);
         } else {
           console.log(`\n⏭️  [ACTIVATE_ROUND] Already have ${elimCount} eliminated players, skipping selection`);
         }
@@ -490,15 +864,32 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
 
     // Get accepted participants for first round, or based on tournament type for subsequent rounds
     let participants;
+    const isteamMode = tournament.tournament_mode === 'team';
+    
     if (roundNumber === 1) {
-      const participantsResult = await query(
-        `SELECT tp.id, tp.user_id, u.elo_rating
-         FROM tournament_participants tp
-         LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'`,
-        [tournamentId]
-      );
-      participants = participantsResult.rows;
+      if (isteamMode) {
+        // Team tournament: get teams instead of individual players
+        // ARCHITECTURE NOTE (Option B): We'll use team.id as if it were user_id for pairing functions
+        // The team_id will be stored in player_id1/2 columns of tournament_matches
+        const teamsResult = await query(
+          `SELECT tt.id as user_id, tt.team_elo as elo_rating
+           FROM tournament_teams tt
+           WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
+          [tournamentId]
+        );
+        participants = teamsResult.rows;
+        console.log(`[ACTIVATE_ROUND] Team mode: ${participants.length} teams for first round`);
+      } else {
+        // 1v1 tournament: get individual players
+        const participantsResult = await query(
+          `SELECT tp.id, tp.user_id, u.elo_rating
+           FROM tournament_participants tp
+           LEFT JOIN users u ON tp.user_id = u.id
+           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'`,
+          [tournamentId]
+        );
+        participants = participantsResult.rows;
+      }
     } else {
       // For subsequent rounds, behavior depends on tournament type AND round type
       const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
@@ -512,8 +903,33 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       
       console.log(`\n[GET_PARTICIPANTS] Round Type check: "${roundType}" (not 'general'? ${roundType !== 'general'})`);
       
-      if (tournamentType === 'elimination') {
-        // Elimination: only get non-eliminated participants (status = 'active')
+      if (isteamMode) {
+        // Team tournament: subsequent rounds
+        if (tournamentType === 'elimination') {
+          // Team elimination: only get active teams, ordered by ranking
+          const teamsResult = await query(
+            `SELECT tt.id as user_id, tt.team_elo as elo_rating, tt.tournament_ranking
+             FROM tournament_teams tt
+             WHERE tt.tournament_id = $1 AND tt.status = 'active'
+             ORDER BY tt.tournament_ranking ASC`,
+            [tournamentId]
+          );
+          participants = teamsResult.rows;
+          console.log(`[GET_PARTICIPANTS] Team mode elimination: ${participants.length} active teams (ordered by ranking)`);
+        } else {
+          // Team swiss/league: all active teams, ordered by ranking
+          const teamsResult = await query(
+            `SELECT tt.id as user_id, tt.team_elo as elo_rating, tt.tournament_ranking
+             FROM tournament_teams tt
+             WHERE tt.tournament_id = $1 AND tt.status = 'active'
+             ORDER BY tt.tournament_ranking ASC`,
+            [tournamentId]
+          );
+          participants = teamsResult.rows;
+          console.log(`[GET_PARTICIPANTS] Team mode swiss/league: ${participants.length} active teams (ordered by ranking)`);
+        }
+      } else if (tournamentType === 'elimination') {
+        // 1v1 Elimination: only get non-eliminated participants (status = 'active')
         const participantsResult = await query(
           `SELECT tp.id, tp.user_id, u.elo_rating
            FROM tournament_participants tp
@@ -525,19 +941,21 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         console.log(`[GET_PARTICIPANTS] Elimination round: ${participants.length} active participants`);
       } else if (tournamentType === 'swiss_elimination' && roundType !== 'general') {
         // Swiss-Elimination Mix in elimination rounds (not Swiss): only get non-eliminated participants (status = 'active')
+        // IMPORTANT: Sort by Swiss ranking (tournament_points, wins, tiebreakers) to ensure proper seeding
         console.log(`[GET_PARTICIPANTS] Swiss-Elimination Mix - ELIMINATION PHASE (roundType="${roundType}")`);
         const participantsResult = await query(
-          `SELECT tp.id, tp.user_id, u.elo_rating
+          `SELECT tp.id, tp.user_id, u.elo_rating, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp
            FROM tournament_participants tp
            LEFT JOIN users u ON tp.user_id = u.id
-           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted' AND status = 'active'`,
+           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted' AND status = 'active'
+           ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC, u.elo_rating DESC, tp.user_id`,
           [tournamentId]
         );
         participants = participantsResult.rows;
         console.log(`[GET_PARTICIPANTS] Found ${participants.length} active participants for elimination round`);
-        console.log(`[GET_PARTICIPANTS] Players: ${participants.map(p => p.user_id).join(', ')}`);
+        console.log(`[GET_PARTICIPANTS] Players (by ranking): ${participants.map(p => p.user_id).join(', ')}`);
       } else {
-        // Swiss, League, Swiss-Elimination (general rounds): all accepted participants continue
+        // 1v1 Swiss, League, Swiss-Elimination (general rounds): all accepted participants continue
         console.log(`[GET_PARTICIPANTS] Swiss/League round (tournamentType="${tournamentType}", roundType="${roundType}")`);
         const participantsResult = await query(
           `SELECT tp.id, tp.user_id, u.elo_rating
@@ -552,7 +970,9 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     }
 
     if (participants.length === 0) {
-      throw new Error('No participants available for this round');
+      const errorMsg = `No participants available for round ${roundNumber}`;
+      console.error(`[ACTIVATE_ROUND] ERROR: ${errorMsg}`);
+      throw new Error(errorMsg);
     }
 
     // Determine best_of format from round_format (bo1, bo3, bo5)
@@ -564,11 +984,14 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     const bestOf = bestOfMap[round.round_format] || 3;
     const winsRequired = Math.ceil(bestOf / 2);
 
+    console.log(`[ACTIVATE_ROUND] Retrieved ${participants.length} participants for round ${roundNumber}`);
+    console.log(`[ACTIVATE_ROUND] Best Of format: ${bestOf} (wins required: ${winsRequired})`);
+
     // Generate pairings based on round number and tournament type
     let pairings;
     if (roundNumber === 1) {
       // First round: pair all participants
-      pairings = generateFirstRoundMatches(participants, tournamentId, round.id);
+      pairings = generateFirstRoundMatches(participants, tournamentId, round.id, tournament.tournament_mode);
     } else {
       // Subsequent rounds: depends on tournament type AND round type
       const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
@@ -588,30 +1011,57 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       if (tournamentType === 'elimination') {
         // Elimination: pair winners from previous round
         console.log(`  → Using ELIMINATION pairings`);
-        pairings = generateEliminationMatches(participants, tournamentId, round.id);
+        pairings = generateEliminationMatches(participants, tournamentId, round.id, tournament.tournament_mode);
       } else if (tournamentType === 'swiss_elimination' && roundType !== 'general') {
-        // Swiss-Elimination Mix in final phase (not Swiss): use elimination pairings
-        console.log(`  → Using ELIMINATION pairings (Swiss-Elimination final phase)`);
-        pairings = generateEliminationMatches(participants, tournamentId, round.id);
+        // Swiss-Elimination Mix in final phase (not Swiss): use elimination pairings with Swiss seeding
+        console.log(`  → Using ELIMINATION pairings with Swiss seeding (Swiss-Elimination final phase)`);
+        pairings = generateEliminationMatches(participants, tournamentId, round.id, tournament.tournament_mode, true);
       } else if (tournamentType === 'swiss' || tournamentType === 'swiss_elimination') {
         // Swiss: use Swiss pairing system for all participants still in tournament
         console.log(`  → Using SWISS pairings`);
-        pairings = generateSwissMatches(participants, tournamentId, round.id, roundNumber);
+        pairings = await generateSwissMatches(participants, tournamentId, round.id, roundNumber, tournament.tournament_mode);
       } else {
         // League: all participants play each other
         console.log(`  → Using LEAGUE pairings`);
-        pairings = generateLeagueMatches(participants, tournamentId, round.id);
+        pairings = generateLeagueMatches(participants, tournamentId, round.id, tournament.tournament_mode);
       }
       
-      console.log(`  Generated ${pairings.length} pairings`);
+      console.log(`  Generated ${pairings.length} total pairings`);
+      const byeCount = pairings.filter(p => p.is_bye || p.player2_id === null).length;
+      const matchCount = pairings.length - byeCount;
+      console.log(`  → ${matchCount} actual matches, ${byeCount} byes`);
     }
+
+    console.log(`[ACTIVATE_ROUND] Processing ${pairings.length} pairings...`);
+    let matchesCreated = 0;
+    let byesProcessed = 0;
 
     for (const pairing of pairings) {
       // Handle bye (automatic advancement for odd player count)
       if (pairing.is_bye || pairing.player2_id === null) {
-        console.log(`✅ BYE: Player ${pairing.player1_id} advances automatically to next round`);
-        // No need to create matches for byes
-        // The player will automatically be included in next round
+        console.log(`✅ BYE: ${tournament.tournament_mode === 'team' ? 'Team' : 'Player'} ${pairing.player1_id} advances automatically to next round`);
+        byesProcessed++;
+        
+        // Register automatic win for bye player
+        if (isteamMode) {
+          await query(
+            `UPDATE tournament_teams 
+             SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                 tournament_points = COALESCE(tournament_points, 0) + 1
+             WHERE tournament_id = $1 AND id = $2`,
+            [tournamentId, pairing.player1_id]
+          );
+          console.log(`  → Team ${pairing.player1_id}: +1 win, +1 point`);
+        } else {
+          await query(
+            `UPDATE tournament_participants 
+             SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                 tournament_points = COALESCE(tournament_points, 0) + 1
+             WHERE tournament_id = $1 AND user_id = $2`,
+            [tournamentId, pairing.player1_id]
+          );
+          console.log(`  → Player ${pairing.player1_id}: +1 win, +1 point`);
+        }
         continue;
       }
 
@@ -639,7 +1089,10 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       }
 
       console.log(`Created ${matchesToCreate} initial matches for round_match ${roundMatchId} (Bo${bestOf}, needs ${winsRequired} wins)`);
+      matchesCreated++;
     }
+
+    console.log(`[ACTIVATE_ROUND] Summary: Created ${matchesCreated} series, ${byesProcessed} byes`);
 
     // Update round status to in_progress
     await query(
@@ -649,7 +1102,17 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       [round.id]
     );
 
-    console.log(`Round ${roundNumber} activated with ${pairings.length} pairings, best_of: ${bestOf}`);
+    // Update current_round and recalculate rankings based on tournament mode
+    if (isteamMode) {
+      await updateTeamCurrentRound(tournamentId, roundNumber);
+      await recalculateTeamRankingsForTournament(tournamentId);
+    } else {
+      // 1v1 mode
+      await updateParticipantCurrentRound(tournamentId, roundNumber);
+      await recalculateParticipantRankings(tournamentId);
+    }
+
+    console.log(`✅ [ACTIVATE_ROUND] Round ${roundNumber} successfully activated with ${pairings.length} pairings (${matchesCreated} matches + ${byesProcessed} byes), best_of: ${bestOf}`);
     return true;
   } catch (error) {
     console.error('Error activating round:', error);
@@ -735,21 +1198,10 @@ export async function completeRound(roundId: string, tournamentId: string): Prom
         );
 
         if (tournamentResult.rows.length > 0 && tournamentResult.rows[0].discord_thread_id) {
-          // Get winner and runner up
-          const rankingResult = await query(
-            `SELECT tp.user_id, u.nickname, tp.tournament_points, tp.tournament_wins
-             FROM tournament_participants tp
-             LEFT JOIN users u ON tp.user_id = u.id
-             WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
-             ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC
-             LIMIT 2`,
-            [tournamentId]
-          );
+          // Get winner and runner-up based on tournament type
+          const { winner, runnerUp } = await getWinnerAndRunnerUp(tournamentId);
 
-          if (rankingResult.rows.length > 0) {
-            const winner = rankingResult.rows[0];
-            const runnerUp = rankingResult.rows.length > 1 ? rankingResult.rows[1] : null;
-
+          if (winner) {
             await discordService.postTournamentFinished(
               tournamentResult.rows[0].discord_thread_id,
               tournamentResult.rows[0].name,
@@ -876,6 +1328,27 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
       );
       console.log(`✅ Round ${roundNumber} marked as completed for tournament ${tournamentId}`);
 
+      // Get tournament mode to recalculate rankings appropriately
+      const modeResult = await query(
+        `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+        [tournamentId]
+      );
+      const tournMode = modeResult.rows[0]?.tournament_mode || 'ranked';
+
+      // Recalculate rankings after round completion
+      try {
+        console.log(`\n🔄 [RECALC_RANKINGS] Recalculating ${tournMode === 'team' ? 'team' : 'participant'} rankings for tournament ${tournamentId}`);
+        if (tournMode === 'team') {
+          await recalculateTeamRankingsForTournament(tournamentId);
+        } else {
+          await recalculateParticipantRankings(tournamentId);
+        }
+        console.log(`✅ [RECALC_RANKINGS] Updated ${tournMode === 'team' ? 'team' : 'participant'} rankings after round completion\n`);
+      } catch (rankingErr) {
+        console.error(`\n❌ Error recalculating rankings after round ${roundNumber}:`, rankingErr);
+        // Don't fail the round completion if ranking update fails
+      }
+
       // Check if this is the last Swiss round in a Swiss-Elimination Mix tournament
       const currentRoundInfo = await query(
         `SELECT tr.round_type, t.tournament_type, t.general_rounds, t.final_rounds
@@ -906,6 +1379,19 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
           
           // Execute player selection for elimination phase
           await selectPlayersForEliminationPhase(tournamentId, final_rounds);
+          
+          // Recalculate rankings after elimination to reflect new status
+          console.log(`\n🔄 [SWISS_ELIMINATION] Recalculating rankings after player selection...`);
+          try {
+            if (tournMode === 'team') {
+              await recalculateTeamRankingsForTournament(tournamentId);
+            } else {
+              await recalculateParticipantRankings(tournamentId);
+            }
+            console.log(`✅ [SWISS_ELIMINATION] Rankings recalculated after elimination`);
+          } catch (rankingErr) {
+            console.error(`⚠️  [SWISS_ELIMINATION] Error recalculating rankings after elimination:`, rankingErr);
+          }
         } else {
           console.log(`\n⏭️  [SWISS_ELIMINATION] Not executing selectPlayersForEliminationPhase() - conditions not met`);
         }
@@ -921,12 +1407,20 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
       if (roundNumber === totalRounds) {
         // This is the last round - tournament is about to finish
         
+        // Get tournament mode
+        const tournamentResult = await query(
+          `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+          [tournamentId]
+        );
+        const tournMode = tournamentResult.rows[0]?.tournament_mode || 'ranked';
+        
         // FIRST: Calculate tiebreakers BEFORE marking as finished
         // This ensures rankings are properly ordered by OMP/GWP/OGP for correct winner selection
         console.log(`\n🎲 [TIEBREAKERS] Calculating tournament tiebreakers (OMP, GWP, OGP) BEFORE finishing...`);
         try {
+          const functionName = tournMode === 'team' ? 'update_team_tiebreakers' : 'update_tournament_tiebreakers';
           const tiebreakersResult = await query(
-            'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
+            `SELECT updated_count, error_message FROM ${functionName}($1)`,
             [tournamentId]
           );
           
@@ -935,7 +1429,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
             if (error_message) {
               console.error(`❌ [TIEBREAKERS] Error: ${error_message}`);
             } else {
-              console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} participants`);
+              console.log(`✅ [TIEBREAKERS] Calculated tiebreakers for ${updated_count} ${tournMode === 'team' ? 'teams' : 'participants'}`);
             }
           }
         } catch (tiebreakersErr) {
@@ -943,24 +1437,16 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
           // Don't fail the tournament finish if tiebreakers calculation fails
         }
 
-        // THEN: Get ranking with proper tiebreaker ordering
-        const rankingResult = await query(
-          `SELECT user_id FROM tournament_participants 
-           WHERE tournament_id = $1 
-           ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC
-           LIMIT 1`,
-          [tournamentId]
-        );
+        // THEN: Get winner and runner-up based on tournament type
+        const { winner, runnerUp } = await getWinnerAndRunnerUp(tournamentId);
 
-        if (rankingResult.rows.length > 0) {
-          const winnerId = rankingResult.rows[0].user_id;
-          
+        if (winner) {
           // NOW mark as finished
           await query(
             `UPDATE tournaments SET status = 'finished', finished_at = NOW() WHERE id = $1`,
             [tournamentId]
           );
-          console.log(`🏆 Tournament ${tournamentId} finished - Winner: ${winnerId}`);
+          console.log(`🏆 Tournament ${tournamentId} finished - Winner: ${winner.nickname}`);
 
           // Notify Discord of tournament finish
           try {
@@ -970,28 +1456,15 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
             );
 
             if (tournamentResult.rows.length > 0 && tournamentResult.rows[0].discord_thread_id) {
-              // Get detailed ranking with nicknames for winner and runner-up
-              const detailedRankingResult = await query(
-                `SELECT tp.user_id, u.nickname, tp.tournament_points, tp.tournament_wins
-                 FROM tournament_participants tp
-                 LEFT JOIN users u ON tp.user_id = u.id
-                 WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
-                 ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC
-                 LIMIT 2`,
-                [tournamentId]
+              const winnerNickname = winner.nickname || 'Unknown';
+              const runnerUpNickname = runnerUp?.nickname || 'N/A';
+              
+              await discordService.postTournamentFinished(
+                tournamentResult.rows[0].discord_thread_id,
+                tournamentResult.rows[0].name,
+                winnerNickname,
+                runnerUpNickname
               );
-
-              if (detailedRankingResult.rows.length > 0) {
-                const winner = detailedRankingResult.rows[0];
-                const runnerUp = detailedRankingResult.rows.length > 1 ? detailedRankingResult.rows[1] : null;
-
-                await discordService.postTournamentFinished(
-                  tournamentResult.rows[0].discord_thread_id,
-                  tournamentResult.rows[0].name,
-                  winner.nickname || 'Unknown',
-                  runnerUp ? runnerUp.nickname : 'N/A'
-                );
-              }
             }
           } catch (discordErr) {
             console.error('Discord tournament finished notification error:', discordErr);
@@ -1006,6 +1479,497 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
     return false;
   } catch (error) {
     console.error('Error checking/completing round:', error);
+    throw error;
+  }
+}
+
+/**
+ * Calculate and update tournament rankings for team mode
+ * Ranks teams based on: wins-losses difference, then OMP, GWP, OGP, ELO
+ * Updates tournament_ranking column for UI display
+ */
+export async function recalculateTeamRankings(tournamentId: string): Promise<void> {
+  try {
+    console.log(`\n📊 [TEAM_RANKINGS] Recalculating rankings for tournament ${tournamentId}`);
+
+    // Get all active teams ranked by performance
+    const teamsResult = await query(
+      `SELECT 
+        tt.id,
+        tt.name,
+        tt.tournament_wins,
+        tt.tournament_losses,
+        tt.tournament_points,
+        tt.omp,
+        tt.gwp,
+        tt.ogp
+       FROM tournament_teams tt
+       WHERE tt.tournament_id = $1 AND tt.status = 'active'
+       ORDER BY 
+         (tt.tournament_wins - tt.tournament_losses) DESC,
+         tt.omp DESC,
+         tt.gwp DESC,
+         tt.ogp DESC`,
+      [tournamentId]
+    );
+
+    const teams = teamsResult.rows;
+    console.log(`Found ${teams.length} active teams for ranking`);
+
+    // Update ranking for each team
+    for (let i = 0; i < teams.length; i++) {
+      const ranking = i + 1;
+      await query(
+        `UPDATE tournament_teams SET tournament_ranking = $1 WHERE id = $2`,
+        [ranking, teams[i].id]
+      );
+      console.log(`  Team ${teams[i].team_name}: Rank #${ranking} (${teams[i].tournament_wins}W-${teams[i].tournament_losses}L)`);
+    }
+
+    console.log(`✅ Team rankings updated for tournament ${tournamentId}`);
+  } catch (error) {
+    console.error('Error recalculating team rankings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update current_round for participant (1v1) when advancing to next round
+ * Called when a new round is activated
+ * For round 1: all participants start at round 1
+ * For subsequent rounds: only active participants advance, eliminated stay at elimination round
+ */
+export async function updateParticipantCurrentRound(tournamentId: string, roundNumber: number): Promise<void> {
+  try {
+    console.log(`\n🔄 [PARTICIPANT_ROUND] Updating current_round to ${roundNumber} for tournament ${tournamentId}`);
+
+    if (roundNumber === 1) {
+      // For round 1, all participants start in round 1
+      await query(
+        `UPDATE tournament_participants SET current_round = $1 WHERE tournament_id = $2`,
+        [roundNumber, tournamentId]
+      );
+      console.log(`✅ All participants set to current_round = ${roundNumber}`);
+    } else {
+      // Only update active participants (eliminated ones stay at their elimination round)
+      await query(
+        `UPDATE tournament_participants SET current_round = $1 WHERE tournament_id = $2 AND status = 'active'`,
+        [roundNumber, tournamentId]
+      );
+      console.log(`✅ Active participants updated to current_round = ${roundNumber}`);
+    }
+  } catch (error) {
+    console.error('Error updating participant current_round:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update current_round for team when advancing to next round
+ * Called when a new round is activated
+ */
+export async function updateTeamCurrentRound(tournamentId: string, roundNumber: number): Promise<void> {
+  try {
+    console.log(`\n🔄 [TEAM_ROUND] Updating current_round to ${roundNumber} for tournament ${tournamentId}`);
+
+    // For round 1, all teams start in round 1
+    // For subsequent rounds, only active teams are updated
+    if (roundNumber === 1) {
+      await query(
+        `UPDATE tournament_teams SET current_round = $1 WHERE tournament_id = $2`,
+        [roundNumber, tournamentId]
+      );
+      console.log(`✅ All teams set to current_round = ${roundNumber}`);
+    } else {
+      // Only update active teams (eliminated teams stay at their elimination round)
+      await query(
+        `UPDATE tournament_teams SET current_round = $1 WHERE tournament_id = $2 AND status = 'active'`,
+        [roundNumber, tournamentId]
+      );
+      console.log(`✅ Active teams updated to current_round = ${roundNumber}`);
+    }
+  } catch (error) {
+    console.error('Error updating team current_round:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get winner and runner-up based on tournament type
+ * For elimination/swiss_elimination: uses final match participants
+ * For swiss/league: uses statistics-based ranking
+ * Handles both team and 1v1 modes
+ */
+export async function getWinnerAndRunnerUp(
+  tournamentId: string
+): Promise<{ winner: { id: string; nickname: string } | null; runnerUp: { id: string; nickname: string } | null }> {
+  try {
+    // Step 1: Detect tournament mode and type
+    const tournResult = await query(
+      `SELECT tournament_mode, tournament_type FROM tournaments WHERE id = $1`,
+      [tournamentId]
+    );
+
+    if (tournResult.rows.length === 0) {
+      console.error(`Tournament ${tournamentId} not found`);
+      return { winner: null, runnerUp: null };
+    }
+
+    const isTeamMode = tournResult.rows[0].tournament_mode === 'team';
+    const tournamentType = tournResult.rows[0].tournament_type?.toLowerCase() || 'swiss';
+
+    // Step 2: Detect tournament type category
+    const isElimination = tournamentType === 'elimination' || tournamentType === 'swiss_elimination';
+
+    console.log(`[WINNER_RUNNERUP] Tournament mode: ${isTeamMode ? 'team' : '1v1'}, Type: ${tournamentType}, IsElimination: ${isElimination}`);
+
+    if (isElimination) {
+      // ELIMINATION/SWISS_ELIMINATION: Get final match participants
+      console.log(`[WINNER_RUNNERUP] Using ELIMINATION logic - finding final match`);
+
+      if (isTeamMode) {
+        // Team mode - final match from tournament_teams
+        const finalMatchResult = await query(
+          `SELECT trm.winner_id, trm.player1_id, trm.player2_id
+           FROM tournament_round_matches trm
+           WHERE trm.tournament_id = $1 AND trm.series_status = 'completed'
+           ORDER BY trm.created_at DESC
+           LIMIT 1`,
+          [tournamentId]
+        );
+
+        if (finalMatchResult.rows.length === 0) {
+          console.log(`[WINNER_RUNNERUP] No completed matches found`);
+          return { winner: null, runnerUp: null };
+        }
+
+        const finalMatch = finalMatchResult.rows[0];
+        const winnerId = finalMatch.winner_id;
+        const runnerUpId = finalMatch.player1_id === winnerId ? finalMatch.player2_id : finalMatch.player1_id;
+
+        // Get team details
+        const winnerResult = await query(
+          `SELECT id, name as nickname FROM tournament_teams WHERE id = $1`,
+          [winnerId]
+        );
+        const runnerUpResult = await query(
+          `SELECT id, name as nickname FROM tournament_teams WHERE id = $1`,
+          [runnerUpId]
+        );
+
+        const winner = winnerResult.rows[0] || null;
+        const runnerUp = runnerUpResult.rows[0] || null;
+
+        console.log(`[WINNER_RUNNERUP] Winner: ${winner?.nickname}, Runner-up: ${runnerUp?.nickname}`);
+        return { winner, runnerUp };
+      } else {
+        // 1v1 mode - final match from tournament_participants
+        const finalMatchResult = await query(
+          `SELECT trm.winner_id, trm.player1_id, trm.player2_id
+           FROM tournament_round_matches trm
+           WHERE trm.tournament_id = $1 AND trm.series_status = 'completed'
+           ORDER BY trm.created_at DESC
+           LIMIT 1`,
+          [tournamentId]
+        );
+
+        if (finalMatchResult.rows.length === 0) {
+          console.log(`[WINNER_RUNNERUP] No completed matches found`);
+          return { winner: null, runnerUp: null };
+        }
+
+        const finalMatch = finalMatchResult.rows[0];
+        const winnerId = finalMatch.winner_id;
+        const runnerUpId = finalMatch.player1_id === winnerId ? finalMatch.player2_id : finalMatch.player1_id;
+
+        // Get player details
+        const winnerResult = await query(
+          `SELECT u.id, u.nickname FROM users u WHERE u.id = $1`,
+          [winnerId]
+        );
+        const runnerUpResult = await query(
+          `SELECT u.id, u.nickname FROM users u WHERE u.id = $1`,
+          [runnerUpId]
+        );
+
+        const winner = winnerResult.rows[0] || null;
+        const runnerUp = runnerUpResult.rows[0] || null;
+
+        console.log(`[WINNER_RUNNERUP] Winner: ${winner?.nickname}, Runner-up: ${runnerUp?.nickname}`);
+        return { winner, runnerUp };
+      }
+    } else {
+      // SWISS/LEAGUE: Get top 2 by statistics
+      console.log(`[WINNER_RUNNERUP] Using SWISS/LEAGUE logic - ranking by statistics`);
+
+      if (isTeamMode) {
+        // Team mode - top 2 teams por stats
+        const topTeamsResult = await query(
+          `SELECT id, name as nickname, tournament_points, tournament_wins, omp, gwp, ogp
+           FROM tournament_teams
+           WHERE tournament_id = $1 AND status = 'active'
+           ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC
+           LIMIT 2`,
+          [tournamentId]
+        );
+
+        if (topTeamsResult.rows.length === 0) {
+          console.log(`[WINNER_RUNNERUP] No teams found`);
+          return { winner: null, runnerUp: null };
+        }
+
+        const winner = topTeamsResult.rows[0] || null;
+        const runnerUp = topTeamsResult.rows[1] || null;
+
+        console.log(`[WINNER_RUNNERUP] Winner: ${winner?.nickname}, Runner-up: ${runnerUp?.nickname}`);
+        return { winner, runnerUp };
+      } else {
+        // 1v1 mode - top 2 players por stats
+        const topPlayersResult = await query(
+          `SELECT u.id, u.nickname, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp
+           FROM tournament_participants tp
+           LEFT JOIN users u ON tp.user_id = u.id
+           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+           ORDER BY tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC
+           LIMIT 2`,
+          [tournamentId]
+        );
+
+        if (topPlayersResult.rows.length === 0) {
+          console.log(`[WINNER_RUNNERUP] No players found`);
+          return { winner: null, runnerUp: null };
+        }
+
+        const winner = topPlayersResult.rows[0] || null;
+        const runnerUp = topPlayersResult.rows[1] || null;
+
+        console.log(`[WINNER_RUNNERUP] Winner: ${winner?.nickname}, Runner-up: ${runnerUp?.nickname}`);
+        return { winner, runnerUp };
+      }
+    }
+  } catch (error) {
+    console.error('[WINNER_RUNNERUP] Error getting winner and runner-up:', error);
+    return { winner: null, runnerUp: null };
+  }
+}
+
+/**
+ * Check if tournament is currently in elimination phase
+ * Used to determine ranking logic (elimination vs swiss/league)
+ */
+export async function isInEliminationPhase(tournamentId: string): Promise<boolean> {
+  try {
+    // Check for active rounds in elimination phase
+    const activeElimResult = await query(
+      `SELECT COUNT(*) as count FROM tournament_rounds 
+       WHERE tournament_id = $1 AND round_status = 'in_progress' 
+       AND round_classification IN ('semifinal', 'final')`,
+      [tournamentId]
+    );
+
+    if (parseInt(activeElimResult.rows[0].count) > 0) {
+      return true;
+    }
+
+    // Check if latest completed round is in elimination phase
+    const latestRoundResult = await query(
+      `SELECT round_classification FROM tournament_rounds 
+       WHERE tournament_id = $1 AND round_status = 'completed'
+       ORDER BY round_number DESC LIMIT 1`,
+      [tournamentId]
+    );
+
+    if (latestRoundResult.rows.length > 0) {
+      return ['semifinal', 'final'].includes(latestRoundResult.rows[0].round_classification);
+    }
+
+    return false;
+  } catch (error) {
+    console.error('[IS_ELIMINATION_PHASE] Error checking elimination phase:', error);
+    return false;
+  }
+}
+
+/**
+ * Recalculate and update tournament rankings for 1v1 mode
+ * Ranks participants based on:
+ * - Elimination phase: by status (active first), current_round (higher first), then statistics
+ * - Swiss/League phase: by statistics (tournament_points, omp, gwp, ogp)
+ * Updates tournament_ranking column for UI display and includes both active and eliminated
+ */
+export async function recalculateParticipantRankings(tournamentId: string): Promise<void> {
+  try {
+    console.log(`\n📊 [RECALC_RANKINGS_1V1] Recalculating rankings for 1v1 tournament ${tournamentId}`);
+
+    const isElimination = await isInEliminationPhase(tournamentId);
+    console.log(`   Phase: ${isElimination ? 'ELIMINATION' : 'SWISS/LEAGUE'}`);
+
+    let participantsResult;
+
+    if (isElimination) {
+      // Elimination phase: active participants first, then by current_round desc, then by stats, then by ELO
+      participantsResult = await query(
+        `SELECT 
+          tp.id,
+          tp.status,
+          tp.current_round,
+          tp.tournament_points,
+          tp.omp,
+          tp.gwp,
+          tp.ogp,
+          u.nickname,
+          u.elo_rating
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         ORDER BY 
+           CASE WHEN tp.status = 'active' THEN 0 ELSE 1 END,
+           tp.current_round DESC,
+           tp.tournament_points DESC,
+           tp.omp DESC,
+           tp.gwp DESC,
+           tp.ogp DESC,
+           u.elo_rating DESC`,
+        [tournamentId]
+      );
+      console.log(`   Sorting by: status (active first) → current_round DESC → statistics → ELO DESC`);
+    } else {
+      // Swiss/League phase: by statistics only, then by ELO as tiebreaker
+      participantsResult = await query(
+        `SELECT 
+          tp.id,
+          tp.status,
+          tp.current_round,
+          tp.tournament_points,
+          tp.omp,
+          tp.gwp,
+          tp.ogp,
+          u.nickname,
+          u.elo_rating
+         FROM tournament_participants tp
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         ORDER BY 
+           tp.tournament_points DESC,
+           tp.omp DESC,
+           tp.gwp DESC,
+           tp.ogp DESC,
+           u.elo_rating DESC`,
+        [tournamentId]
+      );
+      console.log(`   Sorting by: statistics (points → omp → gwp → ogp) → ELO DESC`);
+    }
+
+    const participants = participantsResult.rows;
+    console.log(`   Found ${participants.length} participants for ranking`);
+
+    // Update ranking for each participant
+    for (let i = 0; i < participants.length; i++) {
+      const ranking = i + 1;
+      await query(
+        `UPDATE tournament_participants SET tournament_ranking = $1 WHERE id = $2`,
+        [ranking, participants[i].id]
+      );
+      console.log(`   ${participants[i].nickname}: Rank #${ranking} (${participants[i].status}, Round ${participants[i].current_round}, ${participants[i].tournament_points}pts, ELO: ${participants[i].elo_rating})`);
+    }
+
+    console.log(`✅ [RECALC_RANKINGS_1V1] Participant rankings updated`);
+  } catch (error) {
+    console.error('[RECALC_RANKINGS_1V1] Error recalculating participant rankings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recalculate and update tournament rankings for team mode
+ * Ranks teams based on:
+ * - Elimination phase: by status (active first), current_round (higher first), then statistics
+ * - Swiss/League phase: by statistics (tournament_points, omp, gwp, ogp)
+ * Updates tournament_ranking column for UI display and includes both active and eliminated
+ */
+export async function recalculateTeamRankingsForTournament(tournamentId: string): Promise<void> {
+  try {
+    console.log(`\n📊 [RECALC_RANKINGS_TEAM] Recalculating rankings for team tournament ${tournamentId}`);
+
+    const isElimination = await isInEliminationPhase(tournamentId);
+    console.log(`   Phase: ${isElimination ? 'ELIMINATION' : 'SWISS/LEAGUE'}`);
+
+    let teamsResult;
+
+    if (isElimination) {
+      // Elimination phase: active teams first, then by current_round desc, then by stats
+      teamsResult = await query(
+        `SELECT 
+          tt.id,
+          tt.name,
+          tt.status,
+          tt.current_round,
+          tt.tournament_points,
+          tt.omp,
+          tt.gwp,
+          tt.ogp,
+          COALESCE(SUM(u.elo_rating), 0) as team_total_elo
+         FROM tournament_teams tt
+         LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tt.tournament_id = $1
+         GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
+         ORDER BY 
+           CASE WHEN tt.status = 'active' THEN 0 ELSE 1 END,
+           tt.current_round DESC,
+           tt.tournament_points DESC,
+           tt.omp DESC,
+           tt.gwp DESC,
+           tt.ogp DESC,
+           team_total_elo DESC`,
+        [tournamentId]
+      );
+      console.log(`   Sorting by: status (active first) → current_round DESC → statistics → team ELO sum DESC`);
+    } else {
+      // Swiss/League phase: by statistics only, then by team ELO sum as tiebreaker
+      teamsResult = await query(
+        `SELECT 
+          tt.id,
+          tt.name,
+          tt.status,
+          tt.current_round,
+          tt.tournament_points,
+          tt.omp,
+          tt.gwp,
+          tt.ogp,
+          COALESCE(SUM(u.elo_rating), 0) as team_total_elo
+         FROM tournament_teams tt
+         LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
+         LEFT JOIN users u ON tp.user_id = u.id
+         WHERE tt.tournament_id = $1
+         GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
+         ORDER BY 
+           tt.tournament_points DESC,
+           tt.omp DESC,
+           tt.gwp DESC,
+           tt.ogp DESC,
+           team_total_elo DESC`,
+        [tournamentId]
+      );
+      console.log(`   Sorting by: statistics (points → omp → gwp → ogp) → team ELO sum DESC`);
+    }
+
+    const teams = teamsResult.rows;
+    console.log(`   Found ${teams.length} teams for ranking`);
+
+    // Update ranking for each team
+    for (let i = 0; i < teams.length; i++) {
+      const ranking = i + 1;
+      await query(
+        `UPDATE tournament_teams SET tournament_ranking = $1 WHERE id = $2`,
+        [ranking, teams[i].id]
+      );
+      console.log(`   ${teams[i].name}: Rank #${ranking} (${teams[i].status}, Round ${teams[i].current_round}, ${teams[i].tournament_points}pts, Team ELO sum: ${teams[i].team_total_elo})`);
+    }
+
+    console.log(`✅ [RECALC_RANKINGS_TEAM] Team rankings updated`);
+  } catch (error) {
+    console.error('[RECALC_RANKINGS_TEAM] Error recalculating team rankings:', error);
     throw error;
   }
 }

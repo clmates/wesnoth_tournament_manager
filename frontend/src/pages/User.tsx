@@ -303,11 +303,16 @@ const User: React.FC = () => {
                       onOpenConfirmation={openConfirmation}
                       onDownloadReplay={async (matchId, replayFilePath) => {
                         try {
-                          const API_URL = window.location.hostname.includes('main.') 
-                            ? 'https://wesnothtournamentmanager-main.up.railway.app/api'
-                            : window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')
-                            ? 'https://wesnothtournamentmanager-production.up.railway.app/api'
-                            : '/api';
+                          let API_URL: string;
+                          if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+                            API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
+                          } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+                            API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+                          } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+                            API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+                          } else {
+                            API_URL = '/api';
+                          }
                           
                           const response = await fetch(`${API_URL}/matches/${matchId}/replay/download`, {
                             method: 'GET'
@@ -398,11 +403,16 @@ const User: React.FC = () => {
                       onOpenConfirmation={openConfirmation}
                       onDownloadReplay={async (matchId, replayFilePath) => {
                         try {
-                          const API_URL = window.location.hostname.includes('main.') 
-                            ? 'https://wesnothtournamentmanager-main.up.railway.app/api'
-                            : window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')
-                            ? 'https://wesnothtournamentmanager-production.up.railway.app/api'
-                            : '/api';
+                          let API_URL: string;
+                          if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+                            API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
+                          } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+                            API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+                          } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+                            API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+                          } else {
+                            API_URL = '/api';
+                          }
                           
                           const response = await fetch(`${API_URL}/matches/${matchId}/replay/download`, {
                             method: 'GET'
