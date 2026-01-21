@@ -263,6 +263,7 @@
   "filter_status": "Status",
   "filter_type": "Turnierart",
   "filter_my_tournaments": "Meine Turniere",
+  "must_login_to_filter": "Sie müssen angemeldet sein, um diesen Filter zu verwenden",
   "option_all_statuses": "Alle Status",
   "option_registration_open": "Anmeldung offen",
   "option_registration_closed": "Anmeldung geschlossen",

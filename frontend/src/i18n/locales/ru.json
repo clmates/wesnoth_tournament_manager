@@ -265,6 +265,7 @@
   "filter_status": "Статус",
   "filter_type": "Тип турнира",
   "filter_my_tournaments": "Мои турниры",
+  "must_login_to_filter": "Вы должны быть авторизованы, чтобы использовать этот фильтр",
   "option_all_statuses": "Все статусы",
   "option_registration_open": "Регистрация открыта",
   "option_registration_closed": "Регистрация закрыта",

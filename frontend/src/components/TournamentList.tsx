@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
 import '../styles/Tournaments.css';
 
 export interface Tournament {
@@ -71,6 +72,7 @@ const TournamentList: React.FC<TournamentListProps> = ({
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
 
   const [inputFilters, setInputFilters] = useState<FilterState>({
     name: '',
@@ -299,8 +301,15 @@ const TournamentList: React.FC<TournamentListProps> = ({
               name="my_tournaments"
               checked={inputFilters.my_tournaments || false}
               onChange={handleFilterInputChange}
+              disabled={!isAuthenticated}
+              title={!isAuthenticated ? t('must_login_to_filter') : ''}
             />
-            <label htmlFor="my_tournaments">{t('filter_my_tournaments')}</label>
+            <label 
+              htmlFor="my_tournaments"
+              className={!isAuthenticated ? 'disabled-label' : ''}
+            >
+              {t('filter_my_tournaments')}
+            </label>
           </div>
 
           <button className="reset-btn" onClick={handleResetFilters}>

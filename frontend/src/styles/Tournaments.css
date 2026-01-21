@@ -65,10 +65,21 @@
   padding: 0;
 }
 
+.checkbox-filter input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .checkbox-filter label {
   margin: 0;
   cursor: pointer;
   font-weight: 500;
+}
+
+.checkbox-filter label.disabled-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+  color: #999;
 }
 
 .reset-btn {
