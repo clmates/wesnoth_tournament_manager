@@ -262,6 +262,7 @@
   "filter_by_tournament_name": "按锦标赛名称搜索...",
   "filter_status": "状态",
   "filter_type": "锦标赛类型",
+  "filter_my_tournaments": "我的比赛",
   "option_all_statuses": "所有状态",
   "option_registration_open": "报名开放",
   "option_registration_closed": "报名关闭",

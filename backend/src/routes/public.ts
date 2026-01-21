@@ -32,6 +32,10 @@ router.get('/tournaments', async (req, res) => {
     const nameFilter = (req.query.name as string)?.trim() || '';
     const statusFilter = (req.query.status as string)?.trim() || '';
     const typeFilter = (req.query.type as string)?.trim() || '';
+    const myTournamentsFilter = (req.query.my_tournaments as string)?.trim() === 'true';
+    
+    // Get current user ID from token if available
+    const currentUserId = (req as any).user?.id;
 
     // Build WHERE clause dynamically
     let whereConditions: string[] = [];
@@ -53,6 +57,13 @@ router.get('/tournaments', async (req, res) => {
     if (typeFilter) {
       whereConditions.push(`t.tournament_type = $${paramCount}`);
       params.push(typeFilter);
+      paramCount++;
+    }
+
+    // Add my_tournaments filter if requested and user is authenticated
+    if (myTournamentsFilter && currentUserId) {
+      whereConditions.push(`(t.creator_id = $${paramCount} OR t.id IN (SELECT tournament_id FROM tournament_participants WHERE user_id = $${paramCount}))`);
+      params.push(currentUserId);
       paramCount++;
     }
 

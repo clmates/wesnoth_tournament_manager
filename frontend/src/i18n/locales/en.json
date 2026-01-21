@@ -264,6 +264,7 @@
   "filter_by_tournament_name": "Search by tournament name...",
   "filter_status": "Status",
   "filter_type": "Tournament Type",
+  "filter_my_tournaments": "My Tournaments",
   "option_all_statuses": "All Statuses",
   "option_registration_open": "Registration Open",
   "option_registration_closed": "Registration Closed",

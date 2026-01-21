@@ -264,6 +264,7 @@
   "filter_by_tournament_name": "Filtrar por nombre de torneo...",
   "filter_status": "Estado",
   "filter_type": "Tipo de Torneo",
+  "filter_my_tournaments": "Mis Torneos",
   "option_all_statuses": "Todos los estados",
   "option_registration_open": "Inscripciones abiertas",
   "option_registration_closed": "Inscripciones cerradas",
