@@ -10,6 +10,7 @@ interface Map {
   id: string;
   name: string;
   is_active: boolean;
+  is_ranked: boolean;
   created_at: string;
 }
 
@@ -25,6 +26,7 @@ interface Faction {
   id: string;
   name: string;
   is_active: boolean;
+  is_ranked: boolean;
   created_at: string;
 }
 
@@ -40,21 +42,21 @@ const AdminMapsAndFactions: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated, isAdmin } = useAuthStore();
-  
+
   const [activeTab, setActiveTab] = useState<'maps' | 'factions'>('maps');
   const [maps, setMaps] = useState<Map[]>([]);
   const [factions, setFactions] = useState<Faction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // Form states
   const [showMapForm, setShowMapForm] = useState(false);
   const [showFactionForm, setShowFactionForm] = useState(false);
-  const [mapFormData, setMapFormData] = useState({ name: '', description: '' });
-  const [factionFormData, setFactionFormData] = useState({ name: '', description: '' });
+  const [mapFormData, setMapFormData] = useState({ name: '', description: '', is_active: true, is_ranked: true });
+  const [factionFormData, setFactionFormData] = useState({ name: '', description: '', is_active: true, is_ranked: true });
   const [editingId, setEditingId] = useState<string | null>(null);
-  
+
   const languages = ['en', 'es', 'de', 'zh'];
 
   useEffect(() => {
@@ -91,7 +93,7 @@ const AdminMapsAndFactions: React.FC = () => {
     }
   };
 
-  const handleAddMap = async (e: React.FormEvent) => {
+  const handleMapSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setError('');
@@ -99,18 +101,39 @@ const AdminMapsAndFactions: React.FC = () => {
         name: mapFormData.name,
         description: mapFormData.description || null,
         language_code: 'en',
+        is_active: mapFormData.is_active,
+        is_ranked: mapFormData.is_ranked,
       };
-      await api.post('/admin/maps', data);
-      setSuccess('Map added successfully');
-      setMapFormData({ name: '', description: '' });
+
+      if (editingId) {
+        await api.patch(`/admin/maps/${editingId}`, data);
+        setSuccess('Map updated successfully');
+      } else {
+        await api.post('/admin/maps', data);
+        setSuccess('Map added successfully');
+      }
+
+      setMapFormData({ name: '', description: '', is_active: true, is_ranked: true });
+      setEditingId(null);
       setShowMapForm(false);
       fetchData();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add map');
+      setError(err.response?.data?.error || 'Failed to save map');
     }
   };
 
-  const handleAddFaction = async (e: React.FormEvent) => {
+  const handleEditMap = (map: Map) => {
+    setMapFormData({
+      name: map.name,
+      description: '', // Description requires separate fetch if needed
+      is_active: map.is_active,
+      is_ranked: map.is_ranked ?? true, // Default to true if undefined
+    });
+    setEditingId(map.id);
+    setShowMapForm(true);
+  };
+
+  const handleFactionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setError('');
@@ -118,15 +141,36 @@ const AdminMapsAndFactions: React.FC = () => {
         name: factionFormData.name,
         description: factionFormData.description || null,
         language_code: 'en',
+        is_active: factionFormData.is_active,
+        is_ranked: factionFormData.is_ranked,
       };
-      await api.post('/admin/factions', data);
-      setSuccess('Faction added successfully');
-      setFactionFormData({ name: '', description: '' });
+
+      if (editingId) {
+        await api.patch(`/admin/factions/${editingId}`, data);
+        setSuccess('Faction updated successfully');
+      } else {
+        await api.post('/admin/factions', data);
+        setSuccess('Faction added successfully');
+      }
+
+      setFactionFormData({ name: '', description: '', is_active: true, is_ranked: true });
+      setEditingId(null);
       setShowFactionForm(false);
       fetchData();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to add faction');
+      setError(err.response?.data?.error || 'Failed to save faction');
     }
+  };
+
+  const handleEditFaction = (faction: Faction) => {
+    setFactionFormData({
+      name: faction.name,
+      description: '',
+      is_active: faction.is_active,
+      is_ranked: faction.is_ranked ?? true,
+    });
+    setEditingId(faction.id);
+    setShowFactionForm(true);
   };
 
   const handleToggleMapStatus = async (mapId: string, isActive: boolean) => {
@@ -199,7 +243,7 @@ const AdminMapsAndFactions: React.FC = () => {
     <MainLayout>
       <div className="admin-maps-factions-container">
         <h1>Manage Maps & Factions</h1>
-        
+
         {error && <div className="error-message">{error}</div>}
         {success && <div className="success-message">{success}</div>}
 
@@ -224,14 +268,18 @@ const AdminMapsAndFactions: React.FC = () => {
               <h2>Game Maps</h2>
               <button
                 className="btn-primary"
-                onClick={() => setShowMapForm(!showMapForm)}
+                onClick={() => {
+                  setShowMapForm(!showMapForm);
+                  setEditingId(null);
+                  setMapFormData({ name: '', description: '', is_active: true, is_ranked: true });
+                }}
               >
                 {showMapForm ? 'Cancel' : '+ Add Map'}
               </button>
             </div>
 
             {showMapForm && (
-              <form onSubmit={handleAddMap} className="form-section">
+              <form onSubmit={handleMapSubmit} className="form-section">
                 <div className="form-group">
                   <label>Map Name (English) *</label>
                   <input
@@ -255,8 +303,30 @@ const AdminMapsAndFactions: React.FC = () => {
                     rows={3}
                   />
                 </div>
+                <div className="form-row" style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={mapFormData.is_active}
+                      onChange={(e) =>
+                        setMapFormData({ ...mapFormData, is_active: e.target.checked })
+                      }
+                    />
+                    Is Active
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={mapFormData.is_ranked}
+                      onChange={(e) =>
+                        setMapFormData({ ...mapFormData, is_ranked: e.target.checked })
+                      }
+                    />
+                    Is Ranked
+                  </label>
+                </div>
                 <button type="submit" className="btn-submit">
-                  Add Map
+                  {editingId ? 'Update Map' : 'Add Map'}
                 </button>
               </form>
             )}
@@ -269,6 +339,20 @@ const AdminMapsAndFactions: React.FC = () => {
                   <div key={map.id} className={`item ${!map.is_active ? 'inactive' : ''}`}>
                     <div className="item-info">
                       <h3>{map.name}</h3>
+                      <div className="status-badges" style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                        <span className={`badge ${map.is_active ? 'active' : 'inactive'}`}>
+                          {map.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        <span className={`badge ${map.is_ranked ? 'ranked' : 'unranked'}`} style={{
+                          backgroundColor: map.is_ranked ? '#28a745' : '#6c757d',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '0.8em'
+                        }}>
+                          {map.is_ranked ? 'Ranked' : 'Unranked'}
+                        </span>
+                      </div>
                       <p>Created: {new Date(map.created_at).toLocaleDateString()}</p>
                     </div>
                     <div className="item-actions">
@@ -277,6 +361,13 @@ const AdminMapsAndFactions: React.FC = () => {
                         onClick={() => handleToggleMapStatus(map.id, map.is_active)}
                       >
                         {map.is_active ? 'Active' : 'Inactive'}
+                      </button>
+                      <button
+                        className="btn-status"
+                        onClick={() => handleEditMap(map)}
+                        style={{ backgroundColor: '#ffc107', color: 'black', marginRight: '8px' }}
+                      >
+                        Edit
                       </button>
                       <button
                         className="btn-delete"
@@ -298,14 +389,18 @@ const AdminMapsAndFactions: React.FC = () => {
               <h2>Factions</h2>
               <button
                 className="btn-primary"
-                onClick={() => setShowFactionForm(!showFactionForm)}
+                onClick={() => {
+                  setShowFactionForm(!showFactionForm);
+                  setEditingId(null);
+                  setFactionFormData({ name: '', description: '', is_active: true, is_ranked: true });
+                }}
               >
                 {showFactionForm ? 'Cancel' : '+ Add Faction'}
               </button>
             </div>
 
             {showFactionForm && (
-              <form onSubmit={handleAddFaction} className="form-section">
+              <form onSubmit={handleFactionSubmit} className="form-section">
                 <div className="form-group">
                   <label>Faction Name (English) *</label>
                   <input
@@ -329,8 +424,30 @@ const AdminMapsAndFactions: React.FC = () => {
                     rows={3}
                   />
                 </div>
+                <div className="form-row" style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={factionFormData.is_active}
+                      onChange={(e) =>
+                        setFactionFormData({ ...factionFormData, is_active: e.target.checked })
+                      }
+                    />
+                    Is Active
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={factionFormData.is_ranked}
+                      onChange={(e) =>
+                        setFactionFormData({ ...factionFormData, is_ranked: e.target.checked })
+                      }
+                    />
+                    Is Ranked
+                  </label>
+                </div>
                 <button type="submit" className="btn-submit">
-                  Add Faction
+                  {editingId ? 'Update Faction' : 'Add Faction'}
                 </button>
               </form>
             )}
@@ -343,6 +460,20 @@ const AdminMapsAndFactions: React.FC = () => {
                   <div key={faction.id} className={`item ${!faction.is_active ? 'inactive' : ''}`}>
                     <div className="item-info">
                       <h3>{faction.name}</h3>
+                      <div className="status-badges" style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                        <span className={`badge ${faction.is_active ? 'active' : 'inactive'}`}>
+                          {faction.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        <span className={`badge ${faction.is_ranked ? 'ranked' : 'unranked'}`} style={{
+                          backgroundColor: faction.is_ranked ? '#28a745' : '#6c757d',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          fontSize: '0.8em'
+                        }}>
+                          {faction.is_ranked ? 'Ranked' : 'Unranked'}
+                        </span>
+                      </div>
                       <p>Created: {new Date(faction.created_at).toLocaleDateString()}</p>
                     </div>
                     <div className="item-actions">
@@ -351,6 +482,13 @@ const AdminMapsAndFactions: React.FC = () => {
                         onClick={() => handleToggleFactionStatus(faction.id, faction.is_active)}
                       >
                         {faction.is_active ? 'Active' : 'Inactive'}
+                      </button>
+                      <button
+                        className="btn-status"
+                        onClick={() => handleEditFaction(faction)}
+                        style={{ backgroundColor: '#ffc107', color: 'black', marginRight: '8px' }}
+                      >
+                        Edit
                       </button>
                       <button
                         className="btn-delete"
@@ -364,9 +502,10 @@ const AdminMapsAndFactions: React.FC = () => {
               )}
             </div>
           </div>
-        )}
-      </div>
-    </MainLayout>
+        )
+        }
+      </div >
+    </MainLayout >
   );
 };
 

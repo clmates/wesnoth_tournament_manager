@@ -865,6 +865,7 @@ router.get('/maps', authMiddleware, async (req: AuthRequest, res) => {
         id,
         name,
         is_active,
+        is_ranked,
         created_at
       FROM game_maps
       ORDER BY created_at DESC
@@ -907,7 +908,7 @@ router.post('/maps', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
 
-    const { name, description, language_code } = req.body;
+    const { name, description, language_code, is_active, is_ranked } = req.body;
     
     if (!name || !language_code) {
       return res.status(400).json({ error: 'Name and language_code are required' });
@@ -915,10 +916,10 @@ router.post('/maps', authMiddleware, async (req: AuthRequest, res) => {
 
     // Create map
     const mapResult = await query(`
-      INSERT INTO game_maps (name, is_active)
-      VALUES ($1, true)
-      RETURNING id, name, is_active, created_at
-    `, [name]);
+      INSERT INTO game_maps (name, is_active, is_ranked)
+      VALUES ($1, $2, $3)
+      RETURNING id, name, is_active, is_ranked, created_at
+    `, [name, is_active === undefined ? true : is_active, is_ranked === undefined ? true : is_ranked]);
 
     const mapId = mapResult.rows[0].id;
 
@@ -945,14 +946,20 @@ router.patch('/maps/:mapId', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const { mapId } = req.params;
-    const { is_active } = req.body;
+    const { is_active, is_ranked } = req.body;
 
     const result = await query(`
       UPDATE game_maps
-      SET is_active = $1
-      WHERE id = $2
-      RETURNING id, name, is_active, created_at
-    `, [is_active, mapId]);
+      SET 
+        is_active = COALESCE($1, is_active),
+        is_ranked = COALESCE($2, is_ranked)
+      WHERE id = $3
+      RETURNING id, name, is_active, is_ranked, created_at
+    `, [
+      is_active !== undefined ? is_active : null,
+      is_ranked !== undefined ? is_ranked : null,
+      mapId
+    ]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Map not found' });
@@ -1044,6 +1051,7 @@ router.get('/factions', authMiddleware, async (req: AuthRequest, res) => {
         id,
         name,
         is_active,
+        is_ranked,
         created_at
       FROM factions
       ORDER BY created_at DESC
@@ -1086,7 +1094,7 @@ router.post('/factions', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
 
-    const { name, description, language_code } = req.body;
+    const { name, description, language_code, is_active, is_ranked } = req.body;
     
     if (!name || !language_code) {
       return res.status(400).json({ error: 'Name and language_code are required' });
@@ -1094,10 +1102,10 @@ router.post('/factions', authMiddleware, async (req: AuthRequest, res) => {
 
     // Create faction
     const factionResult = await query(`
-      INSERT INTO factions (name, is_active)
-      VALUES ($1, true)
-      RETURNING id, name, is_active, created_at
-    `, [name]);
+      INSERT INTO factions (name, is_active, is_ranked)
+      VALUES ($1, $2, $3)
+      RETURNING id, name, is_active, is_ranked, created_at
+    `, [name, is_active === undefined ? true : is_active, is_ranked === undefined ? true : is_ranked]);
 
     const factionId = factionResult.rows[0].id;
 
@@ -1124,14 +1132,20 @@ router.patch('/factions/:factionId', authMiddleware, async (req: AuthRequest, re
     }
 
     const { factionId } = req.params;
-    const { is_active } = req.body;
+    const { is_active, is_ranked } = req.body;
 
     const result = await query(`
       UPDATE factions
-      SET is_active = $1
-      WHERE id = $2
-      RETURNING id, name, is_active, created_at
-    `, [is_active, factionId]);
+      SET 
+        is_active = COALESCE($1, is_active),
+        is_ranked = COALESCE($2, is_ranked)
+      WHERE id = $3
+      RETURNING id, name, is_active, is_ranked, created_at
+    `, [
+      is_active !== undefined ? is_active : null,
+      is_ranked !== undefined ? is_ranked : null,
+      factionId
+    ]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Faction not found' });
