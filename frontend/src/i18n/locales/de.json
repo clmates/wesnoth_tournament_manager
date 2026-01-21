@@ -262,6 +262,7 @@
   "filter_by_tournament_name": "Nach Turniername suchen...",
   "filter_status": "Status",
   "filter_type": "Turnierart",
+  "filter_my_tournaments": "Meine Turniere",
   "option_all_statuses": "Alle Status",
   "option_registration_open": "Anmeldung offen",
   "option_registration_closed": "Anmeldung geschlossen",

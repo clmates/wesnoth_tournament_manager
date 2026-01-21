@@ -18,6 +18,7 @@ const Tournaments: React.FC = () => {
     name: '',
     status: '',
     type: '',
+    my_tournaments: false,
   });
   
   // Applied filters state (updates with debounce)
@@ -25,6 +26,7 @@ const Tournaments: React.FC = () => {
     name: '',
     status: '',
     type: '',
+    my_tournaments: false,
   });
   
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

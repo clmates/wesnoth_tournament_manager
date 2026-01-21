@@ -278,6 +278,7 @@ export const publicService = {
       if (filters.name) params.name = filters.name;
       if (filters.status) params.status = filters.status;
       if (filters.type) params.type = filters.type;
+      if (filters.my_tournaments) params.my_tournaments = filters.my_tournaments;
     }
     return api.get('/public/tournaments', { params });
   },

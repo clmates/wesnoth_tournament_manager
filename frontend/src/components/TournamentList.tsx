@@ -31,6 +31,7 @@ export interface FilterState {
   name: string;
   status: string;
   type: string;
+  my_tournaments?: boolean;
 }
 
 interface TournamentListProps {
@@ -75,16 +76,18 @@ const TournamentList: React.FC<TournamentListProps> = ({
     name: '',
     status: '',
     type: '',
+    my_tournaments: false,
   });
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleFilterInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    const { name, type, value, checked } = e.target as HTMLInputElement;
+    const newValue = type === 'checkbox' ? checked : value;
 
     setInputFilters(prev => ({
       ...prev,
-      [name]: value,
+      [name]: newValue,
     }));
 
     if (debounceTimer.current) {
@@ -94,7 +97,7 @@ const TournamentList: React.FC<TournamentListProps> = ({
     debounceTimer.current = setTimeout(() => {
       onFilterChange?.({
         ...inputFilters,
-        [name]: value,
+        [name]: newValue,
       });
     }, 500);
   };
@@ -104,11 +107,13 @@ const TournamentList: React.FC<TournamentListProps> = ({
       name: '',
       status: '',
       type: '',
+      my_tournaments: false,
     });
     onFilterChange?.({
       name: '',
       status: '',
       type: '',
+      my_tournaments: false,
     });
   };
 
@@ -285,6 +290,17 @@ const TournamentList: React.FC<TournamentListProps> = ({
               <option value="league">{t('option_type_league')}</option>
               <option value="swiss">{t('option_type_swiss')}</option>
             </select>
+          </div>
+
+          <div className="filter-group checkbox-filter">
+            <input
+              type="checkbox"
+              id="my_tournaments"
+              name="my_tournaments"
+              checked={inputFilters.my_tournaments || false}
+              onChange={handleFilterInputChange}
+            />
+            <label htmlFor="my_tournaments">{t('filter_my_tournaments')}</label>
           </div>
 
           <button className="reset-btn" onClick={handleResetFilters}>
