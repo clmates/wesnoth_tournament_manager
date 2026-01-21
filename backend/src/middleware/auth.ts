@@ -21,6 +21,23 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
   }
 };
 
+// Optional auth middleware - extracts user ID if token is provided, but doesn't fail if missing
+export const optionalAuthMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (token) {
+    try {
+      const decoded = verifyToken(token);
+      req.userId = decoded.userId;
+    } catch (error) {
+      // Token is invalid, but we continue anyway
+      // This middleware is optional, so we don't fail
+    }
+  }
+
+  next();
+};
+
 export const adminMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
   if (!req.userId) {
     return res.status(401).json({ error: 'Not authenticated' });

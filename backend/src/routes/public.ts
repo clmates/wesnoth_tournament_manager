@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../config/database.js';
 import { getWinnerAndRunnerUp } from '../utils/tournament.js';
+import { optionalAuthMiddleware } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.get('/faq', async (req, res) => {
 });
 
 // Get all tournaments (public endpoint)
-router.get('/tournaments', async (req, res) => {
+router.get('/tournaments', optionalAuthMiddleware, async (req, res) => {
   try {
     // Get page from query params, default to 1
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -34,8 +35,8 @@ router.get('/tournaments', async (req, res) => {
     const typeFilter = (req.query.type as string)?.trim() || '';
     const myTournamentsFilter = (req.query.my_tournaments as string)?.trim() === 'true';
     
-    // Get current user ID from token if available
-    const currentUserId = (req as any).user?.id;
+    // Get current user ID from token if available (using userId from middleware)
+    const currentUserId = (req as any).userId;
 
     // Build WHERE clause dynamically
     let whereConditions: string[] = [];
