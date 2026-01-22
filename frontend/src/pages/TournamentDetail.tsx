@@ -1327,6 +1327,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         })}
                     </tbody>
                   </table>
+                  </div>
                 ) : (
                   <p>{t('no_completed_matches')}</p>
                 )}
