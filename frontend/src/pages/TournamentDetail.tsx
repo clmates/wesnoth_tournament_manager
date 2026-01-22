@@ -878,40 +878,40 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       </div>
 
       {activeTab === 'participants' && (
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6">
+        <div className="mb-8 mt-6">
           {tournament?.tournament_mode === 'team' ? (
             // Team view: Group participants by team from standings (which has team_total_elo and members_with_elo)
             participants.length > 0 ? (
-                <div className="bg-white rounded-lg shadow-lg p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {participants.map((team: any) => (
-                  <div key={team.id} className="mb-6 pb-6 border-b border-gray-200 last:border-b-0">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex flex-col gap-2">
-                        <h3>
+                  <div key={team.id} className="border-2 border-blue-400 rounded-lg p-6 bg-gray-50 shadow hover:shadow-lg transition-all hover:-translate-y-1">
+                    <div className="flex justify-between items-start gap-6 mb-4 pb-3 border-b-2 border-blue-400 flex-wrap">
+                      <div className="flex flex-col gap-1">
+                        <h3 className="text-lg font-semibold text-gray-800">
                           {team.nickname}
-                          <span className="text-sm text-gray-600 ml-2">({team.team_size}/2 members)</span>
                         </h3>
+                        <span className="text-sm text-gray-600">({team.team_size}/2 members)</span>
                         {team.team_total_elo && (
-                          <div className="text-sm">
+                          <div className="text-sm text-gray-700 mt-2">
                             <strong>Total ELO:</strong> {team.team_total_elo}
                           </div>
                         )}
                       </div>
-                      <div className="flex flex-col gap-2 text-right">
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-600">{t('label_wins')}</span>
-                          <span className="font-semibold">{team.tournament_wins || 0}</span>
+                      <div className="flex gap-6 items-center flex-wrap">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs text-gray-600 font-semibold uppercase tracking-wider">{t('label_wins')}</span>
+                          <span className="text-lg font-semibold text-gray-800">{team.tournament_wins || 0}</span>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-600">{t('label_losses')}</span>
-                          <span className="font-semibold">{team.tournament_losses || 0}</span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs text-gray-600 font-semibold uppercase tracking-wider">{t('label_losses')}</span>
+                          <span className="text-lg font-semibold text-gray-800">{team.tournament_losses || 0}</span>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-600">{t('label_points')}</span>
-                          <span className="font-semibold">{team.tournament_points || 0}</span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs text-gray-600 font-semibold uppercase tracking-wider">{t('label_points')}</span>
+                          <span className="text-lg font-semibold text-gray-800">{team.tournament_points || 0}</span>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-gray-600">{t('label_status')}</span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-xs text-gray-600 font-semibold uppercase tracking-wider">{t('label_status')}</span>
                           <span 
                             className="inline-block px-2 py-1 text-white rounded-full text-xs font-semibold"
                             style={{ 
@@ -1002,6 +1002,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           ) : (
             // Individual view for ranked/unranked
             participants.length > 0 ? (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-100">
                   <tr>
@@ -1056,6 +1057,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                 ))}
               </tbody>
               </table>
+              </div>
             ) : (
               <p className="text-gray-600">{t('no_participants_yet')}</p>
             )
@@ -1064,7 +1066,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       )}
 
       {activeTab === 'matches' && (
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6">
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6 overflow-x-auto">
           {tournament?.status !== 'in_progress' && tournament?.status !== 'finished' ? (
             <p className="no-matches-message">{t('matches_will_be_generated')}</p>
           ) : (
@@ -1333,54 +1335,54 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
       {/* Rounds Section */}
       {activeTab === 'rounds' && (
-        <div className="tab-content">
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6 overflow-x-auto">
           {rounds.length > 0 ? (
-            <table className="rounds-table">
-              <thead>
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100">
                 <tr>
-                  <th>{t('label_round_number')}</th>
-                  <th>{t('label_type')}</th>
-                  <th>{t('label_status')}</th>
-                  <th>{t('label_start_date')}</th>
-                  <th>{t('label_end_date')}</th>
-                  <th>{t('label_format')}</th>
-                  {isCreator && <th>{t('label_actions')}</th>}
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_round_number')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_type')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_start_date')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_end_date')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_format')}</th>
+                  {isCreator && <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>}
                 </tr>
               </thead>
               <tbody>
                 {rounds.map((round) => (
-                  <tr key={round.id}>
-                    <td>
+                  <tr key={round.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-gray-700">
                       <strong>{round.round_number}</strong>
                     </td>
-                    <td>{round.round_phase_label || round.round_type || '-'}</td>
-                    <td>
-                      <span className={`status-badge status-${normalizeStatus(round.round_status)}`}>
+                    <td className="px-4 py-3 text-gray-700">{round.round_phase_label || round.round_type || '-'}</td>
+                    <td className="px-4 py-3 text-gray-700">
+                      <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: getStatusColor(round.round_status) }}>
                         {t(`option_${normalizeStatus(round.round_status)}`) !== `option_${normalizeStatus(round.round_status)}` ? t(`option_${normalizeStatus(round.round_status)}`) : (round.round_status || t('option_pending'))}
                       </span>
                     </td>
-                    <td>{round.round_start_date ? formatDate(round.round_start_date) : '-'}</td>
-                    <td>{round.round_end_date ? formatDate(round.round_end_date) : '-'}</td>
-                    <td>{(round as any)?.match_format ? t('match_format.' + (round as any).match_format) : '-'}</td>
+                    <td className="px-4 py-3 text-gray-700">{round.round_start_date ? formatDate(round.round_start_date) : '-'}</td>
+                    <td className="px-4 py-3 text-gray-700">{round.round_end_date ? formatDate(round.round_end_date) : '-'}</td>
+                    <td className="px-4 py-3 text-gray-700">{(round as any)?.match_format ? t('match_format.' + (round as any).match_format) : '-'}</td>
                     {isCreator && (
-                      <td>
+                      <td className="px-4 py-3 text-gray-700">
                         {round.round_status === 'completed' && round.round_number < rounds.length ? (
                           (() => {
                             const nextRound = rounds.find(r => r.round_number === round.round_number + 1);
                             return nextRound && nextRound.round_status === 'pending' ? (
                               <button
-                                className="btn-start-round"
+                                className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                 onClick={() => handleStartNextRound(round.round_number)}
                                 title={t('start_next_round')}
                               >
                                 {t('start_round')} {round.round_number + 1}
                               </button>
                             ) : (
-                              <span style={{ color: '#999' }}>-</span>
+                              <span className="text-gray-400">-</span>
                             );
                           })()
                         ) : (
-                          <span style={{ color: '#999' }}>-</span>
+                          <span className="text-gray-400">-</span>
                         )}
                       </td>
                     )}
@@ -1389,14 +1391,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               </tbody>
             </table>
           ) : (
-            <p>{t('no_rounds_configured_tournament')}</p>
+            <p className="text-gray-600">{t('no_rounds_configured_tournament')}</p>
           )}
         </div>
       )}
 
       {/* Round Matches Section */}
       {activeTab === 'roundMatches' && (
-        <div className="tab-content">
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6 overflow-x-auto">
           {rounds.length > 0 ? (
             <>
               {rounds.map((round) => {
@@ -1405,49 +1407,50 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                 if (matchesInRound.length === 0) return null;
                 
                 return (
-                  <div key={round.id} className="round-matches-section">
-                    <h3>{t('label_round')} {round.round_number} - {round.round_phase_label || round.round_type || 'Round'}</h3>
-                    <table className="matches-table">
-                      <thead>
+                  <div key={round.id} className="mb-8">
+                    <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-gray-300">{t('label_round')} {round.round_number} - {round.round_phase_label || round.round_type || 'Round'}</h3>
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100">
                         <tr>
-                          <th>{matchesInRound.length > 0 && matchesInRound[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
-                          <th>{t('vs')}</th>
-                          <th>{matchesInRound.length > 0 && matchesInRound[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
-                          <th>{t('label_winner')}</th>
-                          <th>{t('label_status')}</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{matchesInRound.length > 0 && matchesInRound[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('vs')}</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{matchesInRound.length > 0 && matchesInRound[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_winner')}</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {matchesInRound.map((match) => (
-                          <tr key={match.id}>
-                            <td>
+                          <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 text-gray-700">
                               <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
                               {(match as any).player1_wins !== undefined && (
-                                <span style={{ color: '#666', fontSize: '0.85em' }}>
+                                <span className="text-gray-600 text-sm">
                                   {' '}({(match as any).player1_wins})
                                 </span>
                               )}
                             </td>
-                            <td>vs</td>
-                            <td>
+                            <td className="px-4 py-3 text-gray-700">vs</td>
+                            <td className="px-4 py-3 text-gray-700">
                               <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
                               {(match as any).player2_wins !== undefined && (
-                                <span style={{ color: '#666', fontSize: '0.85em' }}>
+                                <span className="text-gray-600 text-sm">
                                   {' '}({(match as any).player2_wins})
                                 </span>
                               )}
                             </td>
-                            <td>
+                            <td className="px-4 py-3 text-gray-700">
                               {match.winner_id === match.player1_id ? (
-                                <strong style={{ color: '#28a745' }}>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
+                                <strong className="text-green-600">{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
                               ) : match.winner_id === match.player2_id ? (
-                                <strong style={{ color: '#28a745' }}>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
+                                <strong className="text-green-600">{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
                               ) : (
-                                <span style={{ color: '#999' }}>-</span>
+                                <span className="text-gray-400">-</span>
                               )}
                             </td>
-                            <td>
-                              <span className={`status-badge status-${normalizeStatus((match as any).series_status)}`}>
+                            <td className="px-4 py-3 text-gray-700">
+                              <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: getStatusColor((match as any).series_status) }}>
                                 {t(`option_${normalizeStatus((match as any).series_status)}`) !== `option_${normalizeStatus((match as any).series_status)}` ? t(`option_${normalizeStatus((match as any).series_status)}`) : ((match as any).series_status || t('option_pending'))}
                               </span>
                             </td>
@@ -1455,35 +1458,37 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 );
               })}
             </>
           ) : (
-            <p>{t('no_rounds_configured_tournament')}</p>
+            <p className="text-gray-600">{t('no_rounds_configured_tournament')}</p>
           )}
         </div>
       )}
 
       {/* Ranking Section */}
       {activeTab === 'ranking' && (
-        <div className="tab-content">
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6 overflow-x-auto">
           {tournament?.tournament_mode === 'team' ? (
             // Team ranking
             participants.length > 0 ? (
-              <table className="ranking-table">
-                <thead>
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100">
                   <tr>
-                    <th>{t('label_rank')}</th>
-                    <th>Team Name</th>
-                    <th>Members</th>
-                    <th>{t('label_wins')}</th>
-                    <th>{t('label_losses')}</th>
-                    <th>{t('label_points')}</th>
-                    <th title="Opponent Match Points">OMP</th>
-                    <th title="Game Win Percentage">GWP</th>
-                    <th title="Opponent Game Percentage">OGP</th>
-                    <th>{t('label_status')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_rank')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">Team Name</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">Members</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_wins')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_losses')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_points')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300" title="Opponent Match Points">OMP</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300" title="Game Win Percentage">GWP</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300" title="Opponent Game Percentage">OGP</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1507,16 +1512,16 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       return (
                         <tr key={team.id}>
                           <td><strong>#{index + 1}</strong></td>
-                          <td><strong>{team.nickname}</strong></td>
-                          <td>{membersList}</td>
-                          <td>{team.tournament_wins || 0}</td>
-                          <td>{team.tournament_losses || 0}</td>
-                          <td><strong>{team.tournament_points || 0}</strong></td>
-                          <td>{team.omp != null ? Number(team.omp).toFixed(2) : '-'}</td>
-                          <td>{team.gwp != null ? Number(team.gwp).toFixed(2) : '-'}</td>
-                          <td>{team.ogp != null ? Number(team.ogp).toFixed(2) : '-'}</td>
-                          <td>
-                            <span className={`status-badge status-${normalizeStatus(team.status || undefined)}`}>
+                          <td className="px-4 py-3 text-gray-700"><strong>{team.nickname}</strong></td>
+                          <td className="px-4 py-3 text-gray-700">{membersList}</td>
+                          <td className="px-4 py-3 text-gray-700">{team.tournament_wins || 0}</td>
+                          <td className="px-4 py-3 text-gray-700">{team.tournament_losses || 0}</td>
+                          <td className="px-4 py-3 text-gray-700"><strong>{team.tournament_points || 0}</strong></td>
+                          <td className="px-4 py-3 text-gray-700">{team.omp != null ? Number(team.omp).toFixed(2) : '-'}</td>
+                          <td className="px-4 py-3 text-gray-700">{team.gwp != null ? Number(team.gwp).toFixed(2) : '-'}</td>
+                          <td className="px-4 py-3 text-gray-700">{team.ogp != null ? Number(team.ogp).toFixed(2) : '-'}</td>
+                          <td className="px-4 py-3 text-gray-700">
+                            <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: getStatusColor(team.status || undefined) }}>
                               {t(`option_${normalizeStatus(team.status || undefined)}`) !== `option_${normalizeStatus(team.status || undefined)}` ? t(`option_${normalizeStatus(team.status || undefined)}`) : (team.status || t('option_active'))}
                             </span>
                           </td>
@@ -1525,24 +1530,26 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     })}
                 </tbody>
               </table>
+              </div>
             ) : (
-              <p>{t('no_participants_in_tournament')}</p>
+              <p className="text-gray-600">{t('no_participants_in_tournament')}</p>
             )
           ) : (
             // Individual ranking
             participants.length > 0 ? (
-              <table className="ranking-table">
-                <thead>
+              <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100">
                   <tr>
-                    <th>{t('label_rank')}</th>
-                    <th>{t('label_nickname')}</th>
-                    <th>{t('label_wins')}</th>
-                    <th>{t('label_losses')}</th>
-                    <th>{t('label_points')}</th>
-                    <th title="Opponent Match Points">OMP</th>
-                    <th title="Game Win Percentage">GWP</th>
-                    <th title="Opponent Game Percentage">OGP</th>
-                    <th>{t('label_status')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_rank')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_nickname')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_wins')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_losses')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_points')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300" title="Opponent Match Points">OMP</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300" title="Game Win Percentage">GWP</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300" title="Opponent Game Percentage">OGP</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1559,19 +1566,19 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       return (b.tournament_wins || 0) - (a.tournament_wins || 0);
                     })
                     .map((participant, index) => (
-                      <tr key={participant.id}>
-                        <td>
+                      <tr key={participant.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 text-gray-700">
                           <strong>#{index + 1}</strong>
                         </td>
-                        <td>{participant.nickname}</td>
-                        <td>{participant.tournament_wins || 0}</td>
-                        <td>{participant.tournament_losses || 0}</td>
-                        <td><strong>{participant.tournament_points || 0}</strong></td>
-                        <td>{participant.omp != null ? Number(participant.omp).toFixed(2) : '-'}</td>
-                        <td>{participant.gwp != null ? Number(participant.gwp).toFixed(2) : '-'}</td>
-                        <td>{participant.ogp != null ? Number(participant.ogp).toFixed(2) : '-'}</td>
-                        <td>
-                          <span className={`status-badge status-${normalizeStatus(participant.participation_status)}`}>
+                        <td className="px-4 py-3 text-gray-700">{participant.nickname}</td>
+                        <td className="px-4 py-3 text-gray-700">{participant.tournament_wins || 0}</td>
+                        <td className="px-4 py-3 text-gray-700">{participant.tournament_losses || 0}</td>
+                        <td className="px-4 py-3 text-gray-700"><strong>{participant.tournament_points || 0}</strong></td>
+                        <td className="px-4 py-3 text-gray-700">{participant.omp != null ? Number(participant.omp).toFixed(2) : '-'}</td>
+                        <td className="px-4 py-3 text-gray-700">{participant.gwp != null ? Number(participant.gwp).toFixed(2) : '-'}</td>
+                        <td className="px-4 py-3 text-gray-700">{participant.ogp != null ? Number(participant.ogp).toFixed(2) : '-'}</td>
+                        <td className="px-4 py-3 text-gray-700">
+                          <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: getParticipationStatusColor(participant.participation_status) }}>
                             {t(`option_${normalizeStatus(participant.participation_status)}`) !== `option_${normalizeStatus(participant.participation_status)}` ? t(`option_${normalizeStatus(participant.participation_status)}`) : (participant.participation_status || t('option_pending'))}
                           </span>
                         </td>
@@ -1579,8 +1586,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     ))}
                 </tbody>
               </table>
+              </div>
             ) : (
-              <p>{t('no_participants_in_tournament')}</p>
+              <p className="text-gray-600">{t('no_participants_in_tournament')}</p>
             )
           )}
         </div>
