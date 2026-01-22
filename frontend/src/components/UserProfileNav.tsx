@@ -104,15 +104,8 @@ const UserProfileNav: React.FC = () => {
                 <span className="text-lg flex items-center justify-center min-w-5">🗺️</span>
                 <span className="hidden md:inline">Maps & Factions</span>
               </button>
-            </>
-          )}
-        </div>
-      </div>
-    </nav>
-  );
-};
 
-
+              {/* Disputes */}
               <button 
                 className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/30 text-white text-sm font-medium rounded hover:bg-orange-500/20 hover:border-orange-500/50 active:bg-orange-500/25 transition-all transform hover:-translate-y-0.5 whitespace-nowrap"
                 onClick={() => handleNavigate('/admin/disputes')}
@@ -122,6 +115,7 @@ const UserProfileNav: React.FC = () => {
                 <span className="hidden md:inline">{t('sidebar.match_disputes')}</span>
               </button>
 
+              {/* Audit Logs */}
               <button 
                 className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/30 text-white text-sm font-medium rounded hover:bg-orange-500/20 hover:border-orange-500/50 active:bg-orange-500/25 transition-all transform hover:-translate-y-0.5 whitespace-nowrap"
                 onClick={() => handleNavigate('/admin/audit')}
@@ -131,6 +125,7 @@ const UserProfileNav: React.FC = () => {
                 <span className="hidden md:inline">Audit Logs</span>
               </button>
 
+              {/* Balance Events */}
               <button 
                 className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 border border-orange-500/30 text-white text-sm font-medium rounded hover:bg-orange-500/20 hover:border-orange-500/50 active:bg-orange-500/25 transition-all transform hover:-translate-y-0.5 whitespace-nowrap"
                 onClick={() => handleNavigate('/admin/balance-events')}
@@ -147,5 +142,4 @@ const UserProfileNav: React.FC = () => {
   );
 };
 
-export default UserProfileNav;
 export default UserProfileNav;
