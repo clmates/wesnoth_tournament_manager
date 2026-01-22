@@ -9,7 +9,6 @@ import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import MatchDetailsModal from '../components/MatchDetailsModal';
 import { TeamJoinModal } from '../components/TeamJoinModal';
 import PlayerLink from '../components/PlayerLink';
-import '../styles/Tournaments.css';
 
 interface Tournament {
   id: string;
@@ -644,12 +643,12 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   const isAcceptedParticipant = userParticipationStatus === 'accepted';
 
   if (loading) {
-    return <div className="admin-container"><p>{t('loading')}</p></div>;
+    return <div className="w-full min-h-screen px-4 py-8 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200"><p>{t('loading')}</p></div>;
   }
 
   if (!tournament) {
     return (
-      <div className="admin-container">
+      <div className="w-full min-h-screen px-4 py-8 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200">
         <p>{error || t('tournament_title')}</p>
         <button onClick={() => navigate('/tournaments')}>{t('tournaments.back_to_tournaments')}</button>
       </div>
@@ -657,13 +656,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   }
 
   return (
-    <div className="admin-container">
-      <div className="tournament-header">
-        <button onClick={handleBackButton} className="btn-back">← {t('tournaments.back_to_tournaments')}</button>
-        <div className="tournament-header-content">
-          <h1>{tournament.name}</h1>
+    <div className="w-full min-h-screen px-4 py-8 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200">
+      <div className="flex justify-between items-center mb-8 pb-4 border-b-2 border-gray-300">
+        <button onClick={handleBackButton} className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors">← {t('tournaments.back_to_tournaments')}</button>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-4xl font-bold text-gray-800">{tournament.name}</h1>
           <span 
-            className="status-badge"
+            className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold"
             style={{ backgroundColor: getStatusColor(tournament.status) }}
           >
             {t(`option_${normalizeStatus(tournament.status)}`) !== `option_${normalizeStatus(tournament.status)}` ? t(`option_${normalizeStatus(tournament.status)}`) : (tournament.status || t('option_pending'))}
@@ -671,10 +670,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         </div>
       </div>
 
-      {error && <p className="error-message">{error}</p>}
-      {success && <p className="success-message">{success}</p>}
+      {error && <p className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6">{error}</p>}
+      {success && <p className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded mb-6">{success}</p>}
 
-      <div className="tournament-info">
+      <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
         <p><strong>{t('tournament.col_organizer')}:</strong> <PlayerLink nickname={tournament.creator_nickname} userId={tournament.creator_id} /></p>
         <p><strong>{t('tournament.col_type')}:</strong> {tournament.tournament_type}</p>
         <p><strong>{t('tournament.mode', 'Tournament Mode')}:</strong> {getModeLabel(tournament.tournament_mode)}</p>
@@ -687,27 +686,27 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
       {/* Tournament Assets Section */}
       {(unrankedFactions.length > 0 || unrankedMaps.length > 0) && (
-        <div className="unranked-assets-section">
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
           <h3>{t('tournament.unranked_assets', 'Tournament Assets')}</h3>
           
-          <div className="assets-container">
+          <div className="flex flex-col gap-6">
             {unrankedFactions.length > 0 && (
-              <div className="assets-group">
-                <h4>{t('tournament.allowed_factions', 'Allowed Factions')}</h4>
-                <div className="assets-list">
+              <div className="flex flex-col gap-3">
+                <h4 className="text-lg font-semibold text-gray-800">{t('tournament.allowed_factions', 'Allowed Factions')}</h4>
+                <div className="flex flex-wrap gap-2">
                   {unrankedFactions.map((faction) => (
-                    <span key={faction.id} className="asset-badge">{faction.name}</span>
+                    <span key={faction.id} className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">{faction.name}</span>
                   ))}
                 </div>
               </div>
             )}
 
             {unrankedMaps.length > 0 && (
-              <div className="assets-group">
-                <h4>{t('tournament.allowed_maps', 'Allowed Maps')}</h4>
-                <div className="assets-list">
+              <div className="flex flex-col gap-3">
+                <h4 className="text-lg font-semibold text-gray-800">{t('tournament.allowed_maps', 'Allowed Maps')}</h4>
+                <div className="flex flex-wrap gap-2">
                   {unrankedMaps.map((map) => (
-                    <span key={map.id} className="asset-badge">{map.name}</span>
+                    <span key={map.id} className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">{map.name}</span>
                   ))}
                 </div>
               </div>
@@ -717,33 +716,33 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       )}
 
       {/* Tournament Configuration Section */}
-      <div className="tournament-config">
+      <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
         <h3>{t('tournament_title')} {t('tournament.basic_info') ? '- ' + t('tournament.basic_info') : ''}</h3>
-        <div className="config-grid">
-          <div className="config-item">
-            <strong>{t('label_round_duration')}:</strong> {tournament.round_duration_days} {t('label_days')}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-2">
+            <strong className="font-semibold text-gray-700">{t('label_round_duration')}:</strong> <span className="text-gray-600">{tournament.round_duration_days} {t('label_days')}</span>
           </div>
-          <div className="config-item">
-            <strong>{t('label_auto_advance_rounds')}:</strong> {tournament.auto_advance_round ? t('yes') : t('no')}
+          <div className="flex flex-col gap-2">
+            <strong className="font-semibold text-gray-700">{t('label_auto_advance_rounds')}:</strong> <span className="text-gray-600">{tournament.auto_advance_round ? t('yes') : t('no')}</span>
           </div>
 
           {/* For swiss_elimination tournaments, show structured information */}
           {tournament.tournament_type === 'swiss_elimination' ? (
             <>
-              <div className="config-item">
-                <strong>Swiss Rounds:</strong> {tournament.general_rounds}
+              <div className="flex flex-col gap-2">
+                <strong className="font-semibold text-gray-700">Swiss Rounds:</strong> <span className="text-gray-600">{tournament.general_rounds}</span>
               </div>
-              <div className="config-item">
-                <strong>Elimination Rounds:</strong> {tournament.final_rounds}
+              <div className="flex flex-col gap-2">
+                <strong className="font-semibold text-gray-700">Elimination Rounds:</strong> <span className="text-gray-600">{tournament.final_rounds}</span>
               </div>
-              <div className="config-item">
-                <strong>General Format (Swiss + Elimination except Final):</strong> {t('match_format.' + tournament.general_rounds_format)}
+              <div className="flex flex-col gap-2">
+                <strong className="font-semibold text-gray-700">General Format (Swiss + Elimination except Final):</strong> <span className="text-gray-600">{t('match_format.' + tournament.general_rounds_format)}</span>
               </div>
-              <div className="config-item">
-                <strong>Final Format (Grand Final):</strong> {t('match_format.' + tournament.final_rounds_format)}
+              <div className="flex flex-col gap-2">
+                <strong className="font-semibold text-gray-700">Final Format (Grand Final):</strong> <span className="text-gray-600">{t('match_format.' + tournament.final_rounds_format)}</span>
               </div>
-              <div className="config-item" style={{ gridColumn: '1 / -1' }}>
-                <strong>Tournament Structure:</strong>
+              <div className="flex flex-col gap-2" style={{ gridColumn: '1 / -1' }}>
+                <strong className="font-semibold text-gray-700">Tournament Structure:</strong>
                 <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
                   <li>Swiss Phase: {tournament.general_rounds} rounds ({t('match_format.' + tournament.general_rounds_format)})</li>
                   {tournament.final_rounds > 1 && (
@@ -756,19 +755,19 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           ) : (
             <>
               {/* For other tournament types, show standard fields */}
-              <div className="config-item">
-                <strong>{t('label_general_rounds')}:</strong> {tournament.general_rounds}
+              <div className="flex flex-col gap-2">
+                <strong className="font-semibold text-gray-700">{t('label_general_rounds')}:</strong> <span className="text-gray-600">{tournament.general_rounds}</span>
               </div>
-              <div className="config-item">
-                <strong>{t('label_general_rounds_format')}:</strong> {t('match_format.' + tournament.general_rounds_format)}
+              <div className="flex flex-col gap-2">
+                <strong className="font-semibold text-gray-700">{t('label_general_rounds_format')}:</strong> <span className="text-gray-600">{t('match_format.' + tournament.general_rounds_format)}</span>
               </div>
               {tournament.final_rounds > 0 && (
                 <>
-                  <div className="config-item">
-                    <strong>{t('label_final_rounds')}:</strong> {tournament.final_rounds}
+                  <div className="flex flex-col gap-2">
+                    <strong className="font-semibold text-gray-700">{t('label_final_rounds')}:</strong> <span className="text-gray-600">{tournament.final_rounds}</span>
                   </div>
-                  <div className="config-item">
-                    <strong>{t('label_final_rounds_format')}:</strong> {t('match_format.' + tournament.final_rounds_format)}
+                  <div className="flex flex-col gap-2">
+                    <strong className="font-semibold text-gray-700">{t('label_final_rounds_format')}:</strong> <span className="text-gray-600">{t('match_format.' + tournament.final_rounds_format)}</span>
                   </div>
                 </>
               )}
@@ -779,7 +778,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
       {/* Organizer Controls Section */}
       {isCreator && (
-        <div className="organizer-controls">
+        <div>
           <h3>{t('tournaments.management')}</h3>
           
           {editMode && tournament.status !== 'in_progress' ? (
@@ -805,25 +804,25 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               }}
             />
           ) : (
-            <div className="control-buttons">
+            <div className="flex flex-col gap-3">
               {tournament.status !== 'prepared' && tournament.status !== 'in_progress' && tournament.status !== 'finished' && (
-                <button onClick={() => setEditMode(true)} className="btn-edit">{t('btn_edit', 'Edit')}</button>
+                <button onClick={() => setEditMode(true)} className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">{t('btn_edit', 'Edit')}</button>
               )}
 
               {tournament.status === 'registration_open' && (
-                <button onClick={handleCloseRegistration} className="btn-close-reg">{t('tournaments.btn_close_registration')}</button>
+                <button onClick={handleCloseRegistration} className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">{t('tournaments.btn_close_registration')}</button>
               )}
 
               {tournament.status === 'registration_closed' && (
-                <button onClick={handlePrepareAndStart} className="btn-prepare">{t('tournaments.btn_prepare')}</button>
+                <button onClick={handlePrepareAndStart} className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">{t('tournaments.btn_prepare')}</button>
               )}
 
               {tournament.status === 'prepared' && (
-                <button onClick={handleStartTournament} className="btn-start">{t('tournaments.btn_start')}</button>
+                <button onClick={handleStartTournament} className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">{t('tournaments.btn_start')}</button>
               )}
 
               {tournament.status === 'in_progress' && (
-                <p className="tournament-started-message">✓ {t('tournaments.started_locked')}</p>
+                <p className="text-green-600">✓ {t('tournaments.started_locked')}</p>
               )}
             </div>
           )}
@@ -832,46 +831,46 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
       {/* Join button for non-creators (only if logged in) */}
       {!isCreator && tournament.status === 'registration_open' && !userParticipationStatus && userId && (
-        <button className="btn-join-tournament" onClick={handleJoinTournament}>
+        <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors" onClick={handleJoinTournament}>
           {t('tournaments.request_join')}
         </button>
       )}
 
       {userParticipationStatus === 'pending' && (
-        <p className="pending-status">⏳ {t('join_pending_msg')}</p>
+        <p className="text-orange-600">⏳ {t('join_pending_msg')}</p>
       )}
 
       {userParticipationStatus === 'denied' && (
-        <p className="denied-status">❌ {t('join_denied_msg')}</p>
+        <p className="text-red-600">❌ {t('join_denied_msg')}</p>
       )}
 
-      <div className="tabs-section">
+      <div className="flex flex-wrap gap-2 mt-8">
         <button 
-          className={`tab-btn ${activeTab === 'participants' ? 'active' : ''}`}
+          className={`px-4 py-2 rounded transition-colors ${activeTab === 'participants' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('participants')}
         >
           {tournament?.tournament_mode === 'team' ? 'Teams' : t('tabs.participants', { count: participants.length })}
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'matches' ? 'active' : ''}`}
+          className={`px-4 py-2 rounded transition-colors ${activeTab === 'matches' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('matches')}
         >
           {t('tabs.matches', { count: matches.length })}
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'rounds' ? 'active' : ''}`}
+          className={`px-4 py-2 rounded transition-colors ${activeTab === 'rounds' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('rounds')}
         >
           {t('tabs.rounds', { count: rounds.length })}
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'roundMatches' ? 'active' : ''}`}
+          className={`px-4 py-2 rounded transition-colors ${activeTab === 'roundMatches' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('roundMatches')}
         >
           {t('tabs.round_details')}
         </button>
         <button 
-          className={`tab-btn ${activeTab === 'ranking' ? 'active' : ''}`}
+          className={`px-4 py-2 rounded transition-colors ${activeTab === 'ranking' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('ranking')}
         >
           {t('tabs.ranking')}
@@ -879,42 +878,42 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       </div>
 
       {activeTab === 'participants' && (
-        <div className="tab-content">
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6">
           {tournament?.tournament_mode === 'team' ? (
             // Team view: Group participants by team from standings (which has team_total_elo and members_with_elo)
             participants.length > 0 ? (
-              <div className="teams-container">
+                <div className="bg-white rounded-lg shadow-lg p-6">
                 {participants.map((team: any) => (
-                  <div key={team.id} className="team-card">
-                    <div className="team-header">
-                      <div className="team-title">
+                  <div key={team.id} className="mb-6 pb-6 border-b border-gray-200 last:border-b-0">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex flex-col gap-2">
                         <h3>
                           {team.nickname}
-                          <span className="team-size">({team.team_size}/2 members)</span>
+                          <span className="text-sm text-gray-600 ml-2">({team.team_size}/2 members)</span>
                         </h3>
                         {team.team_total_elo && (
-                          <div className="team-elo">
+                          <div className="text-sm">
                             <strong>Total ELO:</strong> {team.team_total_elo}
                           </div>
                         )}
                       </div>
-                      <div className="team-stats">
-                        <div className="stat">
-                          <span className="stat-label">{t('label_wins')}</span>
-                          <span className="stat-value">{team.tournament_wins || 0}</span>
+                      <div className="flex flex-col gap-2 text-right">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-600">{t('label_wins')}</span>
+                          <span className="font-semibold">{team.tournament_wins || 0}</span>
                         </div>
-                        <div className="stat">
-                          <span className="stat-label">{t('label_losses')}</span>
-                          <span className="stat-value">{team.tournament_losses || 0}</span>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-600">{t('label_losses')}</span>
+                          <span className="font-semibold">{team.tournament_losses || 0}</span>
                         </div>
-                        <div className="stat">
-                          <span className="stat-label">{t('label_points')}</span>
-                          <span className="stat-value"><strong>{team.tournament_points || 0}</strong></span>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-600">{t('label_points')}</span>
+                          <span className="font-semibold">{team.tournament_points || 0}</span>
                         </div>
-                        <div className="stat">
-                          <span className="stat-label">{t('label_status')}</span>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-gray-600">{t('label_status')}</span>
                           <span 
-                            className={`status-badge status-${normalizeStatus(team.status || 'active')}`}
+                            className="inline-block px-2 py-1 text-white rounded-full text-xs font-semibold"
                             style={{ 
                               backgroundColor: team.status === 'eliminated' ? '#dc3545' : '#28a745'
                             }}
@@ -925,25 +924,25 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       </div>
                     </div>
                     {team.members_with_elo && team.members_with_elo.length > 0 ? (
-                      <table className="team-members-table">
-                        <thead>
+                      <table className="w-full text-sm mt-4">
+                        <thead className="bg-gray-100">
                           <tr>
-                            <th>{t('label_nickname')}</th>
-                            <th>{t('label_elo')}</th>
-                            <th>Position</th>
-                            <th>{t('label_status')}</th>
-                            <th>{t('label_actions')}</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_nickname')}</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_elo')}</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">Position</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {team.members_with_elo.map((member: any) => (
-                            <tr key={member.user_id}>
-                              <td><PlayerLink nickname={member.nickname} userId={member.user_id} /></td>
-                              <td>{member.elo_rating || '-'}</td>
-                              <td>{member.team_position || '-'}</td>
-                              <td>
+                            <tr key={member.user_id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-gray-700"><PlayerLink nickname={member.nickname} userId={member.user_id} /></td>
+                              <td className="px-4 py-3 text-gray-700">{member.elo_rating || '-'}</td>
+                              <td className="px-4 py-3 text-gray-700">{member.team_position || '-'}</td>
+                              <td className="px-4 py-3 text-gray-700">
                                 <span
-                                  className="status-badge"
+                                  className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold"
                                   style={{ backgroundColor: getParticipationStatusColor(member.participation_status || 'pending') }}
                                 >
                                   {member.participation_status === 'unconfirmed' ? 'Unconfirmed' :
@@ -951,11 +950,11 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                    member.participation_status === 'accepted' ? 'Accepted' : 'Pending'}
                                 </span>
                               </td>
-                              <td>
-                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <td className="px-4 py-3 text-gray-700">
+                                <div className="flex gap-2 flex-wrap">
                                   {member.participation_status === 'unconfirmed' && member.user_id === userId && (
                                     <button
-                                      className="btn-confirm"
+                                      className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
                                       onClick={() => handleConfirmParticipation(member.participant_id)}
                                       title="Confirm your participation"
                                     >
@@ -965,14 +964,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   {isCreator && member.participation_status === 'pending' && (
                                     <>
                                       <button
-                                        className="btn-accept"
+                                        className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
                                         onClick={() => handleAcceptParticipant(member.participant_id)}
                                         title={t('btn_accept')}
                                       >
                                         {t('btn_accept')}
                                       </button>
                                       <button
-                                        className="btn-reject"
+                                        className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
                                         onClick={() => handleRejectParticipant(member.participant_id)}
                                         title={t('btn_reject')}
                                       >
@@ -981,7 +980,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                     </>
                                   )}
                                   {isCreator && member.participation_status === 'unconfirmed' && (
-                                    <span title="Awaiting player confirmation" style={{ color: '#666', fontSize: '0.9em' }}>
+                                    <span title="Awaiting player confirmation" className="text-sm text-gray-600">
                                       Awaiting confirmation
                                     </span>
                                   )}
@@ -992,61 +991,61 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         </tbody>
                       </table>
                     ) : (
-                      <p className="no-members">No members</p>
+                      <p className="text-gray-600 text-center py-4">No members</p>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <p>{t('no_participants_yet')}</p>
+              <p className="text-gray-600">{t('no_participants_yet')}</p>
             )
           ) : (
             // Individual view for ranked/unranked
             participants.length > 0 ? (
-              <table className="participants-table">
-                <thead>
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100">
                   <tr>
-                    <th>{t('label_nickname')}</th>
-                    <th>{t('label_status')}</th>
-                    <th>{t('label_elo')}</th>
-                    <th>{t('label_classification')}</th>
-                    <th>{t('label_wins')}</th>
-                    <th>{t('label_losses')}</th>
-                    <th>{t('label_points')}</th>
-                    {isCreator && <th>{t('label_actions')}</th>}
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_nickname')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_elo')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_classification')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_wins')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_losses')}</th>
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_points')}</th>
+                    {isCreator && <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {participants.map((p) => (
-                    <tr key={p.id}>
-                      <td><PlayerLink nickname={p.nickname} userId={p.id} /></td>
-                      <td>
+                    <tr key={p.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-gray-700"><PlayerLink nickname={p.nickname} userId={p.id} /></td>
+                      <td className="px-4 py-3 text-gray-700">
                         <span 
-                          className="status-badge"
+                          className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold"
                           style={{ backgroundColor: getParticipationStatusColor(p.participation_status) }}
                         >
                           {t(`option_${normalizeStatus(p.participation_status)}`) !== `option_${normalizeStatus(p.participation_status)}` ? t(`option_${normalizeStatus(p.participation_status)}`) : (p.participation_status || t('option_pending'))}
                         </span>
                       </td>
-                      <td>{p.elo_rating || '-'}</td>
-                      <td>
-                        <span className="classification-badge">
+                      <td className="px-4 py-3 text-gray-700">{p.elo_rating || '-'}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        <span className="inline-block px-2 py-1 bg-gray-100 rounded text-xs">
                           {p.status ? (p.status === 'active' ? '✓ ' + t('label_active') : '✗ ' + t('label_eliminated')) : '-'}
                         </span>
                       </td>
-                      <td>{p.tournament_wins}</td>
-                      <td>{p.tournament_losses}</td>
-                      <td>{p.tournament_points}</td>
+                      <td className="px-4 py-3 text-gray-700">{p.tournament_wins}</td>
+                      <td className="px-4 py-3 text-gray-700">{p.tournament_losses}</td>
+                      <td className="px-4 py-3 text-gray-700">{p.tournament_points}</td>
                       {isCreator && p.participation_status === 'pending' && (
-                      <td>
+                      <td className="px-4 py-3 text-gray-700">
                         <button 
-                          className="btn-accept"
+                          className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors mr-2"
                           onClick={() => handleAcceptParticipant(p.id)}
                         >
                           {t('btn_accept')}
                         </button>
                         <button 
-                          className="btn-reject"
+                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
                           onClick={() => handleRejectParticipant(p.id)}
                         >
                           {t('btn_reject')}
@@ -1058,22 +1057,22 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               </tbody>
               </table>
             ) : (
-              <p>{t('no_participants_yet')}</p>
+              <p className="text-gray-600">{t('no_participants_yet')}</p>
             )
           )}
         </div>
       )}
 
       {activeTab === 'matches' && (
-        <div className="tab-content">
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6">
           {tournament?.status !== 'in_progress' && tournament?.status !== 'finished' ? (
             <p className="no-matches-message">{t('matches_will_be_generated')}</p>
           ) : (
-            <>
-              {/* Scheduled Matches Section */}
-              <div className="matches-section">
-                <h3>{t('matches.scheduled')}</h3>
-                {rounds.length > 0 ? (
+          <>
+            {/* Scheduled Matches Section */}
+            <div className="mb-8">
+              <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-gray-300">{t('matches.scheduled')}</h3>
+              {rounds.length > 0 ? (
                   <>
                     {rounds.map((round) => {
                       const roundMatches = matches.filter(
@@ -1083,22 +1082,22 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       if (roundMatches.length === 0) return null;
                       
                       return (
-                        <div key={round.id} className="round-matches">
-                          <h4>
+                        <div key={round.id} className="mb-6">
+                          <h4 className="text-lg font-semibold text-gray-800 mb-3">
                             {t('label_round')} {round.round_number}
                             {round.round_phase_label && ` [${round.round_phase_label}]`}
                             {round.round_classification && ` (${round.round_classification})`}
                             {' '}-{' '}
                             {t(`option_${normalizeStatus(round.round_status)}`) !== `option_${normalizeStatus(round.round_status)}` ? t(`option_${normalizeStatus(round.round_status)}`) : (round.round_status || t('option_pending'))}
                           </h4>
-                          <table className="matches-table">
-                            <thead>
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-100">
                               <tr>
-                                <th>{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
-                                <th>{t('vs')}</th>
-                                <th>{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
-                                <th>{t('label_play_before')}</th>
-                                <th>{t('label_status')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('vs')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_play_before')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1133,14 +1132,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 });
                                 
                                 return (
-                                  <tr key={match.id}>
-                                    <td><strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong></td>
-                                    <td>vs</td>
-                                    <td><strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong></td>
-                                    <td>{playBeforeDate}</td>
-                                    <td>
-                                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <span className="status-badge" style={{ backgroundColor: '#FFC107' }}>
+                                  <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                                    <td className="px-4 py-3 text-gray-700"><strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong></td>
+                                    <td className="px-4 py-3 text-gray-700">vs</td>
+                                    <td className="px-4 py-3 text-gray-700"><strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong></td>
+                                    <td className="px-4 py-3 text-gray-700">{playBeforeDate}</td>
+                                    <td className="px-4 py-3 text-gray-700">
+                                      <div className="flex gap-2 items-center flex-wrap">
+                                        <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: '#FFC107' }}>
                                           {match.match_status_from_matches === 'confirmed' ? t('match_status_confirmed') :
                                            match.match_status_from_matches === 'disputed' ? t('match_status_disputed') :
                                            match.match_status_from_matches === 'unconfirmed' ? t('match_status_unconfirmed') :
@@ -1149,7 +1148,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         </span>
                                         {isPlayer && (round.round_status === 'pending' || round.round_status === 'in_progress') && (
                                           <button
-                                            className="btn-report-match"
+                                            className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                             onClick={() => handleOpenReportMatch(match)}
                                             title={t('report_match_link')}
                                           >
@@ -1158,7 +1157,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         )}
                                         {isCreator && (round.round_status === 'completed' || round.round_status === 'in_progress') && !match.winner_id && (
                                           <button
-                                            className="btn-determine-winner"
+                                            className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                             onClick={() => {
                                               setDetermineWinnerData(match);
                                               setShowDetermineWinnerModal(true);
