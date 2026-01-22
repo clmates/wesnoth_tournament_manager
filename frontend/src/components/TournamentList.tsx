@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import '../styles/Tournaments.css';
 
 export interface Tournament {
   id: string;
@@ -188,55 +187,55 @@ const TournamentList: React.FC<TournamentListProps> = ({
   };
 
   if (loading) {
-    return <div className="admin-container"><p>{t('loading')}</p></div>;
+    return <div className="w-full min-h-screen px-4 py-8 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200"><p>{t('loading')}</p></div>;
   }
 
   return (
-    <div className="admin-container">
+    <div className="w-full min-h-screen px-4 py-8 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200">
       {title && (
-        <div className="tournament-header">
-          <h1>{title}</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800">{title}</h1>
           {showCreateButton && (
-            <button className="btn-create" onClick={onCreateClick}>
+            <button className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors" onClick={onCreateClick}>
               {t('create_tournament')}
             </button>
           )}
         </div>
       )}
 
-      {error && <p className="error-message">{error}</p>}
+      {error && <p className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6">{error}</p>}
 
       {/* Pagination Controls - Top */}
       {totalPages > 1 && (
-        <div className="pagination-controls">
+        <div className="flex gap-4 items-center justify-center mb-6 flex-wrap">
           <button
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${currentPage === 1 ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
             {t('pagination_first')}
           </button>
           <button
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${currentPage === 1 ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
             {t('pagination_prev')}
           </button>
 
-          <div className="page-info">
+          <div className="text-gray-700 font-semibold">
             {t('pagination_page_info', { page: currentPage, totalPages })}
           </div>
 
           <button
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${currentPage === totalPages ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
             {t('pagination_next')}
           </button>
           <button
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${currentPage === totalPages ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
@@ -247,9 +246,9 @@ const TournamentList: React.FC<TournamentListProps> = ({
 
       {/* Filters */}
       {showFilters && (
-        <div className="filters-section">
-          <div className="filter-group">
-            <label htmlFor="name">{t('tournament_name')}</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 bg-gray-100 p-4 rounded-lg mb-6">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="name" className="font-semibold text-gray-700 text-sm">{t('tournament_name')}</label>
             <input
               type="text"
               id="name"
@@ -257,16 +256,18 @@ const TournamentList: React.FC<TournamentListProps> = ({
               placeholder={t('filter_by_tournament_name')}
               value={inputFilters.name}
               onChange={handleFilterInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
             />
           </div>
 
-          <div className="filter-group">
-            <label htmlFor="status">{t('filter_status')}</label>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="status" className="font-semibold text-gray-700 text-sm">{t('filter_status')}</label>
             <select
               id="status"
               name="status"
               value={inputFilters.status}
               onChange={handleFilterInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
             >
               <option value="">{t('option_all_statuses')}</option>
               <option value="registration_open">{t('option_registration_open')}</option>
@@ -279,13 +280,14 @@ const TournamentList: React.FC<TournamentListProps> = ({
             </select>
           </div>
 
-          <div className="filter-group">
-            <label htmlFor="type">{t('filter_type')}</label>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="type" className="font-semibold text-gray-700 text-sm">{t('filter_type')}</label>
             <select
               id="type"
               name="type"
               value={inputFilters.type}
               onChange={handleFilterInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
             >
               <option value="">{t('option_all_types')}</option>
               <option value="elimination">{t('option_type_elimination')}</option>
@@ -294,7 +296,7 @@ const TournamentList: React.FC<TournamentListProps> = ({
             </select>
           </div>
 
-          <div className="filter-group checkbox-filter">
+          <div className="flex items-center gap-2">
             <input
               type="checkbox"
               id="my_tournaments"
@@ -303,77 +305,78 @@ const TournamentList: React.FC<TournamentListProps> = ({
               onChange={handleFilterInputChange}
               disabled={!isAuthenticated}
               title={!isAuthenticated ? t('must_login_to_filter') : ''}
+              className="w-4 h-4 cursor-pointer"
             />
             <label 
               htmlFor="my_tournaments"
-              className={!isAuthenticated ? 'disabled-label' : ''}
+              className={`font-semibold text-gray-700 text-sm ${!isAuthenticated ? 'text-gray-500 cursor-not-allowed' : ''}`}
             >
               {t('filter_my_tournaments')}
             </label>
           </div>
 
-          <button className="reset-btn" onClick={handleResetFilters}>
+          <button className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors col-span-1 sm:col-span-2 lg:col-span-1" onClick={handleResetFilters}>
             {t('reset_filters')}
           </button>
         </div>
       )}
 
-      <div className="tournaments-info">
+      <div className="text-gray-600 text-sm mb-4">
         <p>{t('showing_count', { count: tournaments.length, total, page: currentPage, totalPages })}</p>
       </div>
 
-      <section className="tournaments-section">
+      <section className="bg-white rounded-lg shadow-lg p-8 overflow-x-auto">
         {tournaments.length > 0 ? (
-          <table className="tournaments-table">
-            <thead>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100">
               <tr>
-                <th>{t('tournament.col_name')}</th>
-                <th>{t('tournament.col_organizer')}</th>
-                <th>{t('tournament.col_status')}</th>
-                <th>{t('tournament.col_type')}</th>
-                <th>{t('tournament.col_mode')}</th>
-                <th>{t('tournament.col_winner')}</th>
-                <th>{t('tournament.col_runner_up')}</th>
-                <th>{t('tournament.col_last_updated')}</th>
-                <th>{t('tournament.col_action')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('tournament.col_name')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('tournament.col_organizer')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('tournament.col_status')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('tournament.col_type')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('tournament.col_mode')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('tournament.col_winner')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('tournament.col_runner_up')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('tournament.col_last_updated')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('tournament.col_action')}</th>
               </tr>
             </thead>
             <tbody>
               {tournaments.map((tournament) => (
-                <tr key={tournament.id}>
-                  <td className="tournament-name">{tournament.name}</td>
-                  <td>{tournament.creator_nickname}</td>
-                  <td>
+                <tr key={tournament.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 text-gray-700 font-semibold text-blue-600">{tournament.name}</td>
+                  <td className="px-4 py-3 text-gray-700">{tournament.creator_nickname}</td>
+                  <td className="px-4 py-3 text-gray-700">
                     <span
-                      className="status-badge"
+                      className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold"
                       style={{ backgroundColor: getStatusColor(tournament.status) }}
                     >
                       {getStatusLabel(tournament.status)}
                     </span>
                   </td>
-                  <td>{tournament.tournament_type}</td>
-                  <td>
+                  <td className="px-4 py-3 text-gray-700">{tournament.tournament_type}</td>
+                  <td className="px-4 py-3 text-gray-700">
                     <span
-                      className="status-badge"
+                      className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold"
                       style={{ backgroundColor: getTournamentModeColor(tournament.tournament_mode) }}
                     >
                       {getTournamentModeLabel(tournament.tournament_mode)}
                     </span>
                   </td>
-                  <td>{tournament.winner_nickname || '-'}</td>
-                  <td>{tournament.runner_up_nickname || '-'}</td>
-                  <td>{formatDate(tournament.updated_at)}</td>
-                  <td className="actions-cell">
+                  <td className="px-4 py-3 text-gray-700">{tournament.winner_nickname || '-'}</td>
+                  <td className="px-4 py-3 text-gray-700">{tournament.runner_up_nickname || '-'}</td>
+                  <td className="px-4 py-3 text-gray-700">{formatDate(tournament.updated_at)}</td>
+                  <td className="px-4 py-3 text-gray-700 flex gap-2">
                     <button
                       onClick={() => handleViewDetails(tournament.id)}
-                      className="btn-view"
+                      className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                     >
                       {t('tournaments.view_details')}
                     </button>
                     {onEdit && (
                       <button
                         onClick={() => onEdit(tournament.id)}
-                        className="btn-edit"
+                        className="px-3 py-1 bg-yellow-500 text-white rounded text-xs hover:bg-yellow-600 transition-colors"
                       >
                         {t('edit')}
                       </button>
@@ -381,7 +384,7 @@ const TournamentList: React.FC<TournamentListProps> = ({
                     {onDelete && (
                       <button
                         onClick={() => onDelete(tournament.id)}
-                        className="btn-delete"
+                        className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
                       >
                         {t('delete')}
                       </button>
@@ -392,41 +395,41 @@ const TournamentList: React.FC<TournamentListProps> = ({
             </tbody>
           </table>
         ) : (
-          <p className="no-data">{t('no_data')}</p>
+          <p className="text-gray-600 text-center py-8">{t('no_data')}</p>
         )}
       </section>
 
       {/* Pagination Controls - Bottom */}
       {totalPages > 1 && (
-        <div className="pagination-controls">
+        <div className="flex gap-4 items-center justify-center mb-6 flex-wrap">
           <button
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${currentPage === 1 ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
             {t('pagination_first')}
           </button>
           <button
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${currentPage === 1 ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
             {t('pagination_prev')}
           </button>
 
-          <div className="page-info">
+          <div className="text-gray-700 font-semibold">
             {t('pagination_page_info', { page: currentPage, totalPages })}
           </div>
 
           <button
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${currentPage === totalPages ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
             {t('pagination_next')}
           </button>
           <button
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${currentPage === totalPages ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
