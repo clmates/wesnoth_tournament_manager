@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { adminService } from '../services/api';
+import UserProfileNav from '../components/UserProfileNav';
 import './AdminAudit.css';
 
 interface AuditLog {
@@ -151,8 +152,10 @@ export default function AdminAudit() {
   };
 
   return (
-    <div className="audit-container">
-      <h1>🔒 Audit Logs</h1>
+    <>
+      <UserProfileNav />
+      <div className="audit-container">
+        <h1>🔒 Audit Logs</h1>
 
       {error && <div className="error-message">{error}</div>}
 
@@ -297,6 +300,6 @@ export default function AdminAudit() {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
