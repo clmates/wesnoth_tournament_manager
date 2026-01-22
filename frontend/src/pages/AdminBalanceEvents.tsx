@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { statisticsService } from '../services/statisticsService';
 import api from '../services/api';
+import UserProfileNav from '../components/UserProfileNav';
 import '../styles/AdminBalanceEvents.css';
 
 interface Faction {
@@ -179,9 +180,11 @@ const AdminBalanceEvents: React.FC = () => {
   };
 
   return (
-    <div className="admin-balance-events-container">
-      <div className="page-header">
-        <h1>{t('admin_balance_events') || 'Balance Events'}</h1>
+    <>
+      <UserProfileNav />
+      <div className="admin-balance-events-container">
+        <div className="page-header">
+          <h1>{t('admin_balance_events') || 'Balance Events'}</h1>
         <button 
           onClick={() => setShowModal(true)} 
           className="btn-add-event"
@@ -383,7 +386,8 @@ const AdminBalanceEvents: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
