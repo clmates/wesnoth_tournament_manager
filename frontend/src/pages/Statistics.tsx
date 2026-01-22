@@ -4,8 +4,6 @@ import FactionBalanceTab from '../components/FactionBalanceTab';
 import MapBalanceTab from '../components/MapBalanceTab';
 import MatchupBalanceTab from '../components/MatchupBalanceTab';
 import BalanceEventImpactPanel from '../components/BalanceEventImpactPanel';
-import '../styles/Statistics.css';
-import '../styles/BalanceEventImpactPanel.css';
 
 type StatisticsTab = 'faction' | 'map' | 'matchups';
 
@@ -35,9 +33,9 @@ const Statistics: React.FC = () => {
   };
 
   return (
-    <div className="statistics-container">
-      <h1>{t('statistics') || 'Balance Statistics'}</h1>
-      <p className="statistics-intro">
+    <div className="w-full max-w-6xl mx-auto px-4 py-8">
+      <h1 className="text-4xl font-bold text-gray-800 mb-4">{t('statistics') || 'Balance Statistics'}</h1>
+      <p className="text-lg text-gray-600 mb-8">
         {t('statistics_intro') || 'Detailed analysis of faction and map balance across all matches'}
       </p>
 
@@ -47,28 +45,28 @@ const Statistics: React.FC = () => {
         onComparisonDataChange={handleComparisonDataChange}
       />
 
-      <div className="statistics-tabs">
+      <div className="flex gap-4 border-b border-gray-300 mb-6 overflow-x-auto">
         <button 
-          className={`tab-button ${activeTab === 'faction' ? 'active' : ''}`}
+          className={`px-4 py-3 font-semibold text-gray-600 border-b-2 border-transparent hover:text-gray-800 transition-colors cursor-pointer whitespace-nowrap ${activeTab === 'faction' ? 'text-blue-600 border-blue-600' : ''}`}
           onClick={() => setActiveTab('faction')}
         >
           {t('faction_balance') || 'Faction Balance'}
         </button>
         <button 
-          className={`tab-button ${activeTab === 'map' ? 'active' : ''}`}
+          className={`px-4 py-3 font-semibold text-gray-600 border-b-2 border-transparent hover:text-gray-800 transition-colors cursor-pointer whitespace-nowrap ${activeTab === 'map' ? 'text-blue-600 border-blue-600' : ''}`}
           onClick={() => setActiveTab('map')}
         >
           {t('map_balance') || 'Map Balance'}
         </button>
         <button 
-          className={`tab-button ${activeTab === 'matchups' ? 'active' : ''}`}
+          className={`px-4 py-3 font-semibold text-gray-600 border-b-2 border-transparent hover:text-gray-800 transition-colors cursor-pointer whitespace-nowrap ${activeTab === 'matchups' ? 'text-blue-600 border-blue-600' : ''}`}
           onClick={() => setActiveTab('matchups')}
         >
           {t('matchup_balance') || 'Matchup Analysis'}
         </button>
       </div>
 
-      <div className="statistics-content">
+      <div className="mt-8">
         {activeTab === 'faction' && <FactionBalanceTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
         {activeTab === 'map' && <MapBalanceTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
         {activeTab === 'matchups' && <MatchupBalanceTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
