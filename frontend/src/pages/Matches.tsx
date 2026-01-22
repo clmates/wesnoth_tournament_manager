@@ -5,7 +5,6 @@ import { useAuthStore } from '../store/authStore';
 import MatchesTable from '../components/MatchesTable';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import MatchDetailsModal from '../components/MatchDetailsModal';
-import '../styles/Matches.css';
 
 // Get API URL for direct backend calls
 // Determine API URL based on frontend hostname and Vite environment variables
@@ -197,7 +196,7 @@ const Matches: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="auth-container"><p>{t('loading') || 'Loading...'}</p></div>;
+    return <div className="flex items-center justify-center min-h-screen"><p>{t('loading') || 'Loading...'}</p></div>;
   }
 
   const winnerEloChange = (match: any) => (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
@@ -207,40 +206,56 @@ const Matches: React.FC = () => {
   const paginatedMatches = allMatches;
 
   return (
-    <div className="matches-page-content">
-      <h1>{t('matches_all_matches')}</h1>
+    <div className="w-full px-4 py-8">
+      <h1 className="text-4xl font-bold text-gray-800 mb-6">{t('matches_all_matches')}</h1>
 
       {/* Pagination Controls - Top */}
       {totalPages > 1 && (
-        <div className="pagination-controls">
+        <div className="flex gap-4 items-center justify-center mb-6 flex-wrap">
           <button 
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${
+              currentPage === 1
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
             {t('pagination_first')}
           </button>
             <button 
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${
+              currentPage === 1
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
             {t('pagination_prev')}
           </button>
           
-          <div className="page-info">
-            Page <span className="current-page">{currentPage}</span> of <span className="total-pages">{totalPages}</span>
+          <div className="text-gray-700 font-semibold">
+            Page <span>{currentPage}</span> of <span>{totalPages}</span>
           </div>
           
           <button 
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${
+              currentPage === totalPages
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
             {t('pagination_next')}
           </button>
           <button 
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${
+              currentPage === totalPages
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
@@ -249,9 +264,9 @@ const Matches: React.FC = () => {
         </div>
       )}
 
-      <div className="filters-section">
-        <div className="filter-group">
-          <label htmlFor="winner">{t('filter_winner')}</label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 bg-gray-100 p-4 rounded-lg mb-6">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="winner" className="font-semibold text-gray-700 text-sm">{t('filter_winner')}</label>
           <input
             type="text"
             id="winner"
@@ -259,11 +274,12 @@ const Matches: React.FC = () => {
             placeholder={t('filter_by_winner')}
             value={filters.winner}
             onChange={handleFilterChangeWithReset}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
           />
         </div>
 
-        <div className="filter-group">
-          <label htmlFor="loser">{t('filter_loser')}</label>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="loser" className="font-semibold text-gray-700 text-sm">{t('filter_loser')}</label>
           <input
             type="text"
             id="loser"
@@ -271,11 +287,12 @@ const Matches: React.FC = () => {
             placeholder={t('filter_by_loser')}
             value={filters.loser}
             onChange={handleFilterChangeWithReset}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
           />
         </div>
 
-        <div className="filter-group">
-          <label htmlFor="map">{t('filter_map')}</label>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="map" className="font-semibold text-gray-700 text-sm">{t('filter_map')}</label>
           <input
             type="text"
             id="map"
@@ -283,16 +300,18 @@ const Matches: React.FC = () => {
             placeholder={t('filter_by_map')}
             value={filters.map}
             onChange={handleFilterChangeWithReset}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
           />
         </div>
 
-        <div className="filter-group">
-          <label htmlFor="status">{t('filter_match_status')}</label>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="status" className="font-semibold text-gray-700 text-sm">{t('filter_match_status')}</label>
           <select
             id="status"
             name="status"
             value={filters.status}
             onChange={handleFilterChangeWithReset}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
           >
             <option value="">{t('all')}</option>
             <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
@@ -302,13 +321,14 @@ const Matches: React.FC = () => {
           </select>
         </div>
 
-        <div className="filter-group">
-          <label htmlFor="confirmed">{t('filter_confirmation_status')}</label>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="confirmed" className="font-semibold text-gray-700 text-sm">{t('filter_confirmation_status')}</label>
           <select
             id="confirmed"
             name="confirmed"
             value={filters.confirmed}
             onChange={handleFilterChangeWithReset}
+            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
           >
             <option value="">{t('all')}</option>
             <option value="confirmed">{t('match_status_confirmed')}</option>
@@ -318,14 +338,14 @@ const Matches: React.FC = () => {
           </select>
         </div>
 
-        <button className="reset-btn" onClick={resetFilters}>{t('reset_filters')}</button>
+        <button className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors col-span-1 sm:col-span-2 lg:col-span-1 h-fit" onClick={resetFilters}>{t('reset_filters')}</button>
       </div>
 
-      <div className="matches-info">
+      <div className="text-gray-600 text-sm mb-4">
         <p>{t('showing_count_matches', { count: paginatedMatches.length, total, page: currentPage, totalPages })}</p>
       </div>
 
-      <div className="games-table-wrapper">
+      <div className="rounded-lg shadow-md overflow-x-auto">
         <MatchesTable 
           matches={paginatedMatches}
           currentPlayerId={userId || undefined}
@@ -336,35 +356,51 @@ const Matches: React.FC = () => {
       </div>
 
       {totalPages > 1 && (
-        <div className="pagination-controls">
+        <div className="flex gap-4 items-center justify-center mb-6 flex-wrap mt-6">
           <button 
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${
+              currentPage === 1
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
             onClick={() => handlePageChange(1)}
             disabled={currentPage === 1}
           >
             {t('pagination_first')}
           </button>
           <button 
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${
+              currentPage === 1
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
             {t('pagination_prev')}
           </button>
           
-          <div className="page-info">
-            Page <span className="current-page">{currentPage}</span> of <span className="total-pages">{totalPages}</span>
+          <div className="text-gray-700 font-semibold">
+            Page <span>{currentPage}</span> of <span>{totalPages}</span>
           </div>
           
           <button 
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${
+              currentPage === totalPages
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
             {t('pagination_next')}
           </button>
           <button 
-            className="page-btn"
+            className={`px-4 py-2 rounded transition-colors ${
+              currentPage === totalPages
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
             onClick={() => handlePageChange(totalPages)}
             disabled={currentPage === totalPages}
           >
