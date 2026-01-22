@@ -7,6 +7,9 @@ import react from '@vitejs/plugin-react';
 // Asset hash regeneration enforced for all files
 export default defineConfig({
   plugins: [react()],
+  css: {
+    postcss: './postcss.config.js',
+  },
   build: {
     rollupOptions: {
       output: {
