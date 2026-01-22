@@ -1066,14 +1066,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       )}
 
       {activeTab === 'matches' && (
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6 overflow-x-auto">
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6">
           {tournament?.status !== 'in_progress' && tournament?.status !== 'finished' ? (
-            <p className="no-matches-message">{t('matches_will_be_generated')}</p>
+            <p className="bg-gray-100 text-gray-700 text-center py-8 px-4 rounded">{t('matches_will_be_generated')}</p>
           ) : (
           <>
             {/* Scheduled Matches Section */}
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-gray-300">{t('matches.scheduled')}</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-500">{t('matches.scheduled')}</h3>
               {rounds.length > 0 ? (
                   <>
                     {rounds.map((round) => {
@@ -1084,22 +1084,23 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       if (roundMatches.length === 0) return null;
                       
                       return (
-                        <div key={round.id} className="mb-6">
-                          <h4 className="text-lg font-semibold text-gray-800 mb-3">
+                        <div key={round.id} className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                          <h4 className="text-lg font-semibold text-gray-800 mb-4 uppercase tracking-wide">
                             {t('label_round')} {round.round_number}
                             {round.round_phase_label && ` [${round.round_phase_label}]`}
                             {round.round_classification && ` (${round.round_classification})`}
                             {' '}-{' '}
                             {t(`option_${normalizeStatus(round.round_status)}`) !== `option_${normalizeStatus(round.round_status)}` ? t(`option_${normalizeStatus(round.round_status)}`) : (round.round_status || t('option_pending'))}
                           </h4>
+                          <div className="overflow-x-auto">
                           <table className="w-full text-sm">
-                            <thead className="bg-gray-100">
+                            <thead className="bg-gray-200">
                               <tr>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('vs')}</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_play_before')}</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
+                                <th className="px-4 py-3 text-center font-semibold text-gray-700">vs</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_play_before')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_status')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1176,30 +1177,32 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               })}
                             </tbody>
                           </table>
+                          </div>
                         </div>
                       );
                     })}
                     {matches.filter((m) => m.match_status === 'pending').length === 0 && (
-                      <p>{t('no_scheduled_matches')}</p>
+                      <p className="text-gray-600">{t('no_scheduled_matches')}</p>
                     )}
                   </>
                 ) : (
-                  <p>{t('no_rounds_configured')}</p>
+                  <p className="text-gray-600">{t('no_rounds_configured')}</p>
                 )}
               </div>
 
               {/* Completed Matches Section */}
-              <div className="matches-section">
-                <h3>{t('matches.completed')}</h3>
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-500">{t('matches.completed')}</h3>
                 {matches.filter((m) => m.match_status === 'completed').length > 0 ? (
-                  <table className="matches-table completed-matches">
-                    <thead>
+                  <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-200">
                       <tr>
-                        <th>{t('label_round')}</th>
-                        <th>{t('label_winner')}</th>
-                        <th>{t('label_loser')}</th>
-                        <th>{tournament?.tournament_mode === 'unranked' ? `${t('label_map')} / Factions` : t('label_map')}</th>
-                        <th>Status / Actions</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_round')}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_winner')}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_loser')}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{tournament?.tournament_mode === 'unranked' ? `${t('label_map')} / Factions` : t('label_map')}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">Status / Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1234,60 +1237,60 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           const confirmationStatus = isAdminDetermined ? 'admin' : (match.match_status_from_matches || 'unconfirmed');
 
                           return (
-                            <tr key={match.id}>
-                              <td>{t('label_round')} {match.round_number}</td>
-                              <td>
-                                <div className="player-block">
-                                  <div className="first-row">
-                                    <strong>{match.is_team_mode ? match.winner_nickname : <PlayerLink nickname={match.winner_nickname || '-'} userId={winnerId} />}</strong>
+                            <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-gray-700">{t('label_round')} {match.round_number}</td>
+                              <td className="px-4 py-3 text-gray-700">
+                                <div className="flex flex-col gap-1">
+                                  <div>
+                                    <strong className="text-green-600">{match.is_team_mode ? match.winner_nickname : <PlayerLink nickname={match.winner_nickname || '-'} userId={winnerId} />}</strong>
                                   </div>
                                   {match.winner_comments && (
-                                    <div className="comments-row winner-comments">
-                                      <small>{match.winner_comments}</small>
+                                    <div className="text-xs text-gray-600 italic">
+                                      {match.winner_comments}
                                     </div>
                                   )}
                                 </div>
                               </td>
-                              <td>
-                                <div className="player-block">
-                                  <div className="first-row">
-                                    <strong>{match.is_team_mode ? loserNickname : <PlayerLink nickname={loserNickname} userId={loserId} />}</strong>
+                              <td className="px-4 py-3 text-gray-700">
+                                <div className="flex flex-col gap-1">
+                                  <div>
+                                    <strong className="text-red-600">{match.is_team_mode ? loserNickname : <PlayerLink nickname={loserNickname} userId={loserId} />}</strong>
                                   </div>
                                   {match.loser_comments && (
-                                    <div className="comments-row loser-comments">
-                                      <small>{match.loser_comments}</small>
+                                    <div className="text-xs text-gray-600 italic">
+                                      {match.loser_comments}
                                     </div>
                                   )}
                                 </div>
                               </td>
-                              <td>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <td className="px-4 py-3 text-gray-700">
+                                <div className="flex flex-col gap-1">
                                   <span>{match.map || '-'}</span>
                                   {tournament?.tournament_mode === 'unranked' && !match.is_team_mode && (match.winner_faction || match.loser_faction) && (
-                                    <span style={{ fontSize: '0.85em', color: '#666' }}>
+                                    <span className="text-xs text-gray-600">
                                       {match.winner_faction || '-'} vs {match.loser_faction || '-'}
                                     </span>
                                   )}
                                 </div>
                               </td>
-                              <td>
-                                <div className="status-actions-col">
-                                  <div className="status-item">
+                              <td className="px-4 py-3 text-gray-700">
+                                <div className="flex flex-col gap-2">
+                                  <div>
                                     {isAdminDetermined ? (
-                                      <span className="badge-admin">{t('admin_tag')}</span>
+                                      <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-purple-500">{t('admin_tag')}</span>
                                     ) : confirmationStatus === 'confirmed' ? (
-                                      <span className="badge-confirmed">{t('match_status_confirmed')}</span>
+                                      <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-green-500">{t('match_status_confirmed')}</span>
                                     ) : confirmationStatus === 'disputed' ? (
-                                      <span className="badge-disputed">{t('match_status_disputed')}</span>
+                                      <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-orange-500">{t('match_status_disputed')}</span>
                                     ) : (
-                                      <span className="badge-unconfirmed">{t('match_status_unconfirmed')}</span>
+                                      <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-gray-400">{t('match_status_unconfirmed')}</span>
                                     )}
                                   </div>
-                                  <div className="actions-item">
+                                  <div className="flex flex-wrap gap-2">
                                     {!isAdminDetermined && match.match_id ? (
                                       <>
                                         <button
-                                          className="details-btn"
+                                          className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
                                           onClick={() => setMatchDetailsModal({ isOpen: true, match })}
                                           title={t('view_match_details')}
                                         >
@@ -1295,22 +1298,22 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         </button>
                                         {match.replay_file_path ? (
                                           <button
-                                            className="download-btn"
+                                            className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
                                             onClick={() => handleDownloadReplay(match.match_id, match.replay_file_path)}
                                             title={`${t('downloads')}: ${match.replay_downloads || 0}`}
                                           >
                                             ⬇️
                                           </button>
                                         ) : (
-                                          <span className="no-replay">{t('no_replay')}</span>
+                                          <span className="text-xs text-gray-500">{t('no_replay')}</span>
                                         )}
                                       </>
                                     ) : (
-                                      <span className="no-link">-</span>
+                                      <span className="text-xs text-gray-500">-</span>
                                     )}
                                     {!isAdminDetermined && isCurrentUserLoser && confirmationStatus === 'unconfirmed' && (
                                       <button
-                                        className="btn-confirm-dispute"
+                                        className="px-2 py-1 text-xs bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors"
                                         onClick={() => handleOpenConfirmModal(match)}
                                       >
                                         {t('confirm_dispute')}
