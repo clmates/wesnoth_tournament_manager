@@ -4,7 +4,6 @@ import { userService, matchService, publicService } from '../services/api';
 import { processMultiLanguageItems } from '../utils/languageFallback';
 import { getLevelTranslationKey } from '../utils/levelTranslation';
 import PlayerLink from '../components/PlayerLink';
-import '../styles/Home.css';
 
 // Get API URL for direct backend calls
 // Determine API URL based on frontend hostname and Vite environment variables
@@ -277,36 +276,36 @@ const Home: React.FC = () => {
   }, []);
 
   if (loading) {
-    return <div className="home"><p>{t('loading')}</p></div>;
+    return <div className="w-full p-4 bg-gradient-to-br from-blue-50 to-blue-100"><p>{t('loading')}</p></div>;
   }
 
   return (
-    <div className="home-container">
-      <div className="home-header">
-        <h1>{t('app_name')}</h1>
-        {error && <p className="error-message">{error}</p>}
+    <div className="w-full max-w-full mx-auto px-4 py-8 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 min-h-screen flex flex-col">
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold text-gray-800 mb-4">{t('app_name')}</h1>
+        {error && <p className="bg-gradient-to-r from-red-100 to-red-50 text-red-900 p-4 rounded-lg border-l-4 border-red-500 shadow-md">{error}</p>}
       </div>
 
-      <div className="home-layout">
-        {/* Left Column: 80% */}
-        <div className="home-left">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 w-full">
+        {/* Left Column: 3/4 width */}
+        <div className="lg:col-span-3 flex flex-col gap-8">
           {/* Recent Matches */}
-          <section className="home-section recent-matches-section">
-            <div className="section-header">
-              <h2>{t('recent_games')}</h2>
-              <a href="/matches" className="view-all-link">{t('view_all') || 'View All →'}</a>
+          <section className="bg-white rounded-xl shadow-lg p-8">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b-2 border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-800">{t('recent_games')}</h2>
+              <a href="/matches" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold text-sm px-4 py-2 rounded transition-all">{t('view_all') || 'View All →'}</a>
             </div>
             {recentMatches.length > 0 ? (
-              <div className="recent-matches-table-wrapper">
-                <table className="recent-matches-table">
-                  <thead>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100">
                     <tr>
-                      <th>{t('label_date')}</th>
-                      <th>{t('label_winner')}</th>
-                      <th>{t('label_winner_rating')}</th>
-                      <th>{t('label_loser')}</th>
-                      <th>{t('label_loser_rating')}</th>
-                      <th>{t('label_actions')}</th>
+                      <th className="px-4 py-2 text-left font-semibold text-gray-700">{t('label_date')}</th>
+                      <th className="px-4 py-2 text-left font-semibold text-gray-700">{t('label_winner')}</th>
+                      <th className="px-4 py-2 text-left font-semibold text-gray-700">{t('label_winner_rating')}</th>
+                      <th className="px-4 py-2 text-left font-semibold text-gray-700">{t('label_loser')}</th>
+                      <th className="px-4 py-2 text-left font-semibold text-gray-700">{t('label_loser_rating')}</th>
+                      <th className="px-4 py-2 text-left font-semibold text-gray-700">{t('label_actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -315,57 +314,57 @@ const Home: React.FC = () => {
                       const loserEloChange = (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
 
                       return (
-                        <tr key={match.id} className="match-row">
-                          <td className="date-col">
+                        <tr key={match.id} className="border-b hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 text-gray-700">
                             {new Date(match.created_at).toLocaleDateString()}
                           </td>
                           
-                          <td className="winner-col">
-                            <div className="player-info">
-                              <span className="player-name"><PlayerLink nickname={match.winner_nickname} userId={match.winner_id} /></span>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-semibold text-green-600"><PlayerLink nickname={match.winner_nickname} userId={match.winner_id} /></span>
                               {match.winner_faction && (
-                                <span className="faction-badge">{match.winner_faction}</span>
+                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded inline-block w-fit">{match.winner_faction}</span>
                               )}
                               {match.winner_comments && (
-                                <span className="player-comment">{match.winner_comments}</span>
+                                <span className="text-xs text-gray-600 italic">{match.winner_comments}</span>
                               )}
                             </div>
                           </td>
                           
-                          <td className="rating-col">
-                            <div className="rating-block">
-                              <div className="rating-value">{match.winner_elo_before || 'N/A'}</div>
-                              <div className={`rating-change ${winnerEloChange >= 0 ? 'positive' : 'negative'}`}>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col gap-1">
+                              <div className="text-gray-700 font-semibold">{match.winner_elo_before || 'N/A'}</div>
+                              <div className={`text-sm font-semibold ${winnerEloChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                 ({winnerEloChange >= 0 ? '+' : ''}{winnerEloChange})
                               </div>
                             </div>
                           </td>
                           
-                          <td className="loser-col">
-                            <div className="player-info">
-                              <span className="player-name"><PlayerLink nickname={match.loser_nickname} userId={match.loser_id} /></span>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col gap-1">
+                              <span className="font-semibold text-red-600"><PlayerLink nickname={match.loser_nickname} userId={match.loser_id} /></span>
                               {match.loser_faction && (
-                                <span className="faction-badge">{match.loser_faction}</span>
+                                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded inline-block w-fit">{match.loser_faction}</span>
                               )}
                               {match.loser_comments && (
-                                <span className="player-comment">{match.loser_comments}</span>
+                                <span className="text-xs text-gray-600 italic">{match.loser_comments}</span>
                               )}
                             </div>
                           </td>
                           
-                          <td className="rating-col">
-                            <div className="rating-block">
-                              <div className="rating-value">{match.loser_elo_before || 'N/A'}</div>
-                              <div className={`rating-change ${loserEloChange >= 0 ? 'positive' : 'negative'}`}>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col gap-1">
+                              <div className="text-gray-700 font-semibold">{match.loser_elo_before || 'N/A'}</div>
+                              <div className={`text-sm font-semibold ${loserEloChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                 ({loserEloChange >= 0 ? '+' : ''}{loserEloChange})
                               </div>
                             </div>
                           </td>
                           
-                          <td className="action-col">
+                          <td className="px-4 py-3">
                             {match.replay_file_path && (
                               <button 
-                                className="download-btn"
+                                className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs transition-colors"
                                 onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
                                 title={`${t('downloads')}: ${match.replay_downloads || 0}`}
                                 type="button"
@@ -386,12 +385,12 @@ const Home: React.FC = () => {
           </section>
 
           {/* Announcements */}
-          <section className="home-section announcements-section">
+          <section className="bg-white rounded-xl shadow-lg p-8">
             <h2>{t('announcements')}</h2>
             {announcements.length > 0 ? (
-              <div className="announcements-list">
+              <div className="flex flex-col gap-4">
                 {announcements.map((announcement) => (
-                  <div key={announcement.id} className="announcement-card">
+                  <div key={announcement.id} className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
                     <h3>{announcement.title}</h3>
                     <p dangerouslySetInnerHTML={{ __html: announcement.content.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>') }} />
                     <small>By {announcement.author} - {new Date(announcement.published_at || announcement.created_at).toLocaleDateString()}</small>
@@ -405,32 +404,32 @@ const Home: React.FC = () => {
         </div>
 
         {/* Right Column: 20% */}
-        <div className="home-right">
+        <div className="flex flex-col gap-4">
           {/* Player of Month */}
-          <section className="home-widget">
+          <section className="bg-white rounded-lg shadow p-6">
             <h3>{t('home.player_of_month')}</h3>
             {playerOfMonth ? (
-                <div className="widget-card player-of-month">
-                  <div className="player-name"><PlayerLink nickname={playerOfMonth.nickname} userId={playerOfMonth.player_id || playerOfMonth.id} /></div>
-                  <div className="player-stat">
-                    <span className="label">{t('label_elo')}:</span>
-                    <span className="value">{playerOfMonth.elo_rating}</span>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 mt-4">
+                  <div className="font-semibold text-center mb-3"><PlayerLink nickname={playerOfMonth.nickname} userId={playerOfMonth.player_id || playerOfMonth.id} /></div>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-gray-600 font-medium">{t('label_elo')}:</span>
+                    <span className="text-gray-900 font-bold">{playerOfMonth.elo_rating}</span>
                   </div>
-                  <div className="player-stat">
-                    <span className="label">{t('label_ranking')}:</span>
-                    <span className="value">#{playerOfMonth.ranking_position}</span>
+                  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-gray-600 font-medium">{t('label_ranking')}:</span>
+                    <span className="text-gray-900 font-bold">#{playerOfMonth.ranking_position}</span>
                   </div>
                   {playerMonthlyStats && (
                     <>
-                      <div className="player-stat">
-                        <span className="label">ELO {t('month')}:</span>
-                        <span className="value" style={{ color: playerMonthlyStats.elo_gained >= 0 ? '#4caf50' : '#f44336' }}>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-gray-600 font-medium">ELO {t('month')}:</span>
+                        <span className="text-gray-900 font-bold" style={{ color: playerMonthlyStats.elo_gained >= 0 ? '#4caf50' : '#f44336' }}>
                           {playerMonthlyStats.elo_gained >= 0 ? '+' : ''}{playerMonthlyStats.elo_gained}
                         </span>
                       </div>
-                      <div className="player-stat">
-                        <span className="label">{t('label_ranking_position')}:</span>
-                        <span className="value" style={{ color: playerMonthlyStats.positions_gained >= 0 ? '#4caf50' : '#f44336' }}>
+                      <div className="flex justify-between items-center py-2">
+                        <span className="text-gray-600 font-medium">{t('label_ranking_position')}:</span>
+                        <span className="text-gray-900 font-bold" style={{ color: playerMonthlyStats.positions_gained >= 0 ? '#4caf50' : '#f44336' }}>
                           {playerMonthlyStats.positions_gained >= 0 ? '+' : ''}{playerMonthlyStats.positions_gained}
                         </span>
                       </div>
@@ -443,14 +442,14 @@ const Home: React.FC = () => {
           </section>
 
           {/* Recent Players */}
-          <section className="home-widget">
+          <section className="bg-white rounded-lg shadow p-6">
             <h3>{t('home.recent_players')}</h3>
             {recentPlayers.length > 0 ? (
-              <div className="widget-list">
+              <div className="flex flex-col gap-3">
                 {recentPlayers.map((player) => (
-                  <div key={player.id} className="widget-item">
-                    <span className="player-nick"><PlayerLink nickname={player.nickname} userId={player.id} /></span>
-                    <span className="player-elo">
+                  <div key={player.id} className="flex justify-between items-center py-2 border-b border-gray-200">
+                    <span className="text-blue-600 font-semibold hover:text-blue-700"><PlayerLink nickname={player.nickname} userId={player.id} /></span>
+                    <span className="text-gray-700 text-sm">
                       {player.is_rated ? `${player.elo_rating} ${t('label_elo')}` : t('unrated')}
                     </span>
                   </div>
@@ -462,15 +461,15 @@ const Home: React.FC = () => {
           </section>
 
           {/* Top 10 */}
-          <section className="home-widget">
+          <section className="bg-white rounded-lg shadow p-6">
             <h3>{t('home.top_10_players')}</h3>
             {topPlayers.length > 0 ? (
-              <div className="widget-list top-10">
+              <div className="flex flex-col gap-3">
                 {topPlayers.map((player, index) => (
-                  <div key={player.id} className="widget-item ranking-item">
-                    <span className="rank">#{index + 1}</span>
-                    <span className="player-nick"><PlayerLink nickname={player.nickname} userId={player.id} /></span>
-                    <span className="player-elo">
+                  <div key={player.id} className="flex items-center gap-3 py-2 border-b border-gray-200">
+                    <span className="text-gray-600 font-semibold">#{index + 1}</span>
+                    <span className="text-blue-600 font-semibold hover:text-blue-700"><PlayerLink nickname={player.nickname} userId={player.id} /></span>
+                    <span className="text-gray-700 text-sm ml-auto">
                       {player.is_rated ? player.elo_rating : t('unrated')}
                     </span>
                   </div>
