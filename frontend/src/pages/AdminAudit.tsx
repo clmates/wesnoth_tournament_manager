@@ -299,6 +299,8 @@ export default function AdminAudit() {
             </table>
           </div>
         )}
+      </div>
+      </div>
     </>
   );
 }
