@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import UnrankedFactionSelect from './UnrankedFactionSelect';
 import UnrankedMapSelect from './UnrankedMapSelect';
+import '../styles/Auth.css';
 
 interface TournamentFormData {
   name: string;
