@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { matchService, api } from '../services/api';
 import { parseReplayFile, getMapFromReplay, getPlayerFactionFromReplay } from '../services/replayParser';
 import FileUploadInput from './FileUploadInput';
-import '../styles/ReportMatch.css';
 
 interface TournamentMatchReportProps {
   tournamentMatchId: string;
@@ -327,38 +326,44 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center border-b border-gray-200 p-6">
           <div>
-            <h2>{t('report_match_title')} - {tournamentName}</h2>
+            <h2 className="text-xl font-bold text-gray-800">{t('report_match_title')} - {tournamentName}</h2>
           </div>
-          <button className="close-btn" onClick={onClose} disabled={loading}>&times;</button>
+          <button 
+            className="text-2xl text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onClose} 
+            disabled={loading}
+          >
+            ×
+          </button>
         </div>
 
-        <div className="modal-body">
-          <div className="player-info" style={{ marginBottom: '1rem', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-            <strong>{winnerName}</strong> (You) vs <strong>{loserName}</strong>
+        <div className="p-6">
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+            <strong className="text-gray-800">{winnerName}</strong> <span className="text-gray-600">(You)</span> vs <strong className="text-gray-800">{loserName}</strong>
           </div>
 
-          {error && <div className="error-message">{error}</div>}
-          {loadingData && <div style={{ color: '#666', fontSize: '14px', marginBottom: '1rem' }}>{t('loading')}</div>}
+          {error && <div className="mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">{error}</div>}
+          {loadingData && <div className="mb-4 text-gray-600 text-sm">{t('loading')}</div>}
 
-          <form onSubmit={handleSubmit} className="report-match-form">
-            <div className="form-group">
-              <label htmlFor="replay">{t('report_replay')}</label>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <div>
+              <label htmlFor="replay" className="block font-semibold text-gray-700 mb-2">{t('report_replay')}</label>
               <FileUploadInput
                 value={formData.replay}
                 onChange={handleReplayFileChange}
                 accept=".gz,.bz2"
               />
-              <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+              <small className="text-gray-600 mt-2 block">
                 {t('report.replay_upload_help')}
               </small>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="map">{t('report_map')} *</label>
+            <div>
+              <label htmlFor="map" className="block font-semibold text-gray-700 mb-2">{t('report_map')} *</label>
               <select
                 id="map"
                 name="map"
@@ -366,6 +371,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 onChange={handleInputChange}
                 required
                 disabled={loadingData}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">{t('report.select_map')}</option>
                 {maps.map((map) => (
@@ -377,9 +383,9 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
             </div>
 
             {tournamentMode !== 'team' && (
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="winner_faction">{t('report.your_faction')} *</label>
+            <div className="grid grid-cols-2 gap-5">
+              <div>
+                <label htmlFor="winner_faction" className="block font-semibold text-gray-700 mb-2">{t('report.your_faction')} *</label>
                 <select
                   id="winner_faction"
                   name="winner_faction"
@@ -387,6 +393,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                   onChange={handleInputChange}
                   required
                   disabled={loadingData}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">{t('report.select_faction')}</option>
                   {factions.map((faction) => (
@@ -397,8 +404,8 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 </select>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="loser_faction">{t('report.opponent_faction')} *</label>
+              <div>
+                <label htmlFor="loser_faction" className="block font-semibold text-gray-700 mb-2">{t('report.opponent_faction')} *</label>
                 <select
                   id="loser_faction"
                   name="loser_faction"
@@ -406,6 +413,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                   onChange={handleInputChange}
                   required
                   disabled={loadingData}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">{t('report.select_faction')}</option>
                   {factions.map((faction) => (
@@ -418,8 +426,8 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
             </div>
             )}
 
-            <div className="form-group">
-              <label htmlFor="comments">{t('report_comments')}</label>
+            <div>
+              <label htmlFor="comments" className="block font-semibold text-gray-700 mb-2">{t('report_comments')}</label>
               <textarea
                 id="comments"
                 name="comments"
@@ -427,16 +435,18 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 onChange={handleInputChange}
                 placeholder={t('report.comments_placeholder')}
                 rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800 resize-vertical"
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="rating">{t('report.rate_opponent')}</label>
+            <div>
+              <label htmlFor="rating" className="block font-semibold text-gray-700 mb-2">{t('report.rate_opponent')}</label>
               <select
                 id="rating"
                 name="rating"
                 value={formData.rating}
                 onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800"
               >
                 <option value="">{t('report.rating_no')}</option>
                 <option value="1">1 - {t('report.rating_1')}</option>
@@ -447,10 +457,10 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
               </select>
             </div>
 
-            <div className="form-actions">
+            <div className="flex gap-4 mt-6">
               <button
                 type="button"
-                className="btn-cancel"
+                className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide text-sm"
                 onClick={onClose}
                 disabled={loading}
               >
@@ -458,7 +468,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
               </button>
               <button
                 type="submit"
-                className="btn-submit"
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-lg font-semibold hover:shadow-lg hover:from-purple-600 hover:to-purple-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide text-sm"
                 disabled={loading}
               >
                 {loading ? t('report.submitting') : t('report_button')}
