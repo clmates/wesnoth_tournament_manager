@@ -166,6 +166,13 @@ const PlayerProfile: React.FC = () => {
       let aVal: any = a[sortColumn as keyof typeof a];
       let bVal: any = b[sortColumn as keyof typeof b];
       
+      // Special handling for win_percentage (calculated field)
+      if (sortColumn === 'win_percentage') {
+        const aWinPct = a.total_games > 0 ? (a.wins / a.total_games) * 100 : 0;
+        const bWinPct = b.total_games > 0 ? (b.wins / b.total_games) * 100 : 0;
+        return sortDirection === 'asc' ? aWinPct - bWinPct : bWinPct - aWinPct;
+      }
+      
       if (typeof aVal === 'string') {
         aVal = aVal.toLowerCase();
         bVal = (bVal as string).toLowerCase();
