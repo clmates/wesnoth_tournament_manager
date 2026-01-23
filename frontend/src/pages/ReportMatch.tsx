@@ -7,7 +7,6 @@ import { parseReplayFile, getOpponentFromReplay, getMapFromReplay, getPlayerFact
 import MainLayout from '../components/MainLayout';
 import OpponentSelector from '../components/OpponentSelector';
 import FileUploadInput from '../components/FileUploadInput';
-import '../styles/ReportMatch.css';
 
 interface GameMap {
   id: string;
@@ -23,9 +22,6 @@ const ReportMatch: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
-  
-  console.log('🔍 DEBUG: ReportMatch component LOADED');
-  console.log('🔍 DEBUG: CSS imported:', '../styles/ReportMatch.css');
   
   const [users, setUsers] = useState<any[]>([]);
   const [maps, setMaps] = useState<GameMap[]>([]);
@@ -54,17 +50,12 @@ const ReportMatch: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.log('🔍 DEBUG ReportMatch - Starting fetchData...');
         // Load ranked maps, factions and users from API
         const [mapsResponse, factionsResponse, usersResponse] = await Promise.all([
           api.get('/public/maps?is_ranked=true'),
           api.get('/public/factions?is_ranked=true'),
           userService.getAllUsers(),
         ]);
-        console.log('🔍 DEBUG ReportMatch - Fetched maps (is_ranked=true):', mapsResponse.data);
-        console.log('🔍 DEBUG ReportMatch - Fetched factions (is_ranked=true):', factionsResponse.data);
-        console.log('🔍 DEBUG ReportMatch - Maps count:', mapsResponse.data?.length || 0);
-        console.log('🔍 DEBUG ReportMatch - Factions count:', factionsResponse.data?.length || 0);
         setMaps(mapsResponse.data || []);
         setFactions(factionsResponse.data || []);
         setUsers((usersResponse as any)?.data?.data || (usersResponse as any)?.data || []);
@@ -232,37 +223,37 @@ const ReportMatch: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="report-match-container"><p>{t('loading')}</p></div></MainLayout>;
+    return <MainLayout><div className="max-w-xl mx-auto px-4 py-8"><p className="text-gray-600">{t('loading')}</p></div></MainLayout>;
   }
 
   if (!isAuthenticated) {
-    return <MainLayout><div className="report-match-container"><p>{t('report.please_login')}</p></div></MainLayout>;
+    return <MainLayout><div className="max-w-xl mx-auto px-4 py-8"><p className="text-gray-600">{t('report.please_login')}</p></div></MainLayout>;
   }
 
   return (
     <MainLayout>
-      <div className="report-match-container">
-      <div className="report-match-form-wrapper">
-        <h1>{t('report_match_title')}</h1>
+      <div className="max-w-xl mx-auto px-4 py-16 min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      <div className="bg-white rounded-lg shadow-lg p-8">
+        <h1 className="text-center text-gray-800 mb-8 text-3xl font-bold uppercase tracking-wide">{t('report_match_title')}</h1>
         
-        {error && <p className="error-message">{error}</p>}
-        {message && <p className="success-message">{message}</p>}
+        {error && <div className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">{error}</div>}
+        {message && <div className="mb-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded">{message}</div>}
 
-        <form onSubmit={handleSubmit} className="report-match-form">
-          <div className="form-group">
-            <label htmlFor="replay">{t('report_replay')}</label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <div>
+            <label htmlFor="replay" className="block font-semibold text-gray-700 mb-2">{t('report_replay')}</label>
             <FileUploadInput
               value={formData.replay}
               onChange={handleReplayFileChange}
               accept=".gz,.bz2"
             />
-            <small style={{ color: '#666', marginTop: '0.5rem', display: 'block' }}>
+            <small className="text-gray-600 mt-2 block">
               {t('report.replay_upload_help')}
             </small>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="opponent_id">{t('report_opponent')} *</label>
+          <div>
+            <label htmlFor="opponent_id" className="block font-semibold text-gray-700 mb-2">{t('report_opponent')} *</label>
             <OpponentSelector
               value={formData.opponent_id}
               onChange={(userId) => {
@@ -274,14 +265,15 @@ const ReportMatch: React.FC = () => {
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="map">{t('report_map')} *</label>
+          <div>
+            <label htmlFor="map" className="block font-semibold text-gray-700 mb-2">{t('report_map')} *</label>
             <select
               id="map"
               name="map"
               value={formData.map}
               onChange={handleInputChange}
               required
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800"
             >
               <option value="">{t('report.select_map')}</option>
               {maps.map((map) => (
@@ -292,15 +284,16 @@ const ReportMatch: React.FC = () => {
             </select>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="winner_faction">{t('report.your_faction')} *</label>
+          <div className="grid grid-cols-2 gap-5">
+            <div>
+              <label htmlFor="winner_faction" className="block font-semibold text-gray-700 mb-2">{t('report.your_faction')} *</label>
               <select
                 id="winner_faction"
                 name="winner_faction"
                 value={formData.winner_faction}
                 onChange={handleInputChange}
                 required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800"
               >
                 <option value="">{t('report.select_faction')}</option>
                 {factions.map((faction) => (
@@ -311,14 +304,15 @@ const ReportMatch: React.FC = () => {
               </select>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="loser_faction">{t('report.opponent_faction')} *</label>
+            <div>
+              <label htmlFor="loser_faction" className="block font-semibold text-gray-700 mb-2">{t('report.opponent_faction')} *</label>
               <select
                 id="loser_faction"
                 name="loser_faction"
                 value={formData.loser_faction}
                 onChange={handleInputChange}
                 required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800"
               >
                 <option value="">{t('report.select_faction')}</option>
                 {factions.map((faction) => (
@@ -330,8 +324,8 @@ const ReportMatch: React.FC = () => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="comments">{t('report_comments')}</label>
+          <div>
+            <label htmlFor="comments" className="block font-semibold text-gray-700 mb-2">{t('report_comments')}</label>
             <textarea
               id="comments"
               name="comments"
@@ -339,16 +333,18 @@ const ReportMatch: React.FC = () => {
               onChange={handleInputChange}
               placeholder={t('report.comments_placeholder')}
               rows={4}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800 resize-vertical"
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="rating">{t('report.rate_opponent')}</label>
+          <div>
+            <label htmlFor="rating" className="block font-semibold text-gray-700 mb-2">{t('report.rate_opponent')}</label>
             <select
               id="rating"
               name="rating"
               value={formData.rating}
               onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800"
             >
               <option value="">{t('report.rating_no')}</option>
               <option value="1">1 - {t('report.rating_1')}</option>
@@ -359,10 +355,10 @@ const ReportMatch: React.FC = () => {
             </select>
           </div>
 
-          <div className="form-actions">
+          <div className="flex gap-4 mt-8">
             <button
               type="button"
-              className="btn-cancel"
+              className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide text-sm"
               onClick={() => navigate('/')}
               disabled={submitting}
             >
@@ -370,7 +366,7 @@ const ReportMatch: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="btn-submit"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-lg font-semibold hover:shadow-lg hover:from-purple-600 hover:to-purple-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide text-sm"
               disabled={submitting}
             >
               {submitting ? t('report.submitting') : t('report_button')}
