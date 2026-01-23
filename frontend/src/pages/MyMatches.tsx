@@ -7,7 +7,6 @@ import MainLayout from '../components/MainLayout';
 import MatchesTable from '../components/MatchesTable';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import MatchDetailsModal from '../components/MatchDetailsModal';
-import '../styles/Matches.css';
 
 // Get API URL for direct backend calls
 // Determine API URL based on frontend hostname and Vite environment variables
@@ -221,40 +220,40 @@ const MyMatches: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="matches-page-content">
-        <h1>{t('sidebar.my_matches') || 'My Matches'}</h1>
+      <div className="w-full py-4 px-4">
+        <h1 className="text-4xl font-bold text-gray-800 mb-6">{t('sidebar.my_matches') || 'My Matches'}</h1>
 
         {/* Pagination Controls - Top */}
         {totalPages > 1 && (
-          <div className="pagination-controls">
+          <div className="flex flex-wrap justify-center items-center gap-3 mb-6">
             <button 
-              className="page-btn"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
               onClick={() => handlePageChange(1)}
               disabled={currentPage === 1}
             >
               {t('pagination_first')}
             </button>
             <button 
-              className="page-btn"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
             >
               {t('pagination_prev')}
             </button>
             
-            <div className="page-info">
-              Page <span className="current-page">{currentPage}</span> of <span className="total-pages">{totalPages}</span>
+            <div className="px-4 py-2 bg-gray-100 rounded-lg text-gray-800 font-bold">
+              Page <span className="font-bold">{currentPage}</span> of <span className="font-bold">{totalPages}</span>
             </div>
             
             <button 
-              className="page-btn"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
             >
               {t('pagination_next')}
             </button>
             <button 
-              className="page-btn"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
               onClick={() => handlePageChange(totalPages)}
               disabled={currentPage === totalPages}
             >
@@ -263,9 +262,9 @@ const MyMatches: React.FC = () => {
           </div>
         )}
 
-        <div className="filters-section">
-          <div className="filter-group">
-            <label htmlFor="winner">{t('filter_winner')}</label>
+        <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-end">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="winner" className="font-semibold text-gray-700 text-sm">{t('filter_winner')}</label>
             <input
               type="text"
               id="winner"
@@ -273,11 +272,12 @@ const MyMatches: React.FC = () => {
               placeholder={t('filter_by_winner')}
               value={filters.winner}
               onChange={handleFilterChangeWithReset}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
             />
           </div>
 
-          <div className="filter-group">
-            <label htmlFor="loser">{t('filter_loser')}</label>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="loser" className="font-semibold text-gray-700 text-sm">{t('filter_loser')}</label>
             <input
               type="text"
               id="loser"
@@ -285,11 +285,12 @@ const MyMatches: React.FC = () => {
               placeholder={t('filter_by_loser')}
               value={filters.loser}
               onChange={handleFilterChangeWithReset}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
             />
           </div>
 
-          <div className="filter-group">
-            <label htmlFor="map">{t('filter_map')}</label>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="map" className="font-semibold text-gray-700 text-sm">{t('filter_map')}</label>
             <input
               type="text"
               id="map"
@@ -297,16 +298,18 @@ const MyMatches: React.FC = () => {
               placeholder={t('filter_by_map')}
               value={filters.map}
               onChange={handleFilterChangeWithReset}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
             />
           </div>
 
-          <div className="filter-group">
-            <label htmlFor="status">{t('filter_match_status')}</label>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="status" className="font-semibold text-gray-700 text-sm">{t('filter_match_status')}</label>
             <select
               id="status"
               name="status"
               value={filters.status}
               onChange={handleFilterChangeWithReset}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
             >
               <option value="">{t('all')}</option>
               <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
@@ -316,13 +319,14 @@ const MyMatches: React.FC = () => {
             </select>
           </div>
 
-          <div className="filter-group">
-            <label htmlFor="confirmed">{t('filter_confirmation_status')}</label>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="confirmed" className="font-semibold text-gray-700 text-sm">{t('filter_confirmation_status')}</label>
             <select
               id="confirmed"
               name="confirmed"
               value={filters.confirmed}
               onChange={handleFilterChangeWithReset}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
             >
               <option value="">{t('all')}</option>
               <option value="confirmed">{t('match_status_confirmed')}</option>
@@ -332,14 +336,14 @@ const MyMatches: React.FC = () => {
             </select>
           </div>
 
-          <button className="reset-btn" onClick={resetFilters}>{t('reset_filters')}</button>
+          <button className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold" onClick={resetFilters}>{t('reset_filters')}</button>
         </div>
 
-        <div className="matches-info">
+        <div className="text-gray-700 text-sm mb-4">
           <p>{t('showing_count_matches', { count: paginatedMatches.length, total, page: currentPage, totalPages })}</p>
         </div>
 
-        <div className="games-table-wrapper">
+        <div className="rounded-lg shadow-md overflow-hidden">
           <MatchesTable 
             matches={paginatedMatches}
             currentPlayerId={userId || undefined}
