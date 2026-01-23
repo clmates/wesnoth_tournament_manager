@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import '../styles/Auth.css';
 
 const ForcePasswordChange: React.FC = () => {
   const { t } = useTranslation();
@@ -92,19 +91,19 @@ const ForcePasswordChange: React.FC = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>Change Your Password</h1>
-        <p style={{ textAlign: 'center', color: '#666', marginBottom: '1.5rem', fontWeight: '500' }}>
+    <div className="w-full max-w-4xl mx-auto my-12 px-4 bg-white rounded-lg shadow-sm py-8">
+      <div>
+        <h1 className="text-center text-2xl font-bold text-gray-800 mb-6">Change Your Password</h1>
+        <p className="text-center text-gray-600 mb-6 font-medium">
           Your password was reset by an administrator. Please set a new password to continue.
         </p>
 
-        {error && <div className="error-message">{error}</div>}
-        {message && <div className="success-message">{message}</div>}
+        {error && <div className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-4 border-l-4 border-red-600">{error}</div>}
+        {message && <div className="bg-green-100 text-green-800 px-4 py-3 rounded-md mb-4 border-l-4 border-green-600">{message}</div>}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="newPassword">New Password:</label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label htmlFor="newPassword" className="block font-semibold text-gray-700 mb-2">New Password:</label>
             <input
               id="newPassword"
               type="password"
@@ -115,26 +114,28 @@ const ForcePasswordChange: React.FC = () => {
               placeholder="••••••"
               disabled={loading}
               required
-              className={newPassword && !isPasswordValid ? 'input-invalid' : ''}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 transition-all disabled:opacity-50 ${
+                newPassword && !isPasswordValid ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
+              }`}
             />
             {showPasswordHints && newPassword && (
-              <div className="password-hints">
-                <div className="password-hint-label">Password requirements:</div>
+              <div className="mt-4 p-4 bg-gray-50 border-l-4 border-blue-500 rounded-md">
+                <div className="font-semibold text-gray-700 mb-3">Password requirements:</div>
                 {passwordValidation.map((rule, idx) => (
                   <div
                     key={idx}
-                    className={`password-hint ${rule.satisfied ? 'satisfied' : 'unsatisfied'}`}
+                    className={`flex items-center gap-2 mb-2 ${rule.satisfied ? 'text-green-600' : 'text-gray-500'}`}
                   >
-                    <span className="hint-icon">{rule.satisfied ? '✓' : '✗'}</span>
-                    <span className="hint-text">{rule.label}</span>
+                    <span className={`font-bold ${rule.satisfied ? 'text-green-600' : 'text-gray-400'}`}>{rule.satisfied ? '✓' : '✗'}</span>
+                    <span className="text-sm">{rule.label}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password:</label>
+          <div>
+            <label htmlFor="confirmPassword" className="block font-semibold text-gray-700 mb-2">Confirm Password:</label>
             <input
               id="confirmPassword"
               type="password"
@@ -143,11 +144,13 @@ const ForcePasswordChange: React.FC = () => {
               placeholder="••••••"
               disabled={loading}
               required
-              className={newPassword && confirmPassword && newPassword !== confirmPassword ? 'input-invalid' : ''}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 transition-all disabled:opacity-50 ${
+                newPassword && confirmPassword && newPassword !== confirmPassword ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'
+              }`}
             />
           </div>
 
-          <button type="submit" disabled={loading || !isPasswordValid}>
+          <button type="submit" disabled={loading || !isPasswordValid} className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
             {loading ? 'Changing Password...' : 'Change Password'}
           </button>
         </form>
