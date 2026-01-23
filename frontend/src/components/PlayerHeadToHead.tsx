@@ -65,8 +65,8 @@ const PlayerHeadToHead: React.FC<Props> = ({ playerId, opponentId, opponentName 
         <div className="bg-white rounded-lg shadow-md p-6 text-center md:col-span-2">
           <div className="text-sm font-semibold text-gray-600 mb-3">{t('total_games') || 'Total Games'}</div>
           <div className="text-3xl font-bold text-gray-800">{stats.total_games}</div>
+        </div>
 
-        
         <div className="bg-green-50 rounded-lg shadow-md p-6 text-center">
           <div className="text-sm font-semibold text-gray-600 mb-3">{t('wins') || 'Wins'}</div>
           <div className="text-3xl font-bold text-green-600">{stats.wins}</div>
