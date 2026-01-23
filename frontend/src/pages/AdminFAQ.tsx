@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { adminService } from '../services/api';
 import MainLayout from '../components/MainLayout';
-import '../styles/Admin.css';
 
 const AdminFAQ: React.FC = () => {
   const { t } = useTranslation();
@@ -145,39 +144,43 @@ const AdminFAQ: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="admin-container"><p>Loading...</p></div></MainLayout>;
+    return <MainLayout><div className="max-w-6xl mx-auto px-4 py-8"><p className="text-center text-gray-600">Loading...</p></div></MainLayout>;
   }
 
   return (
     <MainLayout>
-      <div className="admin-container">
-      <h1>Manage FAQ</h1>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">Manage FAQ</h1>
 
-      {error && <p className="error-message">{error}</p>}
-      {message && <p className="success-message">{message}</p>}
+      {error && <p className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">{error}</p>}
+      {message && <p className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4">{message}</p>}
 
-      <section className="faq-section">
-        <div className="section-header">
-          <h2>Frequently Asked Questions</h2>
+      <section>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Frequently Asked Questions</h2>
           <button onClick={() => {
             if (showForm) {
               resetForm();
             }
             setShowForm(!showForm);
-          }}>
+          }} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
             {showForm ? 'Cancel' : 'New FAQ Item'}
           </button>
         </div>
 
         {showForm && (
-          <form className="admin-form" onSubmit={handleSubmit}>
+          <form className="bg-white rounded-lg shadow-md p-6 mb-6" onSubmit={handleSubmit}>
             {/* Language Tabs */}
-            <div className="language-tabs">
+            <div className="flex border-b border-gray-300 mb-6">
               {languages.map(lang => (
                 <button
                   key={lang}
                   type="button"
-                  className={`language-tab ${activeLanguageTab === lang ? 'active' : ''}`}
+                  className={`px-4 py-2 font-semibold border-b-2 ${
+                    activeLanguageTab === lang
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-800'
+                  }`}
                   onClick={() => setActiveLanguageTab(lang)}
                 >
                   {languageLabels[lang]}
@@ -186,16 +189,13 @@ const AdminFAQ: React.FC = () => {
             </div>
 
             {/* Language Content */}
+            <div className="mb-6">
             <div className="language-content">
               <input
                 type="text"
                 placeholder="Question"
                 value={formData[activeLanguageTab as keyof typeof formData].question}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  [activeLanguageTab]: { ...formData[activeLanguageTab as keyof typeof formData], question: e.target.value }
-                })}
-                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 mb-4"
               />
               <textarea
                 placeholder="Answer"
@@ -206,6 +206,7 @@ const AdminFAQ: React.FC = () => {
                 })}
                 rows={5}
                 required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 mb-4"
               />
               {/* Campo order solo editable en inglés, visible en otros idiomas */}
               <input
@@ -223,7 +224,14 @@ const AdminFAQ: React.FC = () => {
                 min={0}
                 step={1}
                 readOnly={activeLanguageTab !== 'en'}
-                style={{ background: activeLanguageTab !== 'en' ? '#f0f0f0' : undefined }}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 ${
+                  activeLanguageTab !== 'en' ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
+                title={activeLanguageTab !== 'en' ? 'Order can only be edited in English' : ''}
+              />
+            </div>
+
+            <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50und: activeLanguageTab !== 'en' ? '#f0f0f0' : undefined }}
                 title={activeLanguageTab !== 'en' ? 'Order can only be edited in English' : ''}
               />
             </div>
@@ -231,29 +239,29 @@ const AdminFAQ: React.FC = () => {
             <button type="submit">
               {editingId ? 'Update FAQ Item (All Languages)' : 'Add FAQ Item (All Languages)'}
             </button>
-          </form>
-        )}
-
-        {faqItems.length > 0 ? (
-          <div className="items-list">
+          </form>space-y-4">
             {faqItems.map((itemGroup) => {
               const firstLang = languages.find(lang => itemGroup[lang]);
               const id = firstLang ? itemGroup[firstLang].id : '';
               const question = firstLang ? itemGroup[firstLang].question : 'N/A';
               
               return (
-                <div key={id} className="faq-item">
-                  <div className="item-header">
-                    <h3>{question}</h3>
-                    <span className="language-badge">Multi-language</span>
+                <div key={id} className="bg-white rounded-lg shadow-md p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="text-lg font-semibold text-gray-800">{question}</h3>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">Multi-language</span>
                   </div>
-                  <p>{itemGroup[firstLang || 'en']?.answer}</p>
-                  <div className="item-actions">
-                    <button onClick={() => handleEdit(itemGroup)} className="btn-edit">Edit</button>
-                    <button onClick={() => handleDelete(id)} className="btn-delete">Delete</button>
+                  <p className="text-gray-700 mb-4">{itemGroup[firstLang || 'en']?.answer}</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleEdit(itemGroup)} className="px-3 py-1 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600">Edit</button>
+                    <button onClick={() => handleDelete(id)} className="px-3 py-1 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600">Delete</button>
                   </div>
                 </div>
               );
+            })}
+          </div>
+        ) : (
+          <p className="text-gray-600"  );
             })}
           </div>
         ) : (

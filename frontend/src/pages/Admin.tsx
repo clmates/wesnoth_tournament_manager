@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { userService, adminService } from '../services/api';
 import MainLayout from '../components/MainLayout';
-import '../styles/Admin.css';
 
 const AdminUsers: React.FC = () => {
   const { t } = useTranslation();
@@ -167,35 +166,35 @@ const AdminUsers: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="admin-container"><p>{t('loading')}</p></div></MainLayout>;
+    return <MainLayout><div className="max-w-6xl mx-auto px-4 py-8"><p className="text-center text-gray-600">{t('loading')}</p></div></MainLayout>;
   }
 
   return (
     <MainLayout>
-      <div className="admin-container">
-      <h1>{t('admin_users_title')}</h1>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">{t('admin_users_title')}</h1>
 
-      {error && <p className="error-message">{error}</p>}
-      {message && <p className="success-message">{message}</p>}
+      {error && <p className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">{error}</p>}
+      {message && <p className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4">{message}</p>}
 
-      <section className="admin-stats">
-        <div className="stat-box">
-          <div className="stat-label">{t('admin.total_users', 'Total Users')}</div>
-          <div className="stat-value">{users.length}</div>
+      <section className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="text-gray-600 text-sm font-semibold">{t('admin.total_users', 'Total Users')}</div>
+          <div className="text-3xl font-bold text-gray-800 mt-2">{users.length}</div>
         </div>
-        <div className="stat-box">
-          <div className="stat-label">{t('admin.blocked_users', 'Blocked Users')}</div>
-          <div className="stat-value blocked-count">{users.filter(u => u.is_blocked).length}</div>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="text-gray-600 text-sm font-semibold">{t('admin.blocked_users', 'Blocked Users')}</div>
+          <div className="text-3xl font-bold text-red-600 mt-2">{users.filter(u => u.is_blocked).length}</div>
         </div>
-        <div className="stat-box">
-          <div className="stat-label">{t('admin.active_users', 'Active Users')}</div>
-          <div className="stat-value">{users.filter(u => !u.is_blocked).length}</div>
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="text-gray-600 text-sm font-semibold">{t('admin.active_users', 'Active Users')}</div>
+          <div className="text-3xl font-bold text-green-600 mt-2">{users.filter(u => !u.is_blocked).length}</div>
         </div>
       </section>
 
-      <section className="admin-actions">
+      <section className="mb-6">
         <button
-          className="btn-recalculate-stats"
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
           onClick={handleRecalculateAllStats}
           disabled={recalculatingStats}
         >
@@ -203,152 +202,161 @@ const AdminUsers: React.FC = () => {
         </button>
       </section>
 
-      <section className="users-management">
-        <div className="search-container">
-          <div className="search-filters">
+      <section>
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex gap-4 mb-4">
             <input
               type="text"
               placeholder={t('admin.search_by_nic')}
               value={searchNIC}
               onChange={(e) => handleSearchNIC(e.target.value)}
-              className="search-input"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
             />
             <select 
               value={userStatusFilter} 
               onChange={(e) => handleStatusFilterChange(e.target.value)}
-              className="status-filter-select"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
             >
               <option value="all">{t('admin.filter_all_users', 'All Users')}</option>
               <option value="active">{t('admin.filter_active', 'Active')}</option>
               <option value="blocked">{t('admin.filter_blocked', 'Blocked')}</option>
             </select>
           </div>
-          <span className="results-count">
+          <span className="text-sm text-gray-600">
             {t('showing_count', { count: filteredUsers.length, total: users.length, page: 1, totalPages: 1 })}
           </span>
         </div>
 
         {filteredUsers.length > 0 ? (
-          <table className="users-table">
+          <div className="overflow-x-auto">
+          <table className="w-full border-collapse bg-white shadow-md rounded-lg overflow-hidden">
             <thead>
-              <tr>
-                  <th>{t('label_nickname')}</th>
-                  <th>{t('label_email')}</th>
-                  <th>{t('label_elo')}</th>
-                  <th>{t('label_level')}</th>
-                  <th>{t('label_status')}</th>
-                  <th>{t('label_role')}</th>
-                  <th>{t('label_actions')}</th>
+              <tr className="bg-gray-200">
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_nickname')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_email')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_elo')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_level')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_status')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_role')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_actions')}</th>
                 </tr>
             </thead>
             <tbody>
               {filteredUsers.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.nickname}</td>
-                  <td>{user.email}</td>
-                  <td>{user.elo_rating || 1200}</td>
-                  <td>{user.level || t('level_novice')}</td>
-                  <td>
-                    <span className={`status ${user.is_blocked ? 'blocked' : 'active'}`}>
+                <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-gray-700">{user.nickname}</td>
+                  <td className="px-4 py-3 text-gray-700">{user.email}</td>
+                  <td className="px-4 py-3 text-gray-700">{user.elo_rating || 1200}</td>
+                  <td className="px-4 py-3 text-gray-700">{user.level || t('level_novice')}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      user.is_blocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                    }`}>
                       {user.is_blocked ? t('status_blocked') : t('status_active')}
                     </span>
                   </td>
-                  <td>
-                    <span className={`role ${user.is_admin ? 'admin' : 'user'}`}>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
                       {user.is_admin ? t('role_admin') : t('role_user')}
                     </span>
                   </td>
-                  <td className="actions">
-                    {user.is_blocked ? (
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {user.is_blocked ? (
+                        <button
+                          className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                          onClick={() => handleAction(user, 'unblock')}
+                        >
+                          {t('btn_unblock')}
+                        </button>
+                      ) : (
+                        <button
+                          className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                          onClick={() => handleAction(user, 'block')}
+                        >
+                          {t('btn_block')}
+                        </button>
+                      )}
+                      {user.is_admin ? (
+                        <button
+                          className="px-2 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                          onClick={() => handleAction(user, 'removeAdmin')}
+                        >
+                          {t('btn_remove_admin')}
+                        </button>
+                      ) : (
+                        <button
+                          className="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600"
+                          onClick={() => handleAction(user, 'makeAdmin')}
+                        >
+                          {t('btn_make_admin')}
+                        </button>
+                      )}
                       <button
-                        className="btn-unblock"
-                        onClick={() => handleAction(user, 'unblock')}
+                        className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                        onClick={() => handleAction(user, 'resetPassword')}
                       >
-                        {t('btn_unblock')}
+                        {t('btn_reset_password')}
                       </button>
-                    ) : (
                       <button
-                        className="btn-block"
-                        onClick={() => handleAction(user, 'block')}
+                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                        onClick={() => handleConfirmDelete(user)}
                       >
-                        {t('btn_block')}
+                        {t('btn_delete')}
                       </button>
-                    )}
-                    {user.is_admin ? (
-                      <button
-                        className="btn-remove-admin"
-                        onClick={() => handleAction(user, 'removeAdmin')}
-                      >
-                        {t('btn_remove_admin')}
-                      </button>
-                    ) : (
-                      <button
-                        className="btn-make-admin"
-                        onClick={() => handleAction(user, 'makeAdmin')}
-                      >
-                        {t('btn_make_admin')}
-                      </button>
-                    )}
-                    <button
-                      className="btn-reset"
-                      onClick={() => handleAction(user, 'resetPassword')}
-                    >
-                      {t('btn_reset_password')}
-                    </button>
-                    <button
-                      className="btn-delete"
-                      onClick={() => handleConfirmDelete(user)}
-                    >
-                      {t('btn_delete')}
-                    </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         ) : (
-          <p>{t('no_data')}</p>
+          <p className="text-center py-8 text-gray-600">{t('no_data')}</p>
         )}
       </section>
 
       {showModal && selectedUser && (
-        <div className="modal-overlay">
-          <div className="modal">
-              <h3>{t('admin.confirm_action_title')}</h3>
-              <p>
-                {actionType === 'block' && t('admin.confirm_block', { nickname: selectedUser.nickname })}
-                {actionType === 'unblock' && t('admin.confirm_unblock', { nickname: selectedUser.nickname })}
-                {actionType === 'makeAdmin' && t('admin.confirm_make_admin', { nickname: selectedUser.nickname })}
-                {actionType === 'removeAdmin' && t('admin.confirm_remove_admin', { nickname: selectedUser.nickname })}
-                {actionType === 'delete' && t('admin.confirm_delete', { nickname: selectedUser.nickname })}
-                {actionType === 'resetPassword' && t('admin.confirm_reset_password', { nickname: selectedUser.nickname })}
-              </p>
-              <div className="modal-actions">
-                <button className="btn-cancel" onClick={() => setShowModal(false)}>
-                  {t('btn_cancel')}
-                </button>
-                <button className="btn-confirm" onClick={confirmAction}>
-                  {t('btn_confirm')}
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              {actionType === 'delete' && t('admin.confirm_delete_title')}
+              {actionType === 'block' && t('admin.confirm_block_title')}
+              {actionType === 'resetPassword' && t('admin.confirm_reset_password_title')}
+            </h3>
+            <p className="text-gray-700 mb-6">
+              {actionType === 'delete' && t('admin.confirm_delete', { nickname: selectedUser.nickname })}
+              {actionType === 'block' && t('admin.confirm_block', { nickname: selectedUser.nickname })}
+              {actionType === 'resetPassword' && t('admin.confirm_reset_password', { nickname: selectedUser.nickname })}
+            </p>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600" onClick={() => setShowModal(false)}>
+                {t('btn_cancel')}
+              </button>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" onClick={confirmAction}>
+                {t('btn_confirm')}
+              </button>
             </div>
+          </div>
         </div>
       )}
 
       {showPasswordModal && selectedUser && (
-        <div className="modal-overlay">
-          <div className="modal password-reset-modal">
-            <h3>Password Reset Successful</h3>
-            <p>Temporary password for <strong>{selectedUser.nickname}</strong>:</p>
-            <div className="password-display">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Password Reset Successful</h3>
+            <p className="text-gray-700 mb-4">Temporary password for <strong>{selectedUser.nickname}</strong>:</p>
+            <div className="flex gap-2 mb-4">
               <input 
                 type="text" 
                 value={tempPassword} 
                 readOnly 
-                className="password-input"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm"
               />
               <button 
-                className="btn-copy"
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
                 onClick={() => {
                   navigator.clipboard.writeText(tempPassword);
                   setPasswordCopied(true);
@@ -358,10 +366,10 @@ const AdminUsers: React.FC = () => {
                 {passwordCopied ? 'Copied!' : 'Copy'}
               </button>
             </div>
-            <p className="info-text">User must change this password on their next login.</p>
-            <div className="modal-actions">
+            <p className="text-sm text-gray-600 mb-4">User must change this password on their next login.</p>
+            <div className="flex justify-end">
               <button 
-                className="btn-confirm" 
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                 onClick={() => {
                   setShowPasswordModal(false);
                   setSelectedUser(null);

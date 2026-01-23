@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { countriesService, Country } from '../services/countryAvatarService';
-import '../styles/CountrySelector.css';
 
 interface CountrySelectorProps {
   value?: string;

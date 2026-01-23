@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './UnrankedMapSelect.css';
 import { api } from '../services/api';
 
 interface UnrankedMapSelectProps {
@@ -119,47 +118,49 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
   };
 
   if (loading) {
-    return <div className="unranked-map-select loading">Loading maps...</div>;
+    return <div className="flex items-center justify-center min-h-[200px] text-gray-600 text-sm">Loading maps...</div>;
   }
 
   return (
-    <div className="unranked-map-select">
-      <div className="map-container">
-        <div className="map-header">
-          <h4>Maps</h4>
-          <span className="count">{selectedMapIds.length} / {maps.length}</span>
+    <div className="flex flex-col h-full bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+      <div className="flex flex-col h-full gap-0">
+        <div className="flex justify-between items-center px-4 py-3 bg-gradient-to-r from-purple-700 to-indigo-500 border-b border-gray-200 text-white font-semibold flex-shrink-0">
+          <h4 className="text-sm font-semibold">Maps</h4>
+          <span className="text-xs">{selectedMapIds.length} / {maps.length}</span>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className="text-red-600 px-4 py-2 bg-red-50">{error}</div>}
 
         {maps.length === 0 ? (
-          <div className="no-items">No maps available</div>
+          <div className="text-gray-500 px-4 py-3">No maps available</div>
         ) : (
           <>
-            <div className="select-all-wrapper">
-              <label className="checkbox-row header-row">
+            <div className="px-4 py-2">
+              <label className="flex items-center gap-2 py-2 border-b border-gray-200 font-semibold">
                 <input
                   type="checkbox"
                   checked={selectAll}
                   onChange={handleSelectAll}
                   disabled={disabled}
+                  className="w-4 h-4 cursor-pointer"
                 />
-                <span className="select-all-text">Select All</span>
+                <span className="text-sm">Select All</span>
               </label>
             </div>
 
-            <div className="map-table">
+            <div className="overflow-y-auto flex-1">
               {maps.map((map) => (
-                <label key={map.id} className="checkbox-row">
+                <label key={map.id} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
                   <input
                     type="checkbox"
                     checked={selectedMapIds.includes(map.id)}
                     onChange={() => handleMapSelect(map.id)}
                     disabled={disabled}
+                    className="w-4 h-4 cursor-pointer"
                   />
-                  <span className="map-name">{map.name}</span>
+                  <span className="text-sm flex-grow">{map.name}</span>
                   {map.width && map.height && (
-                    <span className="map-dims">{map.width}×{map.height}</span>
+                    <span className="text-xs text-gray-500 ml-auto">{map.width}×{map.height}</span>
                   )}
                 </label>
               ))}
@@ -169,7 +170,7 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
 
         {!isRankedOnly && (
           <button
-            className="add-btn"
+            className="m-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-semibold text-sm disabled:opacity-50"
             onClick={() => setShowModal(true)}
             disabled={disabled}
             type="button"
@@ -180,9 +181,9 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
       </div>
 
       {!isRankedOnly && showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Create New Map</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-lg shadow-lg p-6 w-96" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold mb-4">Create New Map</h3>
 
             <input
               type="text"
@@ -192,20 +193,22 @@ export const UnrankedMapSelect: React.FC<UnrankedMapSelectProps> = ({
               disabled={creatingMap}
               maxLength={100}
               autoFocus
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
 
-            <div className="modal-buttons">
+            <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowModal(false)}
                 disabled={creatingMap}
                 type="button"
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateMap}
                 disabled={creatingMap || !newMapData.name.trim()}
-                className="create-btn"
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
                 type="button"
               >
                 {creatingMap ? 'Creating...' : 'Create'}

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { avatarsService } from '../services/countryAvatarService';
-import '../styles/UserBadge.css';
 
 interface UserBadgeProps {
   country?: string;
@@ -61,11 +60,49 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
       }
     }
   }, [avatar]);
-  const sizeClasses = {
-    small: 'user-badge-small',
-    'medium-small': 'user-badge-medium-small',
-    medium: 'user-badge-medium',
-    large: 'user-badge-large'
+  const getSizeClasses = (size: 'small' | 'medium-small' | 'medium' | 'large'): string => {
+    switch (size) {
+      case 'small':
+        return 'gap-1';
+      case 'medium-small':
+        return 'gap-1.5';
+      case 'medium':
+        return 'gap-2';
+      case 'large':
+        return 'gap-2.5';
+      default:
+        return 'gap-2';
+    }
+  };
+
+  const getAvatarSize = (size: 'small' | 'medium-small' | 'medium' | 'large'): string => {
+    switch (size) {
+      case 'small':
+        return 'w-5 h-5';
+      case 'medium-small':
+        return 'w-10 h-10 border shadow-md';
+      case 'medium':
+        return 'w-8 h-8';
+      case 'large':
+        return 'w-12 h-12';
+      default:
+        return 'w-8 h-8';
+    }
+  };
+
+  const getFlagSize = (size: 'small' | 'medium-small' | 'medium' | 'large'): string => {
+    switch (size) {
+      case 'small':
+        return 'w-4 h-3';
+      case 'medium-small':
+        return 'w-7 h-5 shadow-sm';
+      case 'medium':
+        return 'w-6 h-4';
+      case 'large':
+        return 'w-8 h-6';
+      default:
+        return 'w-6 h-4';
+    }
   };
 
   // Construct full avatar path if needed
@@ -86,12 +123,12 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
   const avatarUrl = getAvatarUrl();
 
   return (
-    <div className={`user-badge ${sizeClasses[size]}`}>
+    <div className={`flex items-center ${getSizeClasses(size)}`}>
       {avatarUrl && (
         <img
           src={avatarUrl}
           alt={username || 'Avatar'}
-          className="user-badge-avatar"
+          className={`${getAvatarSize(size)} rounded border border-gray-300 object-cover flex-shrink-0`}
           title={username}
         />
       )}
@@ -99,7 +136,7 @@ export const UserBadge: React.FC<UserBadgeProps> = ({
         <img
           src={getCountryFlagUrl(country)}
           alt={country}
-          className="user-badge-flag"
+          className={`${getFlagSize(size)} rounded border border-gray-300 object-cover flex-shrink-0`}
           title={country}
         />
       )}

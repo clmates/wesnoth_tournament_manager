@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { statisticsService } from '../services/statisticsService';
-import '../styles/BalanceStatistics.css';
 
 interface FactionStats {
   faction_id: string;

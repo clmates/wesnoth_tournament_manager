@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { userService } from '../services/api';
-import '../styles/OpponentSelector.css';
 
 interface User {
   id: string;

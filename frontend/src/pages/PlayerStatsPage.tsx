@@ -7,7 +7,6 @@ import PlayerStatsByMap from '../components/PlayerStatsByMap';
 import PlayerStatsByFaction from '../components/PlayerStatsByFaction';
 import PlayerHeadToHead from '../components/PlayerHeadToHead';
 import PlayerRecentOpponents from '../components/PlayerRecentOpponents';
-import '../styles/PlayerStats.css';
 
 type StatsTab = 'overview' | 'by-map' | 'by-faction' | 'recent-opponents';
 
@@ -58,20 +57,16 @@ const PlayerStatsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="player-stats-container">
-        <div className="stats-container">
-          <p>{t('loading')}</p>
-        </div>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <p className="text-center text-gray-600">{t('loading')}</p>
       </div>
     );
   }
 
   if (error || !player || !playerId) {
     return (
-      <div className="player-stats-container">
-        <div className="stats-container error">
-          <p>{error || 'Error loading player'}</p>
-        </div>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <p className="text-center text-red-600">{error || 'Error loading player'}</p>
       </div>
     );
   }
@@ -84,22 +79,24 @@ const PlayerStatsPage: React.FC = () => {
   ];
 
   return (
-    <div className="player-stats-container">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Player Header */}
-      <div className="player-header">
-        <div className="player-header-info">
-          <h1>{player.username}</h1>
-          <p>{t('current_elo') || 'Current ELO'}: <strong>{player.elo_rating}</strong></p>
-          <p>{t('player_id') || 'Player ID'}: {playerId}</p>
-        </div>
+      <div className="mb-8 pb-6 border-b-2 border-gray-300">
+        <h1 className="text-4xl font-bold text-gray-800 mb-4">{player.username}</h1>
+        <p className="text-gray-700 mb-2">{t('current_elo') || 'Current ELO'}: <strong className="text-lg">{player.elo_rating}</strong></p>
+        <p className="text-gray-700">{t('player_id') || 'Player ID'}: {playerId}</p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="player-stats-tabs">
+      <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-300">
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className={`player-stats-tab ${activeTab === tab.id ? 'active' : ''}`}
+            className={`px-4 py-3 font-semibold transition-all cursor-pointer ${
+              activeTab === tab.id
+                ? 'text-blue-600 border-b-4 border-blue-600 bg-white rounded-t-lg'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+            }`}
             onClick={() => {
               setActiveTab(tab.id);
               setHeadToHeadOpponent(''); // Reset H2H opponent when switching tabs
@@ -111,32 +108,32 @@ const PlayerStatsPage: React.FC = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="tab-content">
+      <div className="space-y-8">
         {activeTab === 'overview' && (
-          <div>
+          <div className="bg-white rounded-lg shadow-md p-8">
             <PlayerStatsOverview playerId={playerId} />
           </div>
         )}
 
         {activeTab === 'by-map' && (
-          <div>
+          <div className="bg-white rounded-lg shadow-md p-8">
             <PlayerStatsByMap playerId={playerId} />
           </div>
         )}
 
         {activeTab === 'by-faction' && (
-          <div>
+          <div className="bg-white rounded-lg shadow-md p-8">
             <PlayerStatsByFaction playerId={playerId} />
           </div>
         )}
 
         {activeTab === 'recent-opponents' && (
-          <div>
+          <div className="bg-white rounded-lg shadow-md p-8">
             <PlayerRecentOpponents playerId={playerId} limit={20} />
             
             {/* Head to Head Section */}
             {headToHeadOpponent && (
-              <div style={{ marginTop: '40px' }}>
+              <div className="mt-12 pt-8 border-t-2 border-gray-300">
                 <PlayerHeadToHead 
                   playerId={playerId} 
                   opponentId={headToHeadOpponent}

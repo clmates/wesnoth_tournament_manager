@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { playerStatisticsService } from '../services/playerStatisticsService';
-import '../styles/PlayerStats.css';
 
 interface RecentOpponent {
   opponent_id: string;
@@ -72,18 +71,18 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
   console.log('Rendering PlayerRecentOpponents with opponents:', opponents);
   console.log('Loading:', loading, 'Error:', error);
 
-  if (loading) return <div className="stats-container"><p>{t('loading')}</p></div>;
-  if (error) return <div className="stats-container error"><p>{error}</p></div>;
+  if (loading) return <div className="max-w-6xl mx-auto p-8 bg-white rounded-lg shadow-md"><p className="text-gray-600">{t('loading')}</p></div>;
+  if (error) return <div className="max-w-6xl mx-auto p-8 bg-white rounded-lg shadow-md border border-red-200"><p className="text-red-600">{error}</p></div>;
 
   return (
-    <div style={{ width: '100%', padding: '20px 0' }}>
-      <h3 style={{ marginBottom: '20px' }}>{t('recent_opponents') || 'Recent Opponents'}</h3>
+    <div className="max-w-6xl mx-auto">
+      <h3 className="text-2xl font-semibold text-gray-800 mb-6">{t('recent_opponents') || 'Recent Opponents'}</h3>
       
       {opponents.length === 0 ? (
-        <p style={{ color: '#999', fontStyle: 'italic' }}>{t('no_data') || 'No data available'}</p>
+        <p className="text-center text-gray-500 italic py-8">{t('no_data') || 'No data available'}</p>
       ) : (
-        <div className="stats-table-wrapper">
-          <table className="stats-table">
+        <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+          <table className="w-full border-collapse">
             <thead>
               <tr>
                 <th>{t('player') || 'Player'}</th>
@@ -98,35 +97,35 @@ const PlayerRecentOpponents: React.FC<Props> = ({ playerId, limit = 10 }) => {
             <tbody>
               {opponents.map((opponent) => (
                 <tr key={opponent.opponent_id}>
-                  <td className="opponent-name">
+                  <td className="px-4 py-3 font-semibold text-gray-700">
                     {opponent.opponent_name}
                   </td>
-                  <td style={{ textAlign: 'center' }}>
+                  <td className="px-4 py-3 text-center text-gray-600">
                     {opponent.total_games}
                   </td>
-                  <td className="winning" style={{ textAlign: 'center' }}>
+                  <td className="px-4 py-3 text-center text-green-600 font-semibold">
                     {opponent.wins}
                   </td>
-                  <td className="losing" style={{ textAlign: 'center' }}>
+                  <td className="px-4 py-3 text-center text-red-600 font-semibold">
                     {opponent.losses}
                   </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className={`winrate ${
+                  <td className="px-4 py-3 text-center">
+                    <span className={`font-semibold ${
                       typeof opponent.winrate === 'number' 
-                        ? (opponent.winrate > 55 ? 'high' : opponent.winrate < 45 ? 'low' : 'balanced')
-                        : (parseFloat(opponent.winrate as string) > 55 ? 'high' : parseFloat(opponent.winrate as string) < 45 ? 'low' : 'balanced')
+                        ? (opponent.winrate > 55 ? 'text-green-600' : opponent.winrate < 45 ? 'text-red-600' : 'text-gray-600')
+                        : (parseFloat(opponent.winrate as string) > 55 ? 'text-green-600' : parseFloat(opponent.winrate as string) < 45 ? 'text-red-600' : 'text-gray-600')
                     }`}>
                       {typeof opponent.winrate === 'number' 
                         ? opponent.winrate.toFixed(1)
                         : parseFloat(opponent.winrate as string).toFixed(1)}%
                     </span>
                   </td>
-                  <td style={{ textAlign: 'center', color: '#4caf50', fontWeight: '600' }}>
+                  <td className="px-4 py-3 text-center text-green-600 font-semibold">
                     +{typeof opponent.elo_gained === 'number' 
                       ? opponent.elo_gained.toFixed(2)
                       : parseFloat(opponent.elo_gained as string).toFixed(2)}
                   </td>
-                  <td style={{ textAlign: 'center', color: '#f44336', fontWeight: '600' }}>
+                  <td className="px-4 py-3 text-center text-red-600 font-semibold">
                     -{typeof opponent.elo_lost === 'number' 
                       ? opponent.elo_lost.toFixed(2)
                       : parseFloat(opponent.elo_lost as string).toFixed(2)}

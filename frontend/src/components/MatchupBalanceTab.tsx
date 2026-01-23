@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { statisticsService } from '../services/statisticsService';
-import '../styles/BalanceStatistics.css';
 
 interface MatchupStats {
   map_id: string;

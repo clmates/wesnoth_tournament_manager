@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './TeamSelect.css';
 import { api } from '../services/api';
 
 interface TeamSelectProps {
@@ -58,20 +57,20 @@ export const TeamSelect: React.FC<TeamSelectProps> = ({
   }, [tournamentId]);
 
   if (loading) {
-    return <div className="team-select-container">Loading teams...</div>;
+    return <div className="px-4 py-2 text-gray-600">Loading teams...</div>;
   }
 
   if (error) {
     return (
-      <div className="team-select-container error">
+      <div className="px-4 py-2 bg-red-50 text-red-600 rounded-lg">
         Error: {error}
       </div>
     );
   }
 
   return (
-    <div className="team-select-container">
-      <label htmlFor="team-select" className="team-select-label">
+    <div className="flex flex-col gap-2">
+      <label htmlFor="team-select" className="text-sm font-semibold text-gray-700">
         Select Team
       </label>
       <select
@@ -79,7 +78,7 @@ export const TeamSelect: React.FC<TeamSelectProps> = ({
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled || teams.length === 0}
-        className="team-select-input"
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
       >
         <option value="">-- Choose a team --</option>
         {teams.map((team) => (
@@ -89,7 +88,7 @@ export const TeamSelect: React.FC<TeamSelectProps> = ({
         ))}
       </select>
       {teams.length === 0 && (
-        <p className="team-select-empty">No teams available for this tournament</p>
+        <p className="text-sm text-gray-500">No teams available for this tournament</p>
       )}
     </div>
   );

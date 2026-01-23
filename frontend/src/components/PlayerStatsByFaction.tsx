@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { playerStatisticsService } from '../services/playerStatisticsService';
-import '../styles/PlayerStats.css';
 
 interface FactionStats {
   faction_id: string;
@@ -49,15 +48,15 @@ const PlayerStatsByFaction: React.FC<Props> = ({ playerId }) => {
     fetchStats();
   }, [playerId, minGames]);
 
-  if (loading) return <div className="stats-container"><p>{t('loading')}</p></div>;
-  if (error) return <div className="stats-container error"><p>{error}</p></div>;
+  if (loading) return <div className="max-w-4xl mx-auto p-8 bg-white rounded-lg shadow-md"><p className="text-gray-600">{t('loading')}</p></div>;
+  if (error) return <div className="max-w-4xl mx-auto p-8 bg-white rounded-lg shadow-md border border-red-200"><p className="text-red-600">{error}</p></div>;
 
   return (
-    <div className="player-stats-section">
-      <h3>{t('performance_by_faction') || 'Performance by Faction'}</h3>
-      <p className="explanation">{t('performance_by_faction_explanation') || 'Your win rate and ELO change with each faction'}</p>
+    <div className="max-w-4xl mx-auto">
+      <h3 className="text-2xl font-semibold text-gray-800 mb-4">{t('performance_by_faction') || 'Performance by Faction'}</h3>
+      <p className="text-gray-600 text-sm mb-6">{t('performance_by_faction_explanation') || 'Your win rate and ELO change with each faction'}</p>
       
-      <div className="filter-controls">
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <label>
           {t('minimum_games') || 'Minimum Games'}:
           <input 
@@ -71,10 +70,10 @@ const PlayerStatsByFaction: React.FC<Props> = ({ playerId }) => {
       </div>
 
       {stats.length === 0 ? (
-        <p className="no-data">{t('no_data')}</p>
+        <p className="text-center text-gray-500 italic py-8">{t('no_data')}</p>
       ) : (
-        <div className="stats-table-container">
-          <table className="stats-table">
+        <div className="bg-white rounded-lg shadow-md overflow-x-auto">
+          <table className="w-full border-collapse">
             <thead>
               <tr>
                 <th>{t('faction') || 'Faction'}</th>
@@ -87,24 +86,24 @@ const PlayerStatsByFaction: React.FC<Props> = ({ playerId }) => {
             <tbody>
               {stats.map((stat) => (
                 <tr key={stat.faction_id}>
-                  <td className="faction-name">{stat.faction_name}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-700">{stat.faction_name}</td>
                   <td>{stat.total_games}</td>
                   <td>
-                    <span className="record">
-                      <span className="winning">{stat.wins}W</span>
-                      <span className="losing">{stat.losses}L</span>
+                    <span className="flex gap-3 justify-center">
+                      <span className="text-green-600 font-semibold">{stat.wins}W</span>
+                      <span className="text-red-600 font-semibold">{stat.losses}L</span>
                     </span>
                   </td>
                   <td>
-                    <span className={`winrate ${
-                      stat.winrate > 55 ? 'high' : 
-                      stat.winrate < 45 ? 'low' : 
-                      'balanced'
+                    <span className={`font-semibold ${
+                      stat.winrate > 55 ? 'text-green-600' : 
+                      stat.winrate < 45 ? 'text-red-600' : 
+                      'text-gray-600'
                     }`}>
                       {stat.winrate.toFixed(1)}%
                     </span>
                   </td>
-                  <td className={stat.avg_elo_change > 0 ? 'winning' : stat.avg_elo_change < 0 ? 'losing' : ''}>
+                  <td className={`px-4 py-3 text-right font-semibold ${stat.avg_elo_change > 0 ? 'text-green-600' : stat.avg_elo_change < 0 ? 'text-red-600' : 'text-gray-600'}`}>
                     {stat.avg_elo_change > 0 ? '+' : ''}{stat.avg_elo_change.toFixed(1)}
                   </td>
                 </tr>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { avatarsService, Avatar } from '../services/countryAvatarService';
-import '../styles/AvatarSelector.css';
 
 interface AvatarSelectorProps {
   value?: string;
