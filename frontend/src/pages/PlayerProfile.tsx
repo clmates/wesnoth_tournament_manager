@@ -434,15 +434,30 @@ const PlayerProfile: React.FC = () => {
                                 {t('total_matches_label') || 'Total'}
                                 {sortColumn === 'total_matches' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                               </th>
-                              <th className="numeric">{t('wins') || 'Wins'}</th>
-                              <th className="numeric">{t('losses') || 'Losses'}</th>
+                              <th className="numeric sortable" onClick={() => handleSort('wins')}>
+                                {t('wins') || 'Wins'}
+                                {sortColumn === 'wins' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                              </th>
+                              <th className="numeric sortable" onClick={() => handleSort('losses')}>
+                                {t('losses') || 'Losses'}
+                                {sortColumn === 'losses' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                              </th>
                               <th className="numeric sortable" onClick={() => handleSort('win_percentage')}>
                                 {t('win_percentage') || 'Win %'}
                                 {sortColumn === 'win_percentage' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                               </th>
-                              <th className="numeric">{t('elo_gained') || 'ELO Gained'}</th>
-                              <th className="numeric">{t('elo_lost') || 'ELO Lost'}</th>
-                              <th>{t('last_match') || 'Last Match'}</th>
+                              <th className="numeric sortable" onClick={() => handleSort('elo_gained')}>
+                                {t('elo_gained') || 'ELO Gained'}
+                                {sortColumn === 'elo_gained' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                              </th>
+                              <th className="numeric sortable" onClick={() => handleSort('elo_lost')}>
+                                {t('elo_lost') || 'ELO Lost'}
+                                {sortColumn === 'elo_lost' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                              </th>
+                              <th className="sortable" onClick={() => handleSort('last_match_date')}>
+                                {t('last_match') || 'Last Match'}
+                                {sortColumn === 'last_match_date' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                              </th>
                             </tr>
                           </thead>
                           <tbody>
