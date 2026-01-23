@@ -4,7 +4,6 @@ import MatchesTable from './MatchesTable';
 import MatchConfirmationModal from './MatchConfirmationModal';
 import { matchService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import '../styles/RecentGamesTable.css';
 
 // Get API URL for direct backend calls
 let API_URL: string;
@@ -94,12 +93,12 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
   };
 
   if (!matches || matches.length === 0) {
-    return <div className="no-games-message">{t('recent_games_no_data') || 'No recent games'}</div>;
+    return <div className="text-center text-gray-500 italic py-8">{t('recent_games_no_data') || 'No recent games'}</div>;
   }
 
   return (
     <>
-      <div className="recent-games-container">
+      <div className="max-w-6xl mx-auto p-6">
         <h2>{t('recent_games')}</h2>
         <MatchesTable 
           matches={matches}

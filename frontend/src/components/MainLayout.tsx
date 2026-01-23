@@ -1,6 +1,5 @@
 import React from 'react';
 import UserProfileNav from './UserProfileNav';
-import '../styles/MainLayout.css';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -8,9 +7,9 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   return (
-    <div className="main-layout">
+    <div className="min-h-screen flex flex-col">
       <UserProfileNav />
-      <main className="main-content">
+      <main className="flex-1 overflow-auto">
         {children}
       </main>
     </div>

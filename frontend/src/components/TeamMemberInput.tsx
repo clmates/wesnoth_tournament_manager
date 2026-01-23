@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './TeamMemberInput.css';
 import { api } from '../services/api';
 
 interface TeamMemberInputProps {

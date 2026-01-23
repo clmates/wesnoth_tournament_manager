@@ -10,8 +10,7 @@ import MatchDetailsModal from '../components/MatchDetailsModal';
 import PlayerStatsByMap from '../components/PlayerStatsByMap';
 import PlayerStatsByFaction from '../components/PlayerStatsByFaction';
 import PlayerLink from '../components/PlayerLink';
-import '../styles/UserProfile.css';
-import '../styles/OpponentStats.css';
+
 
 type ProfileTab = 'overall' | 'matches' | 'opponents' | 'by-map' | 'by-faction';
 
@@ -191,13 +190,13 @@ const PlayerProfile: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="auth-container"><p>{t('loading')}</p></div>;
+    return <div className="w-full max-w-6xl mx-auto px-4 py-8"><p>{t('loading')}</p></div>;
   }
 
   if (error) {
     return (
-      <div className="auth-container">
-        <p className="error-message">{error}</p>
+      <div className="w-full max-w-6xl mx-auto px-4 py-8">
+        <p className="text-red-600">{error}</p>
         <button onClick={() => navigate('/players')}>{t('back_to_players')}</button>
       </div>
     );
@@ -205,7 +204,7 @@ const PlayerProfile: React.FC = () => {
 
   if (!profile) {
     return (
-      <div className="auth-container">
+      <div className="w-full max-w-6xl mx-auto px-4 py-8">
         <p>Profile not found</p>
         <button onClick={() => navigate('/players')}>{t('back_to_players')}</button>
       </div>
@@ -221,42 +220,47 @@ const PlayerProfile: React.FC = () => {
   ];
 
   return (
-    <div className="profile-page-content">
-      <h1>{profile?.nickname}'s Profile</h1>
-      
-      {profile && (
-        <>
-          <ProfileStats player={profile} />
+    <div className="bg-gradient-to-br from-gray-100 to-gray-300 min-h-screen py-8 px-4">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">{profile?.nickname}'s Profile</h1>
+        
+        {profile && (
+          <>
+            <ProfileStats player={profile} />
 
-          {/* Tab Navigation */}
-          <div className="player-stats-tabs">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  setSortColumn('');
-                  setFilterOpponent('');
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+            {/* Tab Navigation */}
+            <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-300">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`px-4 py-3 font-semibold transition-all cursor-pointer ${
+                    activeTab === tab.id
+                      ? 'text-blue-600 border-b-2 border-blue-600 bg-white rounded-t-lg'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setSortColumn('');
+                    setFilterOpponent('');
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
           {/* Tab Content */}
-          <div className="tab-content">
+          <div className="space-y-6">
             {/* Overall Tab */}
             {activeTab === 'overall' && (
-              <div className="tab-pane active">
+              <div className="bg-white rounded-lg shadow-md p-8">
                 <EloChart 
                   matches={matches}
                   currentPlayerId={id || ''}
                 />
 
-                <div className="recent-games-container">
-                  <h2>{t('recent_games')}</h2>
+                <div className="mt-8">
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-6">{t('recent_games')}</h2>
                   <MatchesTable 
                     matches={matches.slice(0, 10)}
                     currentPlayerId={id || ''}
@@ -295,239 +299,283 @@ const PlayerProfile: React.FC = () => {
 
             {/* Matches Tab */}
             {activeTab === 'matches' && (
-              <div className="tab-pane active">
-                <div className="matches-container">
-                  <h2>{t('all_matches')}</h2>
-                  
-                  {/* Filters */}
-                  <div className="filters-section">
-                    <div className="filter-group">
-                      <label htmlFor="winner">{t('filter_winner')}</label>
-                      <input
-                        type="text"
-                        id="winner"
-                        name="winner"
-                        placeholder={t('filter_by_winner')}
-                        value={filters.winner}
-                        onChange={handleFilterChange}
-                      />
-                    </div>
-
-                    <div className="filter-group">
-                      <label htmlFor="loser">{t('filter_loser')}</label>
-                      <input
-                        type="text"
-                        id="loser"
-                        name="loser"
-                        placeholder={t('filter_by_loser')}
-                        value={filters.loser}
-                        onChange={handleFilterChange}
-                      />
-                    </div>
-
-                    <div className="filter-group">
-                      <label htmlFor="map">{t('filter_map')}</label>
-                      <input
-                        type="text"
-                        id="map"
-                        name="map"
-                        placeholder={t('filter_by_map')}
-                        value={filters.map}
-                        onChange={handleFilterChange}
-                      />
-                    </div>
-
-                    <div className="filter-group">
-                      <label htmlFor="status">{t('filter_match_status')}</label>
-                      <select
-                        id="status"
-                        name="status"
-                        value={filters.status}
-                        onChange={handleFilterChange}
-                      >
-                        <option value="">{t('all')}</option>
-                        <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
-                        <option value="confirmed">{t('match_status_confirmed')}</option>
-                        <option value="disputed">{t('match_status_disputed')}</option>
-                        <option value="cancelled">{t('match_status_cancelled')}</option>
-                      </select>
-                    </div>
-
-                    <button className="reset-btn" onClick={resetFilters}>{t('reset_filters')}</button>
+              <div className="bg-white rounded-lg shadow-md p-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6">{t('all_matches')}</h2>
+                
+                {/* Filters */}
+                <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-end">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="winner" className="font-semibold text-gray-700">{t('filter_winner')}</label>
+                    <input
+                      type="text"
+                      id="winner"
+                      name="winner"
+                      placeholder={t('filter_by_winner')}
+                      value={filters.winner}
+                      onChange={handleFilterChange}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                    />
                   </div>
 
-                  <MatchesTable 
-                    matches={filteredMatches}
-                    currentPlayerId={id || ''}
-                    onViewDetails={openMatchDetails}
-                    onDownloadReplay={async (matchId, replayFilePath) => {
-                      try {
-                        let API_URL: string;
-                        if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-                          API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-                        } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-                          API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
-                        } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-                          API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
-                        } else {
-                          API_URL = '/api';
-                        }
-                        
-                        const response = await fetch(`${API_URL}/matches/${matchId}/replay/download`, {
-                          method: 'GET'
-                        });
-                        
-                        if (!response.ok) {
-                          throw new Error(`Download failed with status ${response.status}`);
-                        }
-                        
-                        const { signedUrl } = await response.json();
-                        window.location.href = signedUrl;
-                      } catch (err) {
-                        console.error('Error downloading replay:', err);
-                      }
-                    }}
-                  />
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="loser" className="font-semibold text-gray-700">{t('filter_loser')}</label>
+                    <input
+                      type="text"
+                      id="loser"
+                      name="loser"
+                      placeholder={t('filter_by_loser')}
+                      value={filters.loser}
+                      onChange={handleFilterChange}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="map" className="font-semibold text-gray-700">{t('filter_map')}</label>
+                    <input
+                      type="text"
+                      id="map"
+                      name="map"
+                      placeholder={t('filter_by_map')}
+                      value={filters.map}
+                      onChange={handleFilterChange}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="status" className="font-semibold text-gray-700">{t('filter_match_status')}</label>
+                    <select
+                      id="status"
+                      name="status"
+                      value={filters.status}
+                      onChange={handleFilterChange}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                    >
+                      <option value="">{t('all')}</option>
+                      <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
+                      <option value="confirmed">{t('match_status_confirmed')}</option>
+                      <option value="disputed">{t('match_status_disputed')}</option>
+                      <option value="cancelled">{t('match_status_cancelled')}</option>
+                    </select>
+                  </div>
+
+                  <button 
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold md:col-span-1 col-span-1 sm:col-span-2"
+                    onClick={resetFilters}
+                  >
+                    {t('reset_filters')}
+                  </button>
                 </div>
+
+                <MatchesTable 
+                  matches={filteredMatches}
+                  currentPlayerId={id || ''}
+                  onViewDetails={openMatchDetails}
+                  onDownloadReplay={async (matchId, replayFilePath) => {
+                    try {
+                      let API_URL: string;
+                      if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+                        API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
+                      } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+                        API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
+                      } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+                        API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+                      } else {
+                        API_URL = '/api';
+                      }
+                      
+                      const response = await fetch(`${API_URL}/matches/${matchId}/replay/download`, {
+                        method: 'GET'
+                      });
+                      
+                      if (!response.ok) {
+                        throw new Error(`Download failed with status ${response.status}`);
+                      }
+                      
+                      const { signedUrl } = await response.json();
+                      window.location.href = signedUrl;
+                    } catch (err) {
+                      console.error('Error downloading replay:', err);
+                    }
+                  }}
+                />
               </div>
             )}
 
             {/* Opponents Tab */}
             {activeTab === 'opponents' && (
-              <div className="tab-pane active">
-                <div className="opponent-stats-container">
-                  <h2>{t('my_opponents') || 'Opponents'}</h2>
-                  
-                  {opponentStatsLoading && (
-                    <div className="loading-message">{t('loading')}</div>
-                  )}
+              <div className="bg-white rounded-lg shadow-md p-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('my_opponents') || 'Opponents'}</h2>
+                
+                {opponentStatsLoading && (
+                  <div className="text-center text-gray-600 py-8">{t('loading')}</div>
+                )}
 
-                  {opponentStatsError && (
-                    <div className="error-message">{opponentStatsError}</div>
-                  )}
+                {opponentStatsError && (
+                  <div className="text-center text-red-600 py-8">{opponentStatsError}</div>
+                )}
 
-                  {!opponentStatsLoading && !opponentStatsError && opponentStats.length === 0 && (
-                    <div className="no-data-message">{t('no_opponent_data') || 'No opponent data available'}</div>
-                  )}
+                {!opponentStatsLoading && !opponentStatsError && opponentStats.length === 0 && (
+                  <div className="text-center text-gray-500 italic py-8">{t('no_opponent_data') || 'No opponent data available'}</div>
+                )}
 
-                  {!opponentStatsLoading && !opponentStatsError && opponentStats.length > 0 && (
-                    <>
-                      <div className="filter-section">
-                        <input
-                          type="text"
-                          placeholder={t('filter_by_opponent') || 'Filter by opponent...'}
-                          value={filterOpponent}
-                          onChange={(e) => setFilterOpponent(e.target.value)}
-                          className="opponent-filter"
-                        />
-                      </div>
+                {!opponentStatsLoading && !opponentStatsError && opponentStats.length > 0 && (
+                  <>
+                    <div className="mb-6">
+                      <input
+                        type="text"
+                        placeholder={t('filter_by_opponent') || 'Filter by opponent...'}
+                        value={filterOpponent}
+                        onChange={(e) => setFilterOpponent(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      />
+                    </div>
 
-                      <div className="opponent-stats-wrapper">
-                        <table className="opponent-stats-table">
-                          <thead>
-                            <tr>
-                              <th 
-                                className="sortable"
-                                onClick={() => handleSort('opponent_name')}
+                    <div className="overflow-x-auto rounded-lg shadow-md">
+                      <table className="w-full border-collapse bg-white text-sm">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-gray-700 to-gray-800 text-white">
+                            <th 
+                              className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('opponent_name')}
+                            >
+                              {t('opponent_name') || 'Opponent'}
+                              {sortColumn === 'opponent_name' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('current_elo')}
+                            >
+                              {t('current_elo') || 'Current ELO'}
+                              {sortColumn === 'current_elo' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('total_matches')}
+                            >
+                              {t('total_matches_label') || 'Total'}
+                              {sortColumn === 'total_matches' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('wins')}
+                            >
+                              {t('wins') || 'Wins'}
+                              {sortColumn === 'wins' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('losses')}
+                            >
+                              {t('losses') || 'Losses'}
+                              {sortColumn === 'losses' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('win_percentage')}
+                            >
+                              {t('win_percentage') || 'Win %'}
+                              {sortColumn === 'win_percentage' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('elo_gained')}
+                            >
+                              {t('elo_gained') || 'ELO Gained'}
+                              {sortColumn === 'elo_gained' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('elo_lost')}
+                            >
+                              {t('elo_lost') || 'ELO Lost'}
+                              {sortColumn === 'elo_lost' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('last_match_date')}
+                            >
+                              {t('last_match') || 'Last Match'}
+                              {sortColumn === 'last_match_date' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredOpponentStats.map((stat, idx) => {
+                            const winPercentage = stat.total_games > 0 
+                              ? (stat.wins / stat.total_games) * 100 
+                              : 0;
+                            
+                            return (
+                              <tr 
+                                key={stat.opponent_id} 
+                                className={`border-b border-gray-200 transition-colors ${
+                                  idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                                } hover:bg-blue-50`}
                               >
-                                {t('opponent_name') || 'Opponent'}
-                                {sortColumn === 'opponent_name' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                              </th>
-                              <th className="numeric sortable" onClick={() => handleSort('current_elo')}>
-                                {t('current_elo') || 'Current ELO'}
-                                {sortColumn === 'current_elo' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                              </th>
-                              <th className="numeric sortable" onClick={() => handleSort('total_matches')}>
-                                {t('total_matches_label') || 'Total'}
-                                {sortColumn === 'total_matches' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                              </th>
-                              <th className="numeric sortable" onClick={() => handleSort('wins')}>
-                                {t('wins') || 'Wins'}
-                                {sortColumn === 'wins' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                              </th>
-                              <th className="numeric sortable" onClick={() => handleSort('losses')}>
-                                {t('losses') || 'Losses'}
-                                {sortColumn === 'losses' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                              </th>
-                              <th className="numeric sortable" onClick={() => handleSort('win_percentage')}>
-                                {t('win_percentage') || 'Win %'}
-                                {sortColumn === 'win_percentage' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                              </th>
-                              <th className="numeric sortable" onClick={() => handleSort('elo_gained')}>
-                                {t('elo_gained') || 'ELO Gained'}
-                                {sortColumn === 'elo_gained' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                              </th>
-                              <th className="numeric sortable" onClick={() => handleSort('elo_lost')}>
-                                {t('elo_lost') || 'ELO Lost'}
-                                {sortColumn === 'elo_lost' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                              </th>
-                              <th className="sortable" onClick={() => handleSort('last_match_date')}>
-                                {t('last_match') || 'Last Match'}
-                                {sortColumn === 'last_match_date' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredOpponentStats.map((stat) => {
-                              const winPercentage = stat.total_games > 0 
-                                ? (stat.wins / stat.total_games) * 100 
-                                : 0;
-                              
-                              return (
-                                <tr key={stat.opponent_id} className="opponent-row">
-                                  <td className="opponent-name">
-                                    <span className="name">
-                                      <PlayerLink nickname={stat.opponent_name} userId={stat.opponent_id} />
-                                    </span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="elo-badge">{stat.current_elo}</span>
-                                  </td>
-                                  <td className="numeric">
-                                    <strong>{stat.total_matches}</strong>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="wins-badge">{stat.wins}</span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="losses-badge">{stat.losses}</span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className={`percentage-badge ${winPercentage > 55 ? 'positive' : winPercentage < 45 ? 'negative' : ''}`}>
-                                      {winPercentage.toFixed(1)}%
-                                    </span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="elo-positive">+{Number(stat.elo_gained).toFixed(2)}</span>
-                                  </td>
-                                  <td className="numeric">
-                                    <span className="elo-negative">-{Number(stat.elo_lost).toFixed(2)}</span>
-                                  </td>
-                                  <td>
-                                    <span className="date">{stat.last_match_date ? new Date(stat.last_match_date).toLocaleDateString() : 'N/A'}</span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  )}
-                </div>
+                                <td className="px-4 py-3 font-semibold text-gray-800">
+                                  <PlayerLink nickname={stat.opponent_name} userId={stat.opponent_id} />
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="inline-block px-3 py-1 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-900 rounded font-semibold text-sm shadow-sm">
+                                    {stat.current_elo}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-800">
+                                  {stat.total_matches}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="inline-block px-3 py-1 bg-gradient-to-r from-green-100 to-green-200 text-green-900 rounded font-semibold text-sm shadow-sm">
+                                    {stat.wins}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="inline-block px-3 py-1 bg-gradient-to-r from-red-100 to-red-200 text-red-900 rounded font-semibold text-sm shadow-sm">
+                                    {stat.losses}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className={`inline-block px-3 py-1 rounded font-semibold text-sm shadow-sm ${
+                                    winPercentage > 55 
+                                      ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-900'
+                                      : winPercentage < 45 
+                                      ? 'bg-gradient-to-r from-red-100 to-red-200 text-red-900'
+                                      : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800'
+                                  }`}>
+                                    {winPercentage.toFixed(1)}%
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center font-bold text-green-600">
+                                  +{Number(stat.elo_gained).toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3 text-center font-bold text-red-600">
+                                  -{Number(stat.elo_lost).toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3 text-center text-gray-700 text-sm">
+                                  {stat.last_match_date ? new Date(stat.last_match_date).toLocaleDateString() : 'N/A'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
             {/* Performance by Map Tab */}
             {activeTab === 'by-map' && (
-              <div className="tab-pane active">
+              <div className="bg-white rounded-lg shadow-md p-8">
                 <PlayerStatsByMap playerId={id || ''} />
               </div>
             )}
 
             {/* Performance by Faction Tab */}
             {activeTab === 'by-faction' && (
-              <div className="tab-pane active">
+              <div className="bg-white rounded-lg shadow-md p-8">
                 <PlayerStatsByFaction playerId={id || ''} />
               </div>
             )}
@@ -541,6 +589,7 @@ const PlayerProfile: React.FC = () => {
         isOpen={!!matchDetailsModal}
         onClose={closeMatchDetails}
       />
+      </div>
     </div>
   );
 };

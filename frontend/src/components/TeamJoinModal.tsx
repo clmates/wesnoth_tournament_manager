@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './TeamJoinModal.css';
 import { api, userService } from '../services/api';
 import OpponentSelector from './OpponentSelector';
 

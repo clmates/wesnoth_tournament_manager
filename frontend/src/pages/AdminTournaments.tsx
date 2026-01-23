@@ -5,7 +5,6 @@ import { useAuthStore } from '../store/authStore';
 import { publicService, tournamentService } from '../services/api';
 import MainLayout from '../components/MainLayout';
 import TournamentList, { Tournament } from '../components/TournamentList';
-import '../styles/Admin.css';
 
 const AdminTournaments: React.FC = () => {
   const { t } = useTranslation();
@@ -75,7 +74,7 @@ const AdminTournaments: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="admin-container"><p>{t('loading')}</p></div></MainLayout>;
+    return <MainLayout><div className="max-w-6xl mx-auto px-4 py-8"><p>{t('loading')}</p></div></MainLayout>;
   }
 
 

@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
 import MainLayout from '../components/MainLayout';
-import '../styles/AdminMapsAndFactions.css';
 
 interface Map {
   id: string;
@@ -222,8 +221,8 @@ const AdminMapsAndFactions: React.FC = () => {
   if (loading) {
     return (
       <MainLayout>
-        <div className="admin-container">
-          <p>Loading...</p>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <p className="text-center text-gray-600">Loading...</p>
         </div>
       </MainLayout>
     );
@@ -232,8 +231,8 @@ const AdminMapsAndFactions: React.FC = () => {
   if (!isAuthenticated || !isAdmin) {
     return (
       <MainLayout>
-        <div className="admin-container">
-          <p>Access denied. Admin only.</p>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <p className="text-center text-red-600">Access denied. Admin only.</p>
         </div>
       </MainLayout>
     );
@@ -241,21 +240,29 @@ const AdminMapsAndFactions: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="admin-maps-factions-container">
-        <h1>Manage Maps & Factions</h1>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Manage Maps & Factions</h1>
 
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
+        {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">{error}</div>}
+        {success && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4">{success}</div>}
 
-        <div className="tabs">
+        <div className="flex border-b border-gray-300 mb-6">
           <button
-            className={`tab ${activeTab === 'maps' ? 'active' : ''}`}
+            className={`px-4 py-2 font-semibold border-b-2 ${
+              activeTab === 'maps'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-800'
+            }`}
             onClick={() => setActiveTab('maps')}
           >
             Maps ({maps.length})
           </button>
           <button
-            className={`tab ${activeTab === 'factions' ? 'active' : ''}`}
+            className={`px-4 py-2 font-semibold border-b-2 ${
+              activeTab === 'factions'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-800'
+            }`}
             onClick={() => setActiveTab('factions')}
           >
             Factions ({factions.length})
@@ -263,11 +270,11 @@ const AdminMapsAndFactions: React.FC = () => {
         </div>
 
         {activeTab === 'maps' && (
-          <div className="tab-content">
-            <div className="header">
-              <h2>Game Maps</h2>
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-gray-800">Game Maps</h2>
               <button
-                className="btn-primary"
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
                 onClick={() => {
                   setShowMapForm(!showMapForm);
                   setEditingId(null);
@@ -279,9 +286,9 @@ const AdminMapsAndFactions: React.FC = () => {
             </div>
 
             {showMapForm && (
-              <form onSubmit={handleMapSubmit} className="form-section">
-                <div className="form-group">
-                  <label>Map Name (English) *</label>
+              <form onSubmit={handleMapSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-semibold mb-2">Map Name (English) *</label>
                   <input
                     type="text"
                     required
@@ -290,10 +297,11 @@ const AdminMapsAndFactions: React.FC = () => {
                       setMapFormData({ ...mapFormData, name: e.target.value })
                     }
                     placeholder="e.g., Den of Onis"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
-                <div className="form-group">
-                  <label>Description</label>
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-semibold mb-2">Description</label>
                   <textarea
                     value={mapFormData.description}
                     onChange={(e) =>
@@ -301,26 +309,29 @@ const AdminMapsAndFactions: React.FC = () => {
                     }
                     placeholder="Optional description"
                     rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
-                <div className="form-row" style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <div className="flex gap-5 mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={mapFormData.is_active}
                       onChange={(e) =>
                         setMapFormData({ ...mapFormData, is_active: e.target.checked })
                       }
+                      className="w-4 h-4"
                     />
                     Is Active
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={mapFormData.is_ranked}
                       onChange={(e) =>
                         setMapFormData({ ...mapFormData, is_ranked: e.target.checked })
                       }
+                      className="w-4 h-4"
                     />
                     Is Ranked
                   </label>
@@ -331,46 +342,53 @@ const AdminMapsAndFactions: React.FC = () => {
               </form>
             )}
 
-            <div className="items-list">
+            <div className="space-y-4">
               {maps.length === 0 ? (
-                <p>No maps found. Add one to get started.</p>
+                <p className="text-gray-600">No maps found. Add one to get started.</p>
               ) : (
                 maps.map((map) => (
-                  <div key={map.id} className={`item ${!map.is_active ? 'inactive' : ''}`}>
-                    <div className="item-info">
-                      <h3>{map.name}</h3>
-                      <div className="status-badges" style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                        <span className={`badge ${map.is_active ? 'active' : 'inactive'}`}>
+                  <div key={map.id} className={`bg-white rounded-lg shadow-md p-4 border-l-4 ${
+                    !map.is_active ? 'border-gray-400' : 'border-blue-500'
+                  }`}>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-800">{map.name}</h3>
+                      <div className="flex gap-2 mt-2">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          map.is_active
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
                           {map.is_active ? 'Active' : 'Inactive'}
                         </span>
-                        <span className={`badge ${map.is_ranked ? 'ranked' : 'unranked'}`} style={{
-                          backgroundColor: map.is_ranked ? '#28a745' : '#6c757d',
-                          color: 'white',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          fontSize: '0.8em'
-                        }}>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          map.is_ranked
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
                           {map.is_ranked ? 'Ranked' : 'Unranked'}
                         </span>
                       </div>
-                      <p>Created: {new Date(map.created_at).toLocaleDateString()}</p>
+                      <p className="text-sm text-gray-600 mt-2">Created: {new Date(map.created_at).toLocaleDateString()}</p>
                     </div>
-                    <div className="item-actions">
+                    <div className="flex gap-2">
                       <button
-                        className={`btn-status ${map.is_active ? 'active' : 'inactive'}`}
+                        className={`px-3 py-1 text-sm rounded-lg font-semibold ${
+                          map.is_active
+                            ? 'bg-green-500 text-white hover:bg-green-600'
+                            : 'bg-gray-500 text-white hover:bg-gray-600'
+                        }`}
                         onClick={() => handleToggleMapStatus(map.id, map.is_active)}
                       >
                         {map.is_active ? 'Active' : 'Inactive'}
                       </button>
                       <button
-                        className="btn-status"
+                        className="px-3 py-1 text-sm bg-yellow-500 text-black rounded-lg font-semibold hover:bg-yellow-600"
                         onClick={() => handleEditMap(map)}
-                        style={{ backgroundColor: '#ffc107', color: 'black', marginRight: '8px' }}
                       >
                         Edit
                       </button>
                       <button
-                        className="btn-delete"
+                        className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600"
                         onClick={() => handleDeleteMap(map.id)}
                       >
                         Delete
@@ -384,11 +402,11 @@ const AdminMapsAndFactions: React.FC = () => {
         )}
 
         {activeTab === 'factions' && (
-          <div className="tab-content">
-            <div className="header">
-              <h2>Factions</h2>
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-gray-800">Factions</h2>
               <button
-                className="btn-primary"
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
                 onClick={() => {
                   setShowFactionForm(!showFactionForm);
                   setEditingId(null);
@@ -400,9 +418,9 @@ const AdminMapsAndFactions: React.FC = () => {
             </div>
 
             {showFactionForm && (
-              <form onSubmit={handleFactionSubmit} className="form-section">
-                <div className="form-group">
-                  <label>Faction Name (English) *</label>
+              <form onSubmit={handleFactionSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-semibold mb-2">Faction Name (English) *</label>
                   <input
                     type="text"
                     required
@@ -411,10 +429,11 @@ const AdminMapsAndFactions: React.FC = () => {
                       setFactionFormData({ ...factionFormData, name: e.target.value })
                     }
                     placeholder="e.g., Elves"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
-                <div className="form-group">
-                  <label>Description</label>
+                <div className="mb-4">
+                  <label className="block text-gray-700 font-semibold mb-2">Description</label>
                   <textarea
                     value={factionFormData.description}
                     onChange={(e) =>
@@ -422,76 +441,86 @@ const AdminMapsAndFactions: React.FC = () => {
                     }
                     placeholder="Optional description"
                     rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
-                <div className="form-row" style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <div className="flex gap-5 mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={factionFormData.is_active}
                       onChange={(e) =>
                         setFactionFormData({ ...factionFormData, is_active: e.target.checked })
                       }
+                      className="w-4 h-4"
                     />
                     Is Active
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={factionFormData.is_ranked}
                       onChange={(e) =>
                         setFactionFormData({ ...factionFormData, is_ranked: e.target.checked })
                       }
+                      className="w-4 h-4"
                     />
                     Is Ranked
                   </label>
                 </div>
-                <button type="submit" className="btn-submit">
+                <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50">
                   {editingId ? 'Update Faction' : 'Add Faction'}
                 </button>
               </form>
             )}
 
-            <div className="items-list">
+            <div className="space-y-4">
               {factions.length === 0 ? (
-                <p>No factions found. Add one to get started.</p>
+                <p className="text-gray-600">No factions found. Add one to get started.</p>
               ) : (
                 factions.map((faction) => (
-                  <div key={faction.id} className={`item ${!faction.is_active ? 'inactive' : ''}`}>
-                    <div className="item-info">
-                      <h3>{faction.name}</h3>
-                      <div className="status-badges" style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                        <span className={`badge ${faction.is_active ? 'active' : 'inactive'}`}>
+                  <div key={faction.id} className={`bg-white rounded-lg shadow-md p-4 border-l-4 ${
+                    !faction.is_active ? 'border-gray-400' : 'border-blue-500'
+                  }`}>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-800">{faction.name}</h3>
+                      <div className="flex gap-2 mt-2">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          faction.is_active
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
                           {faction.is_active ? 'Active' : 'Inactive'}
                         </span>
-                        <span className={`badge ${faction.is_ranked ? 'ranked' : 'unranked'}`} style={{
-                          backgroundColor: faction.is_ranked ? '#28a745' : '#6c757d',
-                          color: 'white',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          fontSize: '0.8em'
-                        }}>
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          faction.is_ranked
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
                           {faction.is_ranked ? 'Ranked' : 'Unranked'}
                         </span>
                       </div>
-                      <p>Created: {new Date(faction.created_at).toLocaleDateString()}</p>
+                      <p className="text-sm text-gray-600 mt-2">Created: {new Date(faction.created_at).toLocaleDateString()}</p>
                     </div>
-                    <div className="item-actions">
+                    <div className="flex gap-2">
                       <button
-                        className={`btn-status ${faction.is_active ? 'active' : 'inactive'}`}
+                        className={`px-3 py-1 text-sm rounded-lg font-semibold ${
+                          faction.is_active
+                            ? 'bg-green-500 text-white hover:bg-green-600'
+                            : 'bg-gray-500 text-white hover:bg-gray-600'
+                        }`}
                         onClick={() => handleToggleFactionStatus(faction.id, faction.is_active)}
                       >
                         {faction.is_active ? 'Active' : 'Inactive'}
                       </button>
                       <button
-                        className="btn-status"
+                        className="px-3 py-1 text-sm bg-yellow-500 text-black rounded-lg font-semibold hover:bg-yellow-600"
                         onClick={() => handleEditFaction(faction)}
-                        style={{ backgroundColor: '#ffc107', color: 'black', marginRight: '8px' }}
                       >
                         Edit
                       </button>
                       <button
-                        className="btn-delete"
+                        className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600"
                         onClick={() => handleDeleteFaction(faction.id)}
                       >
                         Delete

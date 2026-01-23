@@ -3,7 +3,6 @@ import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { adminService } from '../services/api';
 import UserProfileNav from '../components/UserProfileNav';
-import './AdminAudit.css';
 
 interface AuditLog {
   id: string;
@@ -154,65 +153,65 @@ export default function AdminAudit() {
   return (
     <>
       <UserProfileNav />
-      <div className="audit-container">
-        <h1>🔒 Audit Logs</h1>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">🔒 Audit Logs</h1>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">{error}</div>}
 
       {/* Filters */}
-      <div className="filters-section">
-        <h3>Filters</h3>
-        <div className="filter-row">
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Filters</h3>
+        <div className="grid grid-cols-5 gap-4">
           <input
             type="text"
             placeholder="Event Type (e.g., LOGIN_FAILED)"
             value={filters.eventType}
             onChange={(e) => setFilters({ ...filters, eventType: e.target.value })}
-            className="filter-input"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
           />
           <input
             type="text"
             placeholder="Username"
             value={filters.username}
             onChange={(e) => setFilters({ ...filters, username: e.target.value })}
-            className="filter-input"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
           />
           <input
             type="text"
             placeholder="IP Address"
             value={filters.ipAddress}
             onChange={(e) => setFilters({ ...filters, ipAddress: e.target.value })}
-            className="filter-input"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
           />
           <select
             value={filters.daysBack}
             onChange={(e) => setFilters({ ...filters, daysBack: parseInt(e.target.value) })}
-            className="filter-select"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
           >
             <option value="1">Last 24 hours</option>
             <option value="7">Last 7 days</option>
             <option value="30">Last 30 days</option>
             <option value="90">Last 90 days</option>
           </select>
-          <button onClick={fetchAuditLogs} disabled={loading} className="btn btn-primary">
+          <button onClick={fetchAuditLogs} disabled={loading} className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50">
             {loading ? 'Loading...' : 'Search'}
           </button>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="actions-section">
+      <div className="flex gap-4 mb-6">
         <button
           onClick={() => setShowDeleteConfirm(true)}
           disabled={selectedLogs.size === 0 || loading}
-          className="btn btn-danger"
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
         >
           🗑️ Delete Selected ({selectedLogs.size})
         </button>
         <button
           onClick={deleteOldLogs}
           disabled={loading}
-          className="btn btn-warning"
+          className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50"
         >
           🧹 Delete Logs Older Than {filters.daysBack} Days
         </button>
@@ -220,21 +219,21 @@ export default function AdminAudit() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>⚠️ Confirm Deletion</h3>
-            <p>Delete {selectedLogs.size} selected log(s)? This action cannot be undone.</p>
-            <div className="modal-actions">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">⚠️ Confirm Deletion</h3>
+            <p className="text-gray-700 mb-6">Delete {selectedLogs.size} selected log(s)? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="btn btn-secondary"
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteSelectedLogs}
                 disabled={loading}
-                className="btn btn-danger"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
                 {loading ? 'Deleting...' : 'Delete'}
               </button>
@@ -244,54 +243,63 @@ export default function AdminAudit() {
       )}
 
       {/* Logs Table */}
-      <div className="logs-section">
-        <h3>Logs ({auditLogs.length})</h3>
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <h3 className="text-lg font-semibold text-gray-800 px-6 py-4 border-b border-gray-300">Logs ({auditLogs.length})</h3>
 
         {auditLogs.length === 0 ? (
-          <div className="no-logs">No audit logs found</div>
+          <div className="text-center py-8 text-gray-600">No audit logs found</div>
         ) : (
-          <div className="table-wrapper">
-            <table className="logs-table">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
               <thead>
-                <tr>
-                  <th>
+                <tr className="bg-gray-200">
+                  <th className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
                       checked={selectedLogs.size === auditLogs.length && auditLogs.length > 0}
                       onChange={toggleSelectAll}
-                      className="checkbox"
+                      className="w-4 h-4"
                     />
                   </th>
-                  <th>Time</th>
-                  <th>Event Type</th>
-                  <th>User</th>
-                  <th>IP Address</th>
-                  <th>Details</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Time</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Event Type</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">User</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">IP Address</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Details</th>
                 </tr>
               </thead>
               <tbody>
                 {auditLogs.map((log) => (
-                  <tr key={log.id} className={selectedLogs.has(log.id) ? 'selected' : ''}>
-                    <td>
+                  <tr key={log.id} className={`border-b border-gray-200 ${
+                    selectedLogs.has(log.id) ? 'bg-blue-50' : 'hover:bg-gray-50'
+                  }`}>
+                    <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         checked={selectedLogs.has(log.id)}
                         onChange={() => toggleLogSelection(log.id)}
-                        className="checkbox"
+                        className="w-4 h-4"
                       />
                     </td>
-                    <td className="time">{formatTime(log.created_at)}</td>
-                    <td>
-                      <span className={`badge ${getEventTypeBadgeClass(log.event_type)}`}>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{formatTime(log.created_at)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        log.event_type.includes('SUCCESS') ? 'bg-green-100 text-green-800' :
+                        log.event_type.includes('FAILED') ? 'bg-red-100 text-red-800' :
+                        log.event_type === 'REGISTRATION' ? 'bg-blue-100 text-blue-800' :
+                        log.event_type === 'ADMIN_ACTION' ? 'bg-yellow-100 text-yellow-800' :
+                        log.event_type === 'SECURITY_EVENT' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
                         {log.event_type}
                       </span>
                     </td>
-                    <td className="username">
+                    <td className="px-4 py-3 text-gray-700 text-sm">
                       {log.username || log.user_id || 'ANONYMOUS'}
                     </td>
-                    <td className="ip">{log.ip_address}</td>
-                    <td className="details">
-                      <code>{JSON.stringify(log.details, null, 2)}</code>
+                    <td className="px-4 py-3 text-gray-700 text-sm">{log.ip_address}</td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">
+                      <code className="bg-gray-100 px-2 py-1 rounded text-xs">{JSON.stringify(log.details, null, 2)}</code>
                     </td>
                   </tr>
                 ))}

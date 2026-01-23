@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import '../styles/LanguageSelector.css';
 
 interface LanguageSelectorProps {
   selectedLanguage: string;
@@ -30,11 +29,11 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   };
 
   return (
-    <div className="language-selector-wrapper">
-      {label && <label className="language-label">{label}</label>}
-      <div className="language-selector-container">
+    <div className="flex flex-col gap-2">
+      {label && <label className="text-sm font-semibold text-gray-700">{label}</label>}
+      <div className="relative inline-block w-full">
         <button
-          className="language-selector-btn"
+          className="w-full flex items-center justify-between gap-2 px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
           onClick={() => setIsOpen(!isOpen)}
         >
           {currentLanguage && (
@@ -42,29 +41,31 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
               <img
                 src={`https://flagcdn.com/w20/${currentLanguage.countryCode}.png`}
                 alt={currentLanguage.code}
-                className="flag-img"
+                className="w-5 h-4 rounded"
               />
-              <span>{currentLanguage.name}</span>
+              <span className="flex-grow text-left text-sm font-medium">{currentLanguage.name}</span>
             </>
           )}
-          <span className="dropdown-arrow">▼</span>
+          <span className={`text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`}>▼</span>
         </button>
 
         {isOpen && (
-          <div className="language-selector-menu">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
             {languages.map((lang) => (
               <button
                 key={lang.code}
-                className={`language-selector-option ${lang.code === selectedLanguage ? 'active' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-100 border-b border-gray-100 last:border-b-0 ${
+                  lang.code === selectedLanguage ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700'
+                }`}
                 onClick={() => handleSelect(lang.code)}
               >
                 <img
                   src={`https://flagcdn.com/w20/${lang.countryCode}.png`}
                   alt={lang.code}
-                  className="flag-img"
+                  className="w-5 h-4 rounded"
                 />
-                <span>{lang.name}</span>
-                {lang.code === selectedLanguage && <span className="checkmark">✓</span>}
+                <span className="flex-grow text-sm">{lang.name}</span>
+                {lang.code === selectedLanguage && <span className="text-lg">✓</span>}
               </button>
             ))}
           </div>

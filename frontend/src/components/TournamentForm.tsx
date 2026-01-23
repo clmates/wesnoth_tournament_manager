@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import UnrankedFactionSelect from './UnrankedFactionSelect';
 import UnrankedMapSelect from './UnrankedMapSelect';
-import '../styles/Auth.css';
 
 interface TournamentFormData {
   name: string;
@@ -56,9 +55,9 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
   };
 
   return (
-    <form className="tournament-form expanded-form" onSubmit={onSubmit}>
+    <form className="bg-white rounded-lg shadow-md p-8 space-y-6" onSubmit={onSubmit}>
       {/* SECTION 1: BASIC INFORMATION */}
-      <div className="form-section">
+      <div className="mb-6">
         <h3>{t('tournament.basic_info')}</h3>
         <input
           type="text"
@@ -78,10 +77,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         />
         
         {/* Tournament Mode Selector (Ranked/Unranked/Team) */}
-        <div className="form-group">
+        <div className="flex flex-col gap-2">
           <label>{t('tournament.match_type', 'Match Type')}:</label>
-          <div className="radio-group">
-            <label className="radio-label">
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
                 value="ranked"
@@ -91,7 +90,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
               />
               {t('tournament.ranked', 'Ranked (1v1, ELO impact)')}
             </label>
-            <label className="radio-label">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
                 value="unranked"
@@ -101,7 +100,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
               />
               {t('tournament.unranked', 'Unranked (1v1, no ELO)')}
             </label>
-            <label className="radio-label">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
                 value="team"
@@ -116,10 +115,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
       </div>
 
       {/* SECTION 2: TOURNAMENT TYPE AND PARTICIPANTS */}
-      <div className="form-section">
+      <div className="mb-6">
         <h3>{t('tournament.format_settings', 'Format Settings')}</h3>
-        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div className="form-group">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="flex flex-col gap-2">
             <label>{t('tournament.tournament_format', 'Tournament Format')}</label>
             <select
               value={formData.tournament_type}
@@ -133,7 +132,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
               <option value="swiss_elimination">Swiss-Elimination Mix</option>
             </select>
           </div>
-          <div className="form-group">
+          <div className="flex flex-col gap-2">
             <label>Max Participants</label>
             <input
               type="number"
@@ -153,10 +152,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
 
       {/* SECTION 3: UNRANKED ASSETS (conditional) */}
       {formData.tournament_mode === 'unranked' && (
-        <div className="form-section">
+        <div className="mb-6">
           <h3>{t('tournament.unranked_assets', 'Unranked Tournament Assets')}</h3>
-          <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
-          <div className="unranked-assets-grid">
+          <p className="text-sm text-gray-600 italic mb-4">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <UnrankedFactionSelect 
               tournamentId={undefined}
               selectedFactionIds={unrankedFactions}
@@ -175,10 +174,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
 
       {/* SECTION 3B: TEAM ASSETS (same as unranked) */}
       {formData.tournament_mode === 'team' && (
-        <div className="form-section">
+        <div className="mb-6">
           <h3>{t('tournament.team_assets', 'Team Tournament Assets')}</h3>
-          <p className="info-note">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
-          <div className="unranked-assets-grid">
+          <p className="text-sm text-gray-600 italic mb-4">{t('tournament.select_allowed_factions_maps', 'Select which factions and maps are allowed in this tournament')}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <UnrankedFactionSelect 
               tournamentId={undefined}
               selectedFactionIds={unrankedFactions}
@@ -197,10 +196,10 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
 
       {/* SECTION 3C: RANKED ASSETS (only ranked factions/maps) */}
       {formData.tournament_mode === 'ranked' && (
-        <div className="form-section">
+        <div className="mb-6">
           <h3>{t('tournament.ranked_assets', 'Ranked Tournament Assets')}</h3>
-          <p className="info-note">{t('tournament.select_allowed_ranked_factions_maps', 'Select which ranked factions and maps are allowed in this tournament')}</p>
-          <div className="unranked-assets-grid">
+          <p className="text-sm text-gray-600 italic mb-4">{t('tournament.select_allowed_ranked_factions_maps', 'Select which ranked factions and maps are allowed in this tournament')}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <UnrankedFactionSelect 
               tournamentId={undefined}
               selectedFactionIds={unrankedFactions}
@@ -219,15 +218,15 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         </div>
       )}
 
-      <div className="form-section">
+      <div className="mb-6">
         <div className="section-header">
           <h3>{t('tournament.round_configuration', 'Round Configuration')}</h3>
           {!formData.max_participants && (
-            <span className="info-note">{t('tournaments.round_config_optional', 'Optional - set when preparing the tournament')}</span>
+            <span className="text-sm text-gray-600 italic mb-4">{t('tournaments.round_config_optional', 'Optional - set when preparing the tournament')}</span>
           )}
         </div>
 
-        <div className="form-row-inline-align">
+        <div className="flex items-end gap-4">
           <div className="form-group-column">
             <label>{t('label_round_duration', 'Round Duration (days)')}</label>
             <input
@@ -252,7 +251,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                 ...formData, 
                 auto_advance_round: e.target.checked 
               })}
-              className="checkbox-large"
+              className="w-5 h-5"
               disabled={isLoading}
             />
           </div>
@@ -260,7 +259,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
 
         {/* Edit mode: Show started_at field */}
         {mode === 'edit' && (
-          <div className="form-group">
+          <div className="flex flex-col gap-2">
             <label>{t('label_tournament_start_date')}</label>
             <input
               type="datetime-local"
@@ -275,13 +274,13 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         {canConfigureRounds() && formData.tournament_type === 'elimination' && (
           <div className="round-types-config">
             <h4>Round Configuration</h4>
-            <p className="info-text">Configure match formats for your elimination tournament</p>
+            <p className="text-sm text-gray-600">Configure match formats for your elimination tournament</p>
             
-            <div className="info-box info">
+            <div className="border border-blue-200 bg-blue-50 p-4 rounded">
               <p>ℹ️ Tournament rounds are automatically calculated based on the number of participants.</p>
             </div>
 
-            <div className="form-group">
+            <div className="flex flex-col gap-2">
               <label>Preliminary Rounds Match Format</label>
               <select
                 value={formData.general_rounds_format}
@@ -298,7 +297,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
               <small>Best of format for all preliminary elimination rounds</small>
             </div>
 
-            <div className="form-group">
+            <div className="flex flex-col gap-2">
               <label>Final Match Format</label>
               <select
                 value={formData.final_rounds_format}
@@ -324,8 +323,8 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             {formData.tournament_type === 'league' && (
               <>
                 <h4>League Format Configuration</h4>
-                <p className="info-text">Configure the League tournament format</p>
-                <div className="form-group">
+                <p className="text-sm text-gray-600">Configure the League tournament format</p>
+                <div className="flex flex-col gap-2">
                   <label>League Format</label>
                   <select
                     value={formData.general_rounds}
@@ -340,7 +339,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                   </select>
                   <small>Select whether teams play once or twice against each other</small>
                 </div>
-                <div className="form-group">
+                <div className="flex flex-col gap-2">
                   <label>Match Format</label>
                   <select
                     value={formData.general_rounds_format}
@@ -366,8 +365,8 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             {formData.tournament_type === 'swiss' && (
               <>
                 <h4>Swiss Rounds Configuration</h4>
-                <p className="info-text">Configure the Swiss round tournament</p>
-                <div className="form-group">
+                <p className="text-sm text-gray-600">Configure the Swiss round tournament</p>
+                <div className="flex flex-col gap-2">
                   <label>Number of Swiss Rounds</label>
                   <input
                     type="number"
@@ -382,7 +381,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                   />
                   <small>Number of Swiss system rounds to run (typically 3-7 rounds for Swiss tournaments)</small>
                 </div>
-                <div className="form-group">
+                <div className="flex flex-col gap-2">
                   <label>Match Format</label>
                   <select
                     value={formData.general_rounds_format}
@@ -408,8 +407,8 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
             {formData.tournament_type === 'swiss_elimination' && (
               <>
                 <h4>Swiss-Elimination Mix Configuration</h4>
-                <p className="info-text">Configure Swiss qualifying rounds and elimination bracket with different match formats</p>
-                <div className="info-box info">
+                <p className="text-sm text-gray-600">Configure Swiss qualifying rounds and elimination bracket with different match formats</p>
+                <div className="border border-blue-200 bg-blue-50 p-4 rounded">
                   <p>ℹ️ This tournament combines a Swiss phase for qualification with an elimination phase for final ranking. You can set different match formats for qualification and the grand final.</p>
                 </div>
                 
@@ -417,7 +416,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                 <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px', marginBottom: '15px' }}>
                   <h5 style={{ marginTop: 0 }}>Rounds Configuration</h5>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                    <div className="form-group">
+                    <div className="flex flex-col gap-2">
                       <label>Number of Swiss Rounds</label>
                       <input
                         type="number"
@@ -432,7 +431,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                       />
                       <small>Qualifying rounds using Swiss system</small>
                     </div>
-                    <div className="form-group">
+                    <div className="flex flex-col gap-2">
                       <label>Number of Elimination Rounds</label>
                       <input
                         type="number"
@@ -453,7 +452,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                 {/* Match Formats */}
                 <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px', marginBottom: '15px' }}>
                   <h5 style={{ marginTop: 0 }}>Match Formats</h5>
-                  <div className="form-group">
+                  <div className="flex flex-col gap-2">
                     <label>General Format (Swiss Rounds + Elimination except Final)</label>
                     <select
                       value={formData.general_rounds_format}
@@ -469,7 +468,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                     </select>
                     <small>Used for Swiss rounds and all elimination rounds except the grand final</small>
                   </div>
-                  <div className="form-group">
+                  <div className="flex flex-col gap-2">
                     <label>Final Format (Grand Final)</label>
                     <select
                       value={formData.final_rounds_format}
@@ -490,12 +489,12 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                 {/* Summary */}
                 <div className="round-summary" style={{ marginTop: '15px' }}>
                   <p><strong>Tournament Structure:</strong></p>
-                  <p className="info-text">• Swiss Phase: {formData.general_rounds} rounds ({formData.general_rounds_format?.toUpperCase()})</p>
+                  <p className="text-sm text-gray-600">• Swiss Phase: {formData.general_rounds} rounds ({formData.general_rounds_format?.toUpperCase()})</p>
                   {formData.final_rounds > 1 && (
-                    <p className="info-text">• Qualification Phase: {formData.final_rounds - 1} rounds ({formData.general_rounds_format?.toUpperCase()}) [Quarters, Semis, etc]</p>
+                    <p className="text-sm text-gray-600">• Qualification Phase: {formData.final_rounds - 1} rounds ({formData.general_rounds_format?.toUpperCase()}) [Quarters, Semis, etc]</p>
                   )}
-                  <p className="info-text">• Grand Final: 1 round ({formData.final_rounds_format?.toUpperCase()})</p>
-                  <p className="info-text"><strong>Total Rounds:</strong> {formData.general_rounds + formData.final_rounds}</p>
+                  <p className="text-sm text-gray-600">• Grand Final: 1 round ({formData.final_rounds_format?.toUpperCase()})</p>
+                  <p className="text-sm text-gray-600"><strong>Total Rounds:</strong> {formData.general_rounds + formData.final_rounds}</p>
                 </div>
               </>
             )}
@@ -503,8 +502,8 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         )}
       </div>
 
-      <div className="form-section button-group" style={{ display: 'flex', width: '100%' }}>
-        <button type="submit" className="btn-submit" disabled={isLoading} style={{ width: '100%' }}>
+      <div className="flex w-full gap-2">
+        <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded w-full disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
           {isLoading ? t('loading') : (mode === 'create' ? t('tournament_create') : t('btn_confirm'))}
         </button>
       </div>

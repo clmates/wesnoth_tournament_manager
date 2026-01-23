@@ -13,8 +13,6 @@ import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import PlayerStatsByMap from '../components/PlayerStatsByMap';
 import PlayerStatsByFaction from '../components/PlayerStatsByFaction';
 import PlayerLink from '../components/PlayerLink';
-import '../styles/UserProfile.css';
-import '../styles/OpponentStats.css';
 
 type ProfileTab = 'overall' | 'matches' | 'opponents' | 'by-map' | 'by-faction';
 
@@ -234,14 +232,14 @@ const User: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="auth-container"><p>{t('loading')}</p></div></MainLayout>;
+    return <MainLayout><div className="max-w-6xl mx-auto px-4 py-8"><p>{t('loading')}</p></div></MainLayout>;
   }
 
   if (error) {
     return (
       <MainLayout>
-        <div className="auth-container">
-          <p className="error-message">{error}</p>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <p className="text-red-600 font-semibold">{error}</p>
         </div>
       </MainLayout>
     );
@@ -250,7 +248,7 @@ const User: React.FC = () => {
   if (!profile) {
     return (
       <MainLayout>
-        <div className="auth-container">
+        <div className="max-w-6xl mx-auto px-4 py-8">
           <p>Profile not found</p>
         </div>
       </MainLayout>
@@ -267,19 +265,23 @@ const User: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="profile-page-content">
-        <h1>{profile?.nickname}'s Profile</h1>
+      <div className="bg-gradient-to-br from-gray-100 to-gray-300 min-h-screen py-8 px-4">
+        <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">{profile?.nickname}'s Profile</h1>
         
         {profile && (
           <>
             <ProfileStats player={profile} />
 
             {/* Tab Navigation */}
-            <div className="player-stats-tabs">
+            <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-300">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                  className={`px-4 py-2 font-semibold rounded-t-lg transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-blue-500 text-white border-b-4 border-blue-600'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
                   onClick={() => {
                     setActiveTab(tab.id);
                     setSortColumn('');
@@ -292,10 +294,10 @@ const User: React.FC = () => {
             </div>
 
             {/* Tab Content */}
-            <div className="tab-content">
+            <div className="space-y-6">
               {/* Overall Tab */}
               {activeTab === 'overall' && (
-                <div className="tab-pane active">
+                <div className="bg-white rounded-lg shadow-md p-8">
                   <EloChart 
                     matches={matches}
                     currentPlayerId={userId || ''}
@@ -342,14 +344,14 @@ const User: React.FC = () => {
 
               {/* Matches Tab */}
               {activeTab === 'matches' && (
-                <div className="tab-pane active">
-                  <div className="matches-container">
-                    <h2>{t('all_matches')}</h2>
+                <div className="bg-white rounded-lg shadow-md p-8">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-6 text-gray-800">{t('all_matches')}</h2>
                     
                     {/* Filters */}
-                    <div className="filters-section">
-                      <div className="filter-group">
-                        <label htmlFor="winner">{t('filter_winner')}</label>
+                    <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="winner" className="text-sm font-semibold text-gray-700">{t('filter_winner')}</label>
                         <input
                           type="text"
                           id="winner"
@@ -357,11 +359,12 @@ const User: React.FC = () => {
                           placeholder={t('filter_by_winner')}
                           value={filters.winner}
                           onChange={handleFilterChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
 
-                      <div className="filter-group">
-                        <label htmlFor="loser">{t('filter_loser')}</label>
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="loser" className="text-sm font-semibold text-gray-700">{t('filter_loser')}</label>
                         <input
                           type="text"
                           id="loser"
@@ -369,11 +372,12 @@ const User: React.FC = () => {
                           placeholder={t('filter_by_loser')}
                           value={filters.loser}
                           onChange={handleFilterChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
 
-                      <div className="filter-group">
-                        <label htmlFor="map">{t('filter_map')}</label>
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="map" className="text-sm font-semibold text-gray-700">{t('filter_map')}</label>
                         <input
                           type="text"
                           id="map"
@@ -381,16 +385,18 @@ const User: React.FC = () => {
                           placeholder={t('filter_by_map')}
                           value={filters.map}
                           onChange={handleFilterChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
 
-                      <div className="filter-group">
-                        <label htmlFor="status">{t('filter_match_status')}</label>
+                      <div className="flex flex-col gap-2">
+                        <label htmlFor="status" className="text-sm font-semibold text-gray-700">{t('filter_match_status')}</label>
                         <select
                           id="status"
                           name="status"
                           value={filters.status}
                           onChange={handleFilterChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">{t('all')}</option>
                           <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
@@ -400,7 +406,7 @@ const User: React.FC = () => {
                         </select>
                       </div>
 
-                      <button className="reset-btn" onClick={resetFilters}>{t('reset_filters')}</button>
+                      <button className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-semibold" onClick={resetFilters}>{t('reset_filters')}</button>
                     </div>
 
                     <MatchesTable 
@@ -442,74 +448,74 @@ const User: React.FC = () => {
 
               {/* Opponents Tab */}
               {activeTab === 'opponents' && (
-                <div className="tab-pane active">
-                  <div className="opponent-stats-container">
-                    <h2>{t('my_opponents') || 'Opponents'}</h2>
+                <div className="bg-white rounded-lg shadow-md p-8">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-6 text-gray-800">{t('my_opponents') || 'Opponents'}</h2>
                     
                     {opponentStatsLoading && (
-                      <div className="loading-message">{t('loading')}</div>
+                      <div className="text-center py-8 text-gray-600 text-lg">{t('loading')}</div>
                     )}
 
                     {opponentStatsError && (
-                      <div className="error-message">{opponentStatsError}</div>
+                      <div className="text-red-600 font-semibold p-4 bg-red-50 rounded-lg">{opponentStatsError}</div>
                     )}
 
                     {!opponentStatsLoading && !opponentStatsError && opponentStats.length === 0 && (
-                      <div className="no-data-message">{t('no_opponent_data') || 'No opponent data available'}</div>
+                      <div className="text-center py-8 text-gray-500">{t('no_opponent_data') || 'No opponent data available'}</div>
                     )}
 
                     {!opponentStatsLoading && !opponentStatsError && opponentStats.length > 0 && (
                       <>
-                        <div className="filter-section">
+                        <div className="mb-6">
                           <input
                             type="text"
                             placeholder={t('filter_by_opponent') || 'Filter by opponent...'}
                             value={filterOpponent}
                             onChange={(e) => setFilterOpponent(e.target.value)}
-                            className="opponent-filter"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
 
-                        <div className="opponent-stats-wrapper">
-                          <table className="opponent-stats-table">
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse">
                             <thead>
-                              <tr>
+                              <tr className="bg-gray-100 border-b border-gray-300">
                                 <th 
-                                  className="sortable"
+                                  className="px-4 py-2 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200"
                                   onClick={() => handleSort('opponent_name')}
                                 >
                                   {t('opponent_name') || 'Opponent'}
                                   {sortColumn === 'opponent_name' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                                 </th>
-                                <th className="numeric sortable" onClick={() => handleSort('current_elo')}>
+                                <th className="px-4 py-2 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('current_elo')}>
                                   {t('current_elo') || 'Current ELO'}
                                   {sortColumn === 'current_elo' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                                 </th>
-                                <th className="numeric sortable" onClick={() => handleSort('total_matches')}>
+                                <th className="px-4 py-2 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('total_matches')}>
                                   {t('total_matches_label') || 'Total'}
                                   {sortColumn === 'total_matches' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                                 </th>
-                                <th className="numeric sortable" onClick={() => handleSort('wins')}>
+                                <th className="px-4 py-2 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('wins')}>
                                   {t('wins') || 'Wins'}
                                   {sortColumn === 'wins' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                                 </th>
-                                <th className="numeric sortable" onClick={() => handleSort('losses')}>
+                                <th className="px-4 py-2 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('losses')}>
                                   {t('losses') || 'Losses'}
                                   {sortColumn === 'losses' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                                 </th>
-                                <th className="numeric sortable" onClick={() => handleSort('win_percentage')}>
+                                <th className="px-4 py-2 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('win_percentage')}>
                                   {t('win_percentage') || 'Win %'}
                                   {sortColumn === 'win_percentage' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                                 </th>
-                                <th className="numeric sortable" onClick={() => handleSort('elo_gained')}>
+                                <th className="px-4 py-2 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('elo_gained')}>
                                   {t('elo_gained') || 'ELO Gained'}
                                   {sortColumn === 'elo_gained' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                                 </th>
-                                <th className="numeric sortable" onClick={() => handleSort('elo_lost')}>
+                                <th className="px-4 py-2 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('elo_lost')}>
                                   {t('elo_lost') || 'ELO Lost'}
                                   {sortColumn === 'elo_lost' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                                 </th>
-                                <th className="sortable" onClick={() => handleSort('last_match_date')}>
+                                <th className="px-4 py-2 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('last_match_date')}>
                                   {t('last_match') || 'Last Match'}
                                   {sortColumn === 'last_match_date' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
                                 </th>
@@ -522,38 +528,22 @@ const User: React.FC = () => {
                                   : 0;
                                 
                                 return (
-                                  <tr key={stat.opponent_id} className="opponent-row">
-                                    <td className="opponent-name">
-                                      <span className="name">
-                                        <PlayerLink nickname={stat.opponent_name} userId={stat.opponent_id} />
-                                      </span>
+                                  <tr key={stat.opponent_id} className="border-b border-gray-200 hover:bg-gray-50">
+                                    <td className="px-4 py-2 text-left">
+                                      <PlayerLink nickname={stat.opponent_name} userId={stat.opponent_id} />
                                     </td>
-                                    <td className="numeric">
-                                      <span className="elo-badge">{stat.current_elo}</span>
+                                    <td className="px-4 py-2 text-right font-semibold text-gray-700">{stat.current_elo}</td>
+                                    <td className="px-4 py-2 text-right font-bold text-gray-900">{stat.total_matches}</td>
+                                    <td className="px-4 py-2 text-right font-semibold text-green-600">{stat.wins}</td>
+                                    <td className="px-4 py-2 text-right font-semibold text-red-600">{stat.losses}</td>
+                                    <td className={`px-4 py-2 text-right font-semibold ${
+                                      winPercentage > 55 ? 'text-green-600' : winPercentage < 45 ? 'text-red-600' : 'text-gray-600'
+                                    }`}>
+                                      {winPercentage.toFixed(1)}%
                                     </td>
-                                    <td className="numeric">
-                                      <strong>{stat.total_matches}</strong>
-                                    </td>
-                                    <td className="numeric">
-                                      <span className="wins-badge">{stat.wins}</span>
-                                    </td>
-                                    <td className="numeric">
-                                      <span className="losses-badge">{stat.losses}</span>
-                                    </td>
-                                    <td className="numeric">
-                                      <span className={`percentage-badge ${winPercentage > 55 ? 'positive' : winPercentage < 45 ? 'negative' : ''}`}>
-                                        {winPercentage.toFixed(1)}%
-                                      </span>
-                                    </td>
-                                    <td className="numeric">
-                                      <span className="elo-positive">+{Number(stat.elo_gained).toFixed(2)}</span>
-                                    </td>
-                                    <td className="numeric">
-                                      <span className="elo-negative">-{Number(stat.elo_lost).toFixed(2)}</span>
-                                    </td>
-                                    <td>
-                                      <span className="date">{stat.last_match_date ? new Date(stat.last_match_date).toLocaleDateString() : 'N/A'}</span>
-                                    </td>
+                                    <td className="px-4 py-2 text-right font-semibold text-green-600">+{Number(stat.elo_gained).toFixed(2)}</td>
+                                    <td className="px-4 py-2 text-right font-semibold text-red-600">-{Number(stat.elo_lost).toFixed(2)}</td>
+                                    <td className="px-4 py-2 text-left text-gray-600">{stat.last_match_date ? new Date(stat.last_match_date).toLocaleDateString() : 'N/A'}</td>
                                   </tr>
                                 );
                               })}
@@ -568,14 +558,14 @@ const User: React.FC = () => {
 
               {/* Performance by Map Tab */}
               {activeTab === 'by-map' && (
-                <div className="tab-pane active">
+                <div className="bg-white rounded-lg shadow-md p-8">
                   <PlayerStatsByMap playerId={userId || ''} />
                 </div>
               )}
 
               {/* Performance by Faction Tab */}
               {activeTab === 'by-faction' && (
-                <div className="tab-pane active">
+                <div className="bg-white rounded-lg shadow-md p-8">
                   <PlayerStatsByFaction playerId={userId || ''} />
                 </div>
               )}
