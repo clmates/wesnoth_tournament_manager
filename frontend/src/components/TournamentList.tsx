@@ -344,7 +344,7 @@ const TournamentList: React.FC<TournamentListProps> = ({
             <tbody>
               {tournaments.map((tournament) => (
                 <tr key={tournament.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-gray-700 font-semibold text-blue-600">{tournament.name}</td>
+                  <td className="px-4 py-3 font-semibold text-blue-600 hover:text-blue-800 transition-colors">{tournament.name}</td>
                   <td className="px-4 py-3 text-gray-700">{tournament.creator_nickname}</td>
                   <td className="px-4 py-3 text-gray-700">
                     <span

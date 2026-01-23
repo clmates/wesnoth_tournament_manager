@@ -130,23 +130,23 @@ const MyTournaments: React.FC = () => {
   };
 
   if (loading) {
-    return <MainLayout><div className="admin-container"><p>{t('loading')}</p></div></MainLayout>;
+    return <MainLayout><div className="w-full px-4 py-8 bg-gradient-to-b from-gray-50 to-gray-100 min-h-screen"><p>{t('loading')}</p></div></MainLayout>;
   }
 
   return (
     <MainLayout>
-      <div className="admin-container">
-        <div className="tournament-header">
-          <h1>{t('my_tournaments_title')}</h1>
+      <div className="w-full px-4 py-8 bg-gradient-to-b from-gray-50 to-gray-100 min-h-screen">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-center text-4xl font-bold text-gray-800">{t('my_tournaments_title')}</h1>
           <button 
-            className="btn-create"
+            className="px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-green-500 to-green-700 border-none rounded-lg cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:from-green-600 hover:to-green-800 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-60 disabled:cursor-not-allowed uppercase tracking-wider whitespace-nowrap"
             onClick={() => setShowCreateForm(!showCreateForm)}
           >
             {showCreateForm ? t('btn_cancel') : t('tournament_create')}
           </button>
         </div>
 
-        {error && <p className="error">{error}</p>}
+        {error && <p className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-6 border-l-4 border-red-600">{error}</p>}
 
         {showCreateForm && (
           <TournamentForm 

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PlayerLink from './PlayerLink';
 import { playerStatisticsService } from '../services/playerStatisticsService';
-import '../styles/OpponentStats.css';
 
 interface RecentOpponent {
   opponent_id: string;
@@ -59,53 +58,53 @@ const OpponentStats: React.FC<OpponentStatsProps> = ({ matches, currentPlayerId 
 
   if (loading) {
     return (
-      <div className="opponent-stats-container">
-        <h3>{t('my_opponents') || 'My Opponents'}</h3>
-        <div className="no-data-message">{t('loading')}</div>
+      <div className="bg-white rounded-lg shadow-sm p-6 my-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('my_opponents') || 'My Opponents'}</h3>
+        <div className="text-center text-gray-400 py-8 italic">{t('loading')}</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="opponent-stats-container">
-        <h3>{t('my_opponents') || 'My Opponents'}</h3>
-        <div className="no-data-message">{error}</div>
+      <div className="bg-white rounded-lg shadow-sm p-6 my-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('my_opponents') || 'My Opponents'}</h3>
+        <div className="text-center text-gray-400 py-8 italic">{error}</div>
       </div>
     );
   }
 
   if (opponents.length === 0) {
     return (
-      <div className="opponent-stats-container">
-        <h3>{t('my_opponents') || 'My Opponents'}</h3>
-        <div className="no-data-message">{t('no_opponent_data') || 'No opponent data available'}</div>
+      <div className="bg-white rounded-lg shadow-sm p-6 my-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('my_opponents') || 'My Opponents'}</h3>
+        <div className="text-center text-gray-400 py-8 italic">{t('no_opponent_data') || 'No opponent data available'}</div>
       </div>
     );
   }
 
   return (
-    <div className="opponent-stats-container">
-      <h3>{t('my_opponents') || 'My Opponents'}</h3>
+    <div className="bg-white rounded-lg shadow-sm p-6 my-6">
+      <h3 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('my_opponents') || 'My Opponents'}</h3>
       
-      <div className="opponent-stats-wrapper">
-        <table className="opponent-stats-table">
+      <div className="overflow-x-auto rounded-lg shadow-sm">
+        <table className="w-full border-collapse text-sm bg-white">
           <thead>
-            <tr>
-              <th>{t('opponent_name') || 'Opponent'}</th>
-              <th className="numeric">{t('games') || 'Games'}</th>
-              <th className="numeric">{t('wins') || 'Wins'}</th>
-              <th className="numeric">{t('losses') || 'Losses'}</th>
-              <th className="numeric">{t('winrate') || 'W/R %'}</th>
-              <th className="numeric">{t('current_elo') || 'Current ELO'}</th>
-              <th className="numeric">ELO Gained</th>
-              <th className="numeric">ELO Lost</th>
-              <th className="numeric">Last ELO vs Me</th>
-              <th>{t('last_match') || 'Last Match'}</th>
+            <tr className="bg-gradient-to-r from-gray-700 to-gray-800 text-white">
+              <th className="px-3 py-4 text-left font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('opponent_name') || 'Opponent'}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('games') || 'Games'}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('wins') || 'Wins'}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('losses') || 'Losses'}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('winrate') || 'W/R %'}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('current_elo') || 'Current ELO'}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">ELO Gained</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">ELO Lost</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">Last ELO vs Me</th>
+              <th className="px-3 py-4 text-left font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('last_match') || 'Last Match'}</th>
             </tr>
           </thead>
           <tbody>
-            {opponents.map((opponent) => {
+            {opponents.map((opponent, index) => {
               const winrate = typeof opponent.winrate === 'string' ? parseFloat(opponent.winrate) : opponent.winrate;
               const eloGained = typeof opponent.elo_gained === 'string' ? parseFloat(opponent.elo_gained) : opponent.elo_gained;
               const eloLost = typeof opponent.elo_lost === 'string' ? parseFloat(opponent.elo_lost) : opponent.elo_lost;
@@ -125,38 +124,44 @@ const OpponentStats: React.FC<OpponentStatsProps> = ({ matches, currentPlayerId 
               });
 
               return (
-                <tr key={opponent.opponent_id} className="opponent-row">
-                  <td className="opponent-name">
-                    <span className="name"><PlayerLink nickname={opponent.opponent_name} userId={opponent.opponent_id} /></span>
+                <tr key={opponent.opponent_id} className={`border-b border-gray-200 transition-colors hover:bg-blue-50 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                  <td className="px-3 py-3 font-semibold text-gray-800 align-middle">
+                    <span className="block break-words"><PlayerLink nickname={opponent.opponent_name} userId={opponent.opponent_id} /></span>
                   </td>
-                  <td className="numeric">
+                  <td className="px-3 py-3 text-center font-medium text-gray-600">
                     <strong>{opponent.total_games}</strong>
                   </td>
-                  <td className="numeric">
-                    <span className="wins-badge">{opponent.wins}</span>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className="inline-block px-2.5 py-1 bg-gradient-to-br from-green-100 to-green-200 text-green-800 rounded font-semibold text-xs shadow-sm">{opponent.wins}</span>
                   </td>
-                  <td className="numeric">
-                    <span className="losses-badge">{opponent.losses}</span>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className="inline-block px-2.5 py-1 bg-gradient-to-br from-red-100 to-red-200 text-red-800 rounded font-semibold text-xs shadow-sm">{opponent.losses}</span>
                   </td>
-                  <td className="numeric">
-                    <span className={`percentage-badge ${winrate > 55 ? 'positive' : winrate < 45 ? 'negative' : ''}`}>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className={`inline-block px-2.5 py-1 rounded font-semibold text-xs shadow-sm ${
+                      winrate > 55 
+                        ? 'bg-gradient-to-br from-green-100 to-green-200 text-green-900' 
+                        : winrate < 45 
+                          ? 'bg-gradient-to-br from-red-100 to-red-200 text-red-900' 
+                          : 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700'
+                    }`}>
                       {winrate.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="numeric">
-                    <span className="elo-badge">{opponent.current_elo}</span>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className="inline-block px-2.5 py-1 bg-gradient-to-br from-blue-100 to-blue-200 text-blue-900 rounded font-bold shadow-sm">{opponent.current_elo}</span>
                   </td>
-                  <td className="numeric">
-                    <span className="elo-positive">+{eloGained.toFixed(2)}</span>
+                  <td className="px-3 py-3 text-center font-bold text-green-600">
+                    +{eloGained.toFixed(2)}
                   </td>
-                  <td className="numeric">
-                    <span className="elo-negative">-{eloLost.toFixed(2)}</span>
+                  <td className="px-3 py-3 text-center font-bold text-red-600">
+                    -{eloLost.toFixed(2)}
                   </td>
-                  <td className="numeric">
-                    <span className="elo-value">{lastEloAgainstMe.toFixed(0)}</span>
+                  <td className="px-3 py-3 text-center text-gray-700 font-semibold">
+                    {lastEloAgainstMe.toFixed(0)}
                   </td>
-                  <td>
-                    <span className="date">{new Date(opponent.last_match_date).toLocaleDateString()}</span>
+                  <td className="px-3 py-3 text-gray-700 text-xs font-medium">
+                    {new Date(opponent.last_match_date).toLocaleDateString()}
                   </td>
                 </tr>
               );
