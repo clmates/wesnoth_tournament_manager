@@ -7,7 +7,6 @@ import MainLayout from '../components/MainLayout';
 import ProfileStats from '../components/ProfileStats';
 import { CountrySelector } from '../components/CountrySelector';
 import { AvatarSelector } from '../components/AvatarSelector';
-import '../styles/UserProfile.css';
 
 const Profile: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -224,139 +223,155 @@ const Profile: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="profile-page-content">
-        <h1>{t('profile.title')}</h1>
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-300 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">{t('profile.title')}</h1>
 
-        {profile && (
-          <>
-            <ProfileStats player={profile} />
+          {profile && (
+            <>
+              <ProfileStats player={profile} />
 
-            <section className="profile-info">
-              <h2>{t('profile.info_title')}</h2>
-              <div className="info-group">
-                <label>{t('profile.label_email')}</label>
-                <p>{profile?.email}</p>
-              </div>
-            </section>
+              <section className="bg-white rounded-lg shadow-md p-8 mb-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.info_title')}</h2>
+                <div className="mb-6">
+                  <label className="font-semibold text-gray-800 mb-2 block">{t('profile.label_email')}</label>
+                  <p className="text-gray-600 px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">{profile?.email}</p>
+                </div>
+              </section>
 
-            <section className="profile-preferences">
-              <h2>{t('profile.preferences_title') || 'Preferences'}</h2>
-              <div className="preferences-grid">
-                <CountrySelector
-                  value={selectedCountry}
-                  onChange={handleCountryChange}
-                  showFlag={true}
-                />
-                <AvatarSelector
-                  value={selectedAvatar}
-                  onChange={handleAvatarChange}
-                />
-              </div>
-            </section>
-
-            <section className="discord-settings">
-              <h2>{t('profile.discord_title')}</h2>
-              {discordMessage && <p className="success-message">{discordMessage}</p>}
-              {discordError && <p className="error">{discordError}</p>}
-              <div className="discord-input-group">
-                <input
-                  type="text"
-                  placeholder={t('profile.discord_placeholder')}
-                  value={discordId}
-                  onChange={(e) => setDiscordId(e.target.value)}
-                />
-                <button onClick={handleDiscordUpdate} disabled={updatingDiscord}>
-                  {updatingDiscord ? t('profile.updating') : t('profile.update_discord_button')}
-                </button>
-              </div>
-            </section>
-
-            <section className="language-settings">
-              <h2>{t('profile_language_settings')}</h2>
-              <div className="language-dropdown-profile">
-                <button 
-                  className="language-btn-profile"
-                  onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-                >
-                  <img 
-                    src={`https://flagcdn.com/w20/${currentLanguage.countryCode}.png`}
-                    alt={currentLanguage.code}
-                    className="flag-img"
+              <section className="bg-white rounded-lg shadow-md p-8 mb-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.preferences_title') || 'Preferences'}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <CountrySelector
+                    value={selectedCountry}
+                    onChange={handleCountryChange}
+                    showFlag={true}
                   />
-                  <span className="lang-code">{currentLanguage.code.toUpperCase()}</span>
-                </button>
-                {languageDropdownOpen && (
-                  <div className="language-menu-profile">
-                    {languages.map((lang) => (
-                      <button
-                        key={lang.code}
-                        className={`language-option-profile ${lang.code === selectedLanguage ? 'active' : ''}`}
-                        onClick={() => handleLanguageChange(lang.code)}
-                      >
-                        <img 
-                          src={`https://flagcdn.com/w20/${lang.countryCode}.png`}
-                          alt={lang.code}
-                          className="flag-img"
-                        />
-                        <span className="lang-text">{lang.code.toUpperCase()} - {lang.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
+                  <AvatarSelector
+                    value={selectedAvatar}
+                    onChange={handleAvatarChange}
+                  />
+                </div>
+              </section>
 
-            <section className="change-password">
-              <h2>{t('password_change_title')}</h2>
-              {passwordMessage && <p className="success-message">{passwordMessage}</p>}
-              {passwordError && <p className="error">{passwordError}</p>}
-              <form onSubmit={handleChangePassword}>
-                <input
-                  type="password"
-                  placeholder={t('password_current')}
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  required
-                />
-                <input
-                  type="password"
-                  placeholder={t('password_new')}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  onFocus={() => setShowPasswordHints(true)}
-                  onBlur={() => setShowPasswordHints(false)}
-                  required
-                  className={newPassword && !isNewPasswordValid ? 'input-invalid' : ''}
-                />
-                {showPasswordHints && newPassword && (
-                  <div className="password-hints">
-                    <div className="password-hint-label">Password requirements:</div>
-                    {passwordValidation.map((rule, idx) => (
-                      <div
-                        key={idx}
-                        className={`password-hint ${rule.satisfied ? 'satisfied' : 'unsatisfied'}`}
-                      >
-                        <span className="hint-icon">{rule.satisfied ? '✓' : '✗'}</span>
-                        <span className="hint-text">{rule.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <input
-                  type="password"
-                  placeholder={t('password_confirm')}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  className={newPassword && confirmPassword && newPassword !== confirmPassword ? 'input-invalid' : ''}
-                />
-                <button type="submit" disabled={changingPassword || !isNewPasswordValid}>
-                  {changingPassword ? t('profile.changing') : t('password_change_button')}
-                </button>
-              </form>
-            </section>
-          </>
-        )}
+              <section className="bg-white rounded-lg shadow-md p-8 mb-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.discord_title')}</h2>
+                {discordMessage && <p className="bg-green-100 text-green-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-green-600">{discordMessage}</p>}
+                {discordError && <p className="bg-red-100 text-red-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-red-600">{discordError}</p>}
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    placeholder={t('profile.discord_placeholder')}
+                    value={discordId}
+                    onChange={(e) => setDiscordId(e.target.value)}
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                  />
+                  <button 
+                    onClick={handleDiscordUpdate} 
+                    disabled={updatingDiscord}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-lg font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {updatingDiscord ? t('profile.updating') : t('profile.update_discord_button')}
+                  </button>
+                </div>
+              </section>
+
+              <section className="bg-white rounded-lg shadow-md p-8 mb-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile_language_settings')}</h2>
+                <div className="relative inline-block">
+                  <button 
+                    className="px-4 py-2 border border-gray-200 rounded-lg bg-white text-gray-800 font-semibold hover:border-blue-500 hover:bg-gray-50 transition-all flex items-center gap-2"
+                    onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
+                  >
+                    <img 
+                      src={`https://flagcdn.com/w20/${currentLanguage.countryCode}.png`}
+                      alt={currentLanguage.code}
+                      className="w-6 h-4 rounded"
+                    />
+                    <span>{currentLanguage.code.toUpperCase()}</span>
+                  </button>
+                  {languageDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-2 bg-white text-gray-800 min-w-max rounded-lg shadow-lg z-50 border border-gray-200 overflow-hidden">
+                      {languages.map((lang) => (
+                        <button
+                          key={lang.code}
+                          className={`flex items-center gap-3 w-full px-4 py-3 text-left transition-colors ${
+                            lang.code === selectedLanguage 
+                              ? 'bg-gradient-to-r from-gray-100 to-blue-100 text-blue-600 font-semibold border-l-4 border-blue-500 pl-3' 
+                              : 'hover:bg-gray-50'
+                          }`}
+                          onClick={() => handleLanguageChange(lang.code)}
+                        >
+                          <img 
+                            src={`https://flagcdn.com/w20/${lang.countryCode}.png`}
+                            alt={lang.code}
+                            className="w-6 h-4 rounded"
+                          />
+                          <span>{lang.code.toUpperCase()} - {lang.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="bg-white rounded-lg shadow-md p-8 mb-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('password_change_title')}</h2>
+                {passwordMessage && <p className="bg-green-100 text-green-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-green-600">{passwordMessage}</p>}
+                {passwordError && <p className="bg-red-100 text-red-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-red-600">{passwordError}</p>}
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <input
+                    type="password"
+                    placeholder={t('password_current')}
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                  />
+                  <input
+                    type="password"
+                    placeholder={t('password_new')}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    onFocus={() => setShowPasswordHints(true)}
+                    onBlur={() => setShowPasswordHints(false)}
+                    required
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all ${newPassword && !isNewPasswordValid ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'}`}
+                  />
+                  {showPasswordHints && newPassword && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <div className="text-sm font-semibold text-gray-800 mb-3">Password requirements:</div>
+                      {passwordValidation.map((rule, idx) => (
+                        <div
+                          key={idx}
+                          className={`text-sm flex items-center gap-2 mb-2 ${rule.satisfied ? 'text-green-700' : 'text-gray-600'}`}
+                        >
+                          <span className={`${rule.satisfied ? 'text-green-500' : 'text-red-500'}`}>{rule.satisfied ? '✓' : '✗'}</span>
+                          <span>{rule.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    type="password"
+                    placeholder={t('password_confirm')}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all ${newPassword && confirmPassword && newPassword !== confirmPassword ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'}`}
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={changingPassword || !isNewPasswordValid}
+                    className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {changingPassword ? t('profile.changing') : t('password_change_button')}
+                  </button>
+                </form>
+              </section>
+            </>
+          )}
+        </div>
       </div>
     </MainLayout>
   );
