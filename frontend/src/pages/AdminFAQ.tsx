@@ -190,45 +190,50 @@ const AdminFAQ: React.FC = () => {
 
             {/* Language Content */}
             <div className="mb-6">
-            <div className="language-content">
-              <input
-                type="text"
-                placeholder="Question"
-                value={formData[activeLanguageTab as keyof typeof formData].question}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 mb-4"
-              />
-              <textarea
-                placeholder="Answer"
-                value={formData[activeLanguageTab as keyof typeof formData].answer}
-                onChange={(e) => setFormData({
-                  ...formData,
-                  [activeLanguageTab]: { ...formData[activeLanguageTab as keyof typeof formData], answer: e.target.value }
-                })}
-                rows={5}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 mb-4"
-              />
-              {/* Campo order solo editable en inglés, visible en otros idiomas */}
-              <input
-                type="number"
-                placeholder="Order"
-                value={formData[activeLanguageTab as keyof typeof formData].order}
-                onChange={(e) => {
-                  if (activeLanguageTab === 'en') {
-                    setFormData({
-                      ...formData,
-                      en: { ...formData.en, order: e.target.value }
-                    });
-                  }
-                }}
-                min={0}
-                step={1}
-                readOnly={activeLanguageTab !== 'en'}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 ${
-                  activeLanguageTab !== 'en' ? 'bg-gray-100 cursor-not-allowed' : ''
-                }`}
-                title={activeLanguageTab !== 'en' ? 'Order can only be edited in English' : ''}
-              />
+              <div className="language-content">
+                <input
+                  type="text"
+                  placeholder="Question"
+                  value={formData[activeLanguageTab as keyof typeof formData].question}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    [activeLanguageTab]: { ...formData[activeLanguageTab as keyof typeof formData], question: e.target.value }
+                  })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 mb-4"
+                />
+                <textarea
+                  placeholder="Answer"
+                  value={formData[activeLanguageTab as keyof typeof formData].answer}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    [activeLanguageTab]: { ...formData[activeLanguageTab as keyof typeof formData], answer: e.target.value }
+                  })}
+                  rows={5}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 mb-4"
+                />
+                {/* Campo order solo editable en inglés, visible en otros idiomas */}
+                <input
+                  type="number"
+                  placeholder="Order"
+                  value={formData[activeLanguageTab as keyof typeof formData].order}
+                  onChange={(e) => {
+                    if (activeLanguageTab === 'en') {
+                      setFormData({
+                        ...formData,
+                        en: { ...formData.en, order: e.target.value }
+                      });
+                    }
+                  }}
+                  min={0}
+                  step={1}
+                  readOnly={activeLanguageTab !== 'en'}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 ${
+                    activeLanguageTab !== 'en' ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  title={activeLanguageTab !== 'en' ? 'Order can only be edited in English' : ''}
+                />
+              </div>
             </div>
 
             <button 
@@ -238,9 +243,11 @@ const AdminFAQ: React.FC = () => {
               {editingId ? 'Update FAQ Item (All Languages)' : 'Add FAQ Item (All Languages)'}
             </button>
           </form>
+        )}
 
-          <div className="space-y-4">
-            {faqItems.map((itemGroup) => {
+        <div className="space-y-4">
+          {faqItems.length > 0 ? (
+            faqItems.map((itemGroup) => {
               const firstLang = languages.find(lang => itemGroup[lang]);
               const id = firstLang ? itemGroup[firstLang].id : '';
               const question = firstLang ? itemGroup[firstLang].question : 'N/A';
@@ -258,11 +265,11 @@ const AdminFAQ: React.FC = () => {
                   </div>
                 </div>
               );
-            })}
-          </div>
-        ) : (
-          <p className="text-gray-600">No FAQ items yet</p>
-        )}
+            })
+          ) : (
+            <p className="text-gray-600">No FAQ items yet</p>
+          )}
+        </div>
       </section>
       </div>
     </MainLayout>
