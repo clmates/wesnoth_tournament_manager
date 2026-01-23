@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 import MainLayout from '../components/MainLayout';
-import '../styles/Auth.css';
 
 const ForgotPassword: React.FC = () => {
   const { t } = useTranslation();
@@ -73,36 +72,36 @@ const ForgotPassword: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="auth-container">
-        <div className="auth-card">
-          <h1>{t('auth.forgot_password') || 'Forgot Password?'}</h1>
+      <div className="w-full max-w-4xl mx-auto my-12 px-4 bg-white rounded-lg shadow-sm py-8">
+        <div>
+          <h1 className="text-center text-2xl font-bold text-gray-800 mb-6">{t('auth.forgot_password') || 'Forgot Password?'}</h1>
           
           {checkingDiscord ? (
-            <p className="loading-message">{t('auth.loading') || 'Loading...'}</p>
+            <p className="text-center text-gray-600">{t('auth.loading') || 'Loading...'}</p>
           ) : !discordAvailable ? (
             <>
-              <p className="error-message">
+              <p className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-4 border-l-4 border-red-600">
                 ❌ {t('auth.discord_not_available') || 'Discord integration is not enabled on this server. Please contact an administrator for password reset assistance.'}
               </p>
               <button
                 onClick={() => navigate('/login')}
-                className="auth-button"
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-60"
               >
                 {t('auth.return_to_login')}
               </button>
             </>
           ) : !submitted ? (
             <>
-              <p className="auth-description">
+              <p className="text-center text-gray-600 mb-6">
                 {t('auth.forgot_password_description') || 'Enter your nickname and Discord ID to receive a temporary password via Discord DM. You will be required to change it after logging in.'}
               </p>
 
-              {error && <p className="error-message">{error}</p>}
-              {message && <p className="success-message">{message}</p>}
+              {error && <p className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-4 border-l-4 border-red-600">{error}</p>}
+              {message && <p className="bg-green-100 text-green-800 px-4 py-3 rounded-md mb-4 border-l-4 border-green-600">{message}</p>}
 
-              <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                  <label htmlFor="nickname">{t('auth.label_nickname')}</label>
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <div>
+                  <label htmlFor="nickname" className="block font-semibold text-gray-700 mb-2">{t('auth.label_nickname')}</label>
                   <input
                     id="nickname"
                     type="text"
@@ -111,11 +110,12 @@ const ForgotPassword: React.FC = () => {
                     onChange={(e) => setNickname(e.target.value)}
                     disabled={loading}
                     autoComplete="username"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-50"
                   />
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="discord_id">{t('auth.label_discord_id')}</label>
+                <div>
+                  <label htmlFor="discord_id" className="block font-semibold text-gray-700 mb-2">{t('auth.label_discord_id')}</label>
                   <input
                     id="discord_id"
                     type="text"
@@ -123,21 +123,22 @@ const ForgotPassword: React.FC = () => {
                     value={discordId}
                     onChange={(e) => setDiscordId(e.target.value)}
                     disabled={loading}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-50"
                   />
                 </div>
 
-                <button type="submit" disabled={loading} className="auth-button">
+                <button type="submit" disabled={loading} className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
                   {loading ? t('auth.loading') : t('auth.send_reset')}
                 </button>
               </form>
 
-              <div className="auth-footer">
-                <p>
+              <div className="text-center mt-6">
+                <p className="text-gray-600">
                   {t('auth.back_to_login')}{' '}
                   <button
                     type="button"
                     onClick={() => navigate('/login')}
-                    className="link-button"
+                    className="text-blue-500 hover:underline font-semibold"
                   >
                     {t('auth.login')}
                   </button>
@@ -145,14 +146,14 @@ const ForgotPassword: React.FC = () => {
               </div>
             </>
           ) : (
-            <div className="success-container">
-              <p className="success-message">✅ {message}</p>
-              <p className="auth-description">
+            <div className="text-center">
+              <p className="bg-green-100 text-green-800 px-4 py-3 rounded-md mb-4 border-l-4 border-green-600">✅ {message}</p>
+              <p className="text-gray-600 mb-6">
                 {t('auth.redirecting_to_login') || 'Redirecting to login in a few seconds...'}
               </p>
               <button
                 onClick={() => navigate('/login')}
-                className="auth-button"
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
               >
                 {t('auth.return_to_login')}
               </button>

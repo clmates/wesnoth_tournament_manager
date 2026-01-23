@@ -6,7 +6,6 @@ import { tournamentService } from '../services/api';
 import MainLayout from '../components/MainLayout';
 import TournamentList, { Tournament } from '../components/TournamentList';
 import TournamentForm from '../components/TournamentForm';
-import '../styles/Auth.css';
 
 interface TournamentFormData {
   name: string;

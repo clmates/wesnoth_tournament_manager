@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { userService, matchService } from '../services/api';
 import { getLevelTranslationKey } from '../utils/levelTranslation';
-import '../styles/Auth.css';
 
 const MyStats: React.FC = () => {
   const { t } = useTranslation();
