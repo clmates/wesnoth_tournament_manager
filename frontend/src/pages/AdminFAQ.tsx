@@ -261,11 +261,7 @@ const AdminFAQ: React.FC = () => {
             })}
           </div>
         ) : (
-          <p className="text-gray-600"  );
-            })}
-          </div>
-        ) : (
-          <p>No FAQ items yet</p>
+          <p className="text-gray-600">No FAQ items yet</p>
         )}
       </section>
       </div>
