@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { CountrySelector } from '../components/CountrySelector';
 import { AvatarSelector } from '../components/AvatarSelector';
-import '../styles/Auth.css';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -120,16 +119,16 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>Create Account</h1>
+    <div className="w-full max-w-4xl mx-auto my-12 px-4 bg-white rounded-lg shadow-sm py-8">
+      <div>
+        <h1 className="text-center mb-6 text-2xl font-bold text-gray-800">Create Account</h1>
         
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
+        {error && <div className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-4 border-l-4 border-red-600">{error}</div>}
+        {success && <div className="bg-green-100 text-green-800 px-4 py-3 rounded-md mb-4 border-l-4 border-green-600">{success}</div>}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email:</label>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="mb-6">
+            <label htmlFor="email" className="block font-semibold text-gray-800 mb-2 text-sm">Email:</label>
             <input
               id="email"
               type="email"
@@ -138,12 +137,13 @@ const Register: React.FC = () => {
               onChange={handleInputChange}
               placeholder="your@email.com"
               disabled={loading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               required
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="nickname">Nickname:</label>
+          <div className="mb-6">
+            <label htmlFor="nickname" className="block font-semibold text-gray-800 mb-2 text-sm">Nickname:</label>
             <input
               id="nickname"
               type="text"
@@ -152,13 +152,14 @@ const Register: React.FC = () => {
               onChange={handleInputChange}
               placeholder="your_nickname"
               disabled={loading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               required
             />
-            <small>3-20 characters, letters, numbers, and underscores only</small>
+            <small className="text-gray-600 text-xs mt-1 block">3-20 characters, letters, numbers, and underscores only</small>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password:</label>
+          <div className="mb-6">
+            <label htmlFor="password" className="block font-semibold text-gray-800 mb-2 text-sm">Password:</label>
             <input
               id="password"
               type="password"
@@ -170,26 +171,26 @@ const Register: React.FC = () => {
               placeholder="••••••"
               disabled={loading}
               required
-              className={formData.password && !isPasswordValid ? 'input-invalid' : ''}
+              className={formData.password && !isPasswordValid ? 'w-full px-3 py-2 border border-red-500 rounded-md focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed' : 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-60 disabled:cursor-not-allowed'}
             />
             {showPasswordHints && (
-              <div className="password-hints">
-                <div className="password-hint-label">Password requirements:</div>
+              <div className="mt-4 p-4 bg-gray-50 border-l-4 border-blue-500 rounded-md animate-slideDown">
+                <div className="font-semibold text-gray-800 mb-2 text-sm">Password requirements:</div>
                 {passwordValidation.map((rule, idx) => (
                   <div
                     key={idx}
-                    className={`password-hint ${rule.satisfied ? 'satisfied' : 'unsatisfied'}`}
+                    className={rule.satisfied ? 'inline-flex items-center gap-2 mb-2 text-green-600 text-sm' : 'inline-flex items-center gap-2 mb-2 text-gray-500 text-sm'}
                   >
-                    <span className="hint-icon">{rule.satisfied ? '✓' : '✗'}</span>
-                    <span className="hint-text">{rule.label}</span>
+                    <span className="font-bold">{rule.satisfied ? '✓' : '✗'}</span>
+                    <span>{rule.label}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password:</label>
+          <div className="mb-6">
+            <label htmlFor="confirmPassword" className="block font-semibold text-gray-800 mb-2 text-sm">Confirm Password:</label>
             <input
               id="confirmPassword"
               type="password"
@@ -199,12 +200,12 @@ const Register: React.FC = () => {
               placeholder="••••••"
               disabled={loading}
               required
-              className={formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword ? 'input-invalid' : ''}
+              className={formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword ? 'w-full px-3 py-2 border border-red-500 rounded-md focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition-all bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed' : 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-60 disabled:cursor-not-allowed'}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="discordId">Discord ID (Optional):</label>
+          <div className="mb-6">
+            <label htmlFor="discordId" className="block font-semibold text-gray-800 mb-2 text-sm">Discord ID (Optional):</label>
             <input
               id="discordId"
               type="text"
@@ -213,11 +214,12 @@ const Register: React.FC = () => {
               onChange={handleInputChange}
               placeholder="your_discord_id"
               disabled={loading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             />
-            <small>Your Discord user ID for notifications</small>
+            <small className="text-gray-600 text-xs mt-1 block">Your Discord user ID for notifications</small>
           </div>
 
-          <div className="form-group-selectors">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
             <CountrySelector
               value={formData.country}
               onChange={(country) => setFormData(prev => ({ ...prev, country }))}
@@ -231,62 +233,64 @@ const Register: React.FC = () => {
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="language">Preferred Language:</label>
+          <div className="mb-6">
+            <label htmlFor="language" className="block font-semibold text-gray-800 mb-2 text-sm">Preferred Language:</label>
             <select
               id="language"
               name="language"
               value={formData.language}
               onChange={handleInputChange}
               disabled={loading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-60 disabled:cursor-not-allowed bg-white"
             >
               <option value="en">English</option>
               <option value="es">Español</option>
-              <option value="fr">Français</option>
               <option value="de">Deutsch</option>
+              <option value="ru">Русский</option>
+              <option value="zh">中文</option>
             </select>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="btn btn-primary"
+            className="w-full px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed font-semibold"
           >
             {loading ? 'Creating Account...' : 'Register'}
           </button>
         </form>
 
-        <p className="auth-link">
-          Already have an account? <a href="/login">Login here</a>
+        <p className="text-center mt-4">
+          Already have an account? <a href="/login" className="text-blue-500 hover:underline">Login here</a>
         </p>
       </div>
 
       {/* Welcome Modal */}
       {showWelcomeModal && (
-        <div className="modal-overlay" onClick={() => {
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-9999 animate-fadeIn" onClick={() => {
           setShowWelcomeModal(false);
           navigate('/login');
         }}>
-          <div className="modal-content welcome-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>🎉 Welcome to Wesnoth Tournament Manager!</h2>
-            <p>Your account has been created successfully.</p>
-            <p className="warning-text">
+          <div className="bg-white p-10 rounded-xl max-w-md w-11/12 shadow-2xl animate-slideIn" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-gray-800 mb-4 text-center text-2xl font-bold">🎉 Welcome to Wesnoth Tournament Manager!</h2>
+            <p className="text-gray-700 text-center leading-relaxed mb-4">Your account has been created successfully.</p>
+            <p className="bg-yellow-100 border-l-4 border-yellow-400 p-4 text-yellow-800 font-medium text-center mb-6 rounded">
               ⚠️ Your account is temporarily locked. An admin will review and unlock it soon.
             </p>
-            <div className="discord-invite">
-              <p><strong>Join our Discord community:</strong></p>
+            <div className="bg-indigo-50 border-2 border-indigo-500 rounded-lg p-6 mb-6 text-center">
+              <p className="text-gray-800 mb-2"><strong className="text-indigo-600 text-lg">Join our Discord community:</strong></p>
               <a 
                 href="https://discord.gg/XUTpvBQNP6" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="discord-link"
+                className="inline-block bg-indigo-500 text-white px-6 py-3 rounded-lg font-semibold text-lg my-4 hover:bg-indigo-600 transition-all hover:shadow-lg hover:-translate-y-0.5"
               >
                 https://discord.gg/XUTpvBQNP6
               </a>
-              <p className="discord-note">You'll receive a notification there when your account is approved!</p>
+              <p className="text-gray-700 text-sm italic">You'll receive a notification there when your account is approved!</p>
             </div>
             <button 
-              className="btn btn-primary"
+              className="w-full px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors font-semibold"
               onClick={() => {
                 setShowWelcomeModal(false);
                 navigate('/login');

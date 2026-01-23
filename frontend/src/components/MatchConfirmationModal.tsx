@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import '../styles/MatchConfirmationModal.css';
 
 interface MatchConfirmationModalProps {
   match: any;
@@ -82,43 +81,49 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
   const loserElo = match.loser_elo_before || 'N/A';
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Match Confirmation</h2>
-          <button className="close-btn" onClick={onClose}>&times;</button>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fadeIn" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-2xl max-w-lg w-11/12 max-h-screen overflow-y-auto animate-slideUp border border-gray-200" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center border-b-2 border-gray-100 px-6 py-6 bg-gray-50">
+          <h2 className="text-2xl font-semibold text-gray-800 m-0">Match Confirmation</h2>
+          <button 
+            className="bg-none border-none text-gray-400 text-3xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:text-gray-800 hover:bg-gray-100 transition-all"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
 
-        <div className="modal-body">
-          <div className="match-info">
-            <div className="match-players">
-              <div className="player-block winner">
-                <h3>Winner</h3>
-                <p className="player-name">{match.winner_nickname}</p>
-                <p className="player-elo">ELO: {winnerElo}</p>
-                <p className="faction">Faction: {match.winner_faction || 'N/A'}</p>
+        <div className="px-6 py-6">
+          <div className="mb-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1 bg-gray-50 rounded-lg p-4 text-center border border-gray-200 border-l-4 border-l-green-500 bg-gradient-to-br from-green-50 to-gray-50">
+                <h3 className="text-gray-800 m-0 mb-2 text-xs font-semibold uppercase tracking-wide">Winner</h3>
+                <p className="text-gray-900 font-semibold text-base m-0 mb-1">{match.winner_nickname}</p>
+                <p className="text-yellow-600 font-semibold text-sm m-0 mb-1">ELO: {winnerElo}</p>
+                <p className="text-gray-600 m-0 text-xs">Faction: {match.winner_faction || 'N/A'}</p>
               </div>
 
-              <div className="vs-divider">
-                <span>vs</span>
+              <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-200 flex-shrink-0">
+                <span className="text-gray-700 font-bold">vs</span>
               </div>
 
-              <div className="player-block loser">
-                <h3>You (Loser)</h3>
-                <p className="player-name">{match.loser_nickname}</p>
-                <p className="player-elo">ELO: {loserElo}</p>
-                <p className="faction">Faction: {match.loser_faction || 'N/A'}</p>
+              <div className="flex-1 bg-gray-50 rounded-lg p-4 text-center border border-gray-200 border-l-4 border-l-red-500 bg-gradient-to-br from-red-50 to-gray-50">
+                <h3 className="text-gray-800 m-0 mb-2 text-xs font-semibold uppercase tracking-wide">You (Loser)</h3>
+                <p className="text-gray-900 font-semibold text-base m-0 mb-1">{match.loser_nickname}</p>
+                <p className="text-yellow-600 font-semibold text-sm m-0 mb-1">ELO: {loserElo}</p>
+                <p className="text-gray-600 m-0 text-xs">Faction: {match.loser_faction || 'N/A'}</p>
               </div>
             </div>
 
-            <div className="form-section">
-              <div className="form-group">
-                <label htmlFor="rating">Rate opponent's performance:</label>
+            <div className="mt-6">
+              <div>
+                <label htmlFor="rating" className="block font-semibold text-gray-700 mb-2">Rate opponent's performance:</label>
                 <select
                   id="rating"
                   name="rating"
                   value={formData.rating}
                   onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800"
                 >
                   <option value="">No rating</option>
                   <option value="1">1 - Poor</option>
@@ -129,8 +134,8 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
                 </select>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="comments">Comments:</label>
+              <div className="mt-4">
+                <label htmlFor="comments" className="block font-semibold text-gray-700 mb-2">Comments:</label>
                 <textarea
                   id="comments"
                   name="comments"
@@ -140,18 +145,19 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
                   rows={4}
                   disabled={isSubmitting}
                   maxLength={500}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800 resize-vertical disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-                <span className="char-count">{formData.comments.length}/500</span>
+                <span className="text-xs text-gray-500 float-right mt-1">{formData.comments.length}/500</span>
               </div>
 
-              {error && <div className="error-message">{error}</div>}
+              {error && <div className="mt-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">{error}</div>}
             </div>
           </div>
         </div>
 
-        <div className="modal-footer">
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
           <button
-            className="btn btn-secondary"
+            className="flex-1 px-4 py-2 bg-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={onClose}
             disabled={isSubmitting}
           >
@@ -160,14 +166,14 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
           {isAuthenticated && (
             <>
               <button
-                className="btn btn-danger"
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleDispute}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? 'Processing...' : 'Dispute'}
               </button>
               <button
-                className="btn btn-primary"
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleConfirm}
                 disabled={isSubmitting}
               >
@@ -176,7 +182,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
             </>
           )}
           {!isAuthenticated && (
-            <div className="unauthenticated-message">
+            <div className="flex-1 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm text-center">
               Please log in to confirm or dispute this match.
             </div>
           )}

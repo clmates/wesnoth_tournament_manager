@@ -1,5 +1,4 @@
 import React from 'react';
-import '../styles/Matches.css';
 
 interface MatchDetailsModalProps {
   match: any;
@@ -16,103 +15,132 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
   const loserEloChange = (match: any) => (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Match Details</h2>
-          <button className="close-btn" onClick={onClose}>✕</button>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fadeIn" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-11/12 max-h-screen overflow-y-auto border border-gray-200" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center border-b-2 border-gray-100 px-6 py-6 bg-gray-50">
+          <h2 className="text-2xl font-semibold text-gray-800 m-0">Match Details</h2>
+          <button 
+            className="bg-none border-none text-gray-400 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded hover:text-gray-800 hover:bg-gray-100 transition-all"
+            onClick={onClose}
+          >
+            ✕
+          </button>
         </div>
 
-        <div className="modal-body">
-          <div className="match-details-container">
-            <div className="detail-header-row">
-              <div className="detail-item">
-                <label>Date:</label>
-                <span>{new Date(match.created_at).toLocaleString()}</span>
+        <div className="px-6 py-6">
+          <div>
+            <div className="grid grid-cols-3 gap-4 mb-6 pb-4 border-b border-gray-200">
+              <div>
+                <label className="text-gray-600 text-sm font-semibold">Date:</label>
+                <span className="text-gray-800 text-sm block">{new Date(match.created_at).toLocaleString()}</span>
               </div>
-              <div className="detail-item">
-                <label>Map:</label>
-                <span>{match.map}</span>
+              <div>
+                <label className="text-gray-600 text-sm font-semibold">Map:</label>
+                <span className="text-gray-800 text-sm block">{match.map}</span>
               </div>
-              <div className="detail-item">
-                <label>Status:</label>
-                <span className={`status-badge ${match.status || 'unconfirmed'}`}>
-                  {match.status === 'confirmed' && '✓ Confirmed'}
-                  {match.status === 'unconfirmed' && '⏳ Unconfirmed'}
-                  {match.status === 'disputed' && '⚠ Disputed'}
-                  {match.status === 'cancelled' && '✗ Cancelled'}
-                  {!match.status && '⏳ Unconfirmed'}
-                </span>
+              <div>
+                <label className="text-gray-600 text-sm font-semibold">Status:</label>
+                <div className="text-sm">
+                  {match.status === 'confirmed' && <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">✓ Confirmed</span>}
+                  {match.status === 'unconfirmed' && <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">⏳ Unconfirmed</span>}
+                  {match.status === 'disputed' && <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">⚠ Disputed</span>}
+                  {match.status === 'cancelled' && <span className="inline-block px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">✗ Cancelled</span>}
+                  {!match.status && <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">⏳ Unconfirmed</span>}
+                </div>
               </div>
             </div>
 
-            <div className="match-stats-grid">
-              <div className="grid-header label-col">Statistic</div>
-              <div className="grid-header winner-col">Winner</div>
-              <div className="grid-header loser-col">Loser</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-gray-300">
+                    <th className="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50">Statistic</th>
+                    <th className="px-4 py-3 text-center font-semibold text-gray-700 bg-green-50">Winner</th>
+                    <th className="px-4 py-3 text-center font-semibold text-gray-700 bg-red-50">Loser</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Player</td>
+                    <td className="px-4 py-3 text-center text-gray-800">{match.winner_nickname}</td>
+                    <td className="px-4 py-3 text-center text-gray-800">{match.loser_nickname}</td>
+                  </tr>
 
-              <div className="grid-cell label-cell">Player</div>
-              <div className="grid-cell winner-cell">{match.winner_nickname}</div>
-              <div className="grid-cell loser-cell">{match.loser_nickname}</div>
+                  <tr className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Faction</td>
+                    <td className="px-4 py-3 text-center"><span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{match.winner_faction}</span></td>
+                    <td className="px-4 py-3 text-center"><span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{match.loser_faction}</span></td>
+                  </tr>
 
-              <div className="grid-cell label-cell">Faction</div>
-              <div className="grid-cell winner-cell"><span className="faction-badge">{match.winner_faction}</span></div>
-              <div className="grid-cell loser-cell"><span className="faction-badge">{match.loser_faction}</span></div>
+                  <tr className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Rating</td>
+                    <td className="px-4 py-3 text-center text-gray-800">{match.winner_rating || '-'}</td>
+                    <td className="px-4 py-3 text-center text-gray-800">{match.loser_rating || '-'}</td>
+                  </tr>
 
-              <div className="grid-cell label-cell">Rating</div>
-              <div className="grid-cell winner-cell">{match.winner_rating || '-'}</div>
-              <div className="grid-cell loser-cell">{match.loser_rating || '-'}</div>
+                  <tr className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">ELO Before</td>
+                    <td className="px-4 py-3 text-center text-gray-800">{match.winner_elo_before || 'N/A'}</td>
+                    <td className="px-4 py-3 text-center text-gray-800">{match.loser_elo_before || 'N/A'}</td>
+                  </tr>
 
-              <div className="grid-cell label-cell">ELO Before</div>
-              <div className="grid-cell winner-cell">{match.winner_elo_before || 'N/A'}</div>
-              <div className="grid-cell loser-cell">{match.loser_elo_before || 'N/A'}</div>
+                  <tr className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">ELO After</td>
+                    <td className="px-4 py-3 text-center text-gray-800">{match.winner_elo_after || 'N/A'}</td>
+                    <td className="px-4 py-3 text-center text-gray-800">{match.loser_elo_after || 'N/A'}</td>
+                  </tr>
 
-              <div className="grid-cell label-cell">ELO After</div>
-              <div className="grid-cell winner-cell">{match.winner_elo_after || 'N/A'}</div>
-              <div className="grid-cell loser-cell">{match.loser_elo_after || 'N/A'}</div>
+                  <tr className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">ELO Change</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`font-semibold ${winnerEloChange(match) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {winnerEloChange(match) >= 0 ? '+' : ''}{winnerEloChange(match)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`font-semibold ${loserEloChange(match) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {loserEloChange(match) >= 0 ? '+' : ''}{loserEloChange(match)}
+                      </span>
+                    </td>
+                  </tr>
 
-              <div className="grid-cell label-cell">ELO Change</div>
-              <div className="grid-cell winner-cell">
-                <span className={`rating-change ${winnerEloChange(match) >= 0 ? 'positive' : 'negative'}`}>
-                  {winnerEloChange(match) >= 0 ? '+' : ''}{winnerEloChange(match)}
-                </span>
-              </div>
-              <div className="grid-cell loser-cell">
-                <span className={`rating-change ${loserEloChange(match) >= 0 ? 'positive' : 'negative'}`}>
-                  {loserEloChange(match) >= 0 ? '+' : ''}{loserEloChange(match)}
-                </span>
-              </div>
+                  {(match.winner_comments || match.loser_comments) && (
+                    <tr className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Comments</td>
+                      <td className="px-4 py-3 text-center text-gray-800 text-xs max-w-xs truncate" title={match.winner_comments || undefined}>{match.winner_comments || '-'}</td>
+                      <td className="px-4 py-3 text-center text-gray-800 text-xs max-w-xs truncate" title={match.loser_comments || undefined}>{match.loser_comments || '-'}</td>
+                    </tr>
+                  )}
 
-              {(match.winner_comments || match.loser_comments) && (
-                <>
-                  <div className="grid-cell label-cell">Comments</div>
-                  <div className="grid-cell winner-cell" title={match.winner_comments || undefined}>{match.winner_comments || '-'}</div>
-                  <div className="grid-cell loser-cell" title={match.loser_comments || undefined}>{match.loser_comments || '-'}</div>
-                </>
-              )}
-
-              {match.replay_file_path && (
-                <>
-                  <div className="grid-cell label-cell">Replay</div>
-                  <div className="grid-cell winner-cell" style={{ gridColumn: '2 / 4' }}>
-                    <button 
-                      className="download-btn-compact"
-                      onClick={() => {
-                        onClose();
-                      }}
-                      title={`Downloads: ${match.replay_downloads || 0}`}
-                    >
-                      ⬇️ Download ({match.replay_downloads || 0})
-                    </button>
-                  </div>
-                </>
-              )}
+                  {match.replay_file_path && (
+                    <tr className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Replay</td>
+                      <td colSpan={2} className="px-4 py-3 text-center">
+                        <button 
+                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-colors"
+                          onClick={() => {
+                            onClose();
+                          }}
+                          title={`Downloads: ${match.replay_downloads || 0}`}
+                        >
+                          ⬇️ Download ({match.replay_downloads || 0})
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button className="close-modal-btn" onClick={onClose}>Close</button>
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 text-center">
+          <button 
+            className="px-6 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg font-semibold transition-colors"
+            onClick={onClose}
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

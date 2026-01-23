@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { authService, userService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import '../styles/Auth.css';
 
 const Login: React.FC = () => {
   const { t } = useTranslation();
@@ -59,15 +58,16 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="auth-container">
-      <h1>{t('login_title')}</h1>
-      {error && <p className="error">{error}</p>}
-      <form onSubmit={handleSubmit}>
+    <div className="w-full max-w-4xl mx-auto my-12 px-4 bg-white rounded-lg shadow-sm py-8">
+      <h1 className="text-center mb-6 text-2xl font-bold text-gray-800">{t('login_title')}</h1>
+      {error && <p className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-4 border-l-4 border-red-600">{error}</p>}
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="text"
           placeholder={t('login_nickname_or_email')} 
           value={usernameOrEmail}
           onChange={(e) => setUsernameOrEmail(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
           required
         />
         <input
@@ -75,17 +75,18 @@ const Login: React.FC = () => {
           placeholder={t('login_password')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
           required
         />
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading} className="w-full px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
           {loading ? 'Loading...' : t('login_button')}
         </button>
       </form>
-      <p>
-        {t('login_register')} <a href="/register">Register</a>
+      <p className="text-center mt-4">
+        {t('login_register')} <a href="/register" className="text-blue-500 hover:underline">Register</a>
       </p>
-      <p>
-        {t('login_forgot_password')} <a href="/forgot-password">Forgot Password?</a>
+      <p className="text-center mt-4">
+        {t('login_forgot_password')} <a href="/forgot-password" className="text-blue-500 hover:underline">Forgot Password?</a>
       </p>
     </div>
   );
