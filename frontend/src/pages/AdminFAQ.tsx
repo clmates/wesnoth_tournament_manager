@@ -231,15 +231,15 @@ const AdminFAQ: React.FC = () => {
               />
             </div>
 
-            <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50und: activeLanguageTab !== 'en' ? '#f0f0f0' : undefined }}
-                title={activeLanguageTab !== 'en' ? 'Order can only be edited in English' : ''}
-              />
-            </div>
-
-            <button type="submit">
+            <button 
+              type="submit" 
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-semibold"
+            >
               {editingId ? 'Update FAQ Item (All Languages)' : 'Add FAQ Item (All Languages)'}
             </button>
-          </form>space-y-4">
+          </form>
+
+          <div className="space-y-4">
             {faqItems.map((itemGroup) => {
               const firstLang = languages.find(lang => itemGroup[lang]);
               const id = firstLang ? itemGroup[firstLang].id : '';
