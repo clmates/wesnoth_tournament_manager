@@ -844,33 +844,33 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <p className="text-red-600">❌ {t('join_denied_msg')}</p>
       )}
 
-      <div className="flex flex-wrap gap-2 mt-8">
+      <div className="flex flex-wrap gap-2 mt-8 mb-6">
         <button 
-          className={`px-4 py-2 rounded transition-colors ${activeTab === 'participants' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'participants' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('participants')}
         >
           {tournament?.tournament_mode === 'team' ? 'Teams' : t('tabs.participants', { count: participants.length })}
         </button>
         <button 
-          className={`px-4 py-2 rounded transition-colors ${activeTab === 'matches' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'matches' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('matches')}
         >
           {t('tabs.matches', { count: matches.length })}
         </button>
         <button 
-          className={`px-4 py-2 rounded transition-colors ${activeTab === 'rounds' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'rounds' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('rounds')}
         >
           {t('tabs.rounds', { count: rounds.length })}
         </button>
         <button 
-          className={`px-4 py-2 rounded transition-colors ${activeTab === 'roundMatches' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'roundMatches' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('roundMatches')}
         >
           {t('tabs.round_details')}
         </button>
         <button 
-          className={`px-4 py-2 rounded transition-colors ${activeTab === 'ranking' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'ranking' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
           onClick={() => setActiveTab('ranking')}
         >
           {t('tabs.ranking')}
