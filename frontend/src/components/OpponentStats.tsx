@@ -27,6 +27,8 @@ const OpponentStats: React.FC<OpponentStatsProps> = ({ matches, currentPlayerId 
   const [opponents, setOpponents] = useState<RecentOpponent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     const fetchOpponents = async () => {
@@ -54,6 +56,50 @@ const OpponentStats: React.FC<OpponentStatsProps> = ({ matches, currentPlayerId 
   }, [currentPlayerId]);
 
   console.log('OpponentStats: Render with opponents:', opponents, 'loading:', loading, 'error:', error);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Si ya está ordenado por este campo, cambiar dirección
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Si es un nuevo campo, ordenar descendente por defecto
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const getSortedOpponents = () => {
+    if (!sortField) return opponents;
+
+    const sorted = [...opponents].sort((a, b) => {
+      let aValue: any = (a as any)[sortField];
+      let bValue: any = (b as any)[sortField];
+
+      // Convertir strings numéricos a números
+      if (typeof aValue === 'string' && !isNaN(parseFloat(aValue))) {
+        aValue = parseFloat(aValue);
+      }
+      if (typeof bValue === 'string' && !isNaN(parseFloat(bValue))) {
+        bValue = parseFloat(bValue);
+      }
+
+      // Comparar valores
+      if (aValue < bValue) {
+        return sortDirection === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortDirection === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+
+    return sorted;
+  };
+
+  const getSortIndicator = (field: string) => {
+    if (sortField !== field) return null;
+    return sortDirection === 'asc' ? ' ↑' : ' ↓';
+  };
 
 
   if (loading) {
@@ -91,20 +137,20 @@ const OpponentStats: React.FC<OpponentStatsProps> = ({ matches, currentPlayerId 
         <table className="w-full border-collapse text-sm bg-white">
           <thead>
             <tr className="bg-gradient-to-r from-gray-700 to-gray-800 text-white">
-              <th className="px-3 py-4 text-left font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('opponent_name') || 'Opponent'}</th>
-              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('games') || 'Games'}</th>
-              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('wins') || 'Wins'}</th>
-              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('losses') || 'Losses'}</th>
-              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('winrate') || 'W/R %'}</th>
-              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('current_elo') || 'Current ELO'}</th>
-              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">ELO Gained</th>
-              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">ELO Lost</th>
-              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">Last ELO vs Me</th>
-              <th className="px-3 py-4 text-left font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900">{t('last_match') || 'Last Match'}</th>
+              <th className="px-3 py-4 text-left font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('opponent_name')}>{t('opponent_name') || 'Opponent'}{getSortIndicator('opponent_name')}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('total_games')}>{t('games') || 'Games'}{getSortIndicator('total_games')}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('wins')}>{t('wins') || 'Wins'}{getSortIndicator('wins')}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('losses')}>{t('losses') || 'Losses'}{getSortIndicator('losses')}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('winrate')}>{t('winrate') || 'W/R %'}{getSortIndicator('winrate')}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('current_elo')}>{t('current_elo') || 'Current ELO'}{getSortIndicator('current_elo')}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('elo_gained')}>ELO Gained{getSortIndicator('elo_gained')}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('elo_lost')}>ELO Lost{getSortIndicator('elo_lost')}</th>
+              <th className="px-3 py-4 text-center font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('last_elo_against_me')}>Last ELO vs Me{getSortIndicator('last_elo_against_me')}</th>
+              <th className="px-3 py-4 text-left font-semibold text-xs uppercase tracking-wider border-b-2 border-gray-900 cursor-pointer hover:bg-gray-750 transition-colors" onClick={() => handleSort('last_match_date')}>{t('last_match') || 'Last Match'}{getSortIndicator('last_match_date')}</th>
             </tr>
           </thead>
           <tbody>
-            {opponents.map((opponent, index) => {
+            {getSortedOpponents().map((opponent, index) => {
               const winrate = typeof opponent.winrate === 'string' ? parseFloat(opponent.winrate) : opponent.winrate;
               const eloGained = typeof opponent.elo_gained === 'string' ? parseFloat(opponent.elo_gained) : opponent.elo_gained;
               const eloLost = typeof opponent.elo_lost === 'string' ? parseFloat(opponent.elo_lost) : opponent.elo_lost;
