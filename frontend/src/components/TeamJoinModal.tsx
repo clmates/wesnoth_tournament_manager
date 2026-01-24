@@ -133,27 +133,27 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content team-join-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Join Team Tournament</h2>
-          <button className="close-btn" onClick={onClose}>&times;</button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-gray-900">Join Team Tournament</h2>
+          <button className="text-gray-500 hover:text-gray-700 text-2xl leading-none" onClick={onClose}>&times;</button>
         </div>
 
-        <div className="modal-body">
-          {error && <div className="error-message">{error}</div>}
+        <div>
+          {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
 
           {/* Mode Tabs */}
-          <div className="mode-tabs">
+          <div className="flex gap-2 mb-6 border-b border-gray-200">
             <button
-              className={`tab-btn ${joinMode === 'create' ? 'active' : ''}`}
+              className={`px-4 py-2 font-medium transition-colors ${joinMode === 'create' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
               onClick={() => { setJoinMode('create'); setError(null); setTeamName(''); setTeammateName(''); }}
             >
               Create New Team
             </button>
             {existingTeams.length > 0 && (
               <button
-                className={`tab-btn ${joinMode === 'join' ? 'active' : ''}`}
+                className={`px-4 py-2 font-medium transition-colors ${joinMode === 'join' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-gray-900'}`}
                 onClick={() => { setJoinMode('join'); setError(null); setTeamName(''); setTeammateName(''); }}
               >
                 Join Existing Team ({existingTeams.length})
@@ -161,12 +161,12 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
             )}
           </div>
 
-          <div className="form-section">
+          <div className="space-y-4">
             {joinMode === 'create' ? (
               <>
                 {/* Create New Team Mode */}
-                <div className="form-group">
-                  <label htmlFor="team-name">Team Name *</label>
+                <div>
+                  <label htmlFor="team-name" className="block text-sm font-medium text-gray-700 mb-2">Team Name *</label>
                   <input
                     id="team-name"
                     type="text"
@@ -175,18 +175,19 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
                     placeholder="Enter team name (e.g., Dragon Slayers)"
                     disabled={isLoading}
                     maxLength={50}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <small>You will be assigned Position 1</small>
+                  <small className="text-gray-600">You will be assigned Position 1</small>
                 </div>
 
                 {/* Teammate Selection - Optional */}
-                <div className="form-group">
-                  <label>Teammate <span className="optional-label">(optional)</span></label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Teammate <span className="text-gray-500 font-normal">(optional)</span></label>
                   <OpponentSelector
                     value={teammateId}
                     onChange={handleTeammateChange}
                   />
-                  <small>
+                  <small className="text-gray-600">
                     {teammateName.trim() 
                       ? 'They will be added as Position 2 (pending confirmation)'
                       : 'Leave empty to register alone. Another player can join later.'
@@ -197,9 +198,9 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
             ) : (
               <>
                 {/* Join Existing Team Mode */}
-                <div className="form-group">
-                  <label htmlFor="existing-team-search">Select Team to Join *</label>
-                  <div className="teammate-search-container">
+                <div>
+                  <label htmlFor="existing-team-search" className="block text-sm font-medium text-gray-700 mb-2">Select Team to Join *</label>
+                  <div className="relative">
                     <input
                       id="existing-team-search"
                       type="text"
@@ -209,23 +210,24 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
                       placeholder="Search for a team with an available slot..."
                       disabled={isLoading}
                       autoComplete="off"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
 
                   {/* Team Suggestions */}
                   {showTeamSuggestions && existingTeams.length > 0 && (
-                    <div className="suggestions-dropdown">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
                       {existingTeams
                         .filter(t => t.name.toLowerCase().includes(teamName.toLowerCase()))
                         .slice(0, 10)
                         .map((team) => (
                           <div
                             key={team.id}
-                            className="suggestion-item"
+                            className="px-3 py-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
                             onClick={() => handleSelectTeam(team)}
                           >
-                            <span className="nickname">{team.name}</span>
-                            <span className="member-count">1/2 members</span>
+                            <span className="font-medium">{team.name}</span>
+                            <span className="text-sm text-gray-600">1/2 members</span>
                           </div>
                         ))}
                     </div>
@@ -233,22 +235,22 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
 
                   {showTeamSuggestions && teamName.trim() && 
                     existingTeams.filter(t => t.name.toLowerCase().includes(teamName.toLowerCase())).length === 0 && (
-                    <div className="suggestions-empty">
+                    <div className="mt-2 p-2 bg-gray-100 text-gray-600 rounded text-sm">
                       No teams found with that name.
                     </div>
                   )}
 
-                  <small>You will be added as Position 2</small>
+                  <small className="text-gray-600">You will be added as Position 2</small>
                 </div>
 
                 {/* Optional: Invite a teammate */}
-                <div className="form-group">
-                  <label>Bring a Teammate <span className="optional-label">(optional)</span></label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Bring a Teammate <span className="text-gray-500 font-normal">(optional)</span></label>
                   <OpponentSelector
                     value={teammateId}
                     onChange={handleTeammateChange}
                   />
-                  <small>
+                  <small className="text-gray-600">
                     {teammateName.trim() 
                       ? 'They will be added as Position 1 (pending confirmation)'
                       : 'Optional - register alone or with a teammate'
@@ -260,16 +262,16 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
           </div>
 
           {/* Actions */}
-          <div className="form-actions">
+          <div className="flex gap-3 mt-6">
             <button
-              className="btn-cancel"
+              className="flex-1 px-4 py-2 bg-gray-300 text-gray-900 rounded-lg font-medium hover:bg-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={onClose}
               disabled={isLoading}
             >
               Cancel
             </button>
             <button
-              className="btn-submit"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleSubmit}
               disabled={isLoading || !teamName.trim() || (joinMode === 'join' && !teamName.trim())}
             >
