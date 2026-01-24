@@ -1790,28 +1790,28 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       {disputeManagementModal.isOpen && disputeManagementModal.match && (
         <>
           {console.log('[MODAL] Dispute management modal opened for match:', disputeManagementModal.match.id)}
-          <div className="modal-overlay">
-            <div className="modal-content modal-small">
-              <div className="modal-header">
-                <h2>{t('manage_dispute')}</h2>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
+              <div className="mb-4">
+                <h2 className="text-xl font-bold text-gray-800">{t('manage_dispute')}</h2>
               </div>
-              <div className="modal-body">
-                <p className="mb-4">
+              <div className="mb-6">
+                <p className="text-gray-700 mb-4">
                   {t('dispute_management_text') || `Round ${disputeManagementModal.match.round_number}: ${disputeManagementModal.match.winner_nickname || '-'} vs ${disputeManagementModal.match.loser_nickname || '-'}`}
                 </p>
-                <p className="text-gray-600 text-sm mb-4">
+                <p className="text-gray-600 text-sm">
                   {t('confirm_dispute_will_revert') || 'Confirming will revert the match to pending and reset player stats.'}
                 </p>
               </div>
-              <div className="modal-footer">
+              <div className="flex gap-3 justify-end">
                 <button 
-                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors mr-2"
+                  className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors"
                   onClick={() => setDisputeManagementModal({ isOpen: false, match: null })}
                 >
                   {t('cancel_btn')}
                 </button>
                 <button 
-                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded transition-colors mr-2"
+                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
                   onClick={() => handleDisputeAction('dismiss', disputeManagementModal.match!.id)}
                 >
                   {t('dismiss_dispute')}
