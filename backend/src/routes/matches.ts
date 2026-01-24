@@ -300,12 +300,12 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
              loser_faction = $6,
              winner_comments = $8,
              winner_rating = $9,
-             replay_file_path = $10,
+             replay_file_path = NULL,
              status = $11,
              played_at = CURRENT_TIMESTAMP, 
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $7`,
-        [matchId || null, req.userId, opponent_id, map, winner_faction || null, loser_faction || null, tournament_match_id, comments || null, rating || null, replayPath || null, 'unconfirmed']
+        [matchId || null, req.userId, opponent_id, map, winner_faction || null, loser_faction || null, tournament_match_id, comments || null, rating || null, 'unconfirmed']
       );
       console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
 
