@@ -1193,16 +1193,62 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
     const { id } = req.params;
     const { comments, rating, action } = req.body;
 
-    const matchResult = await query('SELECT * FROM matches WHERE id = $1', [id]);
-    console.log('Match query result:', matchResult.rows.length, 'rows');
-    
-    if (matchResult.rows.length === 0) {
-      console.log('❌ Match not found:', id);
-      return res.status(404).json({ error: 'Match not found' });
+    // First check if this is a tournament_match to detect if ranked or unranked
+    const tournamentMatchResult = await query(
+      'SELECT * FROM tournament_matches WHERE id = $1',
+      [id]
+    );
+
+    let match;
+    let isUnranked = false;
+    let tournamentMatchId = null;
+
+    if (tournamentMatchResult.rows.length > 0) {
+      // Found in tournament_matches
+      const tm = tournamentMatchResult.rows[0];
+      tournamentMatchId = tm.id;
+
+      if (tm.match_id === null) {
+        // This is an UNRANKED tournament match (match_id is NULL)
+        isUnranked = true;
+        match = tm;
+        console.log('Found unranked tournament match in tournament_matches');
+      } else {
+        // This is a RANKED tournament match (match_id IS NOT NULL)
+        // Get the actual match data from matches table
+        const rankedMatchResult = await query(
+          'SELECT * FROM matches WHERE id = $1',
+          [tm.match_id]
+        );
+        
+        if (rankedMatchResult.rows.length === 0) {
+          console.log('❌ Ranked match not found:', tm.match_id);
+          return res.status(404).json({ error: 'Match not found' });
+        }
+
+        match = rankedMatchResult.rows[0];
+        isUnranked = false;
+        console.log('Found ranked tournament match in matches table');
+      }
+    } else {
+      // Not a tournament match, try to find in matches table (RANKED only)
+      const rankedMatchResult = await query(
+        'SELECT * FROM matches WHERE id = $1',
+        [id]
+      );
+
+      if (rankedMatchResult.rows.length === 0) {
+        console.log('❌ Match not found:', id);
+        return res.status(404).json({ error: 'Match not found' });
+      }
+
+      match = rankedMatchResult.rows[0];
+      isUnranked = false;
+      console.log('Found ranked match (non-tournament)');
     }
 
-    const match = matchResult.rows[0];
     console.log('Match loser_id:', match.loser_id, 'Current user:', req.userId);
+    console.log('Is unranked:', isUnranked);
 
     // Verify that the user confirming is the loser
     if (match.loser_id !== req.userId) {
@@ -1216,29 +1262,42 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
         return res.status(400).json({ error: 'Rating must be between 1 and 5' });
       }
 
-      // Update match confirmation - set status to 'confirmed'
-      // NO stats or ELO changes - those were already applied when winner reported
-      // Loser only confirms and optionally adds comments/rating
-      await query(
-        `UPDATE matches 
-         SET status = 'confirmed', 
-             loser_comments = $1, 
-             loser_rating = $2,
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $3`,
-        [comments || null, rating || null, id]
-      );
+      if (isUnranked) {
+        // UNRANKED: update only tournament_matches
+        await query(
+          `UPDATE tournament_matches 
+           SET loser_comments = $1, 
+               loser_rating = $2,
+               match_status = 'completed',
+               updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $3`,
+          [comments || null, rating || null, id]
+        );
+      } else {
+        // RANKED: update matches table
+        await query(
+          `UPDATE matches 
+           SET status = 'confirmed', 
+               loser_comments = $1, 
+               loser_rating = $2,
+               updated_at = CURRENT_TIMESTAMP 
+           WHERE id = $3`,
+          [comments || null, rating || null, id]
+        );
 
-      // Also update tournament_matches if this match is linked to a tournament
-      await query(
-        `UPDATE tournament_matches 
-         SET loser_comments = $1, 
-             loser_rating = $2,
-             status = 'confirmed',
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE match_id = $3`,
-        [comments || null, rating || null, id]
-      );
+        // Also update tournament_matches if this is a tournament ranked match
+        if (tournamentMatchId) {
+          await query(
+            `UPDATE tournament_matches 
+             SET loser_comments = $1, 
+                 loser_rating = $2,
+                 match_status = 'completed',
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = $3`,
+            [comments || null, rating || null, tournamentMatchId]
+          );
+        }
+      }
 
       console.log(
         `Match ${id} confirmed: Loser ${req.userId} confirmed the match result`
@@ -1247,26 +1306,56 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
       console.log('✅ Respondiendo con éxito - confirm');
       res.json({ message: 'Match confirmed successfully with your comments and rating' });
     } else if (action === 'dispute') {
-      // Mark match as disputed (pending admin review)
-      // NO stat reversal here - stats remain as calculated when match was reported
-      // Stats are only reversed if admin validates the dispute
-      await query(
-        'UPDATE matches SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-        ['disputed', id]
-      );
+      if (isUnranked) {
+        // UNRANKED: Check if user is the tournament organizer
+        const tournamentResult = await query(
+          `SELECT t.creator_id FROM tournaments t
+           JOIN tournament_matches tm ON t.id = tm.tournament_id
+           WHERE tm.id = $1`,
+          [id]
+        );
 
-      // Also update tournament_matches if this match is linked to a tournament
-      await query(
-        'UPDATE tournament_matches SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE match_id = $2',
-        ['disputed', id]
-      );
+        if (tournamentResult.rows.length === 0) {
+          return res.status(404).json({ error: 'Tournament not found' });
+        }
 
-      console.log(
-        `Match ${id} disputed by loser ${req.userId}: Awaiting admin review. Stats remain unchanged.`
-      );
+        const isOrganizer = tournamentResult.rows[0].creator_id === req.userId;
 
-      console.log('✅ Respondiendo con éxito - dispute');
-      res.json({ message: 'Match disputed. Awaiting admin review.' });
+        // For unranked tournaments, only organizer can manage disputes
+        if (!isOrganizer) {
+          return res.status(403).json({ error: 'Only the tournament organizer can manage disputes' });
+        }
+
+        // Mark unranked tournament match as disputed
+        await query(
+          'UPDATE tournament_matches SET match_status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+          ['disputed', id]
+        );
+
+        console.log(`Unranked tournament match ${id} marked as disputed by organizer ${req.userId}`);
+        res.json({ message: 'Tournament match marked as disputed. Organizer review required.' });
+      } else {
+        // RANKED: Mark match as disputed (pending admin review)
+        await query(
+          'UPDATE matches SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+          ['disputed', id]
+        );
+
+        // Also update tournament_matches if this is a tournament ranked match
+        if (tournamentMatchId) {
+          await query(
+            'UPDATE tournament_matches SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            ['disputed', id]
+          );
+        }
+
+        console.log(
+          `Match ${id} disputed by loser ${req.userId}: Awaiting admin review. Stats remain unchanged.`
+        );
+
+        console.log('✅ Respondiendo con éxito - dispute');
+        res.json({ message: 'Match disputed. Awaiting admin review.' });
+      }
     } else {
       res.status(400).json({ error: 'Invalid action. Use "confirm" or "dispute"' });
     }
