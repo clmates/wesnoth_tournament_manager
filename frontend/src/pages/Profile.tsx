@@ -30,6 +30,7 @@ const Profile: React.FC = () => {
   const [updatingDiscord, setUpdatingDiscord] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const [showPasswordHints, setShowPasswordHints] = useState(false);
+  const [preferencesCollapsed, setPreferencesCollapsed] = useState(false);
 
   const languages = useMemo(() => [
     { code: 'en', name: 'English', countryCode: 'us' },
@@ -240,21 +241,6 @@ const Profile: React.FC = () => {
               </section>
 
               <section className="bg-white rounded-lg shadow-md p-8 mb-8">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.preferences_title') || 'Preferences'}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <CountrySelector
-                    value={selectedCountry}
-                    onChange={handleCountryChange}
-                    showFlag={true}
-                  />
-                  <AvatarSelector
-                    value={selectedAvatar}
-                    onChange={handleAvatarChange}
-                  />
-                </div>
-              </section>
-
-              <section className="bg-white rounded-lg shadow-md p-8 mb-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.discord_title')}</h2>
                 {discordMessage && <p className="bg-green-100 text-green-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-green-600">{discordMessage}</p>}
                 {discordError && <p className="bg-red-100 text-red-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-red-600">{discordError}</p>}
@@ -313,6 +299,38 @@ const Profile: React.FC = () => {
                     </div>
                   )}
                 </div>
+              </section>
+
+              <section className="bg-white rounded-lg shadow-md mb-8">
+                <div 
+                  className="p-8 cursor-pointer flex justify-between items-center hover:bg-gray-50 transition-colors"
+                  onClick={() => setPreferencesCollapsed(!preferencesCollapsed)}
+                >
+                  <h2 className="text-2xl font-semibold text-gray-800 pb-0">{t('profile.preferences_title') || 'Preferences'}</h2>
+                  <svg 
+                    className={`w-6 h-6 text-gray-600 transition-transform ${preferencesCollapsed ? 'rotate-180' : ''}`}
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </div>
+                {!preferencesCollapsed && (
+                  <div className="p-8 pt-0 border-t border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <CountrySelector
+                        value={selectedCountry}
+                        onChange={handleCountryChange}
+                        showFlag={true}
+                      />
+                      <AvatarSelector
+                        value={selectedAvatar}
+                        onChange={handleAvatarChange}
+                      />
+                    </div>
+                  </div>
+                )}
               </section>
 
               <section className="bg-white rounded-lg shadow-md p-8 mb-8">
