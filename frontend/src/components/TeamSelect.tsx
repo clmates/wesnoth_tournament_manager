@@ -78,7 +78,7 @@ export const TeamSelect: React.FC<TeamSelectProps> = ({
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled || teams.length === 0}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white cursor-pointer transition-colors focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 hover:border-gray-400 disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
       >
         <option value="">-- Choose a team --</option>
         {teams.map((team) => (

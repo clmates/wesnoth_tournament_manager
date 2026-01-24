@@ -138,26 +138,26 @@ export const TeamSubstituteList: React.FC<TeamSubstituteListProps> = ({
   const availablePlayers = players.filter((p) => !usedPlayerIds.includes(p.id));
 
   return (
-    <div className="team-substitute-list">
-      <h4>Substitutes (Backup Players)</h4>
+    <div className="bg-gray-50 border border-gray-300 rounded-md p-3 mb-4">
+      <h4 className="m-0 mb-3 text-sm font-semibold text-gray-800">Substitutes (Backup Players)</h4>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="bg-red-100 text-red-800 px-3 py-2 rounded text-xs mb-3">{error}</div>}
 
-      <div className="substitute-list">
+      <div className="flex flex-col gap-2 mb-3">
         {substitutes.length === 0 ? (
-          <p className="no-substitutes">No substitutes yet</p>
+          <p className="text-gray-500 italic text-sm m-0 p-2">No substitutes yet</p>
         ) : (
           substitutes
             .sort((a, b) => a.substitute_order - b.substitute_order)
             .map((substitute) => (
-              <div key={substitute.player_id} className="substitute-item">
-                <span className="substitute-order">#{substitute.substitute_order}</span>
-                <span className="substitute-name">{substitute.nickname}</span>
+              <div key={substitute.player_id} className="flex items-center gap-3 bg-white p-2.5 border border-gray-200 rounded">
+                <span className="font-semibold text-blue-600 text-sm flex-shrink-0">#{substitute.substitute_order}</span>
+                <span className="text-sm font-medium flex-grow">{substitute.nickname}</span>
                 <button
                   type="button"
                   onClick={() => handleRemoveSubstitute(substitute.player_id, substitute.substitute_order)}
                   disabled={loading}
-                  className="remove-substitute-btn"
+                  className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                 >
                   Remove
                 </button>
@@ -166,12 +166,12 @@ export const TeamSubstituteList: React.FC<TeamSubstituteListProps> = ({
         )}
       </div>
 
-      <div className="add-substitute-form">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-1">
         <select
           value={selectedPlayer}
           onChange={(e) => setSelectedPlayer(e.target.value)}
           disabled={loading || availablePlayers.length === 0}
-          className="player-select"
+          className="px-2 py-2 border border-gray-300 rounded text-sm bg-white cursor-pointer focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-gray-100 disabled:text-gray-600 disabled:cursor-not-allowed"
         >
           <option value="">-- Select substitute player --</option>
           {availablePlayers.map((player) => (
@@ -185,7 +185,7 @@ export const TeamSubstituteList: React.FC<TeamSubstituteListProps> = ({
           type="button"
           onClick={handleAddSubstitute}
           disabled={loading || !selectedPlayer}
-          className="add-substitute-btn"
+          className="px-3 py-2 bg-blue-500 text-white text-sm font-semibold rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Adding...' : 'Add Substitute'}
         </button>
