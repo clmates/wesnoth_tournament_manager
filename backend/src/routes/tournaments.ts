@@ -2987,6 +2987,8 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
     const { tournamentId, matchId } = req.params;
     const { action } = req.body; // 'confirm' or 'dismiss'
 
+    console.log(`[DISPUTE API] Request received - tournamentId: ${tournamentId}, matchId: ${matchId}, action: ${action}, userId: ${req.userId}`);
+
     // Verify user is tournament organizer
     const tournamentResult = await query(
       'SELECT creator_id FROM tournaments WHERE id = $1',
