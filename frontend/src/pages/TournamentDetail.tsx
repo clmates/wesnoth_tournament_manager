@@ -1537,7 +1537,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6 overflow-x-auto">
           {rounds.length > 0 ? (
             <>
-              {rounds.map((round) => {
+              {[...rounds].reverse().map((round) => {
                 const matchesInRound = roundMatches.filter((m) => m.round_id === round.id);
                 
                 if (matchesInRound.length === 0) return null;
