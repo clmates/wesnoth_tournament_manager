@@ -1989,7 +1989,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
     let selectClause, joinClause;
     
     if (tournamentMode === 'team') {
-      // Team mode: get team names from tournament_teams, map from tournament_matches (no factions for team)
+      // Team mode: get team names from tournament_teams, match details from tournament_matches (NO fallback to matches for team mode)
       selectClause = `
         tm.id,
         tm.tournament_id,
@@ -2005,14 +2005,16 @@ router.get('/:tournamentId/matches', async (req, res) => {
         tt2.name as player2_nickname,
         tt_winner.name as winner_nickname,
         (CASE WHEN tm.player1_id = tm.winner_id THEN tt2.name ELSE tt1.name END) as loser_nickname,
-        m.status as match_status_from_matches,
+        tm.status as match_status_from_matches,
         tm.map,
         NULL as winner_faction,
         NULL as loser_faction,
-        m.winner_comments,
-        m.loser_comments,
-        m.replay_file_path,
-        m.replay_downloads,
+        tm.winner_comments,
+        tm.loser_comments,
+        tm.winner_rating,
+        tm.loser_rating,
+        tm.replay_file_path,
+        NULL as replay_downloads,
         TRUE as is_team_mode
       `;
       joinClause = `
@@ -2021,10 +2023,9 @@ router.get('/:tournamentId/matches', async (req, res) => {
         LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
         LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
-        LEFT JOIN matches m ON tm.match_id = m.id
       `;
     } else if (tournamentMode === 'unranked') {
-      // Unranked 1v1: get player names from users, match details from tournament_matches
+      // Unranked 1v1: get player names from users, match details from tournament_matches (match_id is NULL for unranked, so NO matches table data)
       selectClause = `
         tm.id,
         tm.tournament_id,
@@ -2040,14 +2041,16 @@ router.get('/:tournamentId/matches', async (req, res) => {
         u2.nickname as player2_nickname,
         uw.nickname as winner_nickname,
         (CASE WHEN tm.player1_id = tm.winner_id THEN u2.nickname ELSE u1.nickname END) as loser_nickname,
-        m.status as match_status_from_matches,
+        tm.status as match_status_from_matches,
         tm.map,
         tm.winner_faction,
         tm.loser_faction,
-        m.winner_comments,
-        m.loser_comments,
-        m.replay_file_path,
-        m.replay_downloads,
+        tm.winner_comments,
+        tm.loser_comments,
+        tm.winner_rating,
+        tm.loser_rating,
+        tm.replay_file_path,
+        NULL as replay_downloads,
         FALSE as is_team_mode
       `;
       joinClause = `
@@ -2056,10 +2059,9 @@ router.get('/:tournamentId/matches', async (req, res) => {
         LEFT JOIN users u1 ON tm.player1_id = u1.id
         LEFT JOIN users u2 ON tm.player2_id = u2.id
         LEFT JOIN users uw ON tm.winner_id = uw.id
-        LEFT JOIN matches m ON tm.match_id = m.id
       `;
     } else {
-      // Ranked 1v1: get player names from users, match details from matches table
+      // Ranked 1v1: get player names from users, match details from matches table (via match_id link)
       selectClause = `
         tm.id,
         tm.tournament_id,
@@ -2081,6 +2083,8 @@ router.get('/:tournamentId/matches', async (req, res) => {
         m.loser_faction,
         m.winner_comments,
         m.loser_comments,
+        m.winner_rating,
+        m.loser_rating,
         m.replay_file_path,
         m.replay_downloads,
         FALSE as is_team_mode

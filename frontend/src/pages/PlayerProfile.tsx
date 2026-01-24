@@ -122,6 +122,22 @@ const PlayerProfile: React.FC = () => {
     setMatchDetailsModal(null);
   };
 
+  const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
+    try {
+      if (!matchId || !replayFilePath) return;
+      const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
+      const downloadUrl = `/api/matches/${matchId}/replay/download`;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error downloading replay:', err);
+    }
+  };
+
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFilters(prev => ({
@@ -588,6 +604,7 @@ const PlayerProfile: React.FC = () => {
         match={matchDetailsModal}
         isOpen={!!matchDetailsModal}
         onClose={closeMatchDetails}
+        onDownloadReplay={handleDownloadReplay}
       />
       </div>
     </div>
