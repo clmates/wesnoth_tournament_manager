@@ -373,6 +373,9 @@ router.get('/tournaments/:id/matches', async (req, res) => {
       ORDER BY tr.round_number ASC, tm.created_at ASC
     `, [id]);
 
+    console.log('📊 [MATCHES] Tournament mode:', tournamentMode);
+    console.log('📊 [MATCHES] SQL Query:', `SELECT ${selectClause} ${joinClause} WHERE tm.tournament_id = $1`);
+    
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching tournament matches:', error);
