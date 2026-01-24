@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { CountrySelector } from '../components/CountrySelector';
 import { AvatarSelector } from '../components/AvatarSelector';
+import LanguageSelector from '../components/LanguageSelector';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -220,21 +221,14 @@ const Register: React.FC = () => {
           </div>
 
           <div className="mb-6">
-            <label htmlFor="language" className="block font-semibold text-gray-800 mb-2 text-sm">Preferred Language:</label>
-            <select
-              id="language"
-              name="language"
-              value={formData.language}
-              onChange={handleInputChange}
-              disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all disabled:opacity-60 disabled:cursor-not-allowed bg-white"
-            >
-              <option value="en">English</option>
-              <option value="es">Español</option>
-              <option value="de">Deutsch</option>
-              <option value="ru">Русский</option>
-              <option value="zh">中文</option>
-            </select>
+            <LanguageSelector
+              selectedLanguage={formData.language}
+              onLanguageChange={(language) => {
+                setFormData((prev) => ({ ...prev, language }));
+                i18n.changeLanguage(language);
+              }}
+              label={t('register_language')}
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
