@@ -33,36 +33,25 @@ const StarRating: React.FC<StarRatingProps> = ({ value, onChange, ratingLabels }
     return labelMap[rating] || '';
   };
 
-  // Get color based on rating (gradient from gray to yellow)
-  const getStarColor = (rating: number, fillPercentage: number): string => {
-    if (fillPercentage === 0) return '#d1d5db'; // gray-300
-    if (fillPercentage === 100) return '#facc15'; // yellow-400
-    
-    // Gradient colors for partial fills
-    const colors = [
-      '#d1d5db', // 0% - gray-300
-      '#e5e5cf', // 20%
-      '#f4d896', // 40%
-      '#fbce6e', // 60%
-      '#fac515', // 80%
-      '#facc15', // 100% - yellow-400
-    ];
-    
-    const index = Math.round((fillPercentage / 100) * 5);
-    return colors[Math.min(index, 5)];
+  // Get color based on star rating (same colors as StarDisplay)
+  const getStarColor = (rating: number): string => {
+    const colorMap: { [key: number]: string } = {
+      1: '#ef4444', // red-500 - poor
+      2: '#f97316', // orange-500 - fair
+      3: '#eab308', // yellow-500 - good
+      4: '#84cc16', // lime-500 - very good
+      5: '#22c55e', // green-500 - excellent
+    };
+    return colorMap[rating] || '#d1d5db'; // gray-300 for empty
   };
 
   return (
     <div className="flex items-center gap-4">
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map((rating) => {
-          // Calculate fill percentage for this star
-          let fillPercentage = 0;
-          if (displayValue >= rating) {
-            fillPercentage = 100;
-          }
-          
-          const starColor = getStarColor(rating, fillPercentage);
+          // Check if this star should be filled
+          const isFilled = displayValue >= rating;
+          const starColor = isFilled ? getStarColor(rating) : '#d1d5db'; // gray-300 if not filled
 
           return (
             <button
