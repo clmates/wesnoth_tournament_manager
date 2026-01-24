@@ -312,8 +312,18 @@ function generateFirstRoundMatches(
   // Sort by ELO rating (descending) for consistency when handling byes
   const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
   
-  // Shuffle while keeping sort for reference
-  const shuffled = sorted.sort(() => Math.random() - 0.5);
+  let playersToMatch = sorted;
+  let byePlayer: any = null;
+  
+  // If odd number of participants, highest ELO gets a bye (automatic advancement)
+  if (sorted.length % 2 === 1) {
+    byePlayer = sorted[0]; // Highest ELO player gets bye
+    playersToMatch = sorted.slice(1); // Exclude bye player from pairings
+    console.log(`🎯 Odd number of participants (${sorted.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+  }
+  
+  // Shuffle the remaining players for pairings
+  const shuffled = playersToMatch.sort(() => Math.random() - 0.5);
 
   // Pair up participants
   for (let i = 0; i < shuffled.length - 1; i += 2) {
@@ -329,13 +339,8 @@ function generateFirstRoundMatches(
     });
   }
 
-  // If odd number of participants, highest ELO gets a bye (automatic advancement)
-  if (shuffled.length % 2 === 1) {
-    const byePlayer = sorted[0]; // Highest ELO player
-    console.log(`🎯 Odd number of participants (${shuffled.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
-    
-    // Mark this player for automatic advancement
-    // This will be handled in the next round generation
+  // If there's a bye player, add them to the matches
+  if (byePlayer) {
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
@@ -369,26 +374,33 @@ function generateEliminationMatches(
   if (useSeeding && winners.length > 2) {
     // Proper seeding for elimination brackets: 1 vs (n), 2 vs (n-1), etc
     console.log(`[SEEDING] Using Swiss-based seeding for elimination bracket with ${winners.length} participants`);
-    pairedPlayers = winners; // Keep in ranking order - will pair seed1 vs seedN, seed2 vs seed(N-1), etc
     
-    for (let i = 0; i < Math.floor(pairedPlayers.length / 2); i++) {
+    let playersToMatch = winners;
+    let byePlayer: any = null;
+    
+    // If odd number, highest seed (first in list) gets bye
+    if (winners.length % 2 === 1) {
+      byePlayer = winners[0]; // Top seed advances with bye
+      playersToMatch = winners.slice(1); // Exclude bye player from pairings
+      console.log(`🏆 Elimination round with odd players (${winners.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (Seed 1) advances automatically (BYE)`);
+    }
+    
+    // Pair seeds: 1 vs n, 2 vs (n-1), etc (from remaining players)
+    for (let i = 0; i < Math.floor(playersToMatch.length / 2); i++) {
       const seed1Index = i;
-      const seed2Index = pairedPlayers.length - 1 - i;
-      console.log(`[SEEDING] Match ${i + 1}: Seed ${i + 1} (${pairedPlayers[seed1Index].user_id}) vs Seed ${pairedPlayers.length - i} (${pairedPlayers[seed2Index].user_id})`);
+      const seed2Index = playersToMatch.length - 1 - i;
+      console.log(`[SEEDING] Match ${i + 1}: Seed ${i + 1} (${playersToMatch[seed1Index].user_id}) vs Seed ${playersToMatch.length - i} (${playersToMatch[seed2Index].user_id})`);
       
       matches.push({
         tournament_id: tournamentId,
         round_id: roundId,
-        player1_id: pairedPlayers[seed1Index].user_id,
-        player2_id: pairedPlayers[seed2Index].user_id,
+        player1_id: playersToMatch[seed1Index].user_id,
+        player2_id: playersToMatch[seed2Index].user_id,
       });
     }
     
-    // If odd number of players, highest seed gets bye to next round
-    if (pairedPlayers.length % 2 === 1) {
-      const byePlayer = pairedPlayers[0]; // Top seed advances with bye
-      console.log(`🏆 Elimination round with odd players (${pairedPlayers.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (Seed 1) advances automatically (BYE)`);
-      
+    // If there's a bye player, add them to the matches
+    if (byePlayer) {
       matches.push({
         tournament_id: tournamentId,
         round_id: roundId,
@@ -402,8 +414,18 @@ function generateEliminationMatches(
     // Sort by ELO rating (descending) to identify bye candidate
     const sorted = [...winners].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
     
-    // Shuffle for bracket arrangement
-    const shuffled = [...sorted].sort(() => Math.random() - 0.5);
+    let playersToMatch = sorted;
+    let byePlayer: any = null;
+    
+    // If odd number, highest ELO gets bye to next round
+    if (sorted.length % 2 === 1) {
+      byePlayer = sorted[0]; // Highest ELO among remaining
+      playersToMatch = sorted.slice(1); // Exclude bye player from pairings
+      console.log(`🏆 Elimination round with odd players (${sorted.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+    }
+    
+    // Shuffle the remaining players for bracket arrangement
+    const shuffled = playersToMatch.sort(() => Math.random() - 0.5);
 
     for (let i = 0; i < shuffled.length - 1; i += 2) {
       // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id
@@ -415,11 +437,8 @@ function generateEliminationMatches(
       });
     }
 
-    // If odd number of players, highest ELO gets bye to next round
-    if (shuffled.length % 2 === 1) {
-      const byePlayer = sorted[0]; // Highest ELO among remaining
-      console.log(`🏆 Elimination round with odd players (${shuffled.length}). ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
-      
+    // If there's a bye player, add them to the matches
+    if (byePlayer) {
       matches.push({
         tournament_id: tournamentId,
         round_id: roundId,
@@ -718,8 +737,21 @@ function generateLeagueMatches(
     return matches;
   }
 
-  // Generate new random pairings for each round
-  const shuffled = [...participants].sort(() => Math.random() - 0.5);
+  // Sort by ELO rating (descending) to identify bye candidate
+  const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
+  
+  let playersToMatch = sorted;
+  let byePlayer: any = null;
+  
+  // If odd number, highest ELO gets bye
+  if (sorted.length % 2 === 1) {
+    byePlayer = sorted[0];
+    playersToMatch = sorted.slice(1); // Exclude bye player from pairings
+    console.log(`🎯 League Round: ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+  }
+  
+  // Shuffle the remaining players for pairings
+  const shuffled = playersToMatch.sort(() => Math.random() - 0.5);
   
   for (let i = 0; i < shuffled.length - 1; i += 2) {
     // ARCHITECTURE NOTE (Option B): In team mode, player_id1/2 columns store team_id
@@ -731,11 +763,8 @@ function generateLeagueMatches(
     });
   }
 
-  // If odd number, highest ELO gets bye
-  if (shuffled.length % 2 === 1) {
-    const sorted = [...participants].sort((a, b) => (b.elo_rating || 0) - (a.elo_rating || 0));
-    const byePlayer = sorted[0];
-    console.log(`🎯 League Round: ${tournamentMode === 'team' ? 'Team' : 'Player'} ${byePlayer.user_id} (ELO: ${byePlayer.elo_rating}) advances automatically (BYE)`);
+  // If there's a bye player, add them to the matches
+  if (byePlayer) {
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
