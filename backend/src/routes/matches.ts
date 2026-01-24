@@ -888,13 +888,13 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
              map = $4,
              winner_faction = $5,
              loser_faction = $6,
-             winner_comment = $7,
+             winner_comments = $7,
              winner_rating = $8,
              replay_file_path = $9,
              played_at = CURRENT_TIMESTAMP, 
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $10`,
-        [matchId || null, finalWinnerId, finalLoserId, map, winner_faction || null, loser_faction || null, comments || null, rating || null, replayPath || null, tournament_match_id]
+        [matchId || null, finalWinnerId, finalLoserId, map, winner_faction || null, loser_faction || null, comments || null, rating ? parseInt(rating) : null, replayPath || null, tournament_match_id]
       );
       console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
 
@@ -1013,7 +1013,8 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     res.status(201).json({ id: matchId });
   } catch (error) {
     console.error('Match report error:', error);
-    res.status(500).json({ error: 'Failed to report match' });
+    const errorDetails = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: 'Failed to report match', details: errorDetails });
   }
 });
 
