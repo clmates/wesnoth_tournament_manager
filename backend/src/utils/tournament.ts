@@ -558,7 +558,7 @@ async function generateSwissMatches(
       console.log(`  ${label} ${p.user_id}: ${p.tournament_wins}-${p.tournament_losses} (OMP:${p.omp} GWP:${p.gwp} OGP:${p.ogp} ELO:${p.elo_rating})`);
     });
 
-    // Group by score
+    // Group by score and sort within each group by tiebreakers
     const scoreGroups: { [key: string]: any[] } = {};
     standings.forEach(player => {
       const score = (player.tournament_wins - player.tournament_losses).toString();
@@ -566,6 +566,20 @@ async function generateSwissMatches(
         scoreGroups[score] = [];
       }
       scoreGroups[score].push(player);
+    });
+
+    // Sort players within each score group by tiebreakers (OMP, GWP, OGP, ELO)
+    Object.keys(scoreGroups).forEach(score => {
+      scoreGroups[score].sort((a, b) => {
+        // Compare OMP (higher is better)
+        if (a.omp !== b.omp) return (b.omp || 0) - (a.omp || 0);
+        // Compare GWP (higher is better)
+        if (a.gwp !== b.gwp) return (b.gwp || 0) - (a.gwp || 0);
+        // Compare OGP (higher is better)
+        if (a.ogp !== b.ogp) return (b.ogp || 0) - (a.ogp || 0);
+        // Compare ELO (higher is better)
+        return (b.elo_rating || 0) - (a.elo_rating || 0);
+      });
     });
 
     console.log(`\n[SCORE GROUPS]:`);
@@ -589,9 +603,10 @@ async function generateSwissMatches(
 
     console.log(`\n[PREVIOUS PAIRINGS]: ${previousPairings.size} historical pairings found`);
 
-    // PHASE 1: Pair within each score group, collect unpaired players
+    // PHASE 1: Pair within each score group, reserve best if odd
     const paired = new Set<string>();
     const unpairedByScore: { [score: string]: any[] } = {};
+    const reservedByScore: { [score: string]: any } = {}; // Best player from each odd score group
     
     for (const score of Object.keys(scoreGroups).sort((a, b) => parseInt(b) - parseInt(a))) {
       const group = scoreGroups[score];
@@ -600,33 +615,50 @@ async function generateSwissMatches(
       // Get available players in this group
       const available = group.filter(p => !paired.has(p.user_id));
       
+      // If odd number of players, reserve the best one for bye (no pairing)
+      let reservedForBye: any = null;
+      let availableToMatch = available;
+      
+      if (available.length % 2 === 1 && available.length > 1) {
+        // Odd group: reserve the best player (index 0, already sorted by tiebreakers DESC) for bye
+        reservedForBye = available[0];
+        availableToMatch = available.slice(1);
+        reservedByScore[score] = reservedForBye;
+        console.log(`  🔄 Odd group of ${available.length}: reserving best player ${reservedForBye.user_id} (ELO:${reservedForBye.elo_rating})`);
+      } else if (available.length % 2 === 1 && available.length === 1) {
+        // Single player in odd group, reserve it
+        reservedForBye = available[0];
+        reservedByScore[score] = reservedForBye;
+        console.log(`  🔄 Single player group: reserving ${reservedForBye.user_id} (ELO:${reservedForBye.elo_rating})`);
+      }
+      
       // Pair as many as possible within this score group
-      for (let i = 0; i < available.length - 1; i++) {
-        if (paired.has(available[i].user_id)) continue;
+      for (let i = 0; i < availableToMatch.length - 1; i++) {
+        if (paired.has(availableToMatch[i].user_id)) continue;
 
         let paired_with = null;
 
         // Try to pair with next player without creating a re-match
-        for (let j = i + 1; j < available.length; j++) {
-          if (paired.has(available[j].user_id)) continue;
+        for (let j = i + 1; j < availableToMatch.length; j++) {
+          if (paired.has(availableToMatch[j].user_id)) continue;
 
-          const pairing_key = `${Math.min(available[i].user_id, available[j].user_id)}|${Math.max(available[i].user_id, available[j].user_id)}`;
+          const pairing_key = `${Math.min(availableToMatch[i].user_id, availableToMatch[j].user_id)}|${Math.max(availableToMatch[i].user_id, availableToMatch[j].user_id)}`;
           
           if (!previousPairings.has(pairing_key)) {
-            paired_with = available[j];
-            console.log(`  ✅ Pair ${available[i].user_id} vs ${available[j].user_id} (new pairing)`);
+            paired_with = availableToMatch[j];
+            console.log(`  ✅ Pair ${availableToMatch[i].user_id} vs ${availableToMatch[j].user_id} (new pairing)`);
             break;
           } else {
-            console.log(`  ⚠️  Avoid ${available[i].user_id} vs ${available[j].user_id} (re-match)`);
+            console.log(`  ⚠️  Avoid ${availableToMatch[i].user_id} vs ${availableToMatch[j].user_id} (re-match)`);
           }
         }
 
         // If no new pairing found, use the first available (re-match necessary)
         if (!paired_with) {
-          for (let j = i + 1; j < available.length; j++) {
-            if (!paired.has(available[j].user_id)) {
-              paired_with = available[j];
-              console.log(`  ⚠️  Pair ${available[i].user_id} vs ${available[j].user_id} (unavoidable re-match)`);
+          for (let j = i + 1; j < availableToMatch.length; j++) {
+            if (!paired.has(availableToMatch[j].user_id)) {
+              paired_with = availableToMatch[j];
+              console.log(`  ⚠️  Pair ${availableToMatch[i].user_id} vs ${availableToMatch[j].user_id} (unavoidable re-match)`);
               break;
             }
           }
@@ -636,23 +668,23 @@ async function generateSwissMatches(
           matches.push({
             tournament_id: tournamentId,
             round_id: roundId,
-            player1_id: available[i].user_id,
+            player1_id: availableToMatch[i].user_id,
             player2_id: paired_with.user_id,
           });
-          paired.add(available[i].user_id);
+          paired.add(availableToMatch[i].user_id);
           paired.add(paired_with.user_id);
         }
       }
 
-      // Collect unpaired players from this score group
-      const remainingUnpaired = available.filter(p => !paired.has(p.user_id));
+      // Collect remaining unpaired from this score group (excluding reserved)
+      const remainingUnpaired = availableToMatch.filter(p => !paired.has(p.user_id));
       if (remainingUnpaired.length > 0) {
         unpairedByScore[score] = remainingUnpaired;
         console.log(`  ⏸️  Unpaired in this group: ${remainingUnpaired.map(p => `${p.user_id}(ELO:${p.elo_rating})`).join(', ')}`);
       }
     }
 
-    // PHASE 2: Try to pair unpaired players from different score groups
+    // PHASE 2: Try to pair unpaired players from different score groups (excluding reserved)
     console.log(`\n[CROSS-GROUP PAIRING] Attempting to pair unpaired players from different score groups...`);
     const scoreList = Object.keys(unpairedByScore).sort((a, b) => parseInt(b) - parseInt(a));
     
@@ -689,13 +721,23 @@ async function generateSwissMatches(
       }
     }
 
-    // PHASE 3: Only if total player count is odd, assign bye to remaining unpaired
-    const totalUnpaired = standings.filter(p => !paired.has(p.user_id));
-    if (totalUnpaired.length > 0) {
-      if (totalUnpaired.length === 1 && standings.length % 2 === 1) {
-        // Odd total, one player left - give bye to highest ELO
-        const byePlayer = totalUnpaired[0];
-        console.log(`\n✅ FINAL BYE: ${byePlayer.user_id} (${byePlayer.tournament_wins}-${byePlayer.tournament_losses}, ELO: ${byePlayer.elo_rating}) - odd total player count`);
+    // PHASE 3: Handle reserved players - if total reserved is odd, assign bye to best, pair rest
+    const allReserved = Object.values(reservedByScore);
+    console.log(`\n[RESERVED PLAYERS ANALYSIS] Total reserved: ${allReserved.length}`);
+    
+    if (allReserved.length > 0) {
+      // Sort reserved players by tiebreakers (best first)
+      const sortedReserved = [...allReserved].sort((a, b) => {
+        if (a.omp !== b.omp) return (b.omp || 0) - (a.omp || 0);
+        if (a.gwp !== b.gwp) return (b.gwp || 0) - (a.gwp || 0);
+        if (a.ogp !== b.ogp) return (b.ogp || 0) - (a.ogp || 0);
+        return (b.elo_rating || 0) - (a.elo_rating || 0);
+      });
+
+      if (allReserved.length % 2 === 1) {
+        // Odd number of reserved: give bye to best, pair rest
+        const byePlayer = sortedReserved[0];
+        console.log(`\n✅ BYE (from reserved players): ${byePlayer.user_id} (${byePlayer.tournament_wins}-${byePlayer.tournament_losses}, ELO: ${byePlayer.elo_rating})`);
         matches.push({
           tournament_id: tournamentId,
           round_id: roundId,
@@ -704,12 +746,33 @@ async function generateSwissMatches(
           is_bye: true,
         });
         paired.add(byePlayer.user_id);
-      } else if (totalUnpaired.length > 0) {
-        // This should not happen - all even total tournaments should be fully paired
-        console.error(`❌ ERROR: ${totalUnpaired.length} unpaired players remain but tournament has even total count!`);
-        totalUnpaired.forEach(p => {
-          console.error(`  Unpaired: ${p.user_id}`);
-        });
+
+        // Pair the remaining reserved players
+        const remainingReserved = sortedReserved.slice(1);
+        for (let i = 0; i < remainingReserved.length - 1; i += 2) {
+          matches.push({
+            tournament_id: tournamentId,
+            round_id: roundId,
+            player1_id: remainingReserved[i].user_id,
+            player2_id: remainingReserved[i + 1].user_id,
+          });
+          paired.add(remainingReserved[i].user_id);
+          paired.add(remainingReserved[i + 1].user_id);
+          console.log(`  ✅ Pair reserved: ${remainingReserved[i].user_id} vs ${remainingReserved[i + 1].user_id}`);
+        }
+      } else {
+        // Even number of reserved: pair them all
+        for (let i = 0; i < sortedReserved.length; i += 2) {
+          matches.push({
+            tournament_id: tournamentId,
+            round_id: roundId,
+            player1_id: sortedReserved[i].user_id,
+            player2_id: sortedReserved[i + 1].user_id,
+          });
+          paired.add(sortedReserved[i].user_id);
+          paired.add(sortedReserved[i + 1].user_id);
+          console.log(`  ✅ Pair reserved: ${sortedReserved[i].user_id} vs ${sortedReserved[i + 1].user_id}`);
+        }
       }
     }
 
