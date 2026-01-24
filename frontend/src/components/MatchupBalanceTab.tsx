@@ -190,8 +190,8 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
     }
   }, [afterData]);
 
-  if (loading) return <div className="stats-container"><p>{t('loading')}</p></div>;
-  if (error) return <div className="stats-container error"><p>{error}</p></div>;
+  if (loading) return <div className="p-8 text-center text-gray-600 bg-gray-50 rounded-lg">{t('loading')}</div>;
+  if (error) return <div className="p-8 text-center text-red-600 bg-red-50 rounded-lg border-l-4 border-red-500">{error}</div>;
 
   const showComparison = beforeStats.length > 0 || afterStats.length > 0;
   const filteredStats = stats.filter(s => s.total_games >= minGames);
@@ -224,25 +224,25 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       });
 
     return (
-      <div className="balance-stats">
-        <h3>{t('unbalanced_matchups_comparison') || 'Unbalanced Matchups - Before & After'}</h3>
-        <p className="block-info">
+      <div className="bg-white rounded-lg p-6 shadow-md">
+        <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('unbalanced_matchups_comparison') || 'Unbalanced Matchups - Before & After'}</h3>
+        <p className="text-blue-600 text-sm mb-6 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
           {t('before_event') || 'Before'}: {beforeData ? beforeData.length : 0} {t('matches_evaluated') || 'matches'} | 
           {t('after_event') || 'After'}: {afterData ? afterData.length : 0} {t('matches_evaluated') || 'matches'}
         </p>
 
-        <div className="stats-table-container">
-          <table className="stats-table comparison-mode">
-            <thead>
+        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <table className="w-full border-collapse bg-white">
+            <thead className="bg-gray-100 border-b-2 border-gray-300">
               <tr>
-                <th>{t('map') || 'Map'}</th>
-                <th>{t('faction_1') || 'Faction 1'}</th>
-                <th>{t('vs')}</th>
-                <th>{t('faction_2') || 'Faction 2'}</th>
-                <th>{t('total_games') || 'Games'}</th>
-                <th>{t('faction_1_wins') || 'F1 Wins'}</th>
-                <th>{t('faction_2_wins') || 'F2 Wins'}</th>
-                <th>{t('imbalance') || 'Imbalance'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('map') || 'Map'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction_1') || 'Faction 1'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('vs')}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction_2') || 'Faction 2'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_1_wins') || 'F1 Wins'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_2_wins') || 'F2 Wins'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('imbalance') || 'Imbalance'}</th>
               </tr>
             </thead>
             <tbody>
@@ -250,66 +250,62 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
                 const stat = item.after || item.before;
                 if (!stat) return null;
                 return (
-                  <tr key={`${stat.map_id}-${idx}`} className="comparison-row">
-                    <td className="map-name">
-                      <div className="comparison-cell">
-                        <div className="after-value">{stat.map_name}</div>
+                  <tr key={`${stat.map_id}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-800">
+                      <div className="flex flex-col gap-1">
+                        <span>{stat.map_name}</span>
                       </div>
                     </td>
-                    <td className="faction-name faction-1">
-                      <div className="comparison-cell">
-                        <div className="after-value">{stat.faction_1_name}</div>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-semibold text-blue-700">{stat.faction_1_name}</span>
                       </div>
                     </td>
-                    <td className="vs">
-                      <div className="comparison-cell">
-                        <div className="after-value">vs</div>
+                    <td className="px-4 py-3 text-center text-gray-500 font-semibold">
+                      <div className="flex flex-col gap-1">
+                        <span>vs</span>
                       </div>
                     </td>
-                    <td className="faction-name faction-2">
-                      <div className="comparison-cell">
-                        <div className="after-value">{stat.faction_2_name}</div>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="font-semibold text-red-700">{stat.faction_2_name}</span>
                       </div>
                     </td>
-                    <td>
-                      <div className="comparison-cell">
-                        <div className="after-value">{item.after?.total_games || '-'}</div>
-                        {item.before && <div className="before-value">{item.before.total_games}</div>}
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex flex-col gap-2">
+                        <span className="font-semibold text-gray-800">{item.after?.total_games || '-'}</span>
+                        {item.before && <span className="text-xs text-gray-600">{item.before.total_games}</span>}
                       </div>
                     </td>
-                    <td>
-                      <div className="comparison-cell">
-                        <div className="after-value">{item.after?.faction_1_wins || '-'}</div>
-                        {item.before && <div className="before-value">{item.before.faction_1_wins}</div>}
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex flex-col gap-2">
+                        <span className="font-semibold text-gray-800">{item.after?.faction_1_wins || '-'}</span>
+                        {item.before && <span className="text-xs text-gray-600">{item.before.faction_1_wins}</span>}
                       </div>
                     </td>
-                    <td>
-                      <div className="comparison-cell">
-                        <div className="after-value">{item.after?.faction_2_wins || '-'}</div>
-                        {item.before && <div className="before-value">{item.before.faction_2_wins}</div>}
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex flex-col gap-2">
+                        <span className="font-semibold text-gray-800">{item.after?.faction_2_wins || '-'}</span>
+                        {item.before && <span className="text-xs text-gray-600">{item.before.faction_2_wins}</span>}
                       </div>
                     </td>
-                    <td>
-                      <div className="comparison-cell">
-                        <div className="after-value">
-                          <span className={`imbalance-badge ${
-                            (item.after?.imbalance || 0) > 10 ? 'severe' : 
-                            (item.after?.imbalance || 0) > 5 ? 'high' : 
-                            'moderate'
-                          }`}>
-                            {item.after?.imbalance.toFixed(1) || '-'}%
-                          </span>
-                        </div>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex flex-col gap-2">
+                        <span className={`px-3 py-1 rounded-lg font-semibold inline-block text-sm w-fit ${
+                          (item.after?.imbalance || 0) > 10 ? 'bg-red-100 text-red-700' : 
+                          (item.after?.imbalance || 0) > 5 ? 'bg-yellow-100 text-yellow-700' : 
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {item.after?.imbalance.toFixed(1) || '-'}%
+                        </span>
                         {item.before && (
-                          <div className="before-value">
-                            <span className={`imbalance-badge ${
-                              item.before.imbalance > 10 ? 'severe' : 
-                              item.before.imbalance > 5 ? 'high' : 
-                              'moderate'
-                            }`}>
-                              {item.before.imbalance.toFixed(1)}%
-                            </span>
-                          </div>
+                          <span className={`px-3 py-1 rounded-lg font-semibold inline-block text-xs w-fit ${
+                            item.before.imbalance > 10 ? 'bg-red-100 text-red-700' : 
+                            item.before.imbalance > 5 ? 'bg-yellow-100 text-yellow-700' : 
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {item.before.imbalance.toFixed(1)}%
+                          </span>
                         )}
                       </div>
                     </td>
@@ -325,12 +321,12 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
 
   // Default global view
   return (
-    <div className="balance-stats">
-      <h3>{t('unbalanced_matchups') || 'Unbalanced Matchups'}</h3>
-      <p className="explanation">{t('matchup_balance_explanation') || 'Analysis of specific faction matchups showing imbalance'}</p>
+    <div className="bg-white rounded-lg p-6 shadow-md">
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('unbalanced_matchups') || 'Unbalanced Matchups'}</h3>
+      <p className="text-gray-600 text-sm mb-6 pb-3 px-3 bg-blue-50 border-l-4 border-blue-500 rounded">{t('matchup_balance_explanation') || 'Analysis of specific faction matchups showing imbalance'}</p>
       
-      <div className="filter-controls">
-        <label>
+      <div className="bg-gray-100 p-4 rounded-lg mb-6 border border-gray-200 flex items-center gap-4">
+        <label className="flex items-center gap-2 font-semibold text-gray-800">
           {t('minimum_games') || 'Minimum Games'}:
           <input 
             type="number" 
@@ -338,53 +334,58 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
             max="100" 
             value={minGames}
             onChange={(e) => setMinGames(Math.max(1, parseInt(e.target.value) || 1))}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 w-24"
           />
         </label>
       </div>
 
-      <div className="stats-table-container">
-        <table className="stats-table">
-          <thead>
+      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+        <table className="w-full border-collapse bg-white">
+          <thead className="bg-gray-100 border-b-2 border-gray-300">
             <tr>
-              <th>{t('map') || 'Map'}</th>
-              <th>{t('faction_1') || 'Faction 1'}</th>
-              <th>{t('vs')}</th>
-              <th>{t('faction_2') || 'Faction 2'}</th>
-              <th>{t('total_games') || 'Games'}</th>
-              <th>{t('faction_1_wins') || 'F1 Wins'}</th>
-              <th>{t('faction_2_wins') || 'F2 Wins'}</th>
-              <th>{t('imbalance') || 'Imbalance'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('map') || 'Map'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction_1') || 'Faction 1'}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('vs')}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction_2') || 'Faction 2'}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_1_wins') || 'F1 Wins'}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_2_wins') || 'F2 Wins'}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('imbalance') || 'Imbalance'}</th>
             </tr>
           </thead>
           <tbody>
             {filteredStats.map((stat, idx) => (
-              <tr key={`${stat.map_id}-${stat.faction_1_id}-${stat.faction_2_id}-${idx}`}>
-                <td className="map-name">{stat.map_name}</td>
-                <td className="faction-name faction-1">
-                  {stat.faction_1_name}
-                  <span className="winrate-small">({stat.faction_1_winrate.toFixed(1)}%)</span>
+              <tr key={`${stat.map_id}-${stat.faction_1_id}-${stat.faction_2_id}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
+                <td className="px-4 py-3 font-semibold text-gray-800">{stat.map_name}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-blue-700">{stat.faction_1_name}</span>
+                    <span className="text-xs text-gray-600">({stat.faction_1_winrate.toFixed(1)}%)</span>
+                  </div>
                 </td>
-                <td className="vs">vs</td>
-                <td className="faction-name faction-2">
-                  {stat.faction_2_name}
-                  <span className="winrate-small">({(100 - stat.faction_1_winrate).toFixed(1)}%)</span>
+                <td className="px-4 py-3 text-center text-gray-500 font-semibold">vs</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-red-700">{stat.faction_2_name}</span>
+                    <span className="text-xs text-gray-600">({(100 - stat.faction_1_winrate).toFixed(1)}%)</span>
+                  </div>
                 </td>
-                <td>{stat.total_games}</td>
-                <td className="win-count">
-                  <span className={stat.faction_1_wins > stat.faction_2_wins ? 'higher' : ''}>
+                <td className="px-4 py-3 text-center text-gray-700">{stat.total_games}</td>
+                <td className="px-4 py-3 text-center font-semibold">
+                  <span className={stat.faction_1_wins > stat.faction_2_wins ? 'text-green-700' : 'text-gray-700'}>
                     {stat.faction_1_wins}
                   </span>
                 </td>
-                <td className="win-count">
-                  <span className={stat.faction_2_wins > stat.faction_1_wins ? 'higher' : ''}>
+                <td className="px-4 py-3 text-center font-semibold">
+                  <span className={stat.faction_2_wins > stat.faction_1_wins ? 'text-green-700' : 'text-gray-700'}>
                     {stat.faction_2_wins}
                   </span>
                 </td>
-                <td>
-                  <span className={`imbalance-badge ${
-                    stat.imbalance > 10 ? 'severe' : 
-                    stat.imbalance > 5 ? 'high' : 
-                    'moderate'
+                <td className="px-4 py-3 text-center">
+                  <span className={`px-3 py-1 rounded-lg font-semibold inline-block text-sm ${
+                    stat.imbalance > 10 ? 'bg-red-100 text-red-700' : 
+                    stat.imbalance > 5 ? 'bg-yellow-100 text-yellow-700' : 
+                    'bg-blue-100 text-blue-700'
                   }`}>
                     {stat.total_games > 0 ? ((stat.imbalance / stat.total_games) * 100).toFixed(1) : stat.imbalance.toFixed(1)}%
                   </span>
@@ -396,7 +397,7 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       </div>
 
       {!showComparison && stats.length === 0 && (
-        <p className="no-data">{t('no_data_available') || 'No data available for the selected criteria'}</p>
+        <p className="text-center text-gray-500 italic py-8 bg-gray-50 rounded-lg mt-4">{t('no_data_available') || 'No data available for the selected criteria'}</p>
       )}
     </div>
   );

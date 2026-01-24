@@ -131,8 +131,8 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
       })).sort((a, b) => b.total_games - a.total_games);
   };
 
-  if (loading) return <div className="stats-container"><p>{t('loading')}</p></div>;
-  if (error) return <div className="stats-container error"><p>{error}</p></div>;
+  if (loading) return <div className="p-8 text-center text-gray-600 bg-gray-50 rounded-lg">{t('loading')}</div>;
+  if (error) return <div className="p-8 text-center text-red-600 bg-red-50 rounded-lg border-l-4 border-red-500">{error}</div>;
 
   // If in comparison mode
   if (beforeData && afterData) {
@@ -167,77 +167,78 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
       });
 
     return (
-      <div className="balance-stats">
-        <h3>{t('faction_balance_comparison') || 'Faction Balance - Before & After'}</h3>
-        <p className="block-info">
+      <div className="bg-white rounded-lg p-6 shadow-md">
+        <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('faction_balance_comparison') || 'Faction Balance - Before & After'}</h3>
+        <p className="text-blue-600 text-sm mb-6 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
           {t('before_event') || 'Before'}: {beforeData ? beforeData.length : 0} {t('matches_evaluated') || 'matches'} | 
           {t('after_event') || 'After'}: {afterData ? afterData.length : 0} {t('matches_evaluated') || 'matches'}
         </p>
-        <div className="stats-table-container">
-          <table className="stats-table comparison-mode">
-            <thead>
+        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <table className="w-full border-collapse bg-white">
+            <thead className="bg-gray-100 border-b-2 border-gray-300">
               <tr>
-                <th>{t('faction') || 'Faction'}</th>
-                <th>{t('total_games') || 'Games'}</th>
-                <th>{t('winrate') || 'Win Rate'}</th>
-                <th>{t('maps_played') || 'Maps'}</th>
-                <th>{t('balance_indicator') || 'Balance'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction') || 'Faction'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('winrate') || 'Win Rate'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('maps_played') || 'Maps'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('balance_indicator') || 'Balance'}</th>
               </tr>
             </thead>
             <tbody>
               {combined.map((item) => (
-                <tr key={item.faction_id} className="comparison-row">
-                  <td className="faction-name">
-                    <div className="comparison-cell">
-                      <div className="after-value">{item.faction_name}</div>
+                <tr key={item.faction_id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="px-4 py-3 font-semibold text-gray-800">
+                    <div className="flex flex-col gap-1">
+                      <span>{item.faction_name}</span>
+                      {item.before && <span className="text-xs text-gray-500">(before)</span>}
                     </div>
                   </td>
-                  <td>
-                    <div className="comparison-cell">
-                      <div className="after-value">{item.after?.total_games || '-'}</div>
-                      {item.before && <div className="before-value">{item.before.total_games}</div>}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <span className="font-semibold text-gray-800">{item.after?.total_games || '-'}</span>
+                      {item.before && <span className="text-xs text-gray-600">{item.before.total_games}</span>}
                     </div>
                   </td>
-                  <td>
-                    <div className="comparison-cell">
-                      <div className="after-value">
-                        <span className={`winrate ${getWinrateColorClass(item.after?.winrate || 50)}`}>
-                          {item.after?.winrate.toFixed(1) || '-'}%
-                        </span>
-                      </div>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <span className={`px-3 py-1 rounded-lg font-semibold inline-block w-fit ${
+                        item.after && item.after.winrate > 55 ? 'bg-green-100 text-green-700' : 
+                        item.after && item.after.winrate < 45 ? 'bg-red-100 text-red-700' : 
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {item.after?.winrate.toFixed(1) || '-'}%
+                      </span>
                       {item.before && (
-                        <div className="before-value">
-                          <span className={`winrate ${getWinrateColorClass(item.before.winrate)}`}>
-                            {item.before.winrate.toFixed(1)}%
-                          </span>
-                        </div>
+                        <span className={`px-3 py-1 rounded-lg font-semibold inline-block w-fit text-xs ${
+                          item.before.winrate > 55 ? 'bg-green-100 text-green-700' : 
+                          item.before.winrate < 45 ? 'bg-red-100 text-red-700' : 
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {item.before.winrate.toFixed(1)}%
+                        </span>
                       )}
                     </div>
                   </td>
-                  <td>
-                    <div className="comparison-cell">
-                      <div className="after-value">{item.after?.maps_played || '-'}</div>
-                      {item.before && <div className="before-value">{item.before.maps_played}</div>}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <span className="font-semibold text-gray-800">{item.after?.maps_played || '-'}</span>
+                      {item.before && <span className="text-xs text-gray-600">{item.before.maps_played}</span>}
                     </div>
                   </td>
-                  <td>
-                    <div className="comparison-cell">
-                      <div className="after-value">
-                        <div className="balance-bar">
-                          <div 
-                            className="balance-fill"
-                            style={{ width: `${item.after?.winrate || 50}%` }}
-                          ></div>
-                        </div>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <div className="w-24 h-6 bg-gray-200 rounded-lg overflow-hidden border border-gray-300">
+                        <div 
+                          className="h-full bg-blue-500 transition-all duration-300"
+                          style={{ width: `${item.after?.winrate || 50}%` }}
+                        ></div>
                       </div>
                       {item.before && (
-                        <div className="before-value">
-                          <div className="balance-bar">
-                            <div 
-                              className="balance-fill"
-                              style={{ width: `${item.before.winrate}%` }}
-                            ></div>
-                          </div>
+                        <div className="w-24 h-6 bg-gray-200 rounded-lg overflow-hidden border border-gray-300">
+                          <div 
+                            className="h-full bg-gray-400 transition-all duration-300"
+                            style={{ width: `${item.before.winrate}%` }}
+                          ></div>
                         </div>
                       )}
                     </div>
@@ -253,39 +254,39 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
 
   // Default global view
   return (
-    <div className="balance-stats">
-      <h3>{t('faction_balance_title') || 'Global Faction Balance'}</h3>
-      <p className="explanation">{t('faction_balance_explanation') || 'Detailed analysis of faction balance across all tournaments'}</p>
-      <div className="stats-table-container">
-        <table className="stats-table">
-          <thead>
+    <div className="bg-white rounded-lg p-6 shadow-md">
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('faction_balance_title') || 'Global Faction Balance'}</h3>
+      <p className="text-gray-600 text-sm mb-6 pb-3 px-3 bg-blue-50 border-l-4 border-blue-500 rounded">{t('faction_balance_explanation') || 'Detailed analysis of faction balance across all tournaments'}</p>
+      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+        <table className="w-full border-collapse bg-white">
+          <thead className="bg-gray-100 border-b-2 border-gray-300">
             <tr>
-              <th>{t('faction') || 'Faction'}</th>
-              <th>{t('total_games') || 'Games'}</th>
-              <th>{t('winrate') || 'Win Rate'}</th>
-              <th>{t('maps_played') || 'Maps'}</th>
-              <th>{t('balance_indicator') || 'Balance'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction') || 'Faction'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('winrate') || 'Win Rate'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('maps_played') || 'Maps'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('balance_indicator') || 'Balance'}</th>
             </tr>
           </thead>
           <tbody>
             {stats.map((stat) => (
-              <tr key={stat.faction_id}>
-                <td className="faction-name">{stat.faction_name}</td>
-                <td>{stat.total_games}</td>
-                <td>
-                  <span className={`winrate ${
-                    stat.global_winrate > 55 ? 'high' : 
-                    stat.global_winrate < 45 ? 'low' : 
-                    'balanced'
+              <tr key={stat.faction_id} className="border-b border-gray-200 hover:bg-gray-50">
+                <td className="px-4 py-3 font-semibold text-gray-800">{stat.faction_name}</td>
+                <td className="px-4 py-3 text-gray-700">{stat.total_games}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-3 py-1 rounded-lg font-semibold inline-block min-w-fit ${
+                    stat.global_winrate > 55 ? 'bg-green-100 text-green-700' : 
+                    stat.global_winrate < 45 ? 'bg-red-100 text-red-700' : 
+                    'bg-blue-100 text-blue-700'
                   }`}>
                     {stat.global_winrate.toFixed(1)}%
                   </span>
                 </td>
-                <td>{stat.maps_played}</td>
-                <td>
-                  <div className="balance-bar">
+                <td className="px-4 py-3 text-gray-700">{stat.maps_played}</td>
+                <td className="px-4 py-3">
+                  <div className="w-full h-6 bg-gray-200 rounded-lg overflow-hidden border border-gray-300">
                     <div 
-                      className="balance-fill"
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300"
                       style={{ width: `${stat.global_winrate}%` }}
                     ></div>
                   </div>

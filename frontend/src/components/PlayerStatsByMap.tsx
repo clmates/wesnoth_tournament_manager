@@ -73,21 +73,21 @@ const PlayerStatsByMap: React.FC<Props> = ({ playerId }) => {
         <p className="text-center text-gray-500 italic py-8">{t('no_data')}</p>
       ) : (
         <div className="bg-white rounded-lg shadow-md overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
+          <table className="w-full border-collapse bg-white">
+            <thead className="bg-gray-100 border-b-2 border-gray-300">
               <tr>
-                <th>{t('map') || 'Map'}</th>
-                <th>{t('total_games') || 'Games'}</th>
-                <th>{t('record') || 'Record'}</th>
-                <th>{t('winrate') || 'Win Rate'}</th>
-                <th>{t('avg_elo_change') || 'Avg ELO'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('map') || 'Map'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-700">{t('total_games') || 'Games'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-700">{t('record') || 'Record'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-700">{t('winrate') || 'Win Rate'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-700">{t('avg_elo_change') || 'Avg ELO'}</th>
               </tr>
             </thead>
             <tbody>
               {stats.map((stat) => (
-                <tr key={stat.map_id}>
+                <tr key={stat.map_id} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="px-4 py-3 font-semibold text-gray-700">{stat.map_name}</td>
-                  <td>{stat.total_games}</td>
+                  <td className="px-4 py-3 text-center">{stat.total_games}</td>
                   <td>
                     <span className="flex gap-3 justify-center">
                       <span className="text-green-600 font-semibold">{stat.wins}W</span>

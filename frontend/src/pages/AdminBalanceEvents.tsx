@@ -273,7 +273,7 @@ const AdminBalanceEvents: React.FC = () => {
       {/* Modal for Create/Edit Form */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleCloseModal}>
-          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-96 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-gray-100 px-6 py-4 border-b border-gray-300 flex justify-between items-center">
               <h2 className="text-xl font-semibold text-gray-800">{editingEventId ? t('edit_balance_event') || 'Edit Balance Event' : t('create_balance_event') || 'Create Balance Event'}</h2>
               <button onClick={handleCloseModal} className="text-2xl text-gray-600 hover:text-gray-800">✕</button>
