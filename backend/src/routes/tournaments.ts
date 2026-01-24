@@ -3024,11 +3024,11 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
       const winnerId = match.winner_id;
       const loserId = match.loser_id;
 
-      // Revert winner stats: -1 win, -3 points
+      // Revert winner stats: -1 win, -1 point (no draws in unranked tournaments)
       await query(
         `UPDATE tournament_participants 
          SET tournament_wins = tournament_wins - 1,
-             tournament_points = tournament_points - 3
+             tournament_points = tournament_points - 1
          WHERE tournament_id = $1 AND player_id = $2`,
         [tournamentId, winnerId]
       );
