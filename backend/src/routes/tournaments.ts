@@ -3041,11 +3041,20 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
         [tournamentId, loserId]
       );
 
-      // Reset match to pending
+      // Reset match to pending - clear all match result fields as if it was never played
       await query(
         `UPDATE tournament_matches 
          SET match_status = 'pending',
-             status = 'confirmed',
+             status = 'unconfirmed',
+             winner_id = NULL,
+             loser_id = NULL,
+             winner_faction = NULL,
+             loser_faction = NULL,
+             map = NULL,
+             winner_comment = NULL,
+             winner_rating = NULL,
+             replay = NULL,
+             played_at = NULL,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
         [matchId]
