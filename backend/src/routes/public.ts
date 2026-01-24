@@ -916,3 +916,4 @@ router.post('/tournament-matches/:matchId/replay/download-count', async (req, re
   }
 });
 
+export default router;
