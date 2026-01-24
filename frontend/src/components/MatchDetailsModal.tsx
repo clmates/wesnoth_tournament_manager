@@ -5,9 +5,10 @@ interface MatchDetailsModalProps {
   match: any;
   isOpen: boolean;
   onClose: () => void;
+  onDownloadReplay?: (matchId: string, replayFilePath: string) => void;
 }
 
-const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, onClose }) => {
+const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, onClose, onDownloadReplay }) => {
   if (!isOpen || !match) {
     return null;
   }
@@ -120,7 +121,9 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
                         <button 
                           className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-colors"
                           onClick={() => {
-                            onClose();
+                            if (onDownloadReplay && (match.id || match.match_id)) {
+                              onDownloadReplay(match.id || match.match_id, match.replay_file_path);
+                            }
                           }}
                           title={`Downloads: ${match.replay_downloads || 0}`}
                         >

@@ -1700,7 +1700,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         </div>
       )}
 
-      <MatchDetailsModal match={matchDetailsModal.match} isOpen={matchDetailsModal.isOpen} onClose={() => setMatchDetailsModal({ isOpen: false, match: null })} />
+      <MatchDetailsModal match={matchDetailsModal.match} isOpen={matchDetailsModal.isOpen} onClose={() => setMatchDetailsModal({ isOpen: false, match: null })} onDownloadReplay={handleDownloadReplay} />
 
       {/* Delete Tournament Confirmation Modal */}
       {showDeleteConfirmModal && (

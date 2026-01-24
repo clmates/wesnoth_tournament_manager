@@ -396,6 +396,7 @@ const MyMatches: React.FC = () => {
           match={matchDetailsModal.match}
           isOpen={matchDetailsModal.isOpen}
           onClose={closeMatchDetails}
+          onDownloadReplay={handleDownloadReplay}
         />
 
         {/* Match Confirmation Modal */}
