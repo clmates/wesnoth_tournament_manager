@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import StarRating from './StarRating';
 
 interface MatchConfirmationModalProps {
   match: any;
@@ -117,21 +118,11 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
 
             <div className="mt-6">
               <div>
-                <label htmlFor="rating" className="block font-semibold text-gray-700 mb-2">Rate opponent's performance:</label>
-                <select
-                  id="rating"
-                  name="rating"
+                <label className="block font-semibold text-gray-700 mb-2">Rate opponent's performance:</label>
+                <StarRating
                   value={formData.rating}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800"
-                >
-                  <option value="">No rating</option>
-                  <option value="1">1 - Poor</option>
-                  <option value="2">2 - Fair</option>
-                  <option value="3">3 - Good</option>
-                  <option value="4">4 - Very Good</option>
-                  <option value="5">5 - Excellent</option>
-                </select>
+                  onChange={(value) => setFormData((prev) => ({ ...prev, rating: value }))}
+                />
               </div>
 
               <div className="mt-4">

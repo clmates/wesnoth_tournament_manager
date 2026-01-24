@@ -1,4 +1,5 @@
 import React from 'react';
+import StarDisplay from './StarDisplay';
 
 interface MatchDetailsModalProps {
   match: any;
@@ -74,8 +75,8 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
 
                   <tr className="border-b border-gray-200 hover:bg-gray-50">
                     <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Rating</td>
-                    <td className="px-4 py-3 text-center text-gray-800">{match.winner_rating || '-'}</td>
-                    <td className="px-4 py-3 text-center text-gray-800">{match.loser_rating || '-'}</td>
+                    <td className="px-4 py-3 text-center text-gray-800"><StarDisplay rating={match.winner_rating} size="md" /></td>
+                    <td className="px-4 py-3 text-center text-gray-800"><StarDisplay rating={match.loser_rating} size="md" /></td>
                   </tr>
 
                   <tr className="border-b border-gray-200 hover:bg-gray-50">

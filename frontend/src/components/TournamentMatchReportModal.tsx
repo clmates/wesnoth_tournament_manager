@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { matchService, api } from '../services/api';
 import { parseReplayFile, getMapFromReplay, getPlayerFactionFromReplay } from '../services/replayParser';
 import FileUploadInput from './FileUploadInput';
+import StarRating from './StarRating';
 
 interface TournamentMatchReportProps {
   tournamentMatchId: string;
@@ -440,21 +441,11 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
             </div>
 
             <div>
-              <label htmlFor="rating" className="block font-semibold text-gray-700 mb-2">{t('report.rate_opponent')}</label>
-              <select
-                id="rating"
-                name="rating"
+              <label className="block font-semibold text-gray-700 mb-2">{t('report.rate_opponent')}</label>
+              <StarRating
                 value={formData.rating}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800"
-              >
-                <option value="">{t('report.rating_no')}</option>
-                <option value="1">1 - {t('report.rating_1')}</option>
-                <option value="2">2 - {t('report.rating_2')}</option>
-                <option value="3">3 - {t('report.rating_3')}</option>
-                <option value="4">4 - {t('report.rating_4')}</option>
-                <option value="5">5 - {t('report.rating_5')}</option>
-              </select>
+                onChange={(value) => setFormData((prev) => ({ ...prev, rating: value }))}
+              />
             </div>
 
             <div className="flex gap-4 mt-6">
