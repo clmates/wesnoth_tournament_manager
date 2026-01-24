@@ -228,6 +228,7 @@ router.get('/tournaments/:id/participants', async (req, res) => {
 router.get('/tournaments/:id/matches', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('🔍 [MATCHES-START] Fetching matches for tournament:', id);
     
     // Get tournament mode
     const tournamentModeResult = await query(
@@ -240,6 +241,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
     }
 
     const tournamentMode = tournamentModeResult.rows[0].tournament_mode || 'ranked';
+    console.log('🔍 [MATCHES] Detected tournament_mode:', tournamentMode);
 
     let selectClause, joinClause;
 
@@ -312,7 +314,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tm.winner_rating,
         tm.loser_rating,
         tm.replay_file_path,
-        COALESCE(tm.replay_downloads, 0) as replay_downloads,
+        tm.replay_downloads,
         tm.organizer_action
       `;
       joinClause = `
@@ -373,7 +375,12 @@ router.get('/tournaments/:id/matches', async (req, res) => {
       ORDER BY tr.round_number ASC, tm.created_at ASC
     `, [id]);
 
-    console.log('📊 [MATCHES] Tournament mode:', tournamentMode);
+    console.log('� [MATCHES] Query returned', result.rows.length, 'rows');
+    if (result.rows.length > 0) {
+      console.log('🔍 [MATCHES] First row:', JSON.stringify(result.rows[0], null, 2));
+    }
+
+    console.log('�📊 [MATCHES] Tournament mode:', tournamentMode);
     console.log('📊 [MATCHES] SQL Query:', `SELECT ${selectClause} ${joinClause} WHERE tm.tournament_id = $1`);
     
     res.json(result.rows);
