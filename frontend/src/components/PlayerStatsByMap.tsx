@@ -103,7 +103,7 @@ const PlayerStatsByMap: React.FC<Props> = ({ playerId }) => {
                       {stat.winrate.toFixed(1)}%
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center font-semibold ${stat.avg_elo_change > 0 ? 'text-green-600' : stat.avg_elo_change < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                  <td className={`px-4 py-3 text-center font-semibold ${stat.avg_elo_change > 0 ? 'text-green-600' : stat.avg_elo_change < 0 ? 'text-red-600' : 'text-gray-600'}`}>
                     {stat.avg_elo_change > 0 ? '+' : ''}{stat.avg_elo_change.toFixed(1)}
                   </td>
                 </tr>
