@@ -394,7 +394,7 @@ const handleConfirmDelete = async () => {
   }
 };
 
-const handleDownloadReplay = async (matchId: string | null, replayFilePath: string | null | undefined) => {
+const handleDownloadReplay = async (matchId: string | null, replayFilePath: string | null | undefined, tournamentMatchId?: string) => {
   try {
     if (!replayFilePath) return;
     const filename = replayFilePath.split('/').pop() || `replay_${matchId || 'tournament'}`;
@@ -413,6 +413,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       }
       data = await response.json();
       signedUrl = data.signedUrl;
+      
+      // Increment download count for ranked
+      try {
+        await fetch(`${API_URL}/matches/${matchId}/replay/download-count`, { method: 'POST' });
+      } catch (e) {
+        console.error('Failed to increment download count:', e);
+      }
     } else {
       // For unranked/team tournaments (no match_id), generate signed URL for direct path
       console.log('Requesting signed URL for unranked replay:', replayFilePath);
@@ -425,6 +432,15 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       }
       data = await response.json();
       signedUrl = data.signedUrl;
+      
+      // Increment download count for unranked/team
+      if (tournamentMatchId) {
+        try {
+          await fetch(`${API_URL}/public/tournament-matches/${tournamentMatchId}/replay/download-count`, { method: 'POST' });
+        } catch (e) {
+          console.error('Failed to increment tournament download count:', e);
+        }
+      }
     }
     
     // Download using the signed URL
@@ -1358,7 +1374,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         {match.replay_file_path ? (
                                           <button
                                             className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
-                                            onClick={() => handleDownloadReplay(match.match_id, match.replay_file_path)}
+                                            onClick={() => handleDownloadReplay(match.match_id, match.replay_file_path, match.id)}
                                             title={`${t('downloads')}: ${match.replay_downloads || 0}`}
                                           >
                                             ⬇️
