@@ -1349,8 +1349,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           // Use match_status_from_matches from the matches table (confirmed, disputed, unconfirmed, cancelled)
                           const confirmationStatus = isAdminDetermined ? 'admin' : (match.match_status_from_matches || 'unconfirmed');
                           
-                          // Check if next round has been started (only for unranked tournaments)
-                          const nextRound = tournament?.tournament_mode === 'unranked' 
+                          // Check if next round has been started (for unranked and team tournaments)
+                          const nextRound = ['unranked', 'team'].includes(tournament?.tournament_mode) 
                             ? rounds.find(r => r.round_number === (match.round_number || 0) + 1)
                             : null;
                           const nextRoundStarted = nextRound && nextRound.round_status !== 'pending';
