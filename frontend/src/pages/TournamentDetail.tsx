@@ -1256,8 +1256,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               <td className="px-4 py-3 text-gray-700">{t('label_round')} {match.round_number}</td>
                               <td className="px-4 py-3 text-gray-700">
                                 <div className="flex flex-col gap-1">
-                                  <div>
+                                  <div className="flex items-center gap-2">
                                     <strong className="text-green-600">{match.is_team_mode ? match.winner_nickname : <PlayerLink nickname={match.winner_nickname || '-'} userId={winnerId} />}</strong>
+                                    <StarDisplay rating={match.winner_rating} size="sm" />
                                   </div>
                                   {match.winner_comments && (
                                     <div className="text-xs text-gray-600 italic">
@@ -1268,8 +1269,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               </td>
                               <td className="px-4 py-3 text-gray-700">
                                 <div className="flex flex-col gap-1">
-                                  <div>
+                                  <div className="flex items-center gap-2">
                                     <strong className="text-red-600">{match.is_team_mode ? loserNickname : <PlayerLink nickname={loserNickname} userId={loserId} />}</strong>
+                                    <StarDisplay rating={match.loser_rating} size="sm" />
                                   </div>
                                   {match.loser_comments && (
                                     <div className="text-xs text-gray-600 italic">
@@ -1443,9 +1445,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         {matchesInRound.map((match) => (
                           <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                             <td className="px-4 py-3 text-gray-700">
-                              <div className="flex items-center gap-2">
+                              <div>
                                 <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
-                                <StarDisplay rating={match.player1_rating} size="sm" />
                               </div>
                               {(match as any).player1_wins !== undefined && (
                                 <span className="text-gray-600 text-sm">
@@ -1455,9 +1456,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             </td>
                             <td className="px-4 py-3 text-gray-700">vs</td>
                             <td className="px-4 py-3 text-gray-700">
-                              <div className="flex items-center gap-2">
+                              <div>
                                 <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
-                                <StarDisplay rating={match.player2_rating} size="sm" />
                               </div>
                               {(match as any).player2_wins !== undefined && (
                                 <span className="text-gray-600 text-sm">
@@ -1467,15 +1467,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             </td>
                             <td className="px-4 py-3 text-gray-700">
                               {match.winner_id === match.player1_id ? (
-                                <div className="flex items-center gap-2">
-                                  <strong className="text-green-600">{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
-                                  <StarDisplay rating={match.player1_rating} size="sm" />
-                                </div>
+                                <strong className="text-green-600">{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
                               ) : match.winner_id === match.player2_id ? (
-                                <div className="flex items-center gap-2">
-                                  <strong className="text-green-600">{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
-                                  <StarDisplay rating={match.player2_rating} size="sm" />
-                                </div>
+                                <strong className="text-green-600">{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )}
