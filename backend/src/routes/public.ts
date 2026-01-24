@@ -890,5 +890,29 @@ router.get('/replay/download-url', async (req, res) => {
   }
 });
 
-export default router;
+// Increment replay download count for tournament matches
+// PUBLIC endpoint that increments the counter for unranked/team tournament replays
+router.post('/tournament-matches/:matchId/replay/download-count', async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    console.log('📊 [TOURNAMENT-COUNTER] Incrementing download count for tournament match:', matchId);
+
+    // Increment the download count in tournament_matches
+    const result = await query(
+      'UPDATE tournament_matches SET replay_downloads = COALESCE(replay_downloads, 0) + 1 WHERE id = $1 RETURNING replay_downloads',
+      [matchId]
+    );
+
+    if (result.rows.length === 0) {
+      console.warn('📊 [TOURNAMENT-COUNTER] Tournament match not found:', matchId);
+      return res.status(404).json({ error: 'Tournament match not found' });
+    }
+
+    console.log('✅ [TOURNAMENT-COUNTER] Download count updated to:', result.rows[0].replay_downloads);
+    res.json({ replay_downloads: result.rows[0].replay_downloads });
+  } catch (error) {
+    console.error('❌ [TOURNAMENT-COUNTER] Error incrementing replay downloads:', error);
+    res.status(500).json({ error: 'Failed to increment download count' });
+  }
+});
 

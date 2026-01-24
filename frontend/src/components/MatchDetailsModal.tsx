@@ -5,7 +5,7 @@ interface MatchDetailsModalProps {
   match: any;
   isOpen: boolean;
   onClose: () => void;
-  onDownloadReplay?: (matchId: string, replayFilePath: string) => void;
+  onDownloadReplay?: (matchId: string | null, replayFilePath: string, tournamentMatchId?: string) => void;
 }
 
 const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, onClose, onDownloadReplay }) => {
@@ -122,7 +122,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
                           className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-colors"
                           onClick={() => {
                             if (onDownloadReplay && (match.id || match.match_id)) {
-                              onDownloadReplay(match.id || match.match_id, match.replay_file_path);
+                              onDownloadReplay(match.match_id || null, match.replay_file_path, match.id);
                             }
                           }}
                           title={`Downloads: ${match.replay_downloads || 0}`}
