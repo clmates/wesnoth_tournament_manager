@@ -1793,14 +1793,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
               <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray-800">{t('manage_dispute') || 'Manage Dispute'}</h2>
+                <h2 className="text-xl font-bold text-gray-800">Manage Dispute</h2>
               </div>
               <div className="mb-6">
                 <p className="text-gray-700 mb-4">
                   {`Round ${disputeManagementModal.match.round_number}: ${disputeManagementModal.match.winner_nickname || '-'} vs ${disputeManagementModal.match.loser_nickname || '-'}`}
                 </p>
                 <p className="text-gray-600 text-sm">
-                  {t('confirm_dispute_will_revert') || 'Confirming the dispute will revert the match to pending and reset both players\' stats.'}
+                  Confirming the dispute will revert the match to pending and reset both players' stats.
                 </p>
               </div>
               <div className="flex gap-3 justify-end">
