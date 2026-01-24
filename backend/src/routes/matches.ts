@@ -633,32 +633,32 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     // For unranked tournaments, also don't store matches (they don't count toward global ranking)
     // Only RANKED tournaments store matches in the matches table
     let matchId: string | null = null;
+    let replayPath: string | null = null;
+
+    // Upload replay to Supabase if file exists (for ranked/unranked only, not team)
+    if ((tournamentMode === 'ranked' || tournamentMode === 'unranked') && req.file) {
+      try {
+        console.log('📤 [UPLOAD] Starting Supabase upload...');
+        const fileBuffer = req.file.buffer;
+        if (!fileBuffer) {
+          throw new Error('Uploaded file buffer is missing');
+        }
+        console.log('📤 [UPLOAD] File buffer size:', fileBuffer.length, 'bytes');
+        
+        // Generate filename using the original filename's extension
+        const ext = path.extname(req.file.originalname) || '.gz';
+        const filename = `replay_${Date.now()}${ext}`;
+        
+        const uploadResult = await uploadReplayToSupabase(filename, fileBuffer);
+        replayPath = uploadResult.path;
+        console.log('✅ [UPLOAD] Replay uploaded to Supabase:', replayPath);
+      } catch (uploadError) {
+        console.error('❌ [UPLOAD] Error uploading to Supabase:', uploadError);
+        // Don't fail the entire request if upload fails - we can retry later
+      }
+    }
 
     if (tournamentMode === 'ranked') {
-      // Upload replay to Supabase if file exists (for ranked/unranked only)
-      let replayPath = null;
-      if (req.file) {
-        try {
-          console.log('📤 [UPLOAD] Starting Supabase upload...');
-          const fileBuffer = req.file.buffer;
-          if (!fileBuffer) {
-            throw new Error('Uploaded file buffer is missing');
-          }
-          console.log('📤 [UPLOAD] File buffer size:', fileBuffer.length, 'bytes');
-          
-          // Generate filename using the original filename's extension
-          const ext = path.extname(req.file.originalname) || '.gz';
-          const filename = `replay_${Date.now()}${ext}`;
-          
-          const uploadResult = await uploadReplayToSupabase(filename, fileBuffer);
-          replayPath = uploadResult.path;
-          console.log('✅ [UPLOAD] Replay uploaded to Supabase:', replayPath);
-        } catch (uploadError) {
-          console.error('❌ [UPLOAD] Error uploading to Supabase:', uploadError);
-          // Don't fail the entire request if upload fails - we can retry later
-        }
-      }
-      
       // Insert match with ranking positions and tournament_mode (only for ranked/unranked)
       const matchResult = await query(
         `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, loser_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, winner_ranking_pos, loser_ranking_pos)
@@ -688,7 +688,9 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
 
       matchId = matchResult.rows[0].id;
       console.log('📤 [MATCH] Match created with ID:', matchId);
-      console.log('✅ [UPLOAD] Replay stored in Supabase at:', replayPath);
+      if (replayPath) {
+        console.log('✅ [UPLOAD] Replay stored in Supabase at:', replayPath);
+      }
 
       // Calculate new trends: winner gets a win, loser gets a loss
       const currentWinnerTrend = winner!.trend || '-';
@@ -886,10 +888,13 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
              map = $4,
              winner_faction = $5,
              loser_faction = $6,
+             winner_comment = $7,
+             winner_rating = $8,
+             replay_file_path = $9,
              played_at = CURRENT_TIMESTAMP, 
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $7`,
-        [matchId || null, finalWinnerId, finalLoserId, map, winner_faction || null, loser_faction || null, tournament_match_id]
+         WHERE id = $10`,
+        [matchId || null, finalWinnerId, finalLoserId, map, winner_faction || null, loser_faction || null, comments || null, rating || null, replayPath || null, tournament_match_id]
       );
       console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
 
