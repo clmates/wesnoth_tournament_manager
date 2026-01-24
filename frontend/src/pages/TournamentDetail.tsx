@@ -1745,36 +1745,34 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
       {/* Determine Winner Modal */}
       {showDetermineWinnerModal && determineWinnerData && (
-        <div className="modal-overlay" onClick={() => { setShowDetermineWinnerModal(false); setDetermineWinnerData(null); }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{t('determine_winner_title')} / {t('tournaments.player_abandoned') || 'Player Abandoned'}</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => { setShowDetermineWinnerModal(false); setDetermineWinnerData(null); }}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">{t('determine_winner_title')} / {t('tournaments.player_abandoned') || 'Player Abandoned'}</h3>
               <button
-                className="modal-close"
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
                 onClick={() => { setShowDetermineWinnerModal(false); setDetermineWinnerData(null); }}
               >
                 ✕
               </button>
             </div>
-            <div className="modal-body">
-              <p style={{ marginBottom: '1.5rem', color: '#666' }}>
+            <div>
+              <p className="mb-4 text-gray-600">
                 {t('determine_winner_prompt', { p1: determineWinnerData.player1_nickname, p2: determineWinnerData.player2_nickname })}
               </p>
-              <p style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: '#999' }}>
+              <p className="mb-6 text-sm text-gray-500">
                 {t('tournaments.abandonment_note') || 'Select the winner. If a player abandoned, their opponent automatically wins (no ELO impact, tournament points awarded).'}
               </p>
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <div className="flex gap-4">
                 <button
-                  className="btn-winner-select"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
                   onClick={() => handleDetermineWinner(determineWinnerData.player1_id)}
-                  style={{ flex: 1 }}
                 >
                   {determineWinnerData.player1_nickname} {t('label_wins')}
                 </button>
                 <button
-                  className="btn-winner-select"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
                   onClick={() => handleDetermineWinner(determineWinnerData.player2_id)}
-                  style={{ flex: 1 }}
                 >
                   {determineWinnerData.player2_nickname} {t('label_wins')}
                 </button>
