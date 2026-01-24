@@ -3013,7 +3013,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
 
     const match = matchResult.rows[0];
 
-    if (match.match_status !== 'disputed') {
+    if (match.status !== 'disputed') {
       return res.status(400).json({ error: 'Match is not in disputed status' });
     }
 
@@ -3043,6 +3043,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
       await query(
         `UPDATE tournament_matches 
          SET match_status = 'pending',
+             status = 'confirmed',
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $1`,
         [matchId]
@@ -3070,8 +3071,8 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
     } else if (action === 'dismiss') {
       // Dismiss the dispute: keep original result
       await query(
-        'UPDATE tournament_matches SET match_status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-        ['completed', matchId]
+        'UPDATE tournament_matches SET match_status = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+        ['completed', 'confirmed', matchId]
       );
 
       console.log(`Tournament match ${matchId} dispute dismissed by organizer ${req.userId}`);

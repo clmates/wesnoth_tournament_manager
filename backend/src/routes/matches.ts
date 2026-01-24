@@ -1310,10 +1310,10 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
         // UNRANKED: Any loser can report a dispute
         // The organizer will then review and decide (confirm or dismiss)
         
-        // Mark unranked tournament match as disputed
+        // Mark unranked tournament match as disputed (use 'status' field, not 'match_status')
         await query(
-          'UPDATE tournament_matches SET match_status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-          ['disputed', id]
+          'UPDATE tournament_matches SET match_status = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+          ['completed', 'disputed', id]
         );
 
         console.log(`Unranked tournament match ${id} marked as disputed by loser ${req.userId}`);
