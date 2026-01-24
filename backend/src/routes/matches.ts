@@ -1307,33 +1307,17 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
       res.json({ message: 'Match confirmed successfully with your comments and rating' });
     } else if (action === 'dispute') {
       if (isUnranked) {
-        // UNRANKED: Check if user is the tournament organizer
-        const tournamentResult = await query(
-          `SELECT t.creator_id FROM tournaments t
-           JOIN tournament_matches tm ON t.id = tm.tournament_id
-           WHERE tm.id = $1`,
-          [id]
-        );
-
-        if (tournamentResult.rows.length === 0) {
-          return res.status(404).json({ error: 'Tournament not found' });
-        }
-
-        const isOrganizer = tournamentResult.rows[0].creator_id === req.userId;
-
-        // For unranked tournaments, only organizer can manage disputes
-        if (!isOrganizer) {
-          return res.status(403).json({ error: 'Only the tournament organizer can manage disputes' });
-        }
-
+        // UNRANKED: Any loser can report a dispute
+        // The organizer will then review and decide (confirm or dismiss)
+        
         // Mark unranked tournament match as disputed
         await query(
           'UPDATE tournament_matches SET match_status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
           ['disputed', id]
         );
 
-        console.log(`Unranked tournament match ${id} marked as disputed by organizer ${req.userId}`);
-        res.json({ message: 'Tournament match marked as disputed. Organizer review required.' });
+        console.log(`Unranked tournament match ${id} marked as disputed by loser ${req.userId}`);
+        res.json({ message: 'Match disputed. Awaiting organizer review.' });
       } else {
         // RANKED: Mark match as disputed (pending admin review)
         await query(
