@@ -324,11 +324,13 @@ const AdminUsers: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
               {actionType === 'delete' && t('admin.confirm_delete_title')}
               {actionType === 'block' && t('admin.confirm_block_title')}
+              {actionType === 'unblock' && t('admin.confirm_unblock_title', 'Unblock User')}
               {actionType === 'resetPassword' && t('admin.confirm_reset_password_title')}
             </h3>
             <p className="text-gray-700 mb-6">
               {actionType === 'delete' && t('admin.confirm_delete', { nickname: selectedUser.nickname })}
               {actionType === 'block' && t('admin.confirm_block', { nickname: selectedUser.nickname })}
+              {actionType === 'unblock' && t('admin.confirm_unblock', { nickname: selectedUser.nickname }, `Are you sure you want to unblock ${selectedUser.nickname}?`)}
               {actionType === 'resetPassword' && t('admin.confirm_reset_password', { nickname: selectedUser.nickname })}
             </p>
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
