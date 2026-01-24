@@ -328,7 +328,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center border-b border-gray-200 p-6">
           <div>
             <h2 className="text-xl font-bold text-gray-800">{t('report_match_title')} - {tournamentName}</h2>
@@ -342,7 +342,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           <div className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
             <strong className="text-gray-800">{winnerName}</strong> <span className="text-gray-600">(You)</span> vs <strong className="text-gray-800">{loserName}</strong>
           </div>
@@ -350,7 +350,7 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
           {error && <div className="mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">{error}</div>}
           {loadingData && <div className="mb-4 text-gray-600 text-sm">{t('loading')}</div>}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5" id="report-match-form">
             <div>
               <label htmlFor="replay" className="block font-semibold text-gray-700 mb-2">{t('report_replay')}</label>
               <FileUploadInput
@@ -447,25 +447,26 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
                 onChange={(value) => setFormData((prev) => ({ ...prev, rating: value }))}
               />
             </div>
-
-            <div className="flex gap-4 mt-6">
-              <button
-                type="button"
-                className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide text-sm"
-                onClick={onClose}
-                disabled={loading}
-              >
-                {t('btn_cancel')}
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-lg font-semibold hover:shadow-lg hover:from-purple-600 hover:to-purple-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide text-sm"
-                disabled={loading}
-              >
-                {loading ? t('report.submitting') : t('report_button')}
-              </button>
-            </div>
           </form>
+        </div>
+
+        <div className="border-t border-gray-200 bg-gray-50 p-6 flex gap-4 flex-shrink-0">
+          <button
+            type="button"
+            className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide text-sm"
+            onClick={onClose}
+            disabled={loading}
+          >
+            {t('btn_cancel')}
+          </button>
+          <button
+            type="submit"
+            form="report-match-form"
+            className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-lg font-semibold hover:shadow-lg hover:from-purple-600 hover:to-purple-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide text-sm"
+            disabled={loading}
+          >
+            {loading ? t('report.submitting') : t('report_button')}
+          </button>
         </div>
       </div>
     </div>
