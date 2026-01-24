@@ -857,39 +857,36 @@ router.get('/replay/download-url', async (req, res) => {
   try {
     const { path: replayFilePath } = req.query;
     
+    console.log('📥 [REPLAY-DL] Request received with path:', replayFilePath);
+    
     if (!replayFilePath || typeof replayFilePath !== 'string') {
       console.warn('⚠️ [REPLAY-DL] Invalid or missing replay path');
       return res.status(400).json({ error: 'Missing replay path' });
     }
 
-    console.log('📥 [REPLAY-DL] Signed URL request for path:', replayFilePath);
+    console.log('📥 [REPLAY-DL] Generating signed URL for path:', replayFilePath);
 
-    try {
-      // Generate a short-lived signed URL (5 minutes) for direct download from Supabase
-      const filename = replayFilePath.split('/').pop() || 'replay.zip';
-      const { data: signedData, error: signedError } = await supabase.storage
-        .from('replays')
-        .createSignedUrl(replayFilePath, 300); // 5 minutes expiration
+    // Generate a short-lived signed URL (5 minutes) for direct download from Supabase
+    const filename = replayFilePath.split('/').pop() || 'replay.zip';
+    const { data: signedData, error: signedError } = await supabase.storage
+      .from('replays')
+      .createSignedUrl(replayFilePath, 300); // 5 minutes expiration
 
-      if (signedError || !signedData?.signedUrl) {
-        console.error('❌ [REPLAY-DL] Failed to generate signed URL:', signedError?.message || 'No signed URL');
-        return res.status(500).json({ error: 'Failed to generate download link' });
-      }
-
-      console.log('✅ [REPLAY-DL] Signed URL generated (5-min expiry)');
-
-      res.json({
-        signedUrl: signedData.signedUrl,
-        filename: filename,
-        expiresIn: 300
-      });
-    } catch (supabaseError) {
-      console.error('❌ [REPLAY-DL] Supabase error:', supabaseError);
-      res.status(500).json({ error: 'Failed to generate download link' });
+    if (signedError || !signedData?.signedUrl) {
+      console.error('❌ [REPLAY-DL] Failed to generate signed URL:', signedError?.message || 'No signed URL');
+      return res.status(500).json({ error: 'Failed to generate download link', details: signedError?.message });
     }
+
+    console.log('✅ [REPLAY-DL] Signed URL generated (5-min expiry)');
+
+    return res.json({
+      signedUrl: signedData.signedUrl,
+      filename: filename,
+      expiresIn: 300
+    });
   } catch (error) {
-    console.error('❌ [REPLAY-DL] Replay download error:', error);
-    res.status(500).json({ error: 'Failed to download replay' });
+    console.error('❌ [REPLAY-DL] Unexpected error:', error);
+    return res.status(500).json({ error: 'Failed to download replay', details: (error as any)?.message });
   }
 });
 
