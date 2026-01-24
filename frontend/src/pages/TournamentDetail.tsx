@@ -140,6 +140,7 @@ const TournamentDetail: React.FC = () => {
   const [confirmMatchData, setConfirmMatchData] = useState<any>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [matchDetailsModal, setMatchDetailsModal] = useState<{ isOpen: boolean; match: TournamentMatch | null }>({ isOpen: false, match: null });
+  const [disputeManagementModal, setDisputeManagementModal] = useState<{ isOpen: boolean; match: TournamentMatch | null }>({ isOpen: false, match: null });
   const [determineWinnerData, setDetermineWinnerData] = useState<any>(null);
   const [showDetermineWinnerModal, setShowDetermineWinnerModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -616,6 +617,18 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     handleCloseConfirmModal(); // Close the modal
     fetchTournamentData();
     setTimeout(() => setSuccess(''), 3000);
+  };
+
+  const handleDisputeAction = async (action: 'confirm' | 'dismiss', matchId: string) => {
+    try {
+      await api.post(`/tournaments/${id}/matches/${matchId}/dispute`, { action });
+      setSuccess(action === 'confirm' ? t('dispute_confirmed') : t('dispute_dismissed'));
+      setDisputeManagementModal({ isOpen: false, match: null });
+      fetchTournamentData();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || (action === 'confirm' ? t('error_confirming_dispute') : t('error_dismissing_dispute')));
+    }
   };
 
   const handleDetermineWinner = async (winnerId: string) => {
@@ -1394,6 +1407,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         {t('confirm_dispute')}
                                       </button>
                                     )}
+                                    {isCreator && match.match_status === 'disputed' && (
+                                      <button
+                                        className="px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
+                                        onClick={() => setDisputeManagementModal({ isOpen: true, match })}
+                                      >
+                                        {t('manage_dispute')}
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -1759,6 +1780,45 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       )}
 
       <MatchDetailsModal match={matchDetailsModal.match} isOpen={matchDetailsModal.isOpen} onClose={() => setMatchDetailsModal({ isOpen: false, match: null })} onDownloadReplay={handleDownloadReplay} />
+
+      {/* Dispute Management Modal */}
+      {disputeManagementModal.isOpen && disputeManagementModal.match && (
+        <div className="modal-overlay">
+          <div className="modal-content modal-small">
+            <div className="modal-header">
+              <h2>{t('manage_dispute')}</h2>
+            </div>
+            <div className="modal-body">
+              <p className="mb-4">
+                {t('dispute_management_text') || `Round ${disputeManagementModal.match.round_number}: ${disputeManagementModal.match.winner_nickname || '-'} vs ${disputeManagementModal.match.loser_nickname || '-'}`}
+              </p>
+              <p className="text-gray-600 text-sm mb-4">
+                {t('confirm_dispute_will_revert') || 'Confirming will revert the match to pending and reset player stats.'}
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors mr-2"
+                onClick={() => setDisputeManagementModal({ isOpen: false, match: null })}
+              >
+                {t('cancel_btn')}
+              </button>
+              <button 
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded transition-colors mr-2"
+                onClick={() => handleDisputeAction('dismiss', disputeManagementModal.match!.id)}
+              >
+                {t('dismiss_dispute')}
+              </button>
+              <button 
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                onClick={() => handleDisputeAction('confirm', disputeManagementModal.match!.id)}
+              >
+                {t('confirm_dispute_action')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Tournament Confirmation Modal */}
       {showDeleteConfirmModal && (
