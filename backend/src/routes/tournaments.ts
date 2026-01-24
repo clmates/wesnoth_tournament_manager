@@ -2014,7 +2014,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
         tm.winner_rating,
         tm.loser_rating,
         tm.replay_file_path,
-        NULL as replay_downloads,
+        tm.replay_downloads as replay_downloads,
         TRUE as is_team_mode
       `;
       joinClause = `
@@ -2050,7 +2050,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
         tm.winner_rating,
         tm.loser_rating,
         tm.replay_file_path,
-        NULL as replay_downloads,
+        tm.replay_downloads as replay_downloads,
         FALSE as is_team_mode
       `;
       joinClause = `
