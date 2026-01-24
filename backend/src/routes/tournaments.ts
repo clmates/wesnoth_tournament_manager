@@ -3018,37 +3018,55 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
     }
 
     if (action === 'confirm') {
-      // Confirm the dispute: reverse the result
-      // Swap winner and loser
-      const newWinnerId = match.loser_id;
-      const newLoserId = match.winner_id;
-      
-      // Swap factions and comments too
-      const newWinnerFaction = match.loser_faction;
-      const newLoserFaction = match.winner_faction;
-      const newWinnerComments = match.loser_comments;
-      const newLoserComments = match.winner_comments;
-      const newWinnerRating = match.loser_rating;
-      const newLoserRating = match.winner_rating;
+      // Confirm the dispute: revert the match result and stats
+      const winnerId = match.winner_id;
+      const loserId = match.loser_id;
 
+      // Revert winner stats: -1 win, -3 points
       await query(
-        `UPDATE tournament_matches 
-         SET winner_id = $1,
-             loser_id = $2,
-             winner_faction = $3,
-             loser_faction = $4,
-             winner_comments = $5,
-             loser_comments = $6,
-             winner_rating = $7,
-             loser_rating = $8,
-             match_status = 'completed',
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = $9`,
-        [newWinnerId, newLoserId, newWinnerFaction, newLoserFaction, newWinnerComments, newLoserComments, newWinnerRating, newLoserRating, matchId]
+        `UPDATE tournament_participants 
+         SET tournament_wins = tournament_wins - 1,
+             tournament_points = tournament_points - 3
+         WHERE tournament_id = $1 AND player_id = $2`,
+        [tournamentId, winnerId]
       );
 
-      console.log(`Tournament match ${matchId} dispute confirmed - result reversed by organizer ${req.userId}`);
-      res.json({ message: 'Dispute confirmed. Match result has been reversed.' });
+      // Revert loser stats: -1 loss
+      await query(
+        `UPDATE tournament_participants 
+         SET tournament_losses = tournament_losses - 1
+         WHERE tournament_id = $1 AND player_id = $2`,
+        [tournamentId, loserId]
+      );
+
+      // Reset match to pending
+      await query(
+        `UPDATE tournament_matches 
+         SET match_status = 'pending',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [matchId]
+      );
+
+      // Check if round is completed and reopen it if needed
+      const roundResult = await query(
+        `SELECT id FROM tournament_rounds 
+         WHERE tournament_id = $1 AND id = $2 AND round_status = 'completed'`,
+        [tournamentId, match.round_id]
+      );
+
+      if (roundResult.rows.length > 0) {
+        await query(
+          `UPDATE tournament_rounds 
+           SET round_status = 'in_progress',
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1`,
+          [match.round_id]
+        );
+      }
+
+      console.log(`Tournament match ${matchId} dispute confirmed by organizer ${req.userId} - stats reverted, match reset to pending`);
+      res.json({ message: 'Dispute confirmed. Match stats have been reverted and match reset to pending.' });
     } else if (action === 'dismiss') {
       // Dismiss the dispute: keep original result
       await query(
