@@ -33,46 +33,63 @@ const StarRating: React.FC<StarRatingProps> = ({ value, onChange, ratingLabels }
     return labelMap[rating] || '';
   };
 
+  // Get color based on rating (gradient from gray to yellow)
+  const getStarColor = (rating: number, fillPercentage: number): string => {
+    if (fillPercentage === 0) return '#d1d5db'; // gray-300
+    if (fillPercentage === 100) return '#facc15'; // yellow-400
+    
+    // Gradient colors for partial fills
+    const colors = [
+      '#d1d5db', // 0% - gray-300
+      '#e5e5cf', // 20%
+      '#f4d896', // 40%
+      '#fbce6e', // 60%
+      '#fac515', // 80%
+      '#facc15', // 100% - yellow-400
+    ];
+    
+    const index = Math.round((fillPercentage / 100) * 5);
+    return colors[Math.min(index, 5)];
+  };
+
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex gap-2">
-        {[1, 2, 3, 4, 5].map((rating) => (
-          <button
-            key={rating}
-            type="button"
-            onClick={() => onChange(currentValue === rating ? '' : rating.toString())}
-            onMouseEnter={() => setHoverValue(rating)}
-            onMouseLeave={() => setHoverValue(null)}
-            className="relative group"
-            title={`${rating} - ${getLabel(rating)}`}
-          >
-            {/* Background star (empty) */}
-            <svg
-              className="w-8 h-8 text-gray-300"
-              fill="currentColor"
-              viewBox="0 0 20 20"
+    <div className="flex items-center gap-4">
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((rating) => {
+          // Calculate fill percentage for this star
+          let fillPercentage = 0;
+          if (displayValue >= rating) {
+            fillPercentage = 100;
+          }
+          
+          const starColor = getStarColor(rating, fillPercentage);
+
+          return (
+            <button
+              key={rating}
+              type="button"
+              onClick={() => onChange(currentValue === rating ? '' : rating.toString())}
+              onMouseEnter={() => setHoverValue(rating)}
+              onMouseLeave={() => setHoverValue(null)}
+              className="relative group transition-transform hover:scale-110"
+              title={`${rating} - ${getLabel(rating)}`}
             >
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-
-            {/* Filled star overlay */}
-            {displayValue >= rating && (
               <svg
-                className="absolute top-0 left-0 w-8 h-8 text-yellow-400 transition-all duration-150"
-                fill="currentColor"
-                viewBox="0 0 20 20"
+                className="w-12 h-12 transition-all duration-100"
+                fill={starColor}
+                viewBox="0 0 24 24"
               >
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
               </svg>
-            )}
 
-            {/* Tooltip */}
-            <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap z-10">
-              {rating} - {getLabel(rating)}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-            </div>
-          </button>
-        ))}
+              {/* Tooltip */}
+              <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 bg-gray-800 text-white text-xs py-2 px-3 rounded whitespace-nowrap z-10 font-medium">
+                {rating} - {getLabel(rating)}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+              </div>
+            </button>
+          );
+        })}
       </div>
       
       {/* Clear button - shown when a value is selected */}
@@ -80,7 +97,7 @@ const StarRating: React.FC<StarRatingProps> = ({ value, onChange, ratingLabels }
         <button
           type="button"
           onClick={() => onChange('')}
-          className="text-xs text-gray-500 hover:text-gray-700 ml-2"
+          className="text-xs text-gray-500 hover:text-gray-700 px-3 py-1 rounded hover:bg-gray-100 transition-colors"
           title={t('common.clear') || 'Clear'}
         >
           ✕

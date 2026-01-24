@@ -11,9 +11,9 @@ const StarDisplay: React.FC<StarDisplayProps> = ({ rating, size = 'md', showLabe
   const { t } = useTranslation();
 
   const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-5 h-5',
-    lg: 'w-6 h-6',
+    sm: 'w-6 h-6',
+    md: 'w-8 h-8',
+    lg: 'w-10 h-10',
   };
 
   const getLabel = (r: number): string => {
@@ -27,15 +27,31 @@ const StarDisplay: React.FC<StarDisplayProps> = ({ rating, size = 'md', showLabe
     return labelMap[r] || '';
   };
 
+  // Get color based on rating (1-5 scale)
+  const getStarColor = (r: number): string => {
+    const colorMap: { [key: number]: string } = {
+      1: '#ef4444', // red-500 - poor
+      2: '#f97316', // orange-500 - fair
+      3: '#eab308', // yellow-500 - good
+      4: '#84cc16', // lime-500 - very good
+      5: '#22c55e', // green-500 - excellent
+      0: '#d1d5db', // gray-300 - no rating
+    };
+    return colorMap[Math.min(Math.max(r, 0), 5)] || '#d1d5db';
+  };
+
   if (!rating || rating === 0) {
     return (
-      <span className="inline-flex items-center gap-1" title={t('common.no_rating') || 'No rating'}>
+      <span 
+        className="inline-flex items-center gap-1 group" 
+        title={t('common.no_rating') || 'No rating'}
+      >
         <svg
           className={`${sizeClasses[size]} text-gray-300`}
           fill="currentColor"
-          viewBox="0 0 20 20"
+          viewBox="0 0 24 24"
         >
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
         {showLabel && <span className="text-xs text-gray-500">{t('common.no_rating')}</span>}
       </span>
@@ -43,28 +59,24 @@ const StarDisplay: React.FC<StarDisplayProps> = ({ rating, size = 'md', showLabe
   }
 
   const numRating = Math.min(Math.max(parseInt(String(rating)), 0), 5);
+  const starColor = getStarColor(numRating);
 
   return (
     <span
-      className="inline-flex items-center gap-1 group"
+      className="inline-flex items-center gap-2 group"
       title={`${numRating} - ${getLabel(numRating)}`}
     >
-      {[1, 2, 3, 4, 5].map((star) => (
-        <svg
-          key={star}
-          className={`${sizeClasses[size]} ${
-            star <= numRating ? 'text-yellow-400' : 'text-gray-300'
-          }`}
-          fill="currentColor"
-          viewBox="0 0 20 20"
-        >
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-      ))}
+      <svg
+        className={`${sizeClasses[size]} transition-colors`}
+        fill={starColor}
+        viewBox="0 0 24 24"
+      >
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+      </svg>
       
-      {/* Tooltip with rating label */}
+      {/* Show rating number when requested */}
       {showLabel && (
-        <span className="text-xs text-gray-600 ml-1 group-hover:text-gray-800">
+        <span className="text-xs font-semibold text-gray-700 group-hover:text-gray-900">
           {numRating}
         </span>
       )}
