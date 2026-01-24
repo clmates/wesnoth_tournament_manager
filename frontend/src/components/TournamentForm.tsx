@@ -115,28 +115,29 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
       </div>
 
       {/* SECTION 2: TOURNAMENT TYPE AND PARTICIPANTS */}
-      <div className="mb-6">
-        <h3>{t('tournament.format_settings', 'Format Settings')}</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+      <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-white">
+        <h3 className="mb-4 font-semibold text-gray-800">{t('tournament.format_settings', 'Format Settings')}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2">
-            <label>{t('tournament.tournament_format', 'Tournament Format')}</label>
+            <label className="font-medium text-gray-700">{t('tournament.tournament_format', 'Tournament Format')}</label>
             <select
               value={formData.tournament_type}
               onChange={(e) => handleTournamentTypeChange(e.target.value)}
               required
               disabled={isLoading || mode === 'edit'}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             >
-              <option value="elimination">Elimination</option>
-              <option value="league">League</option>
-              <option value="swiss">Swiss</option>
-              <option value="swiss_elimination">Swiss-Elimination Mix</option>
+              <option value="elimination">{t('option_type_elimination', 'Elimination')}</option>
+              <option value="league">{t('option_type_league', 'League')}</option>
+              <option value="swiss">{t('option_type_swiss', 'Swiss')}</option>
+              <option value="swiss_elimination">{t('option_type_swiss_elimination', 'Swiss-Elimination Mix')}</option>
             </select>
           </div>
           <div className="flex flex-col gap-2">
-            <label>Max Participants</label>
+            <label className="font-medium text-gray-700">{t('label_max_participants', 'Max Participants')}</label>
             <input
               type="number"
-              placeholder="Max Participants"
+              placeholder={t('label_max_participants', 'Max Participants')}
               min="2"
               max="256"
               value={formData.max_participants || ''}
@@ -145,6 +146,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                 max_participants: e.target.value ? parseInt(e.target.value) : null 
               })}
               disabled={isLoading}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />
           </div>
         </div>
@@ -218,17 +220,17 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
         </div>
       )}
 
-      <div className="mb-6">
-        <div className="section-header">
-          <h3>{t('tournament.round_configuration', 'Round Configuration')}</h3>
+      <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-white">
+        <div className="mb-4">
+          <h3 className="font-semibold text-gray-800">{t('tournament.round_configuration', 'Round Configuration')}</h3>
           {!formData.max_participants && (
-            <span className="text-sm text-gray-600 italic mb-4">{t('tournaments.round_config_optional', 'Optional - set when preparing the tournament')}</span>
+            <span className="text-sm text-gray-600 italic">{t('tournaments.round_config_optional', 'Optional - set when preparing the tournament')}</span>
           )}
         </div>
 
-        <div className="flex items-end gap-4">
-          <div className="form-group-column">
-            <label>{t('label_round_duration', 'Round Duration (days)')}</label>
+        <div className="flex flex-col md:flex-row items-start md:items-end gap-4 mb-4">
+          <div className="flex-1">
+            <label className="block font-medium text-gray-700 mb-2">{t('label_round_duration', 'Round Duration (days)')}</label>
             <input
               type="number"
               min="1"
@@ -239,11 +241,12 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                 round_duration_days: parseInt(e.target.value) 
               })}
               disabled={isLoading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />
           </div>
 
-          <div className="form-group-column">
-            <label>{t('label_auto_advance_rounds')}</label>
+          <div className="flex items-center gap-3">
+            <label className="font-medium text-gray-700">{t('label_auto_advance_rounds', 'Auto-advance Rounds')}</label>
             <input
               type="checkbox"
               checked={formData.auto_advance_round}
@@ -259,165 +262,178 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
 
         {/* Edit mode: Show started_at field */}
         {mode === 'edit' && (
-          <div className="flex flex-col gap-2">
-            <label>{t('label_tournament_start_date')}</label>
+          <div className="flex flex-col gap-2 mt-4">
+            <label className="font-medium text-gray-700">{t('label_tournament_start_date', 'Tournament Start Date')}</label>
             <input
               type="datetime-local"
               value={formData.started_at ? formData.started_at.substring(0, 16) : ''}
               onChange={(e) => onFormDataChange({ ...formData, started_at: e.target.value })}
               disabled={isLoading}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />
           </div>
         )}
 
         {/* ELIMINATION TOURNAMENT - Auto-calculated rounds */}
         {canConfigureRounds() && formData.tournament_type === 'elimination' && (
-          <div className="round-types-config">
-            <h4>Round Configuration</h4>
-            <p className="text-sm text-gray-600">Configure match formats for your elimination tournament</p>
+          <div className="border-t border-gray-200 pt-6">
+            <h4 className="font-semibold text-gray-800 mb-2">{t('tournament.round_configuration', 'Round Configuration')}</h4>
+            <p className="text-sm text-gray-600 mb-4">{t('tournament.configure_match_formats_elimination', 'Configure match formats for your elimination tournament')}</p>
             
-            <div className="border border-blue-200 bg-blue-50 p-4 rounded">
-              <p>ℹ️ Tournament rounds are automatically calculated based on the number of participants.</p>
+            <div className="border border-blue-200 bg-blue-50 p-4 rounded mb-4">
+              <p className="text-sm text-blue-900">ℹ️ {t('tournament.elimination_auto_calculated', 'Tournament rounds are automatically calculated based on the number of participants.')}</p>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label>Preliminary Rounds Match Format</label>
-              <select
-                value={formData.general_rounds_format}
-                onChange={(e) => onFormDataChange({
-                  ...formData,
-                  general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                })}
-                disabled={isLoading}
-              >
-                <option value="bo1">Best of 1 (Single match)</option>
-                <option value="bo3">Best of 3 (First to 2 wins)</option>
-                <option value="bo5">Best of 5 (First to 3 wins)</option>
-              </select>
-              <small>Best of format for all preliminary elimination rounds</small>
-            </div>
+            <div className="space-y-4">
+              <div className="flex flex-col gap-2">
+                <label className="font-medium text-gray-700">{t('tournament.preliminary_rounds_format', 'Preliminary Rounds Match Format')}</label>
+                <select
+                  value={formData.general_rounds_format}
+                  onChange={(e) => onFormDataChange({
+                    ...formData,
+                    general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                  })}
+                  disabled={isLoading}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="bo1">{t('match_format.bo1', 'Best of 1 (Single match)')}</option>
+                  <option value="bo3">{t('match_format.bo3', 'Best of 3 (First to 2 wins)')}</option>
+                  <option value="bo5">{t('match_format.bo5', 'Best of 5 (First to 3 wins)')}</option>
+                </select>
+                <small className="text-gray-600">{t('tournament.preliminary_format_help', 'Best of format for all preliminary elimination rounds')}</small>
+              </div>
 
-            <div className="flex flex-col gap-2">
-              <label>Final Match Format</label>
-              <select
-                value={formData.final_rounds_format}
-                onChange={(e) => onFormDataChange({
-                  ...formData,
-                  final_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                })}
-                disabled={isLoading}
-              >
-                <option value="bo1">Best of 1 (Single match)</option>
-                <option value="bo3">Best of 3 (First to 2 wins)</option>
-                <option value="bo5">Best of 5 (First to 3 wins)</option>
-              </select>
-              <small>Best of format for the final match</small>
+              <div className="flex flex-col gap-2">
+                <label className="font-medium text-gray-700">{t('tournament.final_match_format', 'Final Match Format')}</label>
+                <select
+                  value={formData.final_rounds_format}
+                  onChange={(e) => onFormDataChange({
+                    ...formData,
+                    final_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                  })}
+                  disabled={isLoading}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="bo1">{t('match_format.bo1', 'Best of 1 (Single match)')}</option>
+                  <option value="bo3">{t('match_format.bo3', 'Best of 3 (First to 2 wins)')}</option>
+                  <option value="bo5">{t('match_format.bo5', 'Best of 5 (First to 3 wins)')}</option>
+                </select>
+                <small className="text-gray-600">{t('tournament.final_format_help', 'Best of format for the final match')}</small>
+              </div>
             </div>
           </div>
         )}
 
         {/* NON-ELIMINATION TOURNAMENT - Manual round configuration */}
         {canConfigureRounds() && formData.tournament_type !== 'elimination' && (
-          <div className="round-types-config">
+          <div className="border-t border-gray-200 pt-6 space-y-6">
             {/* LEAGUE TOURNAMENT */}
             {formData.tournament_type === 'league' && (
-              <>
-                <h4>League Format Configuration</h4>
-                <p className="text-sm text-gray-600">Configure the League tournament format</p>
-                <div className="flex flex-col gap-2">
-                  <label>League Format</label>
-                  <select
-                    value={formData.general_rounds}
-                    onChange={(e) => onFormDataChange({
-                      ...formData,
-                      general_rounds: parseInt(e.target.value),
-                    })}
-                    disabled={isLoading}
-                  >
-                    <option value="1">Single Round (Ida) - Each team plays once</option>
-                    <option value="2">Double Round (Ida y Vuelta) - Each team plays twice</option>
-                  </select>
-                  <small>Select whether teams play once or twice against each other</small>
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-2">{t('tournament.league_configuration', 'League Format Configuration')}</h4>
+                <p className="text-sm text-gray-600 mb-4">{t('tournament.league_description', 'Configure the League tournament format')}</p>
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="font-medium text-gray-700">{t('tournament.league_format', 'League Format')}</label>
+                    <select
+                      value={formData.general_rounds}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds: parseInt(e.target.value),
+                      })}
+                      disabled={isLoading}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                    >
+                      <option value="1">{t('tournament.single_round', 'Single Round (Ida) - Each team plays once')}</option>
+                      <option value="2">{t('tournament.double_round', 'Double Round (Ida y Vuelta) - Each team plays twice')}</option>
+                    </select>
+                    <small className="text-gray-600">{t('tournament.league_format_help', 'Select whether teams play once or twice against each other')}</small>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="font-medium text-gray-700">{t('tournament.match_format', 'Match Format')}</label>
+                    <select
+                      value={formData.general_rounds_format}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                      })}
+                      disabled={isLoading}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                    >
+                      <option value="bo1">{t('match_format.bo1', 'Best of 1 (Single match)')}</option>
+                      <option value="bo3">{t('match_format.bo3', 'Best of 3 (First to 2 wins)')}</option>
+                      <option value="bo5">{t('match_format.bo5', 'Best of 5 (First to 3 wins)')}</option>
+                    </select>
+                    <small className="text-gray-600">{t('tournament.match_format_help', 'Number of games in each match')}</small>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                    <p className="text-sm"><strong>{t('tournament.format', 'Format')}:</strong> {formData.general_rounds === 2 ? t('tournament.double_round', 'Double Round (Ida y Vuelta)') : t('tournament.single_round', 'Single Round (Ida)')} ({formData.general_rounds_format?.toUpperCase()})</p>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label>Match Format</label>
-                  <select
-                    value={formData.general_rounds_format}
-                    onChange={(e) => onFormDataChange({
-                      ...formData,
-                      general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                    })}
-                    disabled={isLoading}
-                  >
-                    <option value="bo1">Best of 1 (Single match)</option>
-                    <option value="bo3">Best of 3 (First to 2 wins)</option>
-                    <option value="bo5">Best of 5 (First to 3 wins)</option>
-                  </select>
-                  <small>Number of games in each match</small>
-                </div>
-                <div className="round-summary">
-                  <p><strong>Format:</strong> {formData.general_rounds === 2 ? 'Double Round (Ida y Vuelta)' : 'Single Round (Ida)'} ({formData.general_rounds_format?.toUpperCase()})</p>
-                </div>
-              </>
+              </div>
             )}
 
             {/* SWISS TOURNAMENT */}
             {formData.tournament_type === 'swiss' && (
-              <>
-                <h4>Swiss Rounds Configuration</h4>
-                <p className="text-sm text-gray-600">Configure the Swiss round tournament</p>
-                <div className="flex flex-col gap-2">
-                  <label>Number of Swiss Rounds</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={formData.general_rounds}
-                    onChange={(e) => onFormDataChange({
-                      ...formData,
-                      general_rounds: parseInt(e.target.value),
-                    })}
-                    disabled={isLoading}
-                  />
-                  <small>Number of Swiss system rounds to run (typically 3-7 rounds for Swiss tournaments)</small>
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-2">{t('tournament.swiss_configuration', 'Swiss Rounds Configuration')}</h4>
+                <p className="text-sm text-gray-600 mb-4">{t('tournament.swiss_description', 'Configure the Swiss round tournament')}</p>
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <label className="font-medium text-gray-700">{t('tournament.number_swiss_rounds', 'Number of Swiss Rounds')}</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={formData.general_rounds}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds: parseInt(e.target.value),
+                      })}
+                      disabled={isLoading}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                    />
+                    <small className="text-gray-600">{t('tournament.swiss_rounds_help', 'Number of Swiss system rounds to run (typically 3-7 rounds for Swiss tournaments)')}</small>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="font-medium text-gray-700">{t('tournament.match_format', 'Match Format')}</label>
+                    <select
+                      value={formData.general_rounds_format}
+                      onChange={(e) => onFormDataChange({
+                        ...formData,
+                        general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                      })}
+                      disabled={isLoading}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                    >
+                      <option value="bo1">{t('match_format.bo1', 'Best of 1 (Single match)')}</option>
+                      <option value="bo3">{t('match_format.bo3', 'Best of 3 (First to 2 wins)')}</option>
+                      <option value="bo5">{t('match_format.bo5', 'Best of 5 (First to 3 wins)')}</option>
+                    </select>
+                    <small className="text-gray-600">{t('tournament.match_format_help', 'Number of games in each match')}</small>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                    <p className="text-sm"><strong>{t('tournament.total_rounds', 'Total Rounds')}:</strong> {formData.general_rounds} {t('tournament.swiss_rounds', 'Swiss rounds')} ({formData.general_rounds_format?.toUpperCase()})</p>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label>Match Format</label>
-                  <select
-                    value={formData.general_rounds_format}
-                    onChange={(e) => onFormDataChange({
-                      ...formData,
-                      general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                    })}
-                    disabled={isLoading}
-                  >
-                    <option value="bo1">Best of 1 (Single match)</option>
-                    <option value="bo3">Best of 3 (First to 2 wins)</option>
-                    <option value="bo5">Best of 5 (First to 3 wins)</option>
-                  </select>
-                  <small>Number of games in each match</small>
-                </div>
-                <div className="round-summary">
-                  <p><strong>Total Rounds:</strong> {formData.general_rounds} Swiss rounds ({formData.general_rounds_format?.toUpperCase()})</p>
-                </div>
-              </>
+              </div>
             )}
 
             {/* SWISS-ELIMINATION HYBRID TOURNAMENT */}
             {formData.tournament_type === 'swiss_elimination' && (
-              <>
-                <h4>Swiss-Elimination Mix Configuration</h4>
-                <p className="text-sm text-gray-600">Configure Swiss qualifying rounds and elimination bracket with different match formats</p>
-                <div className="border border-blue-200 bg-blue-50 p-4 rounded">
-                  <p>ℹ️ This tournament combines a Swiss phase for qualification with an elimination phase for final ranking. You can set different match formats for qualification and the grand final.</p>
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-2">{t('tournament.swiss_elimination_configuration', 'Swiss-Elimination Mix Configuration')}</h4>
+                <p className="text-sm text-gray-600 mb-4">{t('tournament.swiss_elimination_description', 'Configure Swiss qualifying rounds and elimination bracket with different match formats')}</p>
+                <div className="border border-blue-200 bg-blue-50 p-4 rounded mb-4">
+                  <p className="text-sm text-blue-900">ℹ️ {t('tournament.swiss_elimination_info', 'This tournament combines a Swiss phase for qualification with an elimination phase for final ranking. You can set different match formats for qualification and the grand final.')}</p>
                 </div>
                 
                 {/* Rounds Configuration */}
-                <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px', marginBottom: '15px' }}>
-                  <h5 style={{ marginTop: 0 }}>Rounds Configuration</h5>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div className="border border-gray-200 p-4 rounded-lg mb-4">
+                  <h5 className="font-medium text-gray-800 mb-4">{t('tournament.rounds_configuration', 'Rounds Configuration')}</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-2">
-                      <label>Number of Swiss Rounds</label>
+                      <label className="font-medium text-gray-700">{t('tournament.number_swiss_rounds', 'Number of Swiss Rounds')}</label>
                       <input
                         type="number"
                         min="1"
@@ -428,11 +444,12 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                           general_rounds: parseInt(e.target.value),
                         })}
                         disabled={isLoading}
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                       />
-                      <small>Qualifying rounds using Swiss system</small>
+                      <small className="text-gray-600">{t('tournament.qualifying_rounds_help', 'Qualifying rounds using Swiss system')}</small>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <label>Number of Elimination Rounds</label>
+                      <label className="font-medium text-gray-700">{t('tournament.number_elimination_rounds', 'Number of Elimination Rounds')}</label>
                       <input
                         type="number"
                         min="1"
@@ -443,60 +460,67 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                           final_rounds: parseInt(e.target.value),
                         })}
                         disabled={isLoading}
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                       />
-                      <small>Total elimination rounds (includes grand final)</small>
+                      <small className="text-gray-600">{t('tournament.elimination_rounds_help', 'Total elimination rounds (includes grand final)')}</small>
                     </div>
                   </div>
                 </div>
 
                 {/* Match Formats */}
-                <div style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '4px', marginBottom: '15px' }}>
-                  <h5 style={{ marginTop: 0 }}>Match Formats</h5>
-                  <div className="flex flex-col gap-2">
-                    <label>General Format (Swiss Rounds + Elimination except Final)</label>
-                    <select
-                      value={formData.general_rounds_format}
-                      onChange={(e) => onFormDataChange({
-                        ...formData,
-                        general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                      })}
-                      disabled={isLoading}
-                    >
-                      <option value="bo1">Best of 1 (Single match)</option>
-                      <option value="bo3">Best of 3 (First to 2 wins)</option>
-                      <option value="bo5">Best of 5 (First to 3 wins)</option>
-                    </select>
-                    <small>Used for Swiss rounds and all elimination rounds except the grand final</small>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label>Final Format (Grand Final)</label>
-                    <select
-                      value={formData.final_rounds_format}
-                      onChange={(e) => onFormDataChange({
-                        ...formData,
-                        final_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
-                      })}
-                      disabled={isLoading}
-                    >
-                      <option value="bo1">Best of 1 (Single match)</option>
-                      <option value="bo3">Best of 3 (First to 2 wins)</option>
-                      <option value="bo5">Best of 5 (First to 3 wins)</option>
-                    </select>
-                    <small>Used only for the grand final match</small>
+                <div className="border border-gray-200 p-4 rounded-lg mb-4">
+                  <h5 className="font-medium text-gray-800 mb-4">{t('tournament.match_formats', 'Match Formats')}</h5>
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-2">
+                      <label className="font-medium text-gray-700">{t('tournament.general_format', 'General Format (Swiss Rounds + Elimination except Final)')}</label>
+                      <select
+                        value={formData.general_rounds_format}
+                        onChange={(e) => onFormDataChange({
+                          ...formData,
+                          general_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                        })}
+                        disabled={isLoading}
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                      >
+                        <option value="bo1">{t('match_format.bo1', 'Best of 1 (Single match)')}</option>
+                        <option value="bo3">{t('match_format.bo3', 'Best of 3 (First to 2 wins)')}</option>
+                        <option value="bo5">{t('match_format.bo5', 'Best of 5 (First to 3 wins)')}</option>
+                      </select>
+                      <small className="text-gray-600">{t('tournament.general_format_help', 'Used for Swiss rounds and all elimination rounds except the grand final')}</small>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="font-medium text-gray-700">{t('tournament.final_format', 'Final Format (Grand Final)')}</label>
+                      <select
+                        value={formData.final_rounds_format}
+                        onChange={(e) => onFormDataChange({
+                          ...formData,
+                          final_rounds_format: e.target.value as 'bo1' | 'bo3' | 'bo5'
+                        })}
+                        disabled={isLoading}
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                      >
+                        <option value="bo1">{t('match_format.bo1', 'Best of 1 (Single match)')}</option>
+                        <option value="bo3">{t('match_format.bo3', 'Best of 3 (First to 2 wins)')}</option>
+                        <option value="bo5">{t('match_format.bo5', 'Best of 5 (First to 3 wins)')}</option>
+                      </select>
+                      <small className="text-gray-600">{t('tournament.final_format_help', 'Used only for the grand final match')}</small>
+                    </div>
                   </div>
                 </div>
 
                 {/* Summary */}
-                <div className="round-summary" style={{ marginTop: '15px' }}>
-                  <p><strong>Tournament Structure:</strong></p>
-                  <p className="text-sm text-gray-600">• Swiss Phase: {formData.general_rounds} rounds ({formData.general_rounds_format?.toUpperCase()})</p>
-                  {formData.final_rounds > 1 && (
-                    <p className="text-sm text-gray-600">• Qualification Phase: {formData.final_rounds - 1} rounds ({formData.general_rounds_format?.toUpperCase()}) [Quarters, Semis, etc]</p>
-                  )}
-                  <p className="text-sm text-gray-600">• Grand Final: 1 round ({formData.final_rounds_format?.toUpperCase()})</p>
-                  <p className="text-sm text-gray-600"><strong>Total Rounds:</strong> {formData.general_rounds + formData.final_rounds}</p>
+                <div className="bg-gray-50 p-4 rounded border border-gray-200">
+                  <p className="font-medium text-gray-800 mb-2">{t('tournament.tournament_structure', 'Tournament Structure')}:</p>
+                  <div className="space-y-1 text-sm text-gray-700">
+                    <p>• {t('tournament.swiss_phase', 'Swiss Phase')}: {formData.general_rounds} {t('tournament.rounds', 'rounds')} ({formData.general_rounds_format?.toUpperCase()})</p>
+                    {formData.final_rounds > 1 && (
+                      <p>• {t('tournament.qualification_phase', 'Qualification Phase')}:  {formData.final_rounds - 1} {t('tournament.rounds', 'rounds')} ({formData.general_rounds_format?.toUpperCase()}) [{t('tournament.quarters_semis', 'Quarters, Semis, etc')}]</p>
+                    )}
+                    <p>• {t('tournament.grand_final', 'Grand Final')}:  1 {t('tournament.round', 'round')} ({formData.final_rounds_format?.toUpperCase()})</p>
+                    <p><strong>{t('tournament.total_rounds', 'Total Rounds')}:</strong> {formData.general_rounds + formData.final_rounds}</p>
+                  </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
