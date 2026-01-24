@@ -186,6 +186,7 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
                   <OpponentSelector
                     value={teammateId}
                     onChange={handleTeammateChange}
+                    type="teammate"
                   />
                   <small className="text-gray-600">
                     {teammateName.trim() 
@@ -249,6 +250,7 @@ export const TeamJoinModal: React.FC<TeamJoinModalProps> = ({
                   <OpponentSelector
                     value={teammateId}
                     onChange={handleTeammateChange}
+                    type="teammate"
                   />
                   <small className="text-gray-600">
                     {teammateName.trim() 
