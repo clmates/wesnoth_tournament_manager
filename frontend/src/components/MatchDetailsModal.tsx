@@ -34,7 +34,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
             <div className="grid grid-cols-3 gap-4 mb-6 pb-4 border-b border-gray-200">
               <div>
                 <label className="text-gray-600 text-sm font-semibold">Date:</label>
-                <span className="text-gray-800 text-sm block">{new Date(match.created_at).toLocaleString()}</span>
+                <span className="text-gray-800 text-sm block">{new Date(match.played_at || match.created_at).toLocaleString()}</span>
               </div>
               <div>
                 <label className="text-gray-600 text-sm font-semibold">Map:</label>
