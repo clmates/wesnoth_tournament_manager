@@ -5,7 +5,7 @@ import { authService, userService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 const Login: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { setToken, setUserId, setIsAdmin } = useAuthStore();
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
@@ -34,8 +34,15 @@ const Login: React.FC = () => {
           console.log('Profile response:', profileRes.data);
           console.log('is_admin value:', profileRes.data.is_admin);
           console.log('password_must_change:', profileRes.data.password_must_change);
+          console.log('User language:', profileRes.data.language);
         }
         setIsAdmin(profileRes.data.is_admin || false);
+        
+        // Change language to user's preferred language
+        const userLanguage = profileRes.data.language || 'en';
+        if (userLanguage !== i18n.language) {
+          i18n.changeLanguage(userLanguage);
+        }
         
         // Check if user must change password
         if (profileRes.data.password_must_change) {
