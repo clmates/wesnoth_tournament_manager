@@ -675,8 +675,18 @@ Columns:
 | player1_id | uuid | NO |  |
 | player2_id | uuid | NO |  |
 | winner_id | uuid | YES |  |
+| loser_id | uuid | YES |  |
 | match_id | uuid | YES |  |
 | match_status | character varying | YES | 'pending'::character varying |
+| map | character varying | YES |  |
+| winner_faction | character varying | YES |  |
+| loser_faction | character varying | YES |  |
+| winner_comments | text | YES |  |
+| winner_rating | integer | YES |  |
+| loser_comments | text | YES |  |
+| loser_rating | integer | YES |  |
+| replay_file_path | character varying | YES |  |
+| status | character varying | YES | 'unconfirmed'::character varying |
 | played_at | timestamp without time zone | YES |  |
 | created_at | timestamp without time zone | YES | CURRENT_TIMESTAMP |
 | updated_at | timestamp without time zone | YES | CURRENT_TIMESTAMP |

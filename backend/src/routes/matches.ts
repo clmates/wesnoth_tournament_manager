@@ -298,10 +298,14 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
              map = $4,
              winner_faction = $5,
              loser_faction = $6,
+             winner_comments = $8,
+             winner_rating = $9,
+             replay_file_path = $10,
+             status = $11,
              played_at = CURRENT_TIMESTAMP, 
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $7`,
-        [matchId || null, req.userId, opponent_id, map, winner_faction || null, loser_faction || null, tournament_match_id]
+        [matchId || null, req.userId, opponent_id, map, winner_faction || null, loser_faction || null, tournament_match_id, comments || null, rating || null, replayPath || null, 'unconfirmed']
       );
       console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
 
@@ -1219,6 +1223,17 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
         [comments || null, rating || null, id]
       );
 
+      // Also update tournament_matches if this match is linked to a tournament
+      await query(
+        `UPDATE tournament_matches 
+         SET loser_comments = $1, 
+             loser_rating = $2,
+             status = 'confirmed',
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE match_id = $3`,
+        [comments || null, rating || null, id]
+      );
+
       console.log(
         `Match ${id} confirmed: Loser ${req.userId} confirmed the match result`
       );
@@ -1231,6 +1246,12 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
       // Stats are only reversed if admin validates the dispute
       await query(
         'UPDATE matches SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        ['disputed', id]
+      );
+
+      // Also update tournament_matches if this match is linked to a tournament
+      await query(
+        'UPDATE tournament_matches SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE match_id = $2',
         ['disputed', id]
       );
 
