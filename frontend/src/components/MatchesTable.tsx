@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { matchService } from '../services/api';
 import PlayerLink from './PlayerLink';
+import StarDisplay from './StarDisplay';
 import { useAuthStore } from '../store/authStore';
 
 // Get API URL for direct backend calls
@@ -163,6 +164,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     <div className="flex-1 min-w-0">
                       <PlayerLink nickname={match.winner_nickname} userId={match.winner_id} />
                     </div>
+                    <StarDisplay rating={match.winner_rating} size="sm" />
                     <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded font-semibold">{match.winner_faction}</span>
                   </div>
                   <div className="flex gap-3 text-xs text-gray-600">
@@ -195,6 +197,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     <div className="flex-1 min-w-0">
                       <PlayerLink nickname={match.loser_nickname} userId={match.loser_id} />
                     </div>
+                    <StarDisplay rating={match.loser_rating} size="sm" />
                     <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded font-semibold">{match.loser_faction}</span>
                   </div>
                   <div className="flex gap-3 text-xs text-gray-600">

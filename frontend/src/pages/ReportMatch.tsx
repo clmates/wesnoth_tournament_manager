@@ -7,6 +7,7 @@ import { parseReplayFile, getOpponentFromReplay, getMapFromReplay, getPlayerFact
 import MainLayout from '../components/MainLayout';
 import OpponentSelector from '../components/OpponentSelector';
 import FileUploadInput from '../components/FileUploadInput';
+import StarRating from '../components/StarRating';
 
 interface GameMap {
   id: string;
@@ -338,21 +339,11 @@ const ReportMatch: React.FC = () => {
           </div>
 
           <div>
-            <label htmlFor="rating" className="block font-semibold text-gray-700 mb-2">{t('report.rate_opponent')}</label>
-            <select
-              id="rating"
-              name="rating"
+            <label className="block font-semibold text-gray-700 mb-2">{t('report.rate_opponent')}</label>
+            <StarRating
               value={formData.rating}
-              onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white text-gray-800"
-            >
-              <option value="">{t('report.rating_no')}</option>
-              <option value="1">1 - {t('report.rating_1')}</option>
-              <option value="2">2 - {t('report.rating_2')}</option>
-              <option value="3">3 - {t('report.rating_3')}</option>
-              <option value="4">4 - {t('report.rating_4')}</option>
-              <option value="5">5 - {t('report.rating_5')}</option>
-            </select>
+              onChange={(value) => setFormData((prev) => ({ ...prev, rating: value }))}
+            />
           </div>
 
           <div className="flex gap-4 mt-8">
