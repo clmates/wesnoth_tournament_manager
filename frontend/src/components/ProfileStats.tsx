@@ -66,7 +66,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="text-sm font-semibold text-gray-600 mb-2">{t('label_elo')}</div>
           <div className="text-3xl font-bold text-blue-600">

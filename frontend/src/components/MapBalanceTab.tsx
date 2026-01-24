@@ -194,8 +194,8 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
     }
   }, [afterData]);
 
-  if (loading) return <div className="stats-container"><p>{t('loading')}</p></div>;
-  if (error) return <div className="stats-container error"><p>{error}</p></div>;
+  if (loading) return <div className="p-8 text-center text-gray-600 bg-gray-50 rounded-lg">{t('loading')}</div>;
+  if (error) return <div className="p-8 text-center text-red-600 bg-red-50 rounded-lg border-l-4 border-red-500">{error}</div>;
 
   const showComparison = beforeStats.length > 0 || afterStats.length > 0;
 
@@ -228,114 +228,98 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
       });
 
     return (
-      <div className="balance-stats">
-        <h3>{t('map_balance_comparison') || 'Map Balance - Before & After'}</h3>
-        <p className="block-info">
+      <div className="bg-white rounded-lg p-6 shadow-md">
+        <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('map_balance_comparison') || 'Map Balance - Before & After'}</h3>
+        <p className="text-blue-600 text-sm mb-3 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
           {t('before_event') || 'Before'}: {beforeData ? beforeData.length : 0} {t('matches_evaluated') || 'matches'} | 
           {t('after_event') || 'After'}: {afterData ? afterData.length : 0} {t('matches_evaluated') || 'matches'}
         </p>
-        <p className="stats-info">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
+        <p className="text-gray-500 text-xs mb-6 italic">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
         
-        <div className="stats-table-container">
-          <table className="stats-table comparison-mode">
-            <thead>
+        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <table className="w-full border-collapse bg-white">
+            <thead className="bg-gray-100 border-b-2 border-gray-300">
               <tr>
-                <th>{t('map') || 'Map'}</th>
-                <th>{t('total_games') || 'Games'}</th>
-                <th>{t('factions_used') || 'Factions'}</th>
-                <th>{t('avg_imbalance') || 'Avg Imbalance'}</th>
-                <th>{t('winrate_range') || 'WR Range'}</th>
-                <th>{t('balance_indicator') || 'Balance'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('map') || 'Map'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('factions_used') || 'Factions'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('avg_imbalance') || 'Avg Imbalance'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('winrate_range') || 'WR Range'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('balance_indicator') || 'Balance'}</th>
               </tr>
             </thead>
             <tbody>
               {combined.map((item) => (
-                <tr key={item.map_id} className="comparison-row">
-                  <td className="map-name">
-                    <div className="comparison-cell">
-                      <div className="after-value">{item.map_name}</div>
+                <tr key={item.map_id} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="px-4 py-3 font-semibold text-gray-800">
+                    <div className="flex flex-col gap-1">
+                      <span>{item.map_name}</span>
                     </div>
                   </td>
-                  <td>
-                    <div className="comparison-cell">
-                      <div className="after-value">{item.after?.total_games || '-'}</div>
-                      {item.before && <div className="before-value">{item.before.total_games}</div>}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <span className="font-semibold text-gray-800">{item.after?.total_games || '-'}</span>
+                      {item.before && <span className="text-xs text-gray-600">{item.before.total_games}</span>}
                     </div>
                   </td>
-                  <td>
-                    <div className="comparison-cell">
-                      <div className="after-value">{item.after?.factions_used || '-'}</div>
-                      {item.before && <div className="before-value">{item.before.factions_used}</div>}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <span className="font-semibold text-gray-800">{item.after?.factions_used || '-'}</span>
+                      {item.before && <span className="text-xs text-gray-600">{item.before.factions_used}</span>}
                     </div>
                   </td>
-                  <td>
-                    <div className="comparison-cell">
-                      <div className="after-value">
-                        <span className={`imbalance ${
-                          (item.after?.avg_imbalance || 0) < 5 ? 'excellent' : 
-                          (item.after?.avg_imbalance || 0) < 10 ? 'good' : 
-                          'needs-balance'
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <span className={`px-3 py-1 rounded-lg font-semibold inline-block w-fit text-sm ${
+                        (item.after?.avg_imbalance || 0) < 5 ? 'bg-green-100 text-green-700' : 
+                        (item.after?.avg_imbalance || 0) < 10 ? 'bg-blue-100 text-blue-700' : 
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {item.after?.avg_imbalance.toFixed(1) || '-'}%
+                      </span>
+                      {item.before && (
+                        <span className={`px-3 py-1 rounded-lg font-semibold inline-block w-fit text-xs ${
+                          (item.before?.avg_imbalance || 0) < 5 ? 'bg-green-100 text-green-700' : 
+                          (item.before?.avg_imbalance || 0) < 10 ? 'bg-blue-100 text-blue-700' : 
+                          'bg-yellow-100 text-yellow-700'
                         }`}>
-                          {item.after?.avg_imbalance.toFixed(1) || '-'}%
+                          {item.before.avg_imbalance.toFixed(1)}%
                         </span>
-                      </div>
-                      {item.before && (
-                        <div className="before-value">
-                          <span className={`imbalance ${
-                            (item.before?.avg_imbalance || 0) < 5 ? 'excellent' : 
-                            (item.before?.avg_imbalance || 0) < 10 ? 'good' : 
-                            'needs-balance'
-                          }`}>
-                            {item.before.avg_imbalance.toFixed(1)}%
-                          </span>
-                        </div>
                       )}
                     </div>
                   </td>
-                  <td>
-                    <div className="comparison-cell">
-                      <div className="after-value">
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2 text-sm">
+                      <span className="font-semibold text-gray-800">
                         {item.after?.lowest_winrate.toFixed(1) || '-'}% - {item.after?.highest_winrate.toFixed(1) || '-'}%
-                      </div>
+                      </span>
                       {item.before && (
-                        <div className="before-value">
+                        <span className="text-xs text-gray-600">
                           {item.before.lowest_winrate.toFixed(1)}% - {item.before.highest_winrate.toFixed(1)}%
-                        </div>
+                        </span>
                       )}
                     </div>
                   </td>
-                  <td>
-                    <div className="comparison-cell">
-                      <div className="after-value">
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <div 
+                        className="w-24 h-6 bg-gray-200 rounded-lg overflow-hidden border border-gray-300"
+                        title={`After: ${(item.after?.avg_imbalance || 0).toFixed(1)}% imbalance`}
+                      >
                         <div 
-                          className="single-balance-bar"
-                          title={`After: ${(item.after?.avg_imbalance || 0).toFixed(1)}% imbalance - ${
-                            (item.after?.avg_imbalance || 0) < 5 ? 'Excellent' : 
-                            (item.after?.avg_imbalance || 0) < 10 ? 'Good' : 
-                            'Needs work'
-                          }. Green = balanced, Red = needs attention`}
+                          className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-300"
+                          style={{ width: `${Math.min((item.after?.avg_imbalance || 0) / 20 * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                      {item.before && (
+                        <div 
+                          className="w-24 h-6 bg-gray-200 rounded-lg overflow-hidden border border-gray-300"
+                          title={`Before: ${item.before.avg_imbalance.toFixed(1)}% imbalance`}
                         >
                           <div 
-                            className="imbalance-fill"
-                            style={{ width: `${Math.min((item.after?.avg_imbalance || 0) / 20 * 100, 100)}%` }}
+                            className="h-full bg-gray-400 transition-all duration-300"
+                            style={{ width: `${Math.min((item.before.avg_imbalance / 20) * 100, 100)}%` }}
                           ></div>
-                        </div>
-                      </div>
-                      {item.before && (
-                        <div className="before-value">
-                          <div 
-                            className="single-balance-bar"
-                            title={`Before: ${item.before.avg_imbalance.toFixed(1)}% imbalance - ${
-                              item.before.avg_imbalance < 5 ? 'Excellent' : 
-                              item.before.avg_imbalance < 10 ? 'Good' : 
-                              'Needs work'
-                            }. Green = balanced, Red = needs attention`}
-                          >
-                            <div 
-                              className="imbalance-fill before"
-                              style={{ width: `${Math.min((item.before.avg_imbalance / 20) * 100, 100)}%` }}
-                            ></div>
-                          </div>
                         </div>
                       )}
                     </div>
@@ -351,42 +335,42 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
 
   // Default global view
   return (
-    <div className="balance-stats">
-      <h3>{t('map_balance_title') || 'Map Balance Analysis'}</h3>
-      <p className="explanation">{t('map_balance_explanation') || 'Analysis of map balance across all factions'}</p>
-      <p className="stats-info">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
+    <div className="bg-white rounded-lg p-6 shadow-md">
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('map_balance_title') || 'Map Balance Analysis'}</h3>
+      <p className="text-gray-600 text-sm mb-6 pb-3 px-3 bg-blue-50 border-l-4 border-blue-500 rounded">{t('map_balance_explanation') || 'Analysis of map balance across all factions'}</p>
+      <p className="text-gray-500 text-xs mb-6 italic">{t('balance_lower_better') || '(Lower imbalance = better balance)'}</p>
       
-      <div className="stats-table-container">
-        <table className="stats-table">
-          <thead>
+      <div className="overflow-x-auto border border-gray-200 rounded-lg">
+        <table className="w-full border-collapse bg-white">
+          <thead className="bg-gray-100 border-b-2 border-gray-300">
             <tr>
-              <th>{t('map') || 'Map'}</th>
-              <th>{t('total_games') || 'Games'}</th>
-              <th>{t('factions_used') || 'Factions'}</th>
-              <th>{t('avg_imbalance') || 'Avg Imbalance'}</th>
-              <th>{t('winrate_range') || 'WR Range'}</th>
-              <th>{t('balance_indicator') || 'Balance'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('map') || 'Map'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('factions_used') || 'Factions'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('avg_imbalance') || 'Avg Imbalance'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('winrate_range') || 'WR Range'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('balance_indicator') || 'Balance'}</th>
             </tr>
           </thead>
           <tbody>
             {stats.map((stat) => (
-              <tr key={stat.map_id}>
-                <td className="map-name">{stat.map_name}</td>
-                <td>{stat.total_games}</td>
-                <td>{stat.factions_used}</td>
-                <td>
-                  <span className={`imbalance ${
-                    stat.avg_imbalance < 5 ? 'excellent' : 
-                    stat.avg_imbalance < 10 ? 'good' : 
-                    'needs-balance'
+              <tr key={stat.map_id} className="border-b border-gray-200 hover:bg-gray-50">
+                <td className="px-4 py-3 font-semibold text-gray-800">{stat.map_name}</td>
+                <td className="px-4 py-3 text-gray-700">{stat.total_games}</td>
+                <td className="px-4 py-3 text-gray-700">{stat.factions_used}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-3 py-1 rounded-lg font-semibold inline-block ${
+                    stat.avg_imbalance < 5 ? 'bg-green-100 text-green-700' : 
+                    stat.avg_imbalance < 10 ? 'bg-blue-100 text-blue-700' : 
+                    'bg-yellow-100 text-yellow-700'
                   }`}>
                     {stat.avg_imbalance.toFixed(1)}%
                   </span>
                 </td>
-                <td>{stat.lowest_winrate.toFixed(1)}% - {stat.highest_winrate.toFixed(1)}%</td>
-                <td>
+                <td className="px-4 py-3 text-gray-700">{stat.lowest_winrate.toFixed(1)}% - {stat.highest_winrate.toFixed(1)}%</td>
+                <td className="px-4 py-3">
                   <div 
-                    className="balance-bar"
+                    className="w-full h-6 bg-gray-200 rounded-lg overflow-hidden border border-gray-300"
                     title={`Imbalance: ${stat.avg_imbalance.toFixed(1)}% - ${
                       stat.avg_imbalance < 5 ? 'Excellent balance' : 
                       stat.avg_imbalance < 10 ? 'Good balance' : 
@@ -394,7 +378,7 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
                     }. Green = well balanced, Red = needs attention`}
                   >
                     <div 
-                      className="imbalance-fill"
+                      className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-300"
                       style={{ width: `${Math.min(stat.avg_imbalance * 2, 100)}%` }}
                     ></div>
                   </div>

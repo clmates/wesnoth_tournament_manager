@@ -109,20 +109,20 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
 
   if (matches.length === 0) {
     return (
-      <div className="games-table-wrapper">
-        <table className="games-table">
-          <thead>
+      <div className="w-full overflow-x-auto">
+        <table className="w-full border-collapse bg-white">
+          <thead className="bg-gray-100 border-b-2 border-gray-300">
             <tr>
-              <th className="date-col sortable" onClick={() => handleSort('date')}>{t('label_date')}</th>
-              <th className="winner-col sortable" onClick={() => handleSort('winner')}>{t('label_winner')}</th>
-              <th className="loser-col sortable" onClick={() => handleSort('loser')}>{t('label_loser')}</th>
-              <th className="map-col sortable" onClick={() => handleSort('map')}>{t('label_map')}</th>
-              <th className="status-actions-col sortable" onClick={() => handleSort('status')}>{t('label_status_actions') || 'Status / Actions'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('date')}>{t('label_date')}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('winner')}>{t('label_winner')}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('loser')}>{t('label_loser')}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('map')}>{t('label_map')}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('status')}>{t('label_status_actions') || 'Status / Actions'}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td colSpan={5} className="no-matches">{t('matches_no_matches_found')}</td>
+              <td colSpan={5} className="px-4 py-8 text-center text-gray-500 italic">{t('matches_no_matches_found')}</td>
             </tr>
           </tbody>
         </table>
@@ -131,137 +131,151 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   }
 
   return (
-    <div className="games-table-wrapper">
-      <table className="games-table">
-        <thead>
+    <div className="w-full overflow-x-auto">
+      <table className="w-full border-collapse bg-white">
+        <thead className="bg-gray-100 border-b-2 border-gray-300">
           <tr>
-            <th className="date-col sortable" onClick={() => handleSort('date')}>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('date')}>
               {t('label_date')}{sortColumn === 'date' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
             </th>
-            <th className="winner-col sortable" onClick={() => handleSort('winner')}>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('winner')}>
               {t('label_winner')}{sortColumn === 'winner' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
             </th>
-            <th className="loser-col sortable" onClick={() => handleSort('loser')}>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('loser')}>
               {t('label_loser')}{sortColumn === 'loser' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
             </th>
-            <th className="map-col sortable" onClick={() => handleSort('map')}>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('map')}>
               {t('label_map')}{sortColumn === 'map' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
             </th>
-            <th className="status-actions-col sortable" onClick={() => handleSort('status')}>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('status')}>
               {t('label_status_actions') || 'Status / Actions'}{sortColumn === 'status' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
             </th>
           </tr>
         </thead>
         <tbody>
           {sortedMatches.map((match) => (
-            <tr key={match.id} className={`game-row`}>
-              <td className="date-col">{new Date(match.created_at).toLocaleDateString()}</td>
+            <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50">
+              <td className="px-4 py-3 text-sm text-gray-700">{new Date(match.created_at).toLocaleDateString()}</td>
 
-              <td className="winner-col">
-                <div className="player-block">
-                  <div className="first-row">
-                    <div className="player-name">
+              <td className="px-4 py-3 text-sm">
+                <div className="space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 min-w-0">
                       <PlayerLink nickname={match.winner_nickname} userId={match.winner_id} />
                     </div>
-                    <div className="faction-badge">{match.winner_faction}</div>
-                    <div className="elo-info">
-                      <span className="elo-value">{match.winner_elo_before || 'N/A'}</span>
-                      <span className={`elo-change ${winnerEloChange(match) >= 0 ? 'positive' : 'negative'}`}>
+                    <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded font-semibold">{match.winner_faction}</span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-gray-600">
+                    <div>
+                      <span className="font-semibold text-gray-700">ELO: </span>
+                      <span>{match.winner_elo_before || 'N/A'}</span>
+                      <span className={`ml-1 font-semibold ${winnerEloChange(match) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         ({winnerEloChange(match) >= 0 ? '+' : ''}{winnerEloChange(match)})
                       </span>
                     </div>
-                    <div className="rating-info">
-                      <span className="rating-value">{match.winner_ranking_pos || 'N/A'}</span>
-                      <span className={`rating-change ${(match.winner_ranking_change || 0) > 0 ? 'positive' : (match.winner_ranking_change || 0) < 0 ? 'negative' : ''}`}>
-                        {(match.winner_ranking_change || 0) > 0 ? '↑' : (match.winner_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.winner_ranking_change || 0)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="comments-row">
-                    {match.winner_comments && (
-                      <div className="player-comment" title={match.winner_comments}>{match.winner_comments}</div>
+                    {match.winner_ranking_pos && (
+                      <div>
+                        <span className="font-semibold text-gray-700">Rank: </span>
+                        <span>{match.winner_ranking_pos}</span>
+                        <span className={`ml-1 font-semibold ${(match.winner_ranking_change || 0) > 0 ? 'text-green-600' : (match.winner_ranking_change || 0) < 0 ? 'text-red-600' : ''}`}>
+                          {(match.winner_ranking_change || 0) > 0 ? '↑' : (match.winner_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.winner_ranking_change || 0)}
+                        </span>
+                      </div>
                     )}
                   </div>
+                  {match.winner_comments && (
+                    <div className="text-xs text-gray-500 italic max-w-xs truncate" title={match.winner_comments}>{match.winner_comments}</div>
+                  )}
                 </div>
               </td>
 
-              <td className="loser-col">
-                <div className="player-block">
-                  <div className="first-row">
-                    <div className="player-name">
+              <td className="px-4 py-3 text-sm">
+                <div className="space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 min-w-0">
                       <PlayerLink nickname={match.loser_nickname} userId={match.loser_id} />
                     </div>
-                    <div className="faction-badge">{match.loser_faction}</div>
-                    <div className="elo-info">
-                      <span className="elo-value">{match.loser_elo_before || 'N/A'}</span>
-                      <span className={`elo-change ${loserEloChange(match) >= 0 ? 'positive' : 'negative'}`}>
+                    <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded font-semibold">{match.loser_faction}</span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-gray-600">
+                    <div>
+                      <span className="font-semibold text-gray-700">ELO: </span>
+                      <span>{match.loser_elo_before || 'N/A'}</span>
+                      <span className={`ml-1 font-semibold ${loserEloChange(match) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         ({loserEloChange(match) >= 0 ? '+' : ''}{loserEloChange(match)})
                       </span>
                     </div>
-                    <div className="rating-info">
-                      <span className="rating-value">{match.loser_ranking_pos || 'N/A'}</span>
-                      <span className={`rating-change ${(match.loser_ranking_change || 0) > 0 ? 'positive' : (match.loser_ranking_change || 0) < 0 ? 'negative' : ''}`}>
-                        {(match.loser_ranking_change || 0) > 0 ? '↑' : (match.loser_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.loser_ranking_change || 0)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="comments-row">
-                    {match.loser_comments && (
-                      <div className="player-comment" title={match.loser_comments}>{match.loser_comments}</div>
+                    {match.loser_ranking_pos && (
+                      <div>
+                        <span className="font-semibold text-gray-700">Rank: </span>
+                        <span>{match.loser_ranking_pos}</span>
+                        <span className={`ml-1 font-semibold ${(match.loser_ranking_change || 0) > 0 ? 'text-green-600' : (match.loser_ranking_change || 0) < 0 ? 'text-red-600' : ''}`}>
+                          {(match.loser_ranking_change || 0) > 0 ? '↑' : (match.loser_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.loser_ranking_change || 0)}
+                        </span>
+                      </div>
                     )}
                   </div>
+                  {match.loser_comments && (
+                    <div className="text-xs text-gray-500 italic max-w-xs truncate" title={match.loser_comments}>{match.loser_comments}</div>
+                  )}
                 </div>
               </td>
 
-              <td className="map-col">{match.map}</td>
+              <td className="px-4 py-3 text-sm text-gray-700">{match.map}</td>
 
-              <td className="status-actions-col">
-                <div className="status-item">
-                  <span className={`status-badge ${match.status || 'unconfirmed'}`}>
-                    {match.status === 'confirmed' && t('match_status_confirmed')}
-                    {match.status === 'unconfirmed' && t('match_status_unconfirmed')}
-                    {match.status === 'disputed' && t('match_status_disputed')}
-                    {match.status === 'cancelled' && t('match_status_cancelled')}
-                    {!match.status && t('match_status_unconfirmed')}
-                  </span>
-                </div>
-                <div className="actions-item">
-                  {/* Show Report Match button for loser when match is unconfirmed and user is authenticated */}
-                  {isAuthenticated && currentPlayerId === match.loser_id && (match.status === 'unconfirmed' || !match.status) && (
+              <td className="px-4 py-3 text-sm">
+                <div className="space-y-2">
+                  <div>
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                      match.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                      match.status === 'disputed' ? 'bg-yellow-100 text-yellow-700' :
+                      match.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {match.status === 'confirmed' && t('match_status_confirmed')}
+                      {match.status === 'unconfirmed' && t('match_status_unconfirmed')}
+                      {match.status === 'disputed' && t('match_status_disputed')}
+                      {match.status === 'cancelled' && t('match_status_cancelled')}
+                      {!match.status && t('match_status_unconfirmed')}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {isAuthenticated && currentPlayerId === match.loser_id && (match.status === 'unconfirmed' || !match.status) && (
+                      <button
+                        className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition"
+                        onClick={() => onOpenConfirmation && onOpenConfirmation(match)}
+                        title={t('report_match_link')}
+                      >
+                        {t('report_match_link')}
+                      </button>
+                    )}
                     <button
-                      className="btn-report-match"
-                      onClick={() => onOpenConfirmation && onOpenConfirmation(match)}
-                      title={t('report_match_link')}
+                      className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition"
+                      onClick={() => {
+                        if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
+                          console.log('Details button clicked for match:', match);
+                          console.log('onViewDetails prop exists:', !!onViewDetails);
+                        }
+                        if (onViewDetails) {
+                          onViewDetails(match);
+                        }
+                      }}
+                      title={t('view_match_details')}
                     >
-                      {t('report_match_link')}
+                      {t('details_btn')}
                     </button>
-                  )}
-                  <button
-                    className="details-btn"
-                    onClick={() => {
-                      if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
-                        console.log('Details button clicked for match:', match);
-                        console.log('onViewDetails prop exists:', !!onViewDetails);
-                      }
-                      if (onViewDetails) {
-                        onViewDetails(match);
-                      }
-                    }}
-                    title={t('view_match_details')}
-                  >
-                    {t('details_btn')}
-                  </button>
-                  {match.replay_file_path ? (
-                    <button
-                      className="download-btn"
-                      onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
-                      title={`${t('downloads')}: ${match.replay_downloads || 0}`}
-                    >
-                      ⬇️
-                    </button>
-                  ) : (
-                    <span className="no-replay">{t('no_replay')}</span>
-                  )}
+                    {match.replay_file_path ? (
+                      <button
+                        className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
+                        onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
+                        title={`${t('downloads')}: ${match.replay_downloads || 0}`}
+                      >
+                        ⬇️ {match.replay_downloads || 0}
+                      </button>
+                    ) : (
+                      <span className="px-2 py-1 text-xs text-gray-500">{t('no_replay')}</span>
+                    )}
+                  </div>
                 </div>
               </td>
             </tr>
