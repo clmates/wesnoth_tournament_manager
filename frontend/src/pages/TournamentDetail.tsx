@@ -1407,7 +1407,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         {t('confirm_dispute')}
                                       </button>
                                     )}
-                                    {isCreator && match.match_status === 'disputed' && (
+                                    {isCreator && confirmationStatus === 'disputed' && (
                                       <button
                                         className="px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
                                         onClick={() => setDisputeManagementModal({ isOpen: true, match })}
