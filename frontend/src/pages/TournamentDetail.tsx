@@ -1323,6 +1323,12 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           const hasReportedMatch = match.match_id || (['unranked', 'team'].includes(tournament?.tournament_mode) && match.match_status === 'completed');
                           // Use match_status_from_matches from the matches table (confirmed, disputed, unconfirmed, cancelled)
                           const confirmationStatus = isAdminDetermined ? 'admin' : (match.match_status_from_matches || 'unconfirmed');
+                          
+                          // Check if next round has been started (only for unranked tournaments)
+                          const nextRound = tournament?.tournament_mode === 'unranked' 
+                            ? rounds.find(r => r.round_number === (match.round_number || 0) + 1)
+                            : null;
+                          const nextRoundStarted = nextRound && nextRound.round_status !== 'pending';
 
                           return (
                             <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
@@ -1401,7 +1407,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                     ) : (
                                       <span className="text-xs text-gray-500">-</span>
                                     )}
-                                    {!isAdminDetermined && isCurrentUserLoser && confirmationStatus === 'unconfirmed' && (
+                                    {!isAdminDetermined && isCurrentUserLoser && confirmationStatus === 'unconfirmed' && !nextRoundStarted && (
                                       <button
                                         className="px-2 py-1 text-xs bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors"
                                         onClick={() => handleOpenConfirmModal(match)}
