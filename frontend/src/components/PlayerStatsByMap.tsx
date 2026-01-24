@@ -88,13 +88,13 @@ const PlayerStatsByMap: React.FC<Props> = ({ playerId }) => {
                 <tr key={stat.map_id} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="px-4 py-3 font-semibold text-gray-700">{stat.map_name}</td>
                   <td className="px-4 py-3 text-center">{stat.total_games}</td>
-                  <td>
+                  <td className="px-4 py-3 text-center">
                     <span className="flex gap-3 justify-center">
                       <span className="text-green-600 font-semibold">{stat.wins}W</span>
                       <span className="text-red-600 font-semibold">{stat.losses}L</span>
                     </span>
                   </td>
-                  <td>
+                  <td className="px-4 py-3 text-center">
                     <span className={`font-semibold ${
                       stat.winrate > 55 ? 'text-green-600' : 
                       stat.winrate < 45 ? 'text-red-600' : 
@@ -103,7 +103,7 @@ const PlayerStatsByMap: React.FC<Props> = ({ playerId }) => {
                       {stat.winrate.toFixed(1)}%
                     </span>
                   </td>
-                  <td className={`px-4 py-3 text-right font-semibold ${stat.avg_elo_change > 0 ? 'text-green-600' : stat.avg_elo_change < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                  <td className="px-4 py-3 text-center font-semibold ${stat.avg_elo_change > 0 ? 'text-green-600' : stat.avg_elo_change < 0 ? 'text-red-600' : 'text-gray-600'}`}>
                     {stat.avg_elo_change > 0 ? '+' : ''}{stat.avg_elo_change.toFixed(1)}
                   </td>
                 </tr>
