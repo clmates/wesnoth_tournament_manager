@@ -11,6 +11,18 @@ import { TeamJoinModal } from '../components/TeamJoinModal';
 import PlayerLink from '../components/PlayerLink';
 import StarDisplay from '../components/StarDisplay';
 
+// Get API URL for direct backend calls - matches RecentGamesTable pattern
+const getApiUrl = (): string => {
+  if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+    return 'https://wesnothtournamentmanager-main.up.railway.app/api';
+  } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+    return 'https://wesnothtournamentmanager-production.up.railway.app/api';
+  } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+    return 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+  }
+  return '/api';
+};
+
 interface Tournament {
   id: string;
   name: string;
@@ -386,6 +398,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   try {
     if (!replayFilePath) return;
     const filename = replayFilePath.split('/').pop() || `replay_${matchId || 'tournament'}`;
+    const API_URL = getApiUrl();
     
     let signedUrl: string;
     let response: Response;
@@ -393,7 +406,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     
     if (matchId) {
       // For ranked tournaments (with match_id), get signed URL from matches endpoint
-      response = await fetch(`/api/matches/${matchId}/replay/download`);
+      response = await fetch(`${API_URL}/matches/${matchId}/replay/download`);
       if (!response.ok) {
         console.error(`Ranked replay error: ${response.status} ${response.statusText}`);
         throw new Error('Failed to get download link');
@@ -403,7 +416,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     } else {
       // For unranked/team tournaments (no match_id), generate signed URL for direct path
       console.log('Requesting signed URL for unranked replay:', replayFilePath);
-      response = await fetch(`/api/public/replay/download-url?path=${encodeURIComponent(replayFilePath)}`);
+      response = await fetch(`${API_URL}/public/replay/download-url?path=${encodeURIComponent(replayFilePath)}`);
       if (!response.ok) {
         console.error(`Unranked replay error: ${response.status} ${response.statusText}`);
         const errorText = await response.text();
