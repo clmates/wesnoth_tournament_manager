@@ -504,6 +504,18 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     }
   };
 
+  const handleCancelTournament = async () => {
+    try {
+      await api.delete(`/tournaments/${id}`);
+      setSuccess(t('success_tournament_cancelled', 'Tournament cancelled successfully'));
+      setTimeout(() => {
+        navigate('/tournaments');
+      }, 2000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || t('error_failed_cancel_tournament', 'Failed to cancel tournament'));
+    }
+  };
+
   const handleSaveChanges = async () => {
     try {
       // Build update object, excluding started_at if empty
@@ -900,6 +912,19 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
               {tournament.status === 'in_progress' && (
                 <p className="text-green-600">✓ {t('tournaments.started_locked')}</p>
+              )}
+
+              {(tournament.status !== 'in_progress' && tournament.status !== 'finished') && (
+                <button 
+                  onClick={() => {
+                    if (confirm(t('confirm_cancel_tournament', 'Are you sure you want to cancel this tournament? All data will be deleted.'))) {
+                      handleCancelTournament();
+                    }
+                  }} 
+                  className="px-6 py-2 bg-red-700 text-white rounded hover:bg-red-800 transition-colors"
+                >
+                  {t('cancel_tournament', 'Cancel Tournament')}
+                </button>
               )}
             </div>
           )}

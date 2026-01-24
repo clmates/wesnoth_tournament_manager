@@ -419,32 +419,55 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// Delete tournament (admin only) - desvinculates matches from tournament but keeps them
+// Delete tournament (only creator, not in progress or finished)
 router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
-    // Verify tournament exists
-    const tournamentCheck = await query('SELECT id, creator_id FROM tournaments WHERE id = $1', [id]);
+    // Verify tournament exists and user is creator
+    const tournamentCheck = await query('SELECT id, creator_id, status FROM tournaments WHERE id = $1', [id]);
     if (tournamentCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const tournament = tournamentCheck.rows[0];
+
+    // Verify user is the tournament creator
+    if (tournament.creator_id !== req.userId) {
+      return res.status(403).json({ error: 'Only tournament creator can cancel tournament' });
+    }
+
+    // Verify tournament is not in progress or finished
+    if (tournament.status === 'in_progress' || tournament.status === 'finished') {
+      return res.status(400).json({ error: 'Cannot cancel tournament that is in progress or finished' });
     }
 
     // Start transaction
     await query('BEGIN');
 
     try {
-      // Desvinculate all matches from tournament (set tournament_id to NULL)
-      // Note: matches table has tournament_id column but NO FK constraint, so matches will be preserved
-      const matchesResult = await query('UPDATE matches SET tournament_id = NULL WHERE tournament_id = $1 RETURNING id', [id]);
-      const desvinculatedMatchesCount = matchesResult.rows.length;
-
-      // Delete tournament_rounds (cascade will handle tournament_round_matches)
+      // Delete all related data in the correct order (respecting foreign keys)
+      
+      // Delete tournament_round_matches
+      await query('DELETE FROM tournament_round_matches WHERE round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = $1)', [id]);
+      
+      // Delete tournament_matches
+      await query('DELETE FROM tournament_matches WHERE tournament_id = $1', [id]);
+      
+      // Delete tournament_rounds
       await query('DELETE FROM tournament_rounds WHERE tournament_id = $1', [id]);
-
+      
+      // Delete tournament_teams
+      await query('DELETE FROM tournament_teams WHERE tournament_id = $1', [id]);
+      
+      // Delete tournament_assets (if table exists)
+      await query('DELETE FROM tournament_assets WHERE tournament_id = $1', [id]).catch(() => {
+        // Table might not exist, that's ok
+      });
+      
       // Delete tournament_participants
       await query('DELETE FROM tournament_participants WHERE tournament_id = $1', [id]);
-
+      
       // Delete tournament
       await query('DELETE FROM tournaments WHERE id = $1', [id]);
 
@@ -452,12 +475,8 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
       await query('COMMIT');
 
       res.json({ 
-        message: 'Tournament deleted successfully',
-        tournament_id: id,
-        details: {
-          matches_desvinculated: desvinculatedMatchesCount,
-          note: 'Associated matches have been preserved and desvinculated from tournament'
-        }
+        message: 'Tournament cancelled successfully',
+        tournament_id: id
       });
     } catch (innerError) {
       await query('ROLLBACK');
@@ -465,7 +484,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
     }
   } catch (error: any) {
     console.error('Delete tournament error:', error.message || error);
-    res.status(500).json({ error: 'Failed to delete tournament', details: error.message });
+    res.status(500).json({ error: 'Failed to cancel tournament', details: error.message });
   }
 });
 
