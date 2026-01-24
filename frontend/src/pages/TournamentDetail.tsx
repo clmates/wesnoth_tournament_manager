@@ -1811,16 +1811,16 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   {t('cancel_btn')}
                 </button>
                 <button 
-                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
                   onClick={() => handleDisputeAction('dismiss', disputeManagementModal.match!.id)}
                 >
-                  {t('reject_btn') || 'Reject'}
+                  ✗ Reject Dispute
                 </button>
                 <button 
-                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                   onClick={() => handleDisputeAction('confirm', disputeManagementModal.match!.id)}
                 >
-                  {t('confirm_btn') || 'Confirm'}
+                  ✓ Validate Dispute
                 </button>
               </div>
             </div>
