@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../config/database.js';
 import { getWinnerAndRunnerUp } from '../utils/tournament.js';
 import { optionalAuthMiddleware } from '../middleware/auth.js';
+import { supabase } from '../config/supabase.js';
 
 const router = Router();
 
@@ -847,6 +848,48 @@ router.get('/tournaments/:id/teams', async (req, res) => {
   } catch (error) {
     console.error('Error fetching tournament teams:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch tournament teams' });
+  }
+});
+
+// Get signed download URL for replay files (for unranked/team tournaments without match_id)
+// PUBLIC endpoint that generates a temporary signed URL for any replay path
+router.get('/replay/download-url', async (req, res) => {
+  try {
+    const { path: replayFilePath } = req.query;
+    
+    if (!replayFilePath || typeof replayFilePath !== 'string') {
+      console.warn('⚠️ [REPLAY-DL] Invalid or missing replay path');
+      return res.status(400).json({ error: 'Missing replay path' });
+    }
+
+    console.log('📥 [REPLAY-DL] Signed URL request for path:', replayFilePath);
+
+    try {
+      // Generate a short-lived signed URL (5 minutes) for direct download from Supabase
+      const filename = replayFilePath.split('/').pop() || 'replay.zip';
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('replays')
+        .createSignedUrl(replayFilePath, 300); // 5 minutes expiration
+
+      if (signedError || !signedData?.signedUrl) {
+        console.error('❌ [REPLAY-DL] Failed to generate signed URL:', signedError?.message || 'No signed URL');
+        return res.status(500).json({ error: 'Failed to generate download link' });
+      }
+
+      console.log('✅ [REPLAY-DL] Signed URL generated (5-min expiry)');
+
+      res.json({
+        signedUrl: signedData.signedUrl,
+        filename: filename,
+        expiresIn: 300
+      });
+    } catch (supabaseError) {
+      console.error('❌ [REPLAY-DL] Supabase error:', supabaseError);
+      res.status(500).json({ error: 'Failed to generate download link' });
+    }
+  } catch (error) {
+    console.error('❌ [REPLAY-DL] Replay download error:', error);
+    res.status(500).json({ error: 'Failed to download replay' });
   }
 });
 

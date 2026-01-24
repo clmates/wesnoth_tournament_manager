@@ -384,11 +384,28 @@ const handleConfirmDelete = async () => {
 
 const handleDownloadReplay = async (matchId: string | null, replayFilePath: string | null | undefined) => {
   try {
-    if (!matchId || !replayFilePath) return;
-    const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
-    const downloadUrl = `/api/matches/${matchId}/replay/download`;
+    if (!replayFilePath) return;
+    const filename = replayFilePath.split('/').pop() || `replay_${matchId || 'tournament'}`;
+    
+    let signedUrl: string;
+    
+    if (matchId) {
+      // For ranked tournaments (with match_id), get signed URL from matches endpoint
+      const response = await fetch(`/api/matches/${matchId}/replay/download`);
+      if (!response.ok) throw new Error('Failed to get download link');
+      const data = await response.json();
+      signedUrl = data.signedUrl;
+    } else {
+      // For unranked/team tournaments (no match_id), generate signed URL for direct path
+      const response = await fetch(`/api/public/replay/download-url?path=${encodeURIComponent(replayFilePath)}`);
+      if (!response.ok) throw new Error('Failed to get download link');
+      const data = await response.json();
+      signedUrl = data.signedUrl;
+    }
+    
+    // Download using the signed URL
     const link = document.createElement('a');
-    link.href = downloadUrl;
+    link.href = signedUrl;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
