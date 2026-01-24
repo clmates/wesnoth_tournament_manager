@@ -188,9 +188,9 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
   };
 
   return (
-    <div className="balance-event-impact-panel">
-      <div className="event-selector-section">
-        <h3>{t('select_balance_event') || 'Select Balance Event'}</h3>
+    <div className="w-full bg-white rounded-lg border border-gray-200 p-6 mb-8">
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('select_balance_event') || 'Select Balance Event'}</h3>
         
         <select 
           value={selectedEvent?.id || ''} 
@@ -202,7 +202,7 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
               if (event) handleEventSelect(event);
             }
           }}
-          className="event-dropdown"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">{t('all_accumulated') || 'All (Accumulated)'}</option>
           {events.map(event => (
@@ -216,46 +216,46 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
       </div>
 
       {selectedEvent && (
-        <div className="event-details-section">
-          <div className="event-details-header">
-            <h4>{t('event_details') || 'Event Details'}</h4>
+        <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+          <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+            <h4 className="text-lg font-semibold text-gray-800">{t('event_details') || 'Event Details'}</h4>
             <span 
-              className="event-type-badge"
+              className="px-3 py-1 rounded-full text-white text-sm font-semibold"
               style={{ background: eventTypeColor[selectedEvent.event_type] || '#3498db' }}
             >
               {selectedEvent.event_type}
             </span>
           </div>
           
-          <p className="event-description">{selectedEvent.description}</p>
+          <p className="text-gray-700 mb-4">{selectedEvent.description}</p>
           
-          <div className="event-metadata">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {selectedEvent.faction_name && (
-              <div className="meta-item">
-                <span className="label">{t('faction') || 'Faction'}:</span>
-                <span className="value">{selectedEvent.faction_name}</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-gray-600">{t('faction') || 'Faction'}:</span>
+                <span className="text-gray-800">{selectedEvent.faction_name}</span>
               </div>
             )}
             {selectedEvent.map_name && (
-              <div className="meta-item">
-                <span className="label">{t('map') || 'Map'}:</span>
-                <span className="value">{selectedEvent.map_name}</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-gray-600">{t('map') || 'Map'}:</span>
+                <span className="text-gray-800">{selectedEvent.map_name}</span>
               </div>
             )}
             {selectedEvent.patch_version && (
-              <div className="meta-item">
-                <span className="label">{t('patch_version') || 'Patch'}:</span>
-                <span className="value">{selectedEvent.patch_version}</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-gray-600">{t('patch_version') || 'Patch'}:</span>
+                <span className="text-gray-800">{selectedEvent.patch_version}</span>
               </div>
             )}
-            <div className="meta-item">
-              <span className="label">{t('date') || 'Date'}:</span>
-              <span className="value">{new Date(selectedEvent.event_date).toLocaleDateString()}</span>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-gray-600">{t('date') || 'Date'}:</span>
+              <span className="text-gray-800">{new Date(selectedEvent.event_date).toLocaleDateString()}</span>
             </div>
           </div>
 
-          {loading && <div className="loading-message">{t('loading') || 'Loading...'}</div>}
-          {error && <div className="error-message">{error}</div>}
+          {loading && <div className="mt-4 text-center text-gray-500">{t('loading') || 'Loading...'}</div>}
+          {error && <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-md">{error}</div>}
         </div>
       )}
     </div>
