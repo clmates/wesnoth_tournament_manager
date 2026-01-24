@@ -735,25 +735,25 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           {tournament.tournament_type === 'swiss_elimination' ? (
             <>
               <div className="flex flex-col gap-2">
-                <strong className="font-semibold text-gray-700">Swiss Rounds:</strong> <span className="text-gray-600">{tournament.general_rounds}</span>
+                <strong className="font-semibold text-gray-700">{t('tournament.number_swiss_rounds', 'Swiss Rounds')}:</strong> <span className="text-gray-600">{tournament.general_rounds}</span>
               </div>
               <div className="flex flex-col gap-2">
-                <strong className="font-semibold text-gray-700">Elimination Rounds:</strong> <span className="text-gray-600">{tournament.final_rounds}</span>
+                <strong className="font-semibold text-gray-700">{t('tournament.number_elimination_rounds', 'Elimination Rounds')}:</strong> <span className="text-gray-600">{tournament.final_rounds}</span>
               </div>
               <div className="flex flex-col gap-2">
-                <strong className="font-semibold text-gray-700">General Format (Swiss + Elimination except Final):</strong> <span className="text-gray-600">{t('match_format.' + tournament.general_rounds_format)}</span>
+                <strong className="font-semibold text-gray-700">{t('tournament.general_format', 'General Format (Swiss + Elimination except Final)')}:</strong> <span className="text-gray-600">{t('match_format.' + tournament.general_rounds_format)}</span>
               </div>
               <div className="flex flex-col gap-2">
-                <strong className="font-semibold text-gray-700">Final Format (Grand Final):</strong> <span className="text-gray-600">{t('match_format.' + tournament.final_rounds_format)}</span>
+                <strong className="font-semibold text-gray-700">{t('tournament.final_format', 'Final Format (Grand Final)')}:</strong> <span className="text-gray-600">{t('match_format.' + tournament.final_rounds_format)}</span>
               </div>
               <div className="flex flex-col gap-2" style={{ gridColumn: '1 / -1' }}>
-                <strong className="font-semibold text-gray-700">Tournament Structure:</strong>
+                <strong className="font-semibold text-gray-700">{t('tournament.tournament_structure', 'Tournament Structure')}:</strong>
                 <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
-                  <li>Swiss Phase: {tournament.general_rounds} rounds ({t('match_format.' + tournament.general_rounds_format)})</li>
+                  <li>{t('tournament.swiss_phase', 'Swiss Phase')}: {tournament.general_rounds} {t('tournament.rounds', 'rounds')} ({t('match_format.' + tournament.general_rounds_format)})</li>
                   {tournament.final_rounds > 1 && (
-                    <li>Qualification Phase: {tournament.final_rounds - 1} rounds ({t('match_format.' + tournament.general_rounds_format)})</li>
+                    <li>{t('tournament.qualification_phase', 'Qualification Phase')}: {tournament.final_rounds - 1} {t('tournament.rounds', 'rounds')} ({t('match_format.' + tournament.general_rounds_format)})</li>
                   )}
-                  <li>Grand Final: 1 round ({t('match_format.' + tournament.final_rounds_format)})</li>
+                  <li>{t('tournament.grand_final', 'Grand Final')}: 1 {t('tournament.round', 'round')} ({t('match_format.' + tournament.final_rounds_format)})</li>
                 </ul>
               </div>
             </>
