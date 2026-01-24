@@ -230,6 +230,13 @@ router.get('/tournaments/:id/matches', async (req, res) => {
     const { id } = req.params;
     console.log('🔍 [MATCHES-START] Fetching matches for tournament:', id);
     
+    // Check if replay_downloads column exists
+    const columnCheckResult = await query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name='tournament_matches' AND column_name='replay_downloads'
+    `);
+    console.log('🔍 [MATCHES] replay_downloads column exists:', columnCheckResult.rows.length > 0);
+    
     // Get tournament mode
     const tournamentModeResult = await query(
       `SELECT tournament_mode FROM tournaments WHERE id = $1`,
@@ -274,7 +281,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tm.winner_rating,
         tm.loser_rating,
         tm.replay_file_path,
-        COALESCE(tm.replay_downloads, 0) as replay_downloads,
+        tm.replay_downloads as replay_downloads,
         tm.organizer_action
       `;
       joinClause = `
@@ -314,7 +321,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tm.winner_rating,
         tm.loser_rating,
         tm.replay_file_path,
-        tm.replay_downloads,
+        tm.replay_downloads as replay_downloads,
         tm.organizer_action
       `;
       joinClause = `
@@ -354,7 +361,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         m.winner_rating,
         m.loser_rating,
         m.replay_file_path,
-        COALESCE(m.replay_downloads, 0) as replay_downloads,
+        m.replay_downloads as replay_downloads,
         tm.organizer_action
       `;
       joinClause = `
