@@ -219,20 +219,6 @@ const Register: React.FC = () => {
             <small className="text-gray-600 text-xs mt-1 block">Your Discord user ID for notifications</small>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
-            <CountrySelector
-              value={formData.country}
-              onChange={(country) => setFormData(prev => ({ ...prev, country }))}
-              showFlag={true}
-              disabled={loading}
-            />
-            <AvatarSelector
-              value={formData.avatar}
-              onChange={(avatar) => setFormData(prev => ({ ...prev, avatar }))}
-              disabled={loading}
-            />
-          </div>
-
           <div className="mb-6">
             <label htmlFor="language" className="block font-semibold text-gray-800 mb-2 text-sm">Preferred Language:</label>
             <select
@@ -249,6 +235,20 @@ const Register: React.FC = () => {
               <option value="ru">Русский</option>
               <option value="zh">中文</option>
             </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+            <CountrySelector
+              value={formData.country}
+              onChange={(country) => setFormData(prev => ({ ...prev, country }))}
+              showFlag={true}
+              disabled={loading}
+            />
+            <AvatarSelector
+              value={formData.avatar}
+              onChange={(avatar) => setFormData(prev => ({ ...prev, avatar }))}
+              disabled={loading}
+            />
           </div>
 
           <button
