@@ -388,18 +388,29 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     const filename = replayFilePath.split('/').pop() || `replay_${matchId || 'tournament'}`;
     
     let signedUrl: string;
+    let response: Response;
+    let data: any;
     
     if (matchId) {
       // For ranked tournaments (with match_id), get signed URL from matches endpoint
-      const response = await fetch(`/api/matches/${matchId}/replay/download`);
-      if (!response.ok) throw new Error('Failed to get download link');
-      const data = await response.json();
+      response = await fetch(`/api/matches/${matchId}/replay/download`);
+      if (!response.ok) {
+        console.error(`Ranked replay error: ${response.status} ${response.statusText}`);
+        throw new Error('Failed to get download link');
+      }
+      data = await response.json();
       signedUrl = data.signedUrl;
     } else {
       // For unranked/team tournaments (no match_id), generate signed URL for direct path
-      const response = await fetch(`/api/public/replay/download-url?path=${encodeURIComponent(replayFilePath)}`);
-      if (!response.ok) throw new Error('Failed to get download link');
-      const data = await response.json();
+      console.log('Requesting signed URL for unranked replay:', replayFilePath);
+      response = await fetch(`/api/public/replay/download-url?path=${encodeURIComponent(replayFilePath)}`);
+      if (!response.ok) {
+        console.error(`Unranked replay error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error('Failed to get download link');
+      }
+      data = await response.json();
       signedUrl = data.signedUrl;
     }
     
