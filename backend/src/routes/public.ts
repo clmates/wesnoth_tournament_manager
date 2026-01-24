@@ -265,7 +265,8 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         NULL as winner_faction,
         NULL as loser_faction,
         tm.replay_file_path,
-        m.replay_downloads
+        m.replay_downloads,
+        tm.organizer_action
       `;
       joinClause = `
         FROM tournament_matches tm
@@ -298,7 +299,8 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tm.winner_faction,
         tm.loser_faction,
         tm.replay_file_path,
-        m.replay_downloads
+        m.replay_downloads,
+        tm.organizer_action
       `;
       joinClause = `
         FROM tournament_matches tm
@@ -331,7 +333,8 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         m.winner_faction,
         m.loser_faction,
         m.replay_file_path,
-        m.replay_downloads
+        m.replay_downloads,
+        tm.organizer_action
       `;
       joinClause = `
         FROM tournament_matches tm

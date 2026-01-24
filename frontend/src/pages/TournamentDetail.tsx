@@ -1246,8 +1246,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             isCurrentUserLoser = userId === loserId;
                           }
                           
-                          // If no match_id, it was determined by admin, show "ADMIN" status
-                          const isAdminDetermined = !match.match_id;
+                          // If no match_id and status is pending, it was determined by admin, show "ADMIN" status
+                          const isAdminDetermined = !match.match_id && match.match_status === 'pending';
+                          const hasReportedMatch = match.match_id || (['unranked', 'team'].includes(tournament?.tournament_mode) && match.match_status === 'completed');
                           // Use match_status_from_matches from the matches table (confirmed, disputed, unconfirmed, cancelled)
                           const confirmationStatus = isAdminDetermined ? 'admin' : (match.match_status_from_matches || 'unconfirmed');
 
@@ -1304,7 +1305,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                     )}
                                   </div>
                                   <div className="flex flex-wrap gap-2">
-                                    {!isAdminDetermined && match.match_id ? (
+                                    {hasReportedMatch ? (
                                       <>
                                         <button
                                           className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
