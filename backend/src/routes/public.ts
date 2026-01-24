@@ -252,6 +252,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tm.player1_id,
         tm.player2_id,
         tm.winner_id,
+        tm.loser_id,
         tm.match_id,
         tm.match_status,
         tm.played_at,
@@ -262,11 +263,16 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tt1.name as player1_nickname,
         tt2.name as player2_nickname,
         tt_winner.name as winner_nickname,
+        tt_loser.name as loser_nickname,
         tm.map,
         NULL as winner_faction,
         NULL as loser_faction,
+        tm.winner_comments,
+        tm.loser_comments,
+        tm.winner_rating,
+        tm.loser_rating,
         tm.replay_file_path,
-        tm.replay_downloads,
+        COALESCE(tm.replay_downloads, 0) as replay_downloads,
         tm.organizer_action
       `;
       joinClause = `
@@ -275,6 +281,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
         LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
+        LEFT JOIN tournament_teams tt_loser ON tm.loser_id = tt_loser.id
       `;
     } else if (tournamentMode === 'unranked') {
       // Unranked 1v1: get player names from users, match details from tournament_matches
@@ -285,6 +292,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tm.player1_id,
         tm.player2_id,
         tm.winner_id,
+        tm.loser_id,
         tm.match_id,
         tm.match_status,
         tm.played_at,
@@ -295,11 +303,16 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         u1.nickname as player1_nickname,
         u2.nickname as player2_nickname,
         uw.nickname as winner_nickname,
+        ul.nickname as loser_nickname,
         tm.map,
         tm.winner_faction,
         tm.loser_faction,
+        tm.winner_comments,
+        tm.loser_comments,
+        tm.winner_rating,
+        tm.loser_rating,
         tm.replay_file_path,
-        tm.replay_downloads,
+        COALESCE(tm.replay_downloads, 0) as replay_downloads,
         tm.organizer_action
       `;
       joinClause = `
@@ -308,6 +321,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         LEFT JOIN users u1 ON tm.player1_id = u1.id
         LEFT JOIN users u2 ON tm.player2_id = u2.id
         LEFT JOIN users uw ON tm.winner_id = uw.id
+        LEFT JOIN users ul ON tm.loser_id = ul.id
       `;
     } else {
       // Ranked 1v1: get player names from users (matches data already shown, though not included here for public API)
@@ -318,6 +332,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tm.player1_id,
         tm.player2_id,
         tm.winner_id,
+        tm.loser_id,
         tm.match_id,
         tm.match_status,
         tm.played_at,
@@ -328,11 +343,16 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         u1.nickname as player1_nickname,
         u2.nickname as player2_nickname,
         uw.nickname as winner_nickname,
+        ul.nickname as loser_nickname,
         m.map,
         m.winner_faction,
         m.loser_faction,
+        m.winner_comments,
+        m.loser_comments,
+        m.winner_rating,
+        m.loser_rating,
         m.replay_file_path,
-        m.replay_downloads,
+        COALESCE(m.replay_downloads, 0) as replay_downloads,
         tm.organizer_action
       `;
       joinClause = `
@@ -341,6 +361,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         LEFT JOIN users u1 ON tm.player1_id = u1.id
         LEFT JOIN users u2 ON tm.player2_id = u2.id
         LEFT JOIN users uw ON tm.winner_id = uw.id
+        LEFT JOIN users ul ON tm.loser_id = ul.id
         LEFT JOIN matches m ON tm.match_id = m.id
       `;
     }
