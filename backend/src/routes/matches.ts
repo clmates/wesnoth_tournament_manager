@@ -635,8 +635,8 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     let matchId: string | null = null;
     let replayPath: string | null = null;
 
-    // Upload replay to Supabase if file exists (for ranked/unranked only, not team)
-    if ((tournamentMode === 'ranked' || tournamentMode === 'unranked') && req.file) {
+    // Upload replay to Supabase if file exists (for ranked/unranked/team)
+    if ((tournamentMode === 'ranked' || tournamentMode === 'unranked' || tournamentMode === 'team') && req.file) {
       try {
         console.log('📤 [UPLOAD] Starting Supabase upload...');
         const fileBuffer = req.file.buffer;
