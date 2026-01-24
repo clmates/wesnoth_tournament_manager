@@ -3029,7 +3029,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
         `UPDATE tournament_participants 
          SET tournament_wins = tournament_wins - 1,
              tournament_points = tournament_points - 1
-         WHERE tournament_id = $1 AND player_id = $2`,
+         WHERE tournament_id = $1 AND user_id = $2`,
         [tournamentId, winnerId]
       );
 
@@ -3037,7 +3037,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
       await query(
         `UPDATE tournament_participants 
          SET tournament_losses = tournament_losses - 1
-         WHERE tournament_id = $1 AND player_id = $2`,
+         WHERE tournament_id = $1 AND user_id = $2`,
         [tournamentId, loserId]
       );
 
