@@ -2980,3 +2980,91 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
 export default router;
 
 
+
+// Handle tournament match disputes (for organizers)
+router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { tournamentId, matchId } = req.params;
+    const { action } = req.body; // 'confirm' or 'dismiss'
+
+    // Verify user is tournament organizer
+    const tournamentResult = await query(
+      'SELECT creator_id FROM tournaments WHERE id = $1',
+      [tournamentId]
+    );
+
+    if (tournamentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    if (tournamentResult.rows[0].creator_id !== req.userId) {
+      return res.status(403).json({ error: 'Only tournament organizer can manage disputes' });
+    }
+
+    // Get the tournament match
+    const matchResult = await query(
+      'SELECT * FROM tournament_matches WHERE id = $1 AND tournament_id = $2',
+      [matchId, tournamentId]
+    );
+
+    if (matchResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament match not found' });
+    }
+
+    const match = matchResult.rows[0];
+
+    if (match.match_status !== 'disputed') {
+      return res.status(400).json({ error: 'Match is not in disputed status' });
+    }
+
+    if (action === 'confirm') {
+      // Confirm the dispute: reverse the result
+      // Swap winner and loser
+      const newWinnerId = match.loser_id;
+      const newLoserId = match.winner_id;
+      
+      // Swap factions and comments too
+      const newWinnerFaction = match.loser_faction;
+      const newLoserFaction = match.winner_faction;
+      const newWinnerComments = match.loser_comments;
+      const newLoserComments = match.winner_comments;
+      const newWinnerRating = match.loser_rating;
+      const newLoserRating = match.winner_rating;
+
+      await query(
+        `UPDATE tournament_matches 
+         SET winner_id = $1,
+             loser_id = $2,
+             winner_faction = $3,
+             loser_faction = $4,
+             winner_comments = $5,
+             loser_comments = $6,
+             winner_rating = $7,
+             loser_rating = $8,
+             match_status = 'completed',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $9`,
+        [newWinnerId, newLoserId, newWinnerFaction, newLoserFaction, newWinnerComments, newLoserComments, newWinnerRating, newLoserRating, matchId]
+      );
+
+      console.log(`Tournament match ${matchId} dispute confirmed - result reversed by organizer ${req.userId}`);
+      res.json({ message: 'Dispute confirmed. Match result has been reversed.' });
+    } else if (action === 'dismiss') {
+      // Dismiss the dispute: keep original result
+      await query(
+        'UPDATE tournament_matches SET match_status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        ['completed', matchId]
+      );
+
+      console.log(`Tournament match ${matchId} dispute dismissed by organizer ${req.userId}`);
+      res.json({ message: 'Dispute dismissed. Original match result confirmed.' });
+    } else {
+      res.status(400).json({ error: 'Invalid action. Use "confirm" or "dismiss"' });
+    }
+  } catch (error) {
+    console.error('Error handling tournament match dispute:', error);
+    res.status(500).json({ error: 'Failed to handle dispute' });
+  }
+});
+
+
