@@ -105,6 +105,8 @@
   "showing_count": "Показано {{count}} из {{total}} всего (Страница {{page}} из {{totalPages}})",
   "matches_all_matches": "Все матчи",
   "matches_no_matches_found": "Матчи не найдены",
+  "filter_player": "Игрок",
+  "filter_by_player": "Фильтр по игроку...",
   "filter_winner": "Победитель",
   "filter_by_winner": "Фильтр по победителю...",
   "filter_loser": "Проигравший",

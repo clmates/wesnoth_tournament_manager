@@ -103,6 +103,8 @@
   "showing_count": "显示 {{count}} / 共 {{total}} (第 {{page}} 页 / 共 {{totalPages}} 页)",
   "matches_all_matches": "所有比赛",
   "matches_no_matches_found": "未找到比赛",
+  "filter_player": "玩家",
+  "filter_by_player": "按玩家过滤...",
   "filter_winner": "获胜者",
   "filter_by_winner": "按获胜者过滤...",
   "filter_loser": "失败者",

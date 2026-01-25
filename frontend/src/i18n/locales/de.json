@@ -103,6 +103,8 @@
   "showing_count": "Zeige {{count}} von {{total}} insgesamt (Seite {{page}} von {{totalPages}})",
   "matches_all_matches": "Alle Spiele",
   "matches_no_matches_found": "Keine Spiele gefunden",
+  "filter_player": "Spieler",
+  "filter_by_player": "Nach Spieler filtern...",
   "filter_winner": "Gewinner",
   "filter_by_winner": "Nach Gewinner filtern...",
   "filter_loser": "Verlierer",
