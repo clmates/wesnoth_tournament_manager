@@ -356,9 +356,9 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
       return res.status(403).json({ error: 'Password reset via Discord is not enabled on this server' });
     }
 
-    // Find user
+    // Find user by nickname OR email
     const userResult = await query(
-      'SELECT id, discord_id, email FROM public.users WHERE LOWER(nickname) = LOWER($1)',
+      'SELECT id, discord_id, email, nickname FROM public.users WHERE LOWER(nickname) = LOWER($1) OR LOWER(email) = LOWER($1)',
       [nickname]
     );
 
@@ -372,7 +372,8 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
     
     console.log('[PASSWORD-RESET] User found:', {
       userId: user.id,
-      nickname: nickname,
+      foundByNickname: user.nickname,
+      searchedFor: nickname,
       storedDiscordId: user.discord_id,
       providedDiscordId: discord_id,
       match: user.discord_id === discord_id

@@ -101,7 +101,7 @@ const ForgotPassword: React.FC = () => {
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <div>
-                  <label htmlFor="nickname" className="block font-semibold text-gray-700 mb-2">{t('auth.label_nickname')}</label>
+                  <label htmlFor="nickname" className="block font-semibold text-gray-700 mb-2">{t('auth.label_nickname') || 'Nickname or Email'}</label>
                   <input
                     id="nickname"
                     type="text"
