@@ -142,8 +142,7 @@ export const matchService = {
   getAllMatches: (page: number = 1, filters?: any) => {
     const params: any = { page };
     if (filters) {
-      if (filters.winner) params.winner = filters.winner;
-      if (filters.loser) params.loser = filters.loser;
+      if (filters.player) params.player = filters.player;
       if (filters.map) params.map = filters.map;
       if (filters.status) params.status = filters.status;
       if (filters.confirmed) params.confirmed = filters.confirmed;
@@ -153,8 +152,7 @@ export const matchService = {
   getUserMatches: (userId: string, page: number = 1, filters?: any) => {
     const params: any = { page };
     if (filters) {
-      if (filters.winner) params.winner = filters.winner;
-      if (filters.loser) params.loser = filters.loser;
+      if (filters.player) params.player = filters.player;
       if (filters.map) params.map = filters.map;
       if (filters.status) params.status = filters.status;
     }
@@ -253,8 +251,7 @@ export const publicService = {
   getAllMatches: (page: number = 1, filters?: any) => {
     const params: any = { page };
     if (filters) {
-      if (filters.winner) params.winner = filters.winner;
-      if (filters.loser) params.loser = filters.loser;
+      if (filters.player) params.player = filters.player;
       if (filters.map) params.map = filters.map;
       if (filters.status) params.status = filters.status;
       if (filters.confirmed) params.confirmed = filters.confirmed;

@@ -17,8 +17,7 @@ import PlayerLink from '../components/PlayerLink';
 type ProfileTab = 'overall' | 'matches' | 'opponents' | 'by-map' | 'by-faction';
 
 interface FilterState {
-  winner: string;
-  loser: string;
+  player: string;
   map: string;
   status: string;
 }
@@ -45,8 +44,7 @@ const User: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filterOpponent, setFilterOpponent] = useState<string>('');
   const [filters, setFilters] = useState<FilterState>({
-    winner: '',
-    loser: '',
+    player: '',
     map: '',
     status: '',
   });
@@ -174,8 +172,7 @@ const User: React.FC = () => {
 
   const resetFilters = () => {
     setFilters({
-      winner: '',
-      loser: '',
+      player: '',
       map: '',
       status: '',
     });
@@ -183,10 +180,8 @@ const User: React.FC = () => {
 
   // Filter matches based on active filters
   const filteredMatches = matches.filter(match => {
-    if (filters.winner && !match.winner_nickname?.toLowerCase().includes(filters.winner.toLowerCase())) {
-      return false;
-    }
-    if (filters.loser && !match.loser_nickname?.toLowerCase().includes(filters.loser.toLowerCase())) {
+    if (filters.player && !match.winner_nickname?.toLowerCase().includes(filters.player.toLowerCase()) && 
+        !match.loser_nickname?.toLowerCase().includes(filters.player.toLowerCase())) {
       return false;
     }
     if (filters.map && !match.map?.toLowerCase().includes(filters.map.toLowerCase())) {
@@ -349,28 +344,15 @@ const User: React.FC = () => {
                     <h2 className="text-2xl font-bold mb-6 text-gray-800">{t('all_matches')}</h2>
                     
                     {/* Filters */}
-                    <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       <div className="flex flex-col gap-2">
-                        <label htmlFor="winner" className="text-sm font-semibold text-gray-700">{t('filter_winner')}</label>
+                        <label htmlFor="player" className="text-sm font-semibold text-gray-700">{t('filter_player')}</label>
                         <input
                           type="text"
-                          id="winner"
-                          name="winner"
-                          placeholder={t('filter_by_winner')}
-                          value={filters.winner}
-                          onChange={handleFilterChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <label htmlFor="loser" className="text-sm font-semibold text-gray-700">{t('filter_loser')}</label>
-                        <input
-                          type="text"
-                          id="loser"
-                          name="loser"
-                          placeholder={t('filter_by_loser')}
-                          value={filters.loser}
+                          id="player"
+                          name="player"
+                          placeholder={t('filter_by_player')}
+                          value={filters.player}
                           onChange={handleFilterChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
