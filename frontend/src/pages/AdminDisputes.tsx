@@ -125,73 +125,75 @@ const AdminDisputes: React.FC = () => {
       )}
 
       {selectedDispute && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setSelectedDispute(null)}>
-          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-96 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-gray-100 px-6 py-4 border-b border-gray-300 flex justify-between items-center">
-              <h2 className="text-xl font-semibold text-gray-800">Dispute Review</h2>
-              <button className="text-2xl text-gray-600 hover:text-gray-800" onClick={() => setSelectedDispute(null)}>×</button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedDispute(null)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-5 border-b-2 border-blue-800 flex justify-between items-center rounded-t-xl">
+              <h2 className="text-2xl font-bold text-white">Dispute Review</h2>
+              <button className="text-3xl text-white hover:text-blue-100 transition-colors" onClick={() => setSelectedDispute(null)}>×</button>
             </div>
             
-            <div className="p-6">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Match Details</h3>
-                <div className="flex justify-around items-center">
-                  <div className="text-center">
-                    <p className="text-gray-600 text-sm">Winner</p>
-                    <p className="text-lg font-semibold text-gray-800">{selectedDispute.winner_nickname}</p>
-                    <p className="text-gray-700">{selectedDispute.winner_faction}</p>
+            <div className="p-8 space-y-6">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
+                <h3 className="text-lg font-bold text-blue-900 mb-5">Match Details</h3>
+                <div className="flex justify-around items-center mb-6">
+                  <div className="text-center bg-white rounded-lg p-4 flex-1 mx-2 shadow-sm">
+                    <p className="text-green-600 text-xs font-semibold uppercase tracking-wide">Winner</p>
+                    <p className="text-xl font-bold text-gray-900 mt-2">{selectedDispute.winner_nickname}</p>
+                    <p className="text-sm text-gray-700 mt-1 font-medium">{selectedDispute.winner_faction}</p>
                   </div>
-                  <div className="text-gray-600 font-bold text-lg">vs</div>
-                  <div className="text-center">
-                    <p className="text-gray-600 text-sm">Loser</p>
-                    <p className="text-lg font-semibold text-gray-800">{selectedDispute.loser_nickname}</p>
-                    <p className="text-gray-700">{selectedDispute.loser_faction}</p>
+                  <div className="text-gray-400 font-bold text-2xl mx-2">vs</div>
+                  <div className="text-center bg-white rounded-lg p-4 flex-1 mx-2 shadow-sm">
+                    <p className="text-red-600 text-xs font-semibold uppercase tracking-wide">Loser</p>
+                    <p className="text-xl font-bold text-gray-900 mt-2">{selectedDispute.loser_nickname}</p>
+                    <p className="text-sm text-gray-700 mt-1 font-medium">{selectedDispute.loser_faction}</p>
                   </div>
                 </div>
-                <div className="text-gray-700 text-sm mt-4">
-                  <p><strong>Map:</strong> {selectedDispute.map}</p>
-                  <p><strong>Played:</strong> {new Date(selectedDispute.created_at).toLocaleString()}</p>
+                <div className="bg-white rounded-lg p-4 space-y-2 text-sm text-gray-700">
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-gray-800">Map:</span>
+                    <span className="text-gray-900 font-medium">{selectedDispute.map}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-gray-800">Played:</span>
+                    <span className="text-gray-900 font-medium">{new Date(selectedDispute.created_at).toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">Winner's Report</h3>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-700">{selectedDispute.winner_comments || 'No comments provided'}</p>
-                  {selectedDispute.winner_rating && (
-                    <p className="text-sm text-gray-600 mt-2"><strong>Rating:</strong> {selectedDispute.winner_rating}/5</p>
-                  )}
-                </div>
+              <div className="bg-green-50 rounded-lg p-6 border-l-4 border-green-500">
+                <h3 className="text-lg font-bold text-green-900 mb-4">✓ Winner's Report</h3>
+                <p className="text-gray-800 leading-relaxed">{selectedDispute.winner_comments || 'No comments provided'}</p>
+                {selectedDispute.winner_rating && (
+                  <p className="text-sm text-green-700 mt-4 font-semibold">⭐ Match Rating: {selectedDispute.winner_rating}/5</p>
+                )}
               </div>
 
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-3">Loser's Dispute Reason</h3>
-                <div className="bg-red-50 rounded-lg p-4 border-l-4 border-red-400">
-                  <p className="text-gray-700">{selectedDispute.loser_comments || 'No comments provided'}</p>
-                  {selectedDispute.loser_rating && (
-                    <p className="text-sm text-gray-600 mt-2"><strong>Rating:</strong> {selectedDispute.loser_rating}/5</p>
-                  )}
-                </div>
-              </div>
-
+                <div classNamebg-red-50 rounded-lg p-6 border-l-4 border-red-500">
+                <h3 className="text-lg font-bold text-red-900 mb-4">⚠ Loser's Dispute Reason</h3>
+                <p className="text-gray-800 leading-relaxed">{selectedDispute.loser_comments || 'No comments provided'}</p>
+                {selectedDispute.loser_rating && (
+                  <p className="text-sm text-red-700 mt-4 font-semibold">⭐ Match Rating: {selectedDispute.loser_rating}/5</p>
+                )}
               <div className="mb-6">
                 <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
-                  <p className="text-gray-700"><strong>⚠ Important:</strong> This decision will affect both players' statistics and ELO ratings.</p>
-                </div>
+                  <p classNamebg-amber-50 border-l-4 border-amber-500 p-6 rounded-lg">
+                <p className="text-amber-900 leading-relaxed"><strong className="font-bold">⚠️ Important Notice:</strong> This decision will permanently affect both players' statistics and ELO ratings.</p>
               </div>
             </div>
 
-            <div className="bg-gray-100 px-6 py-4 border-t border-gray-300 flex justify-end gap-3">
+            <div className="bg-gray-50 px-6 py-5 border-t-2 border-gray-200 flex justify-end gap-3 rounded-b-xl sticky bottom-0">
               <button
-                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                className="px-6 py-2.5 bg-gray-400 text-white rounded-lg hover:bg-gray-500 font-semibold transition-colors shadow-md"
                 onClick={() => setSelectedDispute(null)}
               >
                 Cancel
               </button>
               <button 
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors shadow-md flex items-center gap-2"
                 onClick={() => {
-                  if (window.confirm('Validate this dispute? The match will be voided.')) {
+                  if (window.confirm('Validate this dispute? The match will be voided and stats recalculated.')) {
                     handleValidateDispute(selectedDispute.id);
                   }
                 }}
@@ -199,9 +201,7 @@ const AdminDisputes: React.FC = () => {
                 ✓ Validate Dispute
               </button>
               <button 
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                onClick={() => {
-                  if (window.confirm('Reject this dispute? The match will be confirmed.')) {
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors shadow-md flex items-center gap-2)) {
                     handleRejectDispute(selectedDispute.id);
                   }
                 }}
