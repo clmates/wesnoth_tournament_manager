@@ -321,7 +321,9 @@ BEGIN
     SUM(wins)::INT as wins,
     SUM(losses)::INT as losses,
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
-    AVG(avg_elo_change)::NUMERIC(8,2)
+    AVG(avg_elo_change)::NUMERIC(8,2),
+    SUM(elo_gained)::NUMERIC(8,2),
+    SUM(elo_lost)::NUMERIC(8,2)
   FROM map_stats
   GROUP BY player_id, map_id, opponent_id, faction_id, opponent_faction_id
   ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)) DO UPDATE SET
@@ -379,7 +381,9 @@ BEGIN
     SUM(wins)::INT as wins,
     SUM(losses)::INT as losses,
     CASE WHEN SUM(wins + losses) > 0 THEN ROUND(100.0 * SUM(wins) / SUM(wins + losses), 2)::NUMERIC(5,2) ELSE 0 END,
-    AVG(avg_elo_change)::NUMERIC(8,2)
+    AVG(avg_elo_change)::NUMERIC(8,2),
+    SUM(elo_gained)::NUMERIC(8,2),
+    SUM(elo_lost)::NUMERIC(8,2)
   FROM faction_stats
   GROUP BY player_id, faction_id, opponent_id, map_id, opponent_faction_id
   ON CONFLICT (player_id, COALESCE(opponent_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(map_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(faction_id, '00000000-0000-0000-0000-000000000000'::UUID), COALESCE(opponent_faction_id, '00000000-0000-0000-0000-000000000000'::UUID)) DO UPDATE SET
