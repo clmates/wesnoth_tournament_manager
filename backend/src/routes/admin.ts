@@ -543,9 +543,10 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
     // The trigger fires on UPDATE matches, which would cause double-counting
     try {
       await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches');
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Disabled trigger: trg_update_faction_map_stats');
+      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches');
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Disabled triggers: trg_update_faction_map_stats, trg_update_player_match_stats');
     } catch (error) {
-      console.error('Warning: Failed to disable trigger:', error);
+      console.error('Warning: Failed to disable triggers:', error);
     }
 
     const defaultElo = 1400; // FIDE standard baseline for new users
@@ -656,7 +657,19 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`Global stats recalculation completed: ${allNonCancelledMatches.rows.length} matches replayed, ${userStates.size} users updated`);
 
-    // Re-enable the trigger after all updates are done
+    // Re-enable the triggers after all updates are done
+    try {
+      await query(`
+        CREATE TRIGGER trg_update_player_match_stats
+        AFTER INSERT OR UPDATE ON matches
+        FOR EACH ROW
+        EXECUTE FUNCTION update_player_match_statistics();
+      `);
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Re-enabled trigger: trg_update_player_match_stats');
+    } catch (error) {
+      console.error('Warning: Failed to re-enable player match stats trigger:', error);
+    }
+
     try {
       await query(`
         CREATE TRIGGER trg_update_faction_map_stats
@@ -666,7 +679,18 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
       `);
       if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Re-enabled trigger: trg_update_faction_map_stats');
     } catch (error) {
-      console.error('Warning: Failed to re-enable trigger:', error);
+      console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
+    }
+
+    // Recalculate player match statistics (head-to-head, opponent stats, etc.)
+    try {
+      await query('SELECT recalculate_player_match_statistics()');
+      console.log('🟢 Player match statistics recalculated successfully');
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Player match statistics recalculated successfully');
+    } catch (error: any) {
+      console.error('🔴 ERROR recalculating player match statistics:', error);
+      console.error('Error message:', error.message);
+      // Don't fail the entire operation if player match stats fail
     }
 
     // Recalculate faction/map balance statistics
