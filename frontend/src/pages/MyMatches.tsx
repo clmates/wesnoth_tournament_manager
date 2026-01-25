@@ -30,8 +30,7 @@ if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
 }
 
 interface FilterState {
-  winner: string;
-  loser: string;
+  player: string;
   map: string;
   status: string;
   confirmed: string;
@@ -61,8 +60,7 @@ const MyMatches: React.FC = () => {
     match: null,
   });
   const [filters, setFilters] = useState<FilterState>({
-    winner: '',
-    loser: '',
+    player: '',
     map: '',
     status: '',
     confirmed: '',
@@ -116,8 +114,7 @@ const MyMatches: React.FC = () => {
 
   const resetFilters = () => {
     setFilters({
-      winner: '',
-      loser: '',
+      player: '',
       map: '',
       status: '',
       confirmed: '',
@@ -262,28 +259,15 @@ const MyMatches: React.FC = () => {
           </div>
         )}
 
-        <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-end">
+        <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 items-end">
           <div className="flex flex-col gap-2">
-            <label htmlFor="winner" className="font-semibold text-gray-700 text-sm">{t('filter_winner')}</label>
+            <label htmlFor="player" className="font-semibold text-gray-700 text-sm">{t('filter_player')}</label>
             <input
               type="text"
-              id="winner"
-              name="winner"
-              placeholder={t('filter_by_winner')}
-              value={filters.winner}
-              onChange={handleFilterChangeWithReset}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="loser" className="font-semibold text-gray-700 text-sm">{t('filter_loser')}</label>
-            <input
-              type="text"
-              id="loser"
-              name="loser"
-              placeholder={t('filter_by_loser')}
-              value={filters.loser}
+              id="player"
+              name="player"
+              placeholder={t('filter_by_player')}
+              value={filters.player}
               onChange={handleFilterChangeWithReset}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
             />

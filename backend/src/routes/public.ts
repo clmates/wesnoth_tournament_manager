@@ -527,8 +527,7 @@ router.get('/matches', async (req, res) => {
     const offset = (page - 1) * pageSize;
 
     // Parse filters
-    const winner = req.query.winner ? (req.query.winner as string).trim() : null;
-    const loser = req.query.loser ? (req.query.loser as string).trim() : null;
+    const player = req.query.player ? (req.query.player as string).trim() : null;
     const map = req.query.map ? (req.query.map as string).trim() : null;
     const status = req.query.status ? (req.query.status as string).trim() : null;
     const confirmed = req.query.confirmed ? (req.query.confirmed as string).trim() : null;
@@ -538,15 +537,9 @@ router.get('/matches', async (req, res) => {
     const params: any[] = [];
     let paramCount = 1;
 
-    if (winner) {
-      whereConditions.push(`w.nickname ILIKE $${paramCount}`);
-      params.push(`%${winner}%`);
-      paramCount++;
-    }
-
-    if (loser) {
-      whereConditions.push(`l.nickname ILIKE $${paramCount}`);
-      params.push(`%${loser}%`);
+    if (player) {
+      whereConditions.push(`(w.nickname ILIKE $${paramCount} OR l.nickname ILIKE $${paramCount})`);
+      params.push(`%${player}%`);
       paramCount++;
     }
 

@@ -105,8 +105,7 @@ router.get('/:id/matches', async (req, res) => {
     const offset = (page - 1) * limit;
 
     // Get filter params from query
-    const winnerFilter = (req.query.winner as string)?.trim() || '';
-    const loserFilter = (req.query.loser as string)?.trim() || '';
+    const playerFilter = (req.query.player as string)?.trim() || '';
     const mapFilter = (req.query.map as string)?.trim() || '';
     const statusFilter = (req.query.status as string)?.trim() || '';
 
@@ -115,15 +114,9 @@ router.get('/:id/matches', async (req, res) => {
     let params: any[] = [id];
     let paramCount = 2;
 
-    if (winnerFilter) {
-      whereConditions.push(`w.nickname ILIKE $${paramCount}`);
-      params.push(`%${winnerFilter}%`);
-      paramCount++;
-    }
-
-    if (loserFilter) {
-      whereConditions.push(`l.nickname ILIKE $${paramCount}`);
-      params.push(`%${loserFilter}%`);
+    if (playerFilter) {
+      whereConditions.push(`(w.nickname ILIKE $${paramCount} OR l.nickname ILIKE $${paramCount})`);
+      params.push(`%${playerFilter}%`);
       paramCount++;
     }
 
