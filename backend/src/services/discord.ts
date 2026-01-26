@@ -389,9 +389,24 @@ export async function sendPasswordResetViaThread(
       threadName
     });
 
-    // Note: Private threads (type 12) are automatically private in Discord
-    // They don't need permission modifications - they're only visible to the thread creator
-    // and members who are invited to the thread
+    // Add the user to the private thread so they can see it
+    console.log('[PASSWORD-RESET-THREAD] Adding user to thread', { userId: discordId });
+    try {
+      await axios.put(
+        `${DISCORD_API_URL}/channels/${threadId}/thread-members/${discordId}`,
+        {},
+        { headers }
+      );
+      console.log('[PASSWORD-RESET-THREAD] User successfully added to thread', { userId: discordId, threadId });
+    } catch (addMemberError: any) {
+      console.error('[PASSWORD-RESET-THREAD] Error adding user to thread:', {
+        userId: discordId,
+        threadId,
+        status: addMemberError.response?.status,
+        error: addMemberError.response?.data || addMemberError.message
+      });
+      throw new Error(`Failed to add user to thread: ${addMemberError.message}`);
+    }
     
     // Send the password reset message
     console.log('[PASSWORD-RESET-THREAD] Sending password reset message to thread');
