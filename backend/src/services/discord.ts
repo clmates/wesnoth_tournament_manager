@@ -389,6 +389,33 @@ export async function sendPasswordResetViaThread(
       threadName
     });
 
+    // Grant channel access permissions to the user so they can see the thread and messages
+    console.log('[PASSWORD-RESET-THREAD] Granting channel access permissions to user', { userId: discordId, channelId });
+    try {
+      const PERMISSIONS_VIEW_CHANNEL = '1024';
+      const PERMISSIONS_READ_MESSAGE_HISTORY = '65536';
+      const ALLOW_PERMISSIONS = (parseInt(PERMISSIONS_VIEW_CHANNEL) + parseInt(PERMISSIONS_READ_MESSAGE_HISTORY)).toString();
+      
+      await axios.put(
+        `${DISCORD_API_URL}/channels/${channelId}/permissions/${discordId}`,
+        {
+          allow: ALLOW_PERMISSIONS,
+          deny: '0',
+          type: 'member'
+        },
+        { headers }
+      );
+      console.log('[PASSWORD-RESET-THREAD] Channel permissions granted to user', { userId: discordId, channelId });
+    } catch (permError: any) {
+      console.error('[PASSWORD-RESET-THREAD] Error granting channel permissions:', {
+        userId: discordId,
+        channelId,
+        status: permError.response?.status,
+        error: permError.response?.data || permError.message
+      });
+      // Continue anyway, permissions might have been set differently
+    }
+
     // Add the user to the private thread so they can see it
     console.log('[PASSWORD-RESET-THREAD] Adding user to thread', { userId: discordId });
     try {
