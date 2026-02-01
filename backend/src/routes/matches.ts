@@ -1827,7 +1827,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     params.push(limit);
     params.push(offset);
     const result = await query(
-      `SELECT m.*, 
+      `SELECT m.id, m.winner_id, m.loser_id, m.winner_faction, m.loser_faction, m.map, m.status,
+              m.winner_elo_before, m.winner_elo_after, m.loser_elo_before, m.loser_elo_after,
+              m.winner_rating, m.loser_rating, m.winner_comments, m.loser_comments,
+              m.replay_file_path, m.replay_downloads, m.created_at, m.updated_at, m.played_at,
+              m.admin_reviewed, m.tournament_id,
               w.nickname as winner_nickname,
               l.nickname as loser_nickname
        FROM matches m
@@ -1874,13 +1878,13 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
     
     const match = matchResult.rows[0];
     
-    // Verify user is the reporter
-    if (match.reporter_id !== userId) {
-      return res.status(403).json({ error: 'Only the match reporter can cancel it' });
+    // Verify user is the reporter (winner)
+    if (match.winner_id !== userId) {
+      return res.status(403).json({ error: 'Only the match reporter (winner) can cancel it' });
     }
     
     // Match must not be in a final state already
-    if (!['pending', 'confirmed'].includes(match.status)) {
+    if (!['pending', 'confirmed', 'unconfirmed'].includes(match.status)) {
       return res.status(400).json({ error: `Match is already ${match.status}, cannot cancel` });
     }
     
