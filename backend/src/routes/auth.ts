@@ -6,6 +6,9 @@ import { registerLimiter, loginLimiter } from '../middleware/rateLimiter.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 import { isAccountLocked, recordFailedLoginAttempt, recordSuccessfulLogin, getRemainingLockoutTime } from '../services/accountLockout.js';
 import { notifyAdminNewRegistration, notifyUserWelcome, sendPasswordResetViaThread, DISCORD_ENABLED, resolveDiscordIdFromUsername } from '../services/discord.js';
+import { maskEmail } from '../utils/email.js';
+import { sendMailerSendEmail } from '../services/mailersend';
+import { getEmailTexts } from '../utils/emailTexts.js';
 
 const router = Router();
 
@@ -61,6 +64,41 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('User created successfully:', result.rows[0].id);
 
+
+    // Generar token y expiración para verificación de email
+    const verificationToken = require('crypto').randomBytes(32).toString('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    await query(
+      'UPDATE users SET email_verification_token = $1, email_verification_expires = $2 WHERE id = $3',
+      [verificationToken, verificationExpires, result.rows[0].id]
+    );
+
+    // Construir URL de verificación
+    const verificationUrl = `${process.env.FRONTEND_URL || 'https://app.example.com'}/verify-email?token=${verificationToken}`;
+
+    // Obtener textos internacionalizados
+    const emailTexts = getEmailTexts(language || 'en');
+    // Enviar email usando MailerSend
+    try {
+      await sendMailerSendEmail({
+        to: email,
+        templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
+        variables: {
+          nickname,
+          email,
+          verification_url: verificationUrl,
+          lang: language || 'en',
+          subject: emailTexts.verify_subject,
+          message: emailTexts.verify_message,
+          action_label: emailTexts.verify_action,
+          action_type: 'email_verification',
+        },
+      });
+    } catch (mailError) {
+      console.error('MailerSend error (registro):', mailError);
+    }
+
     // Log successful registration
     await logAuditEvent({
       event_type: 'REGISTRATION',
@@ -68,22 +106,146 @@ router.post('/register', registerLimiter, async (req, res) => {
       username: nickname,
       ip_address: ip,
       user_agent: userAgent,
-      details: { email, language: language || 'en' }
+      details: { email, language: language || 'en', verification_sent: true }
     });
 
-    // Send Discord notifications
-    await notifyAdminNewRegistration({
-      nickname,
-      email,
-      discord_id
+
+    // No notificar por Discord hasta que el email esté verificado
+
+    res.status(201).json({ id: result.rows[0].id, message: 'Registration successful. Please verify your email.' });
+  // Endpoint para confirmar verificación de email
+  router.get('/verify-email', async (req, res) => {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    // Buscar usuario con ese token y verificar expiración
+    const userResult = await query(
+      'SELECT id, email_verification_expires FROM users WHERE email_verification_token = $1',
+      [token]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+    const user = userResult.rows[0];
+    if (new Date() > user.email_verification_expires) {
+      return res.status(400).json({ error: 'Token expired' });
+    }
+
+    // Marcar email como verificado y limpiar token
+    await query(
+      'UPDATE users SET email_verified = true, email_verification_token = NULL, email_verification_expires = NULL WHERE id = $1',
+      [user.id]
+    );
+
+    // Obtener datos del usuario para notificaciones Discord
+    const userInfoResult = await query(
+      'SELECT nickname, email, discord_id FROM users WHERE id = $1',
+      [user.id]
+    );
+    const userInfo = userInfoResult.rows[0];
+
+
+    // Notificar al admin y dar la bienvenida en Discord
+    try {
+      await notifyAdminNewRegistration({
+        nickname: userInfo.nickname,
+        email: userInfo.email,
+        discord_id: userInfo.discord_id
+      });
+      await notifyUserWelcome({
+        nickname: userInfo.nickname,
+        discord_id: userInfo.discord_id
+      });
+    } catch (discordError) {
+      console.error('Discord notification error after email verification:', discordError);
+    }
+
+    // Enviar email informativo de confirmación de registro
+    try {
+      const lang = userInfo.language || 'en';
+      const emailTexts = getEmailTexts(lang);
+      await sendMailerSendEmail({
+        to: userInfo.email,
+        templateId: process.env.MAILERSEND_TEMPLATE_INFO || '',
+        variables: {
+          nickname: userInfo.nickname,
+          email: userInfo.email,
+          lang,
+          subject: emailTexts.registration_confirmation_subject,
+          message: emailTexts.registration_confirmation_message,
+          info_type: 'registration_confirmation',
+        },
+      });
+    } catch (mailError) {
+      console.error('MailerSend error (registration confirmation):', mailError);
+    }
+// Endpoint admin para desbloquear cuenta y enviar email informativo
+router.post('/admin/unlock-user', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Solo admin
+    const adminResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    if (!adminResult.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    // Desbloquear usuario
+    await query('UPDATE public.users SET is_blocked = false WHERE id = $1', [userId]);
+    // Obtener datos del usuario
+    const userResult = await query('SELECT email, nickname, language FROM public.users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    // Enviar email informativo de cuenta desbloqueada
+    await sendAccountUnlockedEmail(userResult.rows[0]);
+    // Registrar en audit log
+    await logAuditEvent({
+      event_type: 'ACCOUNT_UNLOCKED',
+      user_id: result.rows[0].id,
+      username: nickname,
+      ip_address: ip,
+      user_agent: userAgent,
+      details: { method: 'admin_unlock' }
     });
 
-    await notifyUserWelcome({
-      nickname,
-      discord_id
+    res.json({ success: true, message: 'User unlocked and notified' });
+  } catch (error) {
+    console.error('Admin unlock error:', error);
+    res.status(500).json({ error: 'Unlock failed' });
+  }
+});
+
+
+// Función para enviar email informativo de cuenta desbloqueada (para usar en el endpoint/admin correspondiente)
+const sendAccountUnlockedEmail = async (user: { email: string; nickname: string; language?: string }) => {
+  try {
+    const lang = user.language || 'en';
+    const emailTexts = getEmailTexts(lang);
+    await sendMailerSendEmail({
+      to: user.email,
+      templateId: process.env.MAILERSEND_TEMPLATE_INFO || '',
+      variables: {
+        nickname: user.nickname,
+        email: user.email,
+        lang,
+        subject: emailTexts.account_unlocked_subject,
+        message: emailTexts.account_unlocked_message,
+        info_type: 'account_unlocked',
+      },
+    });
+  } catch (mailError) {
+    console.error('MailerSend error (account unlocked):', mailError);
+  }
+};
+
+    // Registrar en audit log
+    await logAuditEvent({
+      event_type: 'EMAIL_VERIFIED',
+      user_id: user.id,
+      ip_address: ip,
+      details: { method: 'email_link' }
     });
 
-    res.status(201).json({ id: result.rows[0].id, message: 'Registration successful' });
+    res.json({ success: true, message: 'Email verified successfully' });
+  });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Registration failed', details: (error as any).message });
@@ -313,126 +475,98 @@ router.get('/discord-password-reset-available', async (req, res) => {
   }
 });
 
-// Request Password Reset via Discord - User provides nickname and Discord ID for validation
+// Password reset via email: Step 1 (show masked email) and Step 2 (confirm and generate token)
 router.post('/request-password-reset', registerLimiter, async (req, res) => {
   try {
-    const { nickname, discord_id } = req.body;
+    const { nickname, email, confirm } = req.body;
     const ip = getUserIP(req);
 
-    console.log('[PASSWORD-RESET] Request received', {
-      nickname,
-      discordId: discord_id,
-      ip,
-      discordEnabled: DISCORD_ENABLED
-    });
-
-    if (!nickname || !discord_id) {
-      console.warn('[PASSWORD-RESET] Missing required fields');
-      return res.status(400).json({ error: 'Nickname and Discord ID are required' });
-    }
-
-    // Try to resolve Discord ID if it's in username format
-    let resolvedDiscordId = discord_id;
-    if (!/^\d+$/.test(discord_id)) {
-      console.log('[PASSWORD-RESET] Discord ID not numeric, attempting to resolve from username:', discord_id);
-      resolvedDiscordId = await resolveDiscordIdFromUsername(discord_id);
-      
-      if (!resolvedDiscordId) {
-        console.warn('[PASSWORD-RESET] Failed to resolve Discord username:', discord_id);
-        return res.status(400).json({ 
-          error: 'Could not find Discord user with that username. Make sure you\'re in the server and the username is correct.' 
-        });
-      }
-      
-      console.log('[PASSWORD-RESET] Discord username resolved to ID:', {
-        original: discord_id,
-        resolved: resolvedDiscordId
-      });
-    }
-
-    // Discord is required for this feature
-    if (!DISCORD_ENABLED) {
-      console.warn('[PASSWORD-RESET] Discord is not enabled');
-      return res.status(403).json({ error: 'Password reset via Discord is not enabled on this server' });
-    }
-
-    // Find user by nickname OR email
-    const userResult = await query(
-      'SELECT id, discord_id, email, nickname FROM public.users WHERE LOWER(nickname) = LOWER($1) OR LOWER(email) = LOWER($1)',
-      [nickname]
-    );
-
-    if (userResult.rows.length === 0) {
-      console.log('[PASSWORD-RESET] User not found:', nickname);
-      // Don't reveal if user exists (security)
-      return res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord DM' });
-    }
-
-    const user = userResult.rows[0];
-    
-    console.log('[PASSWORD-RESET] User found:', {
-      userId: user.id,
-      foundByNickname: user.nickname,
-      searchedFor: nickname,
-      storedDiscordId: user.discord_id,
-      providedDiscordId: discord_id,
-      match: user.discord_id === discord_id
-    });
-
-    // Verify Discord username matches what's stored in DB
-    if (user.discord_id !== discord_id) {
-      console.log('[PASSWORD-RESET] Discord ID mismatch for user:', nickname);
-      // Don't reveal the mismatch for security
-      return res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord thread' });
-    }
-
-    // Generate temporary password (8 characters)
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const passwordHash = await hashPassword(tempPassword);
-
-    console.log('[PASSWORD-RESET] Generated temporary password for user:', {
-      userId: user.id,
-      nickname: nickname,
-      discordId: resolvedDiscordId,
-      tempPassword: `${tempPassword.substring(0, 2)}***`
-    });
-
-    // Update user password and set password_must_change flag
-    await query(
-      'UPDATE users SET password_hash = $1, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [passwordHash, user.id]
-    );
-
-    console.log('[PASSWORD-RESET] Password updated in database for user:', nickname);
-
-    // Send password reset via Discord thread
-    try {
-      console.log('[PASSWORD-RESET] Attempting to send password reset via thread to user:', resolvedDiscordId);
-      await sendPasswordResetViaThread(
-        resolvedDiscordId,
-        nickname,
-        tempPassword
+    // Buscar usuario por nickname o email
+    let userResult;
+    if (nickname) {
+      userResult = await query(
+        'SELECT id, email, nickname FROM public.users WHERE LOWER(nickname) = LOWER($1)',
+        [nickname]
       );
-      console.log('[PASSWORD-RESET] Password reset sent via thread successfully to user:', resolvedDiscordId);
-    } catch (threadError) {
-      console.error('[PASSWORD-RESET] ❌ Failed to send password reset via thread to user:', {
-        userId: user.id,
-        discordId: resolvedDiscordId,
-        error: threadError instanceof Error ? threadError.message : String(threadError)
-      });
-      // Still return success since password was reset, thread creation failure will be logged
+    } else if (email) {
+      userResult = await query(
+        'SELECT id, email, nickname FROM public.users WHERE LOWER(email) = LOWER($1)',
+        [email]
+      );
+    } else {
+      return res.status(400).json({ error: 'Nickname or email is required' });
     }
 
-    // Log the request
-    await logAuditEvent({
-      event_type: 'SECURITY_EVENT',
-      user_id: user.id,
-      username: nickname,
-      ip_address: ip,
-      details: { method: 'user_request_via_discord', action: 'password_reset_requested' }
-    });
+    let maskedEmail = '';
+    let userId = null;
+    if (userResult.rows.length > 0) {
+      maskedEmail = maskEmail(userResult.rows[0].email);
+      userId = userResult.rows[0].id;
+    } else {
+      // Email ficticio para no filtrar usuarios
+      maskedEmail = maskEmail(email || 'usuario@email.com');
+    }
 
-    res.status(200).json({ message: 'If user exists and Discord ID matches, a temporary password will be sent via Discord DM' });
+    if (!confirm) {
+      // Primer paso: mostrar email enmascarado y pedir confirmación
+      return res.status(200).json({
+        maskedEmail,
+        requiresConfirmation: true
+      });
+    }
+
+    // Segundo paso: generar token y guardar en DB y enviar email
+    if (userId) {
+      // Generar token seguro y expiración (ejemplo: 1 hora)
+      const token = require('crypto').randomBytes(32).toString('hex');
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+      await query(
+        'UPDATE users SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
+        [token, expires, userId]
+      );
+
+      // Obtener datos del usuario
+      const userData = userResult.rows[0];
+      // Obtener textos internacionalizados
+      const userLang = 'es'; // o userData.language si está disponible
+      const emailTexts = getEmailTexts(userLang);
+      const resetUrl = `${process.env.FRONTEND_URL || 'https://app.example.com'}/reset-password?token=${token}`;
+
+      try {
+        await sendMailerSendEmail({
+          to: userData.email,
+          templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
+          variables: {
+            nickname: userData.nickname,
+            email: userData.email,
+            reset_url: resetUrl,
+            lang: userLang,
+            subject: emailTexts.reset_subject,
+            message: emailTexts.reset_message,
+            action_label: emailTexts.reset_action,
+            action_type: 'password_reset',
+          },
+        });
+      } catch (mailError) {
+        console.error('MailerSend error (reset):', mailError);
+      }
+
+      // Registrar en el audit log
+      await logAuditEvent({
+        event_type: 'PASSWORD_RESET_REQUEST',
+        user_id: userId,
+        username: nickname || email,
+        ip_address: ip,
+        details: { method: 'email', action: 'password_reset_requested' }
+      });
+    }
+
+    // Respuesta genérica
+    return res.status(200).json({
+      success: true,
+      message: 'Si el usuario existe, se ha enviado un email de reseteo.'
+    });
   } catch (error) {
     console.error('Password reset request error:', error);
     res.status(500).json({ error: 'Request failed' });

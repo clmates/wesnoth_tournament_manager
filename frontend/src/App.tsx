@@ -33,6 +33,7 @@ import AdminBalanceEvents from './pages/AdminBalanceEvents';
 import FAQ from './pages/FAQ';
 import Tournaments from './pages/Tournaments';
 import TournamentDetail from './pages/TournamentDetail';
+import VerifyEmail from './pages/VerifyEmail';
 import './App.css';
 
 const App: React.FC = () => {
@@ -80,6 +81,7 @@ const App: React.FC = () => {
             <Route path="/admin/audit" element={<AdminAudit />} />
             <Route path="/admin/maps-and-factions" element={<AdminMapsAndFactions />} />
             <Route path="/admin/balance-events" element={<AdminBalanceEvents />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
