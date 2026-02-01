@@ -17,7 +17,7 @@ COPY tsconfig.json ./
 COPY migrations ./migrations
 
 # Copiar archivos i18n (necesarios para email templates)
-COPY frontend/src/i18n/locales ./locales
+COPY ../frontend/src/i18n/locales ./locales
 
 # Compilar TypeScript
 RUN npm run build
