@@ -1,0 +1,14 @@
+{
+  "email": {
+    "verify_subject": "Verifica tu correo electrónico",
+    "verify_message": "Haz clic en el siguiente enlace para verificar tu correo electrónico.",
+    "verify_action": "Verificar correo",
+    "reset_subject": "Restablece tu contraseña",
+    "reset_message": "Haz clic en el siguiente enlace para restablecer tu contraseña.",
+    "reset_action": "Restablecer contraseña",
+    "registration_confirmation_subject": "Registro confirmado",
+    "registration_confirmation_message": "Tu registro se ha completado. ¡Bienvenido/a al Gestor de Torneos Wesnoth!",
+    "account_unlocked_subject": "Cuenta desbloqueada",
+    "account_unlocked_message": "Tu cuenta ha sido desbloqueada por un administrador. Ya puedes iniciar sesión."
+  }
+}

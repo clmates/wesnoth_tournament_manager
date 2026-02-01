@@ -1,16 +1,4 @@
 {
-  "email": {
-    "verify_subject": "Подтвердите ваш email",
-    "verify_message": "Пожалуйста, перейдите по ссылке ниже, чтобы подтвердить ваш email.",
-    "verify_action": "Подтвердить email",
-    "reset_subject": "Сбросить пароль",
-    "reset_message": "Перейдите по ссылке ниже, чтобы сбросить пароль.",
-    "reset_action": "Сбросить пароль",
-    "registration_confirmation_subject": "Регистрация подтверждена",
-    "registration_confirmation_message": "Ваша регистрация завершена. Добро пожаловать в Менеджер турниров Wesnoth!",
-    "account_unlocked_subject": "Аккаунт разблокирован",
-    "account_unlocked_message": "Ваш аккаунт был разблокирован администратором. Теперь вы можете войти."
-  },
   "app_name": "Менеджер турниров Wesnoth",
   "footer_disclaimer": "Правовое уведомление",
   "navbar_home": "Главная",

@@ -1,0 +1,14 @@
+{
+  "email": {
+    "verify_subject": "Bestätige deine E-Mail",
+    "verify_message": "Klicke auf den folgenden Link, um deine E-Mail-Adresse zu bestätigen.",
+    "verify_action": "E-Mail bestätigen",
+    "reset_subject": "Setze dein Passwort zurück",
+    "reset_message": "Klicke auf den folgenden Link, um dein Passwort zurückzusetzen.",
+    "reset_action": "Passwort zurücksetzen",
+    "registration_confirmation_subject": "Registrierung bestätigt",
+    "registration_confirmation_message": "Deine Registrierung ist abgeschlossen. Willkommen beim Wesnoth-Turniermanager!",
+    "account_unlocked_subject": "Konto freigeschaltet",
+    "account_unlocked_message": "Dein Konto wurde von einem Administrator freigeschaltet. Du kannst dich jetzt anmelden."
+  }
+}
