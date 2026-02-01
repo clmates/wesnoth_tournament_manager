@@ -85,14 +85,12 @@ router.post('/register', registerLimiter, async (req, res) => {
         to: email,
         templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
         variables: {
-          nickname,
-          email,
-          verification_url: verificationUrl,
-          lang: language || 'en',
-          subject: emailTexts.verify_subject,
           message: emailTexts.verify_message,
-          action_label: emailTexts.verify_action,
+          nickname,
+          greetings: `Hello ${nickname}`,
+          action_url: verificationUrl,
           action_type: 'email_verification',
+          action_label: emailTexts.verify_action,
         },
       });
     } catch (mailError) {
@@ -166,14 +164,14 @@ router.post('/register', registerLimiter, async (req, res) => {
       const emailTexts = getEmailTexts(lang);
       await sendMailerSendEmail({
         to: userInfo.email,
-        templateId: process.env.MAILERSEND_TEMPLATE_INFO || '',
+        templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
         variables: {
           nickname: userInfo.nickname,
-          email: userInfo.email,
-          lang,
-          subject: emailTexts.registration_confirmation_subject,
+          greetings: `Hello ${userInfo.nickname}`,
           message: emailTexts.registration_confirmation_message,
-          info_type: 'registration_confirmation',
+          action_url: process.env.FRONTEND_URL || 'https://app.example.com',
+          action_type: 'registration_confirmation',
+          action_label: 'Go to Site',
         },
       });
     } catch (mailError) {
@@ -221,14 +219,14 @@ const sendAccountUnlockedEmail = async (user: { email: string; nickname: string;
     const emailTexts = getEmailTexts(lang);
     await sendMailerSendEmail({
       to: user.email,
-      templateId: process.env.MAILERSEND_TEMPLATE_INFO || '',
+      templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
       variables: {
         nickname: user.nickname,
-        email: user.email,
-        lang,
-        subject: emailTexts.account_unlocked_subject,
+        greetings: `Hello ${user.nickname}`,
         message: emailTexts.account_unlocked_message,
-        info_type: 'account_unlocked',
+        action_url: process.env.FRONTEND_URL || 'https://app.example.com',
+        action_type: 'account_unlocked',
+        action_label: 'Go to Site',
       },
     });
   } catch (mailError) {
@@ -538,14 +536,12 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
           to: userData.email,
           templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
           variables: {
-            nickname: userData.nickname,
-            email: userData.email,
-            reset_url: resetUrl,
-            lang: userLang,
-            subject: emailTexts.reset_subject,
             message: emailTexts.reset_message,
-            action_label: emailTexts.reset_action,
+            nickname: userData.nickname,
+            greetings: `Hello ${userData.nickname}`,
+            action_url: resetUrl,
             action_type: 'password_reset',
+            action_label: emailTexts.reset_action,
           },
         });
       } catch (mailError) {
