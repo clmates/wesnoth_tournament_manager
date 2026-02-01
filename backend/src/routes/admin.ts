@@ -118,6 +118,10 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
     const { id } = req.params;
     const ip = getUserIP(req);
 
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+      console.log('🔓 [UNLOCK ENDPOINT v2] Called for user ID:', id);
+    }
+
     // Verify user is admin
     const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
