@@ -590,4 +590,40 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// Validate token endpoint - used by frontend on app load
+router.get('/validate-token', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // If we reach here, token is valid (authMiddleware verified it)
+    const userResult = await query(
+      'SELECT id, nickname, email, is_admin, is_blocked, email_verified, password_must_change FROM public.users WHERE id = $1',
+      [req.userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Check if user is blocked
+    if (user.is_blocked) {
+      return res.status(403).json({ error: 'User account is blocked' });
+    }
+
+    // Return user info
+    res.json({
+      valid: true,
+      userId: user.id,
+      nickname: user.nickname,
+      email: user.email,
+      isAdmin: user.is_admin,
+      emailVerified: user.email_verified,
+      passwordMustChange: user.password_must_change
+    });
+  } catch (error) {
+    console.error('Token validation error:', error);
+    res.status(401).json({ error: 'Token validation failed' });
+  }
+});
+
 export default router;

@@ -37,16 +37,33 @@ import VerifyEmail from './pages/VerifyEmail';
 import './App.css';
 
 const App: React.FC = () => {
-  const { isAdmin } = useAuthStore();
+  const { isAdmin, token, validateToken, isValidating } = useAuthStore();
+  const [authChecked, setAuthChecked] = React.useState(false);
 
   useEffect(() => {
-    // Sync isAdmin from localStorage on app load
-    const storedIsAdmin = localStorage.getItem('isAdmin') === 'true';
-    if (storedIsAdmin !== isAdmin) {
-      // This will trigger a re-render with the correct isAdmin value
-      console.log('Syncing isAdmin from localStorage:', storedIsAdmin);
-    }
-  }, [isAdmin]);
+    // Validate token on app load if token exists
+    const checkAuth = async () => {
+      if (token) {
+        await validateToken();
+      }
+      setAuthChecked(true);
+    };
+    
+    checkAuth();
+  }, [token, validateToken]);
+
+  // Show loading while validating auth
+  if (isValidating && !authChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <I18nextProvider i18n={i18n}>
       <BrowserRouter>
