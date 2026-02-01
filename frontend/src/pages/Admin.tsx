@@ -97,7 +97,7 @@ const AdminUsers: React.FC = () => {
           setMessage(t('admin.user_blocked', { nickname: selectedUser.nickname }));
           break;
         case 'unblock':
-          await adminService.unblockUser(selectedUser.id);
+          await adminService.unlockAccount(selectedUser.id);
           setMessage(t('admin.user_unblocked', { nickname: selectedUser.nickname }));
           break;
         case 'makeAdmin':
