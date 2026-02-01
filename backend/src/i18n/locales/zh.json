@@ -1,0 +1,14 @@
+{
+  "email": {
+    "verify_subject": "验证您的邮箱",
+    "verify_message": "请点击下方链接以验证您的邮箱地址。",
+    "verify_action": "验证邮箱",
+    "reset_subject": "重置您的密码",
+    "reset_message": "请点击下方链接以重置您的密码。",
+    "reset_action": "重置密码",
+    "registration_confirmation_subject": "注册已确认",
+    "registration_confirmation_message": "您的注册已完成。欢迎使用 Wesnoth 锦标赛管理器！",
+    "account_unlocked_subject": "账户已解锁",
+    "account_unlocked_message": "您的账户已被管理员解锁，现在可以登录了。"
+  }
+}

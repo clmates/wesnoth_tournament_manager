@@ -1,0 +1,14 @@
+{
+  "email": {
+    "verify_subject": "Verify your email",
+    "verify_message": "Please click the link below to verify your email address.",
+    "verify_action": "Verify Email",
+    "reset_subject": "Reset your password",
+    "reset_message": "Click the link below to reset your password.",
+    "reset_action": "Reset Password",
+    "registration_confirmation_subject": "Registration confirmed",
+    "registration_confirmation_message": "Your registration is complete. Welcome to Wesnoth Tournament Manager!",
+    "account_unlocked_subject": "Account unlocked",
+    "account_unlocked_message": "Your account has been unlocked by an administrator. You can now log in."
+  }
+}
