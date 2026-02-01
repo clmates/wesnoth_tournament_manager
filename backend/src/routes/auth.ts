@@ -84,7 +84,8 @@ router.post('/register', registerLimiter, async (req, res) => {
     try {
       await sendMailerSendEmail({
         to: email,
-        templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
+        templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
+        subject: emailTexts.verify_subject,
         variables: {
           message: emailTexts.verify_message,
           nickname,
@@ -165,7 +166,8 @@ router.post('/register', registerLimiter, async (req, res) => {
       const emailTexts = getEmailTexts(lang);
       await sendMailerSendEmail({
         to: userInfo.email,
-        templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
+        templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
+        subject: emailTexts.registration_confirmation_subject,
         variables: {
           nickname: userInfo.nickname,
           greetings: `Hello ${userInfo.nickname}`,
@@ -220,7 +222,8 @@ const sendAccountUnlockedEmail = async (user: { email: string; nickname: string;
     const emailTexts = getEmailTexts(lang);
     await sendMailerSendEmail({
       to: user.email,
-      templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
+      templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
+      subject: emailTexts.account_unlocked_subject,
       variables: {
         nickname: user.nickname,
         greetings: `Hello ${user.nickname}`,
@@ -535,7 +538,8 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
       try {
         await sendMailerSendEmail({
           to: userData.email,
-          templateId: process.env.MAILERSEND_TEMPLATE_ACTION || '',
+          templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
+          subject: emailTexts.reset_subject,
           variables: {
             message: emailTexts.reset_message,
             nickname: userData.nickname,
