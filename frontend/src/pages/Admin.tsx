@@ -88,6 +88,10 @@ const AdminUsers: React.FC = () => {
       setMessage('');
 
       switch (actionType) {
+        case 'resendEmail':
+          await adminService.resendVerificationEmail(selectedUser.id);
+          setMessage(t('admin.verification_email_sent', 'Verification email sent successfully'));
+          break;
         case 'block':
           await adminService.blockUser(selectedUser.id);
           setMessage(t('admin.user_blocked', { nickname: selectedUser.nickname }));
@@ -234,6 +238,8 @@ const AdminUsers: React.FC = () => {
               <tr className="bg-gray-200">
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_nickname')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_email')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Email Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Password Reset</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_elo')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_level')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_status')}</th>
@@ -242,10 +248,36 @@ const AdminUsers: React.FC = () => {
                 </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
+              {filteredUsers.map((user) => {
+                const emailExpires = user.email_verification_expires ? new Date(user.email_verification_expires).toLocaleString() : '';
+                const pwResetExpires = user.password_reset_expires ? new Date(user.password_reset_expires).toLocaleString() : '';
+                
+                return (
                 <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-700">{user.nickname}</td>
                   <td className="px-4 py-3 text-gray-700">{user.email}</td>
+                  <td className="px-4 py-3">
+                    {user.email_verified ? (
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                        ✅ Verified
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                        ⏳ Pending {emailExpires && `(${emailExpires})`}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {user.password_reset_pending ? (
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                        🔑 Pending {pwResetExpires && `(${pwResetExpires})`}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                        -
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-gray-700">{user.elo_rating || 1200}</td>
                   <td className="px-4 py-3 text-gray-700">{user.level || t('level_novice')}</td>
                   <td className="px-4 py-3">
@@ -264,6 +296,14 @@ const AdminUsers: React.FC = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
+                      {!user.email_verified && (
+                        <button
+                          className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600"
+                          onClick={() => handleAction(user, 'resendEmail')}
+                        >
+                          Resend Email
+                        </button>
+                      )}
                       {user.is_blocked ? (
                         <button
                           className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
@@ -309,7 +349,8 @@ const AdminUsers: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
           </div>
@@ -322,12 +363,14 @@ const AdminUsers: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              {actionType === 'resendEmail' && 'Resend Verification Email'}
               {actionType === 'delete' && t('admin.confirm_delete_title')}
               {actionType === 'block' && t('admin.confirm_block_title')}
               {actionType === 'unblock' && t('admin.confirm_unblock_title', 'Unblock User')}
               {actionType === 'resetPassword' && t('admin.confirm_reset_password_title')}
             </h3>
             <p className="text-gray-700 mb-6">
+              {actionType === 'resendEmail' && `Resend verification email to ${selectedUser.nickname}?`}
               {actionType === 'delete' && t('admin.confirm_delete', { nickname: selectedUser.nickname })}
               {actionType === 'block' && t('admin.confirm_block', { nickname: selectedUser.nickname })}
               {actionType === 'unblock' && t('admin.confirm_unblock', `Are you sure you want to unblock ${selectedUser.nickname}?`)}
