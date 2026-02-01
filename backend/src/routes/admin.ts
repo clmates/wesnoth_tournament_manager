@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { randomBytes } from 'crypto';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { hashPassword } from '../utils/auth.js';
@@ -8,6 +9,8 @@ import { calculateNewRating, calculateTrend } from '../utils/elo.js';
 import { unlockAccount } from '../services/accountLockout.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 import { notifyAdminUserApproved, notifyAdminUserRejected, notifyUserUnlocked } from '../services/discord.js';
+import { sendMailerSendEmail } from '../services/mailersend.js';
+import { getEmailTexts } from '../utils/emailTexts.js';
 
 const router = Router();
 
@@ -21,7 +24,10 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const result = await query(
-      `SELECT id, nickname, email, language, discord_id, is_admin, is_active, is_blocked, is_rated, elo_rating, matches_played, total_wins, total_losses, created_at, updated_at 
+      `SELECT id, nickname, email, language, discord_id, is_admin, is_active, is_blocked, is_rated, elo_rating, matches_played, total_wins, total_losses, created_at, updated_at,
+              email_verified, email_verification_expires, 
+              (password_reset_token IS NOT NULL AND password_reset_expires > NOW()) as password_reset_pending,
+              password_reset_expires
        FROM users 
        WHERE id != '00000000-0000-0000-0000-000000000000'
        ORDER BY created_at DESC`
@@ -140,6 +146,78 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
   } catch (error) {
     console.error('Unlock account error:', error);
     res.status(500).json({ error: 'Failed to unlock account' });
+  }
+});
+
+// Resend email verification
+router.post('/users/:id/resend-verification-email', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const ip = getUserIP(req);
+
+    // Verify user is admin
+    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    if (!adminCheck.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Only admins can perform this action' });
+    }
+
+    // Get user info
+    const userInfo = await query('SELECT id, nickname, email, language FROM public.users WHERE id = $1', [id]);
+    if (userInfo.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userInfo.rows[0];
+
+    // Generate new verification token
+    const verificationToken = randomBytes(32).toString('hex');
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    // Update user with new token
+    await query(
+      'UPDATE users SET email_verification_token = $1, email_verification_expires = $2 WHERE id = $3',
+      [verificationToken, verificationExpires, id]
+    );
+
+    // Build verification URL
+    const verificationUrl = `${process.env.FRONTEND_URL || 'https://app.example.com'}/verify-email?token=${verificationToken}`;
+
+    // Get translated email texts
+    const emailTexts = getEmailTexts(user.language || 'en');
+
+    // Send verification email
+    try {
+      await sendMailerSendEmail({
+        to: user.email,
+        templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
+        subject: emailTexts.verify_subject,
+        variables: {
+          message: emailTexts.verify_message,
+          nickname: user.nickname,
+          greetings: `${emailTexts.greetings} ${user.nickname}`,
+          action_url: verificationUrl,
+          action_type: 'email_verification',
+          action_label: emailTexts.verify_action,
+        },
+      });
+    } catch (mailError) {
+      console.error('MailerSend error (admin resend):', mailError);
+      return res.status(500).json({ error: 'Failed to send verification email' });
+    }
+
+    // Log admin action
+    await logAuditEvent({
+      event_type: 'ADMIN_ACTION',
+      user_id: req.userId,
+      ip_address: ip,
+      user_agent: getUserAgent(req),
+      details: { action: 'resend_verification_email', target_user_id: id, target_username: user.nickname, email: user.email }
+    });
+
+    res.json({ message: 'Verification email sent successfully' });
+  } catch (error) {
+    console.error('Resend verification email error:', error);
+    res.status(500).json({ error: 'Failed to resend verification email' });
   }
 });
 
