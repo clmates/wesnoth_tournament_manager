@@ -62,6 +62,7 @@ const App: React.FC = () => {
             <Route path="/player/:id" element={<PlayerProfile />} />
             <Route path="/player/:playerId/stats" element={<PlayerStatsPage />} />
             <Route path="/force-password-change" element={<ForcePasswordChange />} />
+            <Route path="/reset-password" element={<ForcePasswordChange />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/my-matches" element={<MyMatches />} />
             <Route path="/players" element={<Players />} />
