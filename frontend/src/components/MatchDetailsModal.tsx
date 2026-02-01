@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useAuthStore } from '../store/authStore';
+import { matchService } from '../services/api';
 import StarDisplay from './StarDisplay';
 
 interface MatchDetailsModalProps {
@@ -6,15 +8,44 @@ interface MatchDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDownloadReplay?: (matchId: string | null, replayFilePath: string, tournamentMatchId?: string) => void;
+  onCancelSuccess?: () => void;
 }
 
-const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, onClose, onDownloadReplay }) => {
+const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, onClose, onDownloadReplay, onCancelSuccess }) => {
+  const { userId } = useAuthStore();
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelSuccess, setCancelSuccess] = useState(false);
+  
   if (!isOpen || !match) {
     return null;
   }
 
   const winnerEloChange = (match: any) => (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
   const loserEloChange = (match: any) => (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
+
+  // Check if current user is the reporter and match can be cancelled
+  const isReporter = match.reporter_id === userId;
+  const canCancel = isReporter && ['unconfirmed', 'confirmed'].includes(match.status);
+
+  const handleCancelReport = async () => {
+    try {
+      setCancelLoading(true);
+      setCancelError(null);
+      await matchService.cancelOwnMatch(match.id);
+      setCancelSuccess(true);
+      setTimeout(() => {
+        if (onCancelSuccess) {
+          onCancelSuccess();
+        }
+        onClose();
+      }, 1500);
+    } catch (error: any) {
+      setCancelError(error?.response?.data?.error || 'Failed to cancel match report');
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fadeIn" onClick={onClose}>
@@ -138,7 +169,27 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 text-center">
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex gap-3 justify-center">
+          {canCancel && (
+            <button 
+              className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
+                cancelSuccess 
+                  ? 'bg-green-500 text-white' 
+                  : cancelLoading
+                  ? 'bg-red-300 text-white cursor-not-allowed'
+                  : 'bg-red-500 hover:bg-red-600 text-white'
+              }`}
+              onClick={handleCancelReport}
+              disabled={cancelLoading || cancelSuccess}
+            >
+              {cancelLoading ? '⏳ Cancelling...' : cancelSuccess ? '✓ Report Cancelled' : '✗ Cancel Report'}
+            </button>
+          )}
+          {cancelError && (
+            <div className="text-red-600 text-sm self-center">
+              {cancelError}
+            </div>
+          )}
           <button 
             className="px-6 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg font-semibold transition-colors"
             onClick={onClose}

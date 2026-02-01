@@ -1855,6 +1855,99 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// Cancel own match (self-dispute auto-confirmation)
+// Reporter can cancel a match they reported if it hasn't been disputed yet
+router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    
+    // Fetch the match
+    const matchResult = await query(
+      'SELECT * FROM matches WHERE id = $1',
+      [id]
+    );
+    
+    if (matchResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+    
+    const match = matchResult.rows[0];
+    
+    // Verify user is the reporter
+    if (match.reporter_id !== userId) {
+      return res.status(403).json({ error: 'Only the match reporter can cancel it' });
+    }
+    
+    // Match must not be in a final state already
+    if (!['pending', 'confirmed'].includes(match.status)) {
+      return res.status(400).json({ error: `Match is already ${match.status}, cannot cancel` });
+    }
+    
+    console.log(`[SELF-CANCEL] Player ${userId} canceling their own match ${id}`);
+    
+    // Start cascade recalculation for cancelled match
+    // STEP 1: Mark the match as cancelled
+    await query(
+      'UPDATE matches SET status = $1, admin_reviewed = true, admin_reviewed_at = CURRENT_TIMESTAMP, admin_reviewed_by = $2 WHERE id = $3',
+      ['cancelled', userId, id]
+    );
+    
+    // STEP 1B: Disable trigger to prevent double-counting
+    try {
+      await query(`
+        DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches;
+      `);
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Disabled trigger: trg_update_faction_map_stats');
+    } catch (error) {
+      console.warn('Warning: Failed to disable trigger:', error);
+    }
+    
+    // STEP 2: Recalculate user stats (ELO reversal)
+    try {
+      const recalcResult = await query('SELECT recalculate_player_match_statistics()');
+      console.log('🟢 Player stats recalculated after self-cancel');
+    } catch (error) {
+      console.error('Error recalculating player stats:', error);
+    }
+    
+    // STEP 3: Re-enable trigger
+    try {
+      await query(`
+        CREATE TRIGGER trg_update_faction_map_stats
+        AFTER INSERT OR UPDATE ON matches
+        FOR EACH ROW
+        EXECUTE FUNCTION update_faction_map_statistics();
+      `);
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Re-enabled trigger: trg_update_faction_map_stats');
+    } catch (error) {
+      console.error('Warning: Failed to re-enable trigger:', error);
+    }
+    
+    // STEP 4: Recalculate faction/map balance statistics
+    try {
+      const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
+      console.log('🟢 Faction/map statistics recalculated after self-cancel');
+      
+      // Manage snapshots
+      const snapshotResult = await query('SELECT * FROM manage_faction_map_statistics_snapshots()');
+      console.log('🟢 Snapshots managed after self-cancel');
+    } catch (error: any) {
+      console.error('🔴 ERROR recalculating faction/map statistics after self-cancel:', error);
+      // Don't fail the entire operation if balance stats fail
+    }
+    
+    console.log(`Match ${id} self-cancelled by reporter ${userId}: Stats recalculated`);
+    res.json({ 
+      message: 'Match cancelled successfully. Stats have been recalculated.',
+      matchId: id
+    });
+  } catch (error) {
+    console.error('Error cancelling match:', error);
+    res.status(500).json({ error: 'Failed to cancel match' });
+  }
+});
+
 // Routes are now properly ordered with specific paths first
 
 export default router;
