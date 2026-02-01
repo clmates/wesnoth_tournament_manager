@@ -1897,17 +1897,16 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
       ['cancelled', userId, id]
     );
     
-    // STEP 1B: Disable trigger to prevent double-counting
+    // STEP 1B: Disable both triggers to prevent automatic stats updates during this process
     try {
-      await query(`
-        DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches;
-      `);
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Disabled trigger: trg_update_faction_map_stats');
+      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches');
+      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches');
+      console.log('Disabled triggers: trg_update_faction_map_stats, trg_update_player_match_stats');
     } catch (error) {
-      console.warn('Warning: Failed to disable trigger:', error);
+      console.warn('Warning: Failed to disable triggers:', error);
     }
     
-    // STEP 2: Recalculate user stats (ELO reversal)
+    // STEP 2: Recalculate player stats (ELO reversal and all stats)
     try {
       const recalcResult = await query('SELECT recalculate_player_match_statistics()');
       console.log('🟢 Player stats recalculated after self-cancel');
@@ -1915,7 +1914,19 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
       console.error('Error recalculating player stats:', error);
     }
     
-    // STEP 3: Re-enable trigger
+    // STEP 3: Re-enable both triggers
+    try {
+      await query(`
+        CREATE TRIGGER trg_update_player_match_stats
+        AFTER INSERT OR UPDATE ON matches
+        FOR EACH ROW
+        EXECUTE FUNCTION update_player_match_statistics();
+      `);
+      console.log('Re-enabled trigger: trg_update_player_match_stats');
+    } catch (error) {
+      console.error('Warning: Failed to re-enable player match stats trigger:', error);
+    }
+    
     try {
       await query(`
         CREATE TRIGGER trg_update_faction_map_stats
@@ -1923,9 +1934,9 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
         FOR EACH ROW
         EXECUTE FUNCTION update_faction_map_statistics();
       `);
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Re-enabled trigger: trg_update_faction_map_stats');
+      console.log('Re-enabled trigger: trg_update_faction_map_stats');
     } catch (error) {
-      console.error('Warning: Failed to re-enable trigger:', error);
+      console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
     }
     
     // STEP 4: Recalculate faction/map balance statistics
