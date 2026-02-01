@@ -7,7 +7,7 @@ import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 import { isAccountLocked, recordFailedLoginAttempt, recordSuccessfulLogin, getRemainingLockoutTime } from '../services/accountLockout.js';
 import { notifyAdminNewRegistration, notifyUserWelcome, sendPasswordResetViaThread, DISCORD_ENABLED, resolveDiscordIdFromUsername } from '../services/discord.js';
 import { maskEmail } from '../utils/email.js';
-import { sendMailerSendEmail } from '../services/mailersend';
+import { sendMailerSendEmail } from '../services/mailersend.js';
 import { getEmailTexts } from '../utils/emailTexts.js';
 
 const router = Router();
