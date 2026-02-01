@@ -106,18 +106,27 @@ router.post('/register', registerLimiter, async (req, res) => {
       details: { email, language: language || 'en', verification_sent: true }
     });
 
-
     // No notificar por Discord hasta que el email esté verificado
 
     res.status(201).json({ id: result.rows[0].id, message: 'Registration successful. Please verify your email.' });
-  // Endpoint para confirmar verificación de email
-  router.get('/verify-email', async (req, res) => {
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed', details: (error as any).message });
+  }
+});
+
+// Endpoint para confirmar verificación de email
+router.get('/verify-email', async (req, res) => {
+  try {
     const { token } = req.query;
     if (!token) return res.status(400).json({ error: 'Token is required' });
 
+    const ip = getUserIP(req);
+    const userAgent = getUserAgent(req);
+
     // Buscar usuario con ese token y verificar expiración
     const userResult = await query(
-      'SELECT id, email_verification_expires FROM users WHERE email_verification_token = $1',
+      'SELECT id, email_verification_expires, language FROM users WHERE email_verification_token = $1',
       [token]
     );
     if (userResult.rows.length === 0) {
@@ -141,7 +150,6 @@ router.post('/register', registerLimiter, async (req, res) => {
     );
     const userInfo = userInfoResult.rows[0];
 
-
     // Notificar al admin y dar la bienvenida en Discord
     try {
       await notifyAdminNewRegistration({
@@ -159,7 +167,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     // Enviar email informativo de confirmación de registro
     try {
-      const lang = userInfo.language || 'en';
+      const lang = user.language || 'en';
       const emailTexts = getEmailTexts(lang);
       await sendMailerSendEmail({
         to: userInfo.email,
@@ -174,74 +182,21 @@ router.post('/register', registerLimiter, async (req, res) => {
     } catch (mailError) {
       console.error('MailerSend error (registration confirmation):', mailError);
     }
-// Endpoint admin para desbloquear cuenta y enviar email informativo
-router.post('/admin/unlock-user', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    // Solo admin
-    const adminResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
-    if (!adminResult.rows[0]?.is_admin) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    const { userId } = req.body;
-    if (!userId) return res.status(400).json({ error: 'userId is required' });
-    // Desbloquear usuario
-    await query('UPDATE public.users SET is_blocked = false WHERE id = $1', [userId]);
-    // Obtener datos del usuario
-    const userResult = await query('SELECT email, nickname, language FROM public.users WHERE id = $1', [userId]);
-    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    // Enviar email informativo de cuenta desbloqueada
-    await sendAccountUnlockedEmail(userResult.rows[0]);
-    // Registrar en audit log
-    await logAuditEvent({
-      event_type: 'ACCOUNT_UNLOCKED',
-      user_id: result.rows[0].id,
-      username: nickname,
-      ip_address: ip,
-      user_agent: userAgent,
-      details: { method: 'admin_unlock' }
-    });
-
-    res.json({ success: true, message: 'User unlocked and notified' });
-  } catch (error) {
-    console.error('Admin unlock error:', error);
-    res.status(500).json({ error: 'Unlock failed' });
-  }
-});
-
-
-// Función para enviar email informativo de cuenta desbloqueada (para usar en el endpoint/admin correspondiente)
-const sendAccountUnlockedEmail = async (user: { email: string; nickname: string; language?: string }) => {
-  try {
-    const lang = user.language || 'en';
-    const emailTexts = getEmailTexts(lang);
-    await sendMailerSendEmail({
-      to: user.email,
-      subject: emailTexts.account_unlocked_subject,
-      variables: {
-        greetings: `${emailTexts.greetings} ${user.nickname}`,
-        message: emailTexts.account_unlocked_message,
-        action_url: process.env.FRONTEND_URL || 'https://app.example.com',
-        action_label: 'Go to Site',
-      },
-    });
-  } catch (mailError) {
-    console.error('MailerSend error (account unlocked):', mailError);
-  }
-};
 
     // Registrar en audit log
     await logAuditEvent({
       event_type: 'EMAIL_VERIFIED',
       user_id: user.id,
+      username: userInfo.nickname,
       ip_address: ip,
+      user_agent: userAgent,
       details: { method: 'email_link' }
     });
 
     res.json({ success: true, message: 'Email verified successfully' });
-  });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed', details: (error as any).message });
+    console.error('Email verification error:', error);
+    res.status(500).json({ error: 'Email verification failed' });
   }
 });
 
@@ -559,6 +514,67 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
   } catch (error) {
     console.error('Password reset request error:', error);
     res.status(500).json({ error: 'Request failed' });
+  }
+});
+
+// Helper function to send account unlocked email
+const sendAccountUnlockedEmail = async (user: { email: string; nickname: string; language?: string }) => {
+  try {
+    const lang = user.language || 'en';
+    const emailTexts = getEmailTexts(lang);
+    await sendMailerSendEmail({
+      to: user.email,
+      subject: emailTexts.account_unlocked_subject,
+      variables: {
+        greetings: `${emailTexts.greetings} ${user.nickname}`,
+        message: emailTexts.account_unlocked_message,
+        action_url: process.env.FRONTEND_URL || 'https://app.example.com',
+        action_label: 'Go to Site',
+      },
+    });
+  } catch (mailError) {
+    console.error('MailerSend error (account unlocked):', mailError);
+  }
+};
+
+// Admin endpoint to unlock user account and send notification email
+router.post('/admin/unlock-user', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Check if user is admin
+    const adminResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    if (!adminResult.rows[0]?.is_admin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+
+    // Unlock user
+    await query('UPDATE public.users SET is_blocked = false WHERE id = $1', [userId]);
+
+    // Get user data
+    const userResult = await query('SELECT email, nickname, language FROM public.users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    // Send account unlocked email
+    await sendAccountUnlockedEmail(userResult.rows[0]);
+
+    // Log audit event
+    const ip = getUserIP(req);
+    const userAgent = getUserAgent(req);
+    await logAuditEvent({
+      event_type: 'ACCOUNT_UNLOCKED',
+      user_id: userId,
+      username: userResult.rows[0].nickname,
+      ip_address: ip,
+      user_agent: userAgent,
+      details: { method: 'admin_unlock' }
+    });
+
+    res.json({ success: true, message: 'User unlocked and notified' });
+  } catch (error) {
+    console.error('Admin unlock error:', error);
+    res.status(500).json({ error: 'Unlock failed' });
   }
 });
 
