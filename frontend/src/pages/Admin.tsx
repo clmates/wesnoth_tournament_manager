@@ -373,7 +373,7 @@ const AdminUsers: React.FC = () => {
               {actionType === 'resendEmail' && `Resend verification email to ${selectedUser.nickname}?`}
               {actionType === 'delete' && t('admin.confirm_delete', { nickname: selectedUser.nickname })}
               {actionType === 'block' && t('admin.confirm_block', { nickname: selectedUser.nickname })}
-              {actionType === 'unblock' && t('admin.confirm_unblock', `Are you sure you want to unblock ${selectedUser.nickname}?`)}
+              {actionType === 'unblock' && `Are you sure you want to unblock ${selectedUser.nickname}?`}
               {actionType === 'resetPassword' && t('admin.confirm_reset_password', { nickname: selectedUser.nickname })}
             </p>
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
