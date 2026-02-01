@@ -65,6 +65,11 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('User created successfully:', result.rows[0].id);
 
+    // Save initial password to history (prevent immediate reuse on reset)
+    await query(
+      'INSERT INTO password_history (user_id, password_hash) VALUES ($1, $2)',
+      [result.rows[0].id, passwordHash]
+    );
 
     // Generar token y expiración para verificación de email
     const verificationToken = randomBytes(32).toString('hex');
@@ -355,6 +360,12 @@ router.post('/change-password', authMiddleware, async (req: AuthRequest, res) =>
       return res.status(401).json({ error: 'Invalid current password' });
     }
 
+    // Check if new password is same as current password
+    const isSameAsCurrent = await comparePasswords(newPassword, userResult.rows[0].password_hash);
+    if (isSameAsCurrent) {
+      return res.status(400).json({ errors: ['New password cannot be the same as current password'] });
+    }
+
     const validation = await validatePassword(newPassword, req.userId);
     if (!validation.valid) {
       return res.status(400).json({ errors: validation.errors });
@@ -389,6 +400,12 @@ router.post('/force-change-password', authMiddleware, async (req: AuthRequest, r
     const userResult = await query('SELECT password_hash FROM public.users WHERE id = $1', [req.userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if new password is same as current password
+    const isSameAsCurrent = await comparePasswords(newPassword, userResult.rows[0].password_hash);
+    if (isSameAsCurrent) {
+      return res.status(400).json({ errors: ['New password cannot be the same as current password'] });
     }
 
     // Validate new password
@@ -520,6 +537,18 @@ router.post('/reset-password', async (req, res) => {
     // Check if token is expired
     if (new Date(user.password_reset_expires) < new Date()) {
       return res.status(400).json({ error: 'Password reset token has expired' });
+    }
+
+    // Get current password hash
+    const currentUserResult = await query('SELECT password_hash FROM public.users WHERE id = $1', [user.id]);
+    if (currentUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if new password is same as current password
+    const isSameAsCurrent = await comparePasswords(newPassword, currentUserResult.rows[0].password_hash);
+    if (isSameAsCurrent) {
+      return res.status(400).json({ errors: ['New password cannot be the same as current password'] });
     }
 
     // Validate new password

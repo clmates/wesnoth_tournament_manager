@@ -594,6 +594,18 @@ router.post('/users/:id/force-reset-password', authMiddleware, async (req: AuthR
     const tempPassword = Math.random().toString(36).slice(-8);
     const passwordHash = await hashPassword(tempPassword);
 
+    // Get current password for history
+    const currentUserResult = await query('SELECT password_hash FROM public.users WHERE id = $1', [id]);
+    if (currentUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Save current password to history before updating
+    await query(
+      'INSERT INTO password_history (user_id, password_hash) VALUES ($1, $2)',
+      [id, currentUserResult.rows[0].password_hash]
+    );
+
     const result = await query(
       `UPDATE users SET password_hash = $1, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, nickname, email`,
       [passwordHash, id]
