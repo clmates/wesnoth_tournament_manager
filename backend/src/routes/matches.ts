@@ -44,8 +44,11 @@ const upload = multer({
 });
 
 // Helper function to recalculate all stats (used by both admin and player self-cancel)
+// This does a FULL replay of all non-cancelled matches to recalculate ELO correctly
 async function performGlobalStatsRecalculation() {
   try {
+    console.log('🔄 Starting full stats recalculation with match replay');
+
     // STEP 1: Disable both triggers to prevent automatic stats updates during this process
     try {
       await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches CASCADE');
@@ -55,15 +58,114 @@ async function performGlobalStatsRecalculation() {
       console.warn('Warning: Failed to disable triggers:', error);
     }
 
-    // STEP 2: Recalculate player stats (ELO reversal and all stats)
-    try {
-      const recalcResult = await query('SELECT recalculate_player_match_statistics()');
-      console.log('🟢 Player stats recalculated');
-    } catch (error) {
-      console.error('Error recalculating player stats:', error);
+    const defaultElo = 1400; // FIDE standard baseline for new users
+
+    // STEP 2: Get ALL non-cancelled matches in chronological order
+    const allNonCancelledMatches = await query(
+      `SELECT m.id, m.winner_id, m.loser_id, m.created_at
+       FROM matches m
+       WHERE m.status IN ('confirmed', 'unconfirmed', 'pending', 'disputed')
+       ORDER BY m.created_at ASC, m.id ASC`
+    );
+
+    // STEP 3: Initialize all users with baseline ELO and zero stats
+    const userStates = new Map<string, {
+      elo_rating: number;
+      matches_played: number;
+      total_wins: number;
+      total_losses: number;
+      trend: string;
+    }>();
+
+    const allUsersResult = await query('SELECT id FROM users');
+    for (const userRow of allUsersResult.rows) {
+      userStates.set(userRow.id, {
+        elo_rating: defaultElo,
+        matches_played: 0,
+        total_wins: 0,
+        total_losses: 0,
+        trend: '-'
+      });
     }
 
-    // STEP 3: Re-enable both triggers
+    // STEP 4: Replay ALL non-cancelled matches chronologically to rebuild correct stats
+    for (const matchRow of allNonCancelledMatches.rows) {
+      const winnerId = matchRow.winner_id;
+      const loserId = matchRow.loser_id;
+
+      // Ensure both users exist in state map
+      if (!userStates.has(winnerId)) {
+        userStates.set(winnerId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+      }
+      if (!userStates.has(loserId)) {
+        userStates.set(loserId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+      }
+
+      const winner = userStates.get(winnerId)!;
+      const loser = userStates.get(loserId)!;
+
+      // Store before values
+      const winnerEloBefore = winner.elo_rating;
+      const loserEloBefore = loser.elo_rating;
+
+      // Calculate new ratings
+      const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
+      const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+
+      // Update stats
+      winner.elo_rating = winnerNewRating;
+      loser.elo_rating = loserNewRating;
+      winner.matches_played++;
+      loser.matches_played++;
+      winner.total_wins++;
+      loser.total_losses++;
+      winner.trend = calculateTrend(winner.trend, true);
+      loser.trend = calculateTrend(loser.trend, false);
+
+      // Update the match record with correct before/after ELO values
+      await query(
+        `UPDATE matches 
+         SET winner_elo_before = $1, winner_elo_after = $2, 
+             loser_elo_before = $3, loser_elo_after = $4
+         WHERE id = $5`,
+        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, matchRow.id]
+      );
+    }
+
+    console.log(`✅ Replayed ${allNonCancelledMatches.rows.length} matches`);
+
+    // STEP 5: Update all users in the database with their recalculated stats
+    for (const [userId, stats] of userStates.entries()) {
+      // Get current is_rated status from database
+      const userCurrentResult = await query('SELECT is_rated FROM users WHERE id = $1', [userId]);
+      const isCurrentlyRated = userCurrentResult.rows[0]?.is_rated || false;
+      
+      let isRated = isCurrentlyRated;
+      
+      // If rated and ELO falls below 1400, unrate the player
+      if (isCurrentlyRated && stats.elo_rating < 1400) {
+        isRated = false;
+      }
+      // If unrated, has 10+ matches, and ELO >= 1400, rate the player
+      else if (!isCurrentlyRated && stats.matches_played >= 10 && stats.elo_rating >= 1400) {
+        isRated = true;
+      }
+      
+      await query(
+        `UPDATE users 
+         SET elo_rating = $1, 
+             matches_played = $2,
+             total_wins = $3,
+             total_losses = $4,
+             trend = $5,
+             is_rated = $6,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $7`,
+        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, isRated, userId]
+      );
+    }
+
+    // STEP 6: Re-enable both triggers
     try {
       await query(`
         DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches CASCADE;
@@ -90,7 +192,14 @@ async function performGlobalStatsRecalculation() {
       console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
     }
 
-    // STEP 4: Recalculate faction/map balance statistics
+    // STEP 7: Recalculate player match statistics and faction/map balance statistics
+    try {
+      await query('SELECT recalculate_player_match_statistics()');
+      console.log('🟢 Player match statistics recalculated');
+    } catch (error) {
+      console.error('Error recalculating player match statistics:', error);
+    }
+
     try {
       const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
       console.log('🟢 Faction/map statistics recalculated');
