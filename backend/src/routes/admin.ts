@@ -124,14 +124,53 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
       return res.status(403).json({ error: 'Only admins can perform this action' });
     }
 
-    // Get user info for logging
-    const userInfo = await query('SELECT nickname FROM public.users WHERE id = $1', [id]);
+    // Get user info for logging, email, and Discord notifications
+    const userInfo = await query('SELECT nickname, email, language, discord_id FROM public.users WHERE id = $1', [id]);
     if (userInfo.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const user = userInfo.rows[0];
+
     // Unlock account
     await unlockAccount(id);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+      console.log('User unlocked:', user.nickname);
+    }
+
+    // Send account unlocked email notification
+    try {
+      const lang = user.language || 'en';
+      const emailTexts = getEmailTexts(lang);
+      await sendMailerSendEmail({
+        to: user.email,
+        subject: emailTexts.account_unlocked_subject,
+        variables: {
+          greetings: `${emailTexts.greetings} ${user.nickname}`,
+          message: emailTexts.account_unlocked_message,
+          action_url: process.env.FRONTEND_URL || 'https://app.example.com',
+          action_label: 'Go to Site',
+        },
+      });
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+        console.log('Account unlocked email sent to:', user.email);
+      }
+    } catch (mailError) {
+      console.error('MailerSend error (account unlocked):', mailError);
+    }
+
+    // Send Discord notification if enabled
+    try {
+      await notifyUserUnlocked({
+        nickname: user.nickname,
+        discord_id: user.discord_id
+      });
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+        console.log('✅ User unlock Discord notification sent');
+      }
+    } catch (discordError) {
+      console.error('Discord notification error (unlock):', discordError);
+    }
 
     // Log admin action
     await logAuditEvent({
@@ -139,7 +178,7 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
       user_id: req.userId,
       ip_address: ip,
       user_agent: getUserAgent(req),
-      details: { action: 'unlock_account', target_user_id: id, target_username: userInfo.rows[0].nickname }
+      details: { action: 'unlock_account', target_user_id: id, target_username: user.nickname }
     });
 
     res.json({ message: 'Account unlocked successfully' });
