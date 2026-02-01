@@ -5,7 +5,8 @@ import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const LOCALES_PATH = path.resolve(__dirname, '../../frontend/src/i18n/locales');
+// Ruta desde dist/utils/ → suben 3 niveles a /app/ → luego acceden frontend/src/i18n/locales
+const LOCALES_PATH = path.resolve(__dirname, '../../../frontend/src/i18n/locales');
 const DEFAULT_LANG = 'en';
 
 const loadedLocales: Record<string, any> = {};
