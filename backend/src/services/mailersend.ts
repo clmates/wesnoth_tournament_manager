@@ -74,11 +74,16 @@ export async function sendMailerSendEmail({
   let payload: any;
 
   if (useTemplate) {
-    // Modo template
+    // Modo template - también requiere subject (verify_subject, reset_subject, etc.)
+    if (!subject) {
+      console.warn('⚠️  MailerSend: Template mode but no subject provided!');
+    }
+    
     payload = {
       from: { email: MAILERSEND_SENDER_EMAIL },
       to: [{ email: to }],
       template_id: templateId,
+      subject: subject, // MUST be provided (verify_subject, reset_subject, account_unlocked_subject, registration_confirmation_subject)
       personalization: [
         {
           email: to,
@@ -89,6 +94,7 @@ export async function sendMailerSendEmail({
     
     console.log('📧 MailerSend: Template mode');
     console.log('   Template ID:', templateId);
+    console.log('   Subject:', subject);
     console.log('   Recipient:', to);
     console.log('   Variables keys:', Object.keys(variables));
     console.log('   Payload:', JSON.stringify(payload, null, 2));
