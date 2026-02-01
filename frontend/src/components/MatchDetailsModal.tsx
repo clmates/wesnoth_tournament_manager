@@ -24,8 +24,8 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
   const winnerEloChange = (match: any) => (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
   const loserEloChange = (match: any) => (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
 
-  // Check if current user is the reporter and match can be cancelled
-  const isReporter = match.reporter_id === userId;
+  // Check if current user is the reporter (winner) and match can be cancelled
+  const isReporter = match.winner_id === userId;
   const canCancel = isReporter && ['unconfirmed', 'confirmed'].includes(match.status);
 
   const handleCancelReport = async () => {
