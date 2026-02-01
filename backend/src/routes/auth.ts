@@ -423,62 +423,37 @@ router.get('/discord-password-reset-available', async (req, res) => {
   }
 });
 
-// Password reset via email: Step 1 (show masked email) and Step 2 (confirm and generate token)
+// Password reset via email: Single step - user enters email and receives reset link
 router.post('/request-password-reset', registerLimiter, async (req, res) => {
   try {
-    const { nickname, email, confirm } = req.body;
+    const { email } = req.body;
     const ip = getUserIP(req);
 
-    // Buscar usuario por nickname o email
-    let userResult;
-    if (nickname) {
-      userResult = await query(
-        'SELECT id, email, nickname FROM public.users WHERE LOWER(nickname) = LOWER($1)',
-        [nickname]
-      );
-    } else if (email) {
-      userResult = await query(
-        'SELECT id, email, nickname FROM public.users WHERE LOWER(email) = LOWER($1)',
-        [email]
-      );
-    } else {
-      return res.status(400).json({ error: 'Nickname or email is required' });
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
 
-    let maskedEmail = '';
-    let userId = null;
+    // Buscar usuario por email (sin revelar si existe o no)
+    const userResult = await query(
+      'SELECT id, email, nickname, language FROM public.users WHERE LOWER(email) = LOWER($1)',
+      [email]
+    );
+
     if (userResult.rows.length > 0) {
-      maskedEmail = maskEmail(userResult.rows[0].email);
-      userId = userResult.rows[0].id;
-    } else {
-      // Email ficticio para no filtrar usuarios
-      maskedEmail = maskEmail(email || 'usuario@email.com');
-    }
-
-    if (!confirm) {
-      // Primer paso: mostrar email enmascarado y pedir confirmación
-      return res.status(200).json({
-        maskedEmail,
-        requiresConfirmation: true
-      });
-    }
-
-    // Segundo paso: generar token y guardar en DB y enviar email
-    if (userId) {
-      // Generar token seguro y expiración (ejemplo: 1 hora)
+      const userData = userResult.rows[0];
+      
+      // Generar token seguro y expiración (1 hora)
       const token = randomBytes(32).toString('hex');
-      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+      const expires = new Date(Date.now() + 60 * 60 * 1000);
 
       await query(
         'UPDATE users SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
-        [token, expires, userId]
+        [token, expires, userData.id]
       );
 
-      // Obtener datos del usuario
-      const userData = userResult.rows[0];
       // Obtener textos internacionalizados
-      const userLang = 'es'; // o userData.language si está disponible
-      const emailTexts = getEmailTexts(userLang);
+      const lang = userData.language || 'en';
+      const emailTexts = getEmailTexts(lang);
       const resetUrl = `${process.env.FRONTEND_URL || 'https://app.example.com'}/reset-password?token=${token}`;
 
       try {
@@ -492,24 +467,27 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
             action_label: emailTexts.reset_action,
           },
         });
+        if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+          console.log('✅ Password reset email sent to:', userData.email);
+        }
       } catch (mailError) {
-        console.error('MailerSend error (reset):', mailError);
+        console.error('MailerSend error (password reset):', mailError);
       }
 
       // Registrar en el audit log
       await logAuditEvent({
         event_type: 'PASSWORD_RESET_REQUEST',
-        user_id: userId,
-        username: nickname || email,
+        user_id: userData.id,
+        username: userData.nickname,
         ip_address: ip,
         details: { method: 'email', action: 'password_reset_requested' }
       });
     }
 
-    // Respuesta genérica
+    // Respuesta genérica - SIEMPRE la misma, sin importar si el usuario existe
     return res.status(200).json({
       success: true,
-      message: 'Si el usuario existe, se ha enviado un email de reseteo.'
+      message: 'If an account exists with that email, you will receive a password reset link.'
     });
   } catch (error) {
     console.error('Password reset request error:', error);
