@@ -5,8 +5,12 @@ import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// Ruta desde dist/utils/ → suben 3 niveles a /app/ → luego acceden frontend/src/i18n/locales
-const LOCALES_PATH = path.resolve(__dirname, '../../../frontend/src/i18n/locales');
+// En el contenedor: los archivos i18n están en /app/locales
+// En desarrollo: están en frontend/src/i18n/locales (../../../)
+// Intentamos primero la ruta del contenedor, luego la ruta de desarrollo
+const LOCALES_PATH = process.env.NODE_ENV === 'production' 
+  ? path.resolve(__dirname, '../../locales')
+  : path.resolve(__dirname, '../../../frontend/src/i18n/locales');
 const DEFAULT_LANG = 'en';
 
 const loadedLocales: Record<string, any> = {};
