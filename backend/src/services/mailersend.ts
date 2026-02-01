@@ -86,6 +86,12 @@ export async function sendMailerSendEmail({
         },
       ],
     };
+    
+    console.log('📧 MailerSend: Template mode');
+    console.log('   Template ID:', templateId);
+    console.log('   Recipient:', to);
+    console.log('   Variables keys:', Object.keys(variables));
+    console.log('   Payload:', JSON.stringify(payload, null, 2));
   } else {
     // Modo directo - requiere subject y html
     const finalHtml = html || buildActionEmailHtml(variables);
@@ -97,19 +103,33 @@ export async function sendMailerSendEmail({
       subject: finalSubject,
       html: finalHtml,
     };
+    
+    console.log('📧 MailerSend: Direct mode');
+    console.log('   Subject:', finalSubject);
+    console.log('   Recipient:', to);
+    console.log('   HTML length:', finalHtml.length, 'chars');
   }
 
   try {
-    await axios.post(MAILERSEND_API_URL, payload, {
+    const response = await axios.post(MAILERSEND_API_URL, payload, {
       headers: {
         Authorization: `Bearer ${MAILERSEND_API_TOKEN}`,
         'Content-Type': 'application/json',
       },
     });
+    
+    console.log('✅ MailerSend: Email sent successfully');
+    console.log('   Response status:', response.status);
+    console.log('   Response data:', JSON.stringify(response.data, null, 2));
   } catch (error: any) {
+    console.error('❌ MailerSend: Initial request failed');
+    console.error('   Status:', error?.response?.status);
+    console.error('   Error message:', error?.response?.data?.message);
+    console.error('   Full error response:', JSON.stringify(error?.response?.data, null, 2));
+    
     // Si falla el template, intentar con modo directo
     if (useTemplate && error?.response?.status === 422) {
-      console.warn(`Template ${templateId} failed (422), falling back to direct email mode`);
+      console.warn('⚠️  Template ${templateId} failed (422), falling back to direct email mode');
       
       const finalHtml = html || buildActionEmailHtml(variables);
       const finalSubject = subject || 'Notification';
@@ -121,12 +141,28 @@ export async function sendMailerSendEmail({
         html: finalHtml,
       };
       
-      await axios.post(MAILERSEND_API_URL, fallbackPayload, {
-        headers: {
-          Authorization: `Bearer ${MAILERSEND_API_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      console.log('📧 MailerSend: Fallback mode - Direct HTML');
+      console.log('   Subject:', finalSubject);
+      console.log('   Recipient:', to);
+      
+      try {
+        const fallbackResponse = await axios.post(MAILERSEND_API_URL, fallbackPayload, {
+          headers: {
+            Authorization: `Bearer ${MAILERSEND_API_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        console.log('✅ MailerSend: Fallback email sent successfully');
+        console.log('   Response status:', fallbackResponse.status);
+        console.log('   Response data:', JSON.stringify(fallbackResponse.data, null, 2));
+      } catch (fallbackError: any) {
+        console.error('❌ MailerSend: Fallback also failed');
+        console.error('   Status:', fallbackError?.response?.status);
+        console.error('   Error message:', fallbackError?.response?.data?.message);
+        console.error('   Full error response:', JSON.stringify(fallbackError?.response?.data, null, 2));
+        throw fallbackError;
+      }
     } else {
       throw error;
     }
