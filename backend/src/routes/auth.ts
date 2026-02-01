@@ -495,4 +495,70 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
   }
 });
 
+// Reset password with token from email link
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    const ip = getUserIP(req);
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    // Find user with valid reset token
+    const userResult = await query(
+      'SELECT id, email, nickname, password_reset_token, password_reset_expires FROM public.users WHERE password_reset_token = $1',
+      [token]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Check if token is expired
+    if (new Date(user.password_reset_expires) < new Date()) {
+      return res.status(400).json({ error: 'Password reset token has expired' });
+    }
+
+    // Validate new password
+    const validation = await validatePassword(newPassword, user.id);
+    if (!validation.valid) {
+      return res.status(400).json({ errors: validation.errors });
+    }
+
+    const newHash = await hashPassword(newPassword);
+
+    // Save old password to history
+    const oldPasswordResult = await query('SELECT password_hash FROM public.users WHERE id = $1', [user.id]);
+    if (oldPasswordResult.rows.length > 0) {
+      await query(
+        'INSERT INTO password_history (user_id, password_hash) VALUES ($1, $2)',
+        [user.id, oldPasswordResult.rows[0].password_hash]
+      );
+    }
+
+    // Update password and clear reset token
+    await query(
+      'UPDATE users SET password_hash = $1, password_reset_token = NULL, password_reset_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [newHash, user.id]
+    );
+
+    // Log password reset via email
+    await logAuditEvent({
+      event_type: 'PASSWORD_RESET',
+      user_id: user.id,
+      username: user.nickname,
+      ip_address: ip,
+      details: { method: 'email_token', action: 'password_reset_completed' }
+    });
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ error: 'Password reset failed' });
+  }
+});
+
 export default router;
