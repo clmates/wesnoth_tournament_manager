@@ -84,14 +84,11 @@ router.post('/register', registerLimiter, async (req, res) => {
     try {
       await sendMailerSendEmail({
         to: email,
-        templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
         subject: emailTexts.verify_subject,
         variables: {
           message: emailTexts.verify_message,
-          nickname,
           greetings: `${emailTexts.greetings} ${nickname}`,
           action_url: verificationUrl,
-          action_type: 'email_verification',
           action_label: emailTexts.verify_action,
         },
       });
@@ -166,14 +163,11 @@ router.post('/register', registerLimiter, async (req, res) => {
       const emailTexts = getEmailTexts(lang);
       await sendMailerSendEmail({
         to: userInfo.email,
-        templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
         subject: emailTexts.registration_confirmation_subject,
         variables: {
-          nickname: userInfo.nickname,
           greetings: `${emailTexts.greetings} ${userInfo.nickname}`,
           message: emailTexts.registration_confirmation_message,
           action_url: process.env.FRONTEND_URL || 'https://app.example.com',
-          action_type: 'registration_confirmation',
           action_label: 'Go to Site',
         },
       });
@@ -222,14 +216,11 @@ const sendAccountUnlockedEmail = async (user: { email: string; nickname: string;
     const emailTexts = getEmailTexts(lang);
     await sendMailerSendEmail({
       to: user.email,
-      templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
       subject: emailTexts.account_unlocked_subject,
       variables: {
-        nickname: user.nickname,
         greetings: `${emailTexts.greetings} ${user.nickname}`,
         message: emailTexts.account_unlocked_message,
         action_url: process.env.FRONTEND_URL || 'https://app.example.com',
-        action_type: 'account_unlocked',
         action_label: 'Go to Site',
       },
     });
@@ -538,14 +529,11 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
       try {
         await sendMailerSendEmail({
           to: userData.email,
-          templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
           subject: emailTexts.reset_subject,
           variables: {
             message: emailTexts.reset_message,
-            nickname: userData.nickname,
             greetings: `${emailTexts.greetings} ${userData.nickname}`,
             action_url: resetUrl,
-            action_type: 'password_reset',
             action_label: emailTexts.reset_action,
           },
         });
