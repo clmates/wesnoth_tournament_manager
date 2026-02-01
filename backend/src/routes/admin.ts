@@ -189,14 +189,11 @@ router.post('/users/:id/resend-verification-email', authMiddleware, async (req: 
     try {
       await sendMailerSendEmail({
         to: user.email,
-        templateId: process.env.MAILERSEND_TEMPLATE_ACTION,
         subject: emailTexts.verify_subject,
         variables: {
           message: emailTexts.verify_message,
-          nickname: user.nickname,
           greetings: `${emailTexts.greetings} ${user.nickname}`,
           action_url: verificationUrl,
-          action_type: 'email_verification',
           action_label: emailTexts.verify_action,
         },
       });
