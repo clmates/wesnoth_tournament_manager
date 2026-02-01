@@ -161,6 +161,7 @@ export const matchService = {
   getPendingMatches: () => api.get('/matches/pending/user'),
   getAllPendingMatches: () => api.get('/matches/pending/all'),
   getAllDisputedMatches: () => api.get('/matches/disputed/all'),
+  cancelOwnMatch: (id: string) => api.post(`/matches/${id}/cancel-own`),
   validateDispute: (id: string) => api.post(`/matches/admin/${id}/dispute`, { action: 'validate' }),
   rejectDispute: (id: string) => api.post(`/matches/admin/${id}/dispute`, { action: 'reject' }),
   incrementReplayDownloads: (matchId: string) => api.post(`/matches/${matchId}/replay/download-count`),

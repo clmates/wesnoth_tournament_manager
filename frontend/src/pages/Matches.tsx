@@ -122,7 +122,8 @@ const Matches: React.FC = () => {
     }
   };
 
-  const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
+  const handleDownloadReplay = async (matchId: string | null, replayFilePath: string, tournamentMatchId?: string): Promise<void> => {
+    if (!matchId) return;
     try {
       console.log('🔽 Starting download for match:', matchId);
       // Extract filename from path
@@ -393,7 +394,17 @@ const Matches: React.FC = () => {
         </div>
       )}
 
-      <MatchDetailsModal match={matchDetailsModal.match} isOpen={matchDetailsModal.isOpen} onClose={closeMatchDetails} />
+      <MatchDetailsModal 
+        match={matchDetailsModal.match} 
+        isOpen={matchDetailsModal.isOpen} 
+        onClose={closeMatchDetails}
+        onDownloadReplay={handleDownloadReplay}
+        onCancelSuccess={() => {
+          // Refresh matches by resetting to page 1
+          setCurrentPage(1);
+          closeMatchDetails();
+        }}
+      />
 
       {/* Match Confirmation Modal */}
       {confirmationModal.isOpen && confirmationModal.match && (
