@@ -136,10 +136,14 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
 
     const user = userInfo.rows[0];
 
-    // Unlock account
+    // Unlock account - reset failed attempts and unblock
     await unlockAccount(id);
+    await query(
+      'UPDATE public.users SET is_blocked = false WHERE id = $1',
+      [id]
+    );
     if (process.env.BACKEND_DEBUG_LOGS === 'true') {
-      console.log('User unlocked:', user.nickname);
+      console.log('✅ User unlocked and unblocked:', user.nickname);
     }
 
     // Send account unlocked email notification
