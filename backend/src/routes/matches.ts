@@ -43,6 +43,73 @@ const upload = multer({
   },
 });
 
+// Helper function to recalculate all stats (used by both admin and player self-cancel)
+async function performGlobalStatsRecalculation() {
+  try {
+    // STEP 1: Disable both triggers to prevent automatic stats updates during this process
+    try {
+      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches CASCADE');
+      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches CASCADE');
+      console.log('Disabled triggers for stats recalculation');
+    } catch (error) {
+      console.warn('Warning: Failed to disable triggers:', error);
+    }
+
+    // STEP 2: Recalculate player stats (ELO reversal and all stats)
+    try {
+      const recalcResult = await query('SELECT recalculate_player_match_statistics()');
+      console.log('🟢 Player stats recalculated');
+    } catch (error) {
+      console.error('Error recalculating player stats:', error);
+    }
+
+    // STEP 3: Re-enable both triggers
+    try {
+      await query(`
+        DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches CASCADE;
+        CREATE TRIGGER trg_update_player_match_stats
+        AFTER INSERT OR UPDATE ON matches
+        FOR EACH ROW
+        EXECUTE FUNCTION update_player_match_statistics();
+      `);
+      console.log('Re-enabled trigger: trg_update_player_match_stats');
+    } catch (error) {
+      console.error('Warning: Failed to re-enable player match stats trigger:', error);
+    }
+
+    try {
+      await query(`
+        DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches CASCADE;
+        CREATE TRIGGER trg_update_faction_map_stats
+        AFTER INSERT OR UPDATE ON matches
+        FOR EACH ROW
+        EXECUTE FUNCTION update_faction_map_statistics();
+      `);
+      console.log('Re-enabled trigger: trg_update_faction_map_stats');
+    } catch (error) {
+      console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
+    }
+
+    // STEP 4: Recalculate faction/map balance statistics
+    try {
+      const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
+      console.log('🟢 Faction/map statistics recalculated');
+      
+      // Manage snapshots
+      const snapshotResult = await query('SELECT * FROM manage_faction_map_statistics_snapshots()');
+      console.log('🟢 Snapshots managed');
+    } catch (error: any) {
+      console.error('🔴 ERROR recalculating faction/map statistics:', error);
+      // Don't fail the entire operation if balance stats fail
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in performGlobalStatsRecalculation:', error);
+    return false;
+  }
+}
+
 // Helper function to check if a round is complete and update round_end_date
 async function checkAndUpdateRoundCompletion(roundId: string, tournamentId: string) {
   try {
@@ -1890,73 +1957,29 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
     
     console.log(`[SELF-CANCEL] Player ${userId} canceling their own match ${id}`);
     
-    // Start cascade recalculation for cancelled match
     // STEP 1: Mark the match as cancelled
     await query(
       'UPDATE matches SET status = $1, admin_reviewed = true, admin_reviewed_at = CURRENT_TIMESTAMP, admin_reviewed_by = $2 WHERE id = $3',
       ['cancelled', userId, id]
     );
     
-    // STEP 1B: Disable both triggers to prevent automatic stats updates during this process
-    try {
-      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches');
-      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches');
-      console.log('Disabled triggers: trg_update_faction_map_stats, trg_update_player_match_stats');
-    } catch (error) {
-      console.warn('Warning: Failed to disable triggers:', error);
-    }
+    // STEP 2: Perform global stats recalculation
+    const recalcSuccess = await performGlobalStatsRecalculation();
     
-    // STEP 2: Recalculate player stats (ELO reversal and all stats)
-    try {
-      const recalcResult = await query('SELECT recalculate_player_match_statistics()');
-      console.log('🟢 Player stats recalculated after self-cancel');
-    } catch (error) {
-      console.error('Error recalculating player stats:', error);
+    if (recalcSuccess) {
+      console.log(`Match ${id} self-cancelled by reporter ${userId}: Stats recalculated`);
+      res.json({ 
+        message: 'Match cancelled successfully. Stats have been recalculated.',
+        matchId: id
+      });
+    } else {
+      console.error(`Match ${id} cancelled but stats recalculation may have failed`);
+      res.json({ 
+        message: 'Match cancelled successfully.',
+        matchId: id,
+        warning: 'Stats recalculation encountered some issues'
+      });
     }
-    
-    // STEP 3: Re-enable both triggers
-    try {
-      await query(`
-        CREATE TRIGGER trg_update_player_match_stats
-        AFTER INSERT OR UPDATE ON matches
-        FOR EACH ROW
-        EXECUTE FUNCTION update_player_match_statistics();
-      `);
-      console.log('Re-enabled trigger: trg_update_player_match_stats');
-    } catch (error) {
-      console.error('Warning: Failed to re-enable player match stats trigger:', error);
-    }
-    
-    try {
-      await query(`
-        CREATE TRIGGER trg_update_faction_map_stats
-        AFTER INSERT OR UPDATE ON matches
-        FOR EACH ROW
-        EXECUTE FUNCTION update_faction_map_statistics();
-      `);
-      console.log('Re-enabled trigger: trg_update_faction_map_stats');
-    } catch (error) {
-      console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
-    }
-    
-    // STEP 4: Recalculate faction/map balance statistics
-    try {
-      const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
-      console.log('🟢 Faction/map statistics recalculated after self-cancel');
-      
-      // Manage snapshots
-      const snapshotResult = await query('SELECT * FROM manage_faction_map_statistics_snapshots()');
-      console.log('🟢 Snapshots managed after self-cancel');
-    } catch (error: any) {
-      console.error('🔴 ERROR recalculating faction/map statistics after self-cancel:', error);
-      // Don't fail the entire operation if balance stats fail
-    }
-    
-    console.log(`Match ${id} self-cancelled by reporter ${userId}: Stats recalculated`);
-    res.json({ 
-      message: 'Match cancelled successfully. Stats have been recalculated.',
-      matchId: id
-    });
   } catch (error) {
     console.error('Error cancelling match:', error);
     res.status(500).json({ error: 'Failed to cancel match' });
