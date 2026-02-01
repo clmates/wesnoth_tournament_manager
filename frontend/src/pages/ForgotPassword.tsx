@@ -38,6 +38,9 @@ const ForgotPassword: React.FC = () => {
         {success && <div className="mb-4 text-green-600">{success}</div>}
         {!success && (
           <form onSubmit={handleSubmit} className="space-y-4">
+            <p className="text-gray-600 text-sm mb-4">
+              {t('auth.reset_password_description') || 'Enter your email address. If an account exists with that email, you will receive a password reset link.'}
+            </p>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {t('auth.email') || 'Email'}
