@@ -17,19 +17,14 @@ export async function sendMailerSendEmail({
     throw new Error('MailerSend API token or sender email not configured');
   }
 
-  const personalization = Object.entries(variables).map(([key, value]) => ({
-    var: key,
-    value,
-  }));
-
   const payload = {
     from: { email: MAILERSEND_SENDER_EMAIL },
     to: [{ email: to }],
     template_id: templateId,
-    variables: [
+    personalization: [
       {
         email: to,
-        substitutions: personalization,
+        data: variables,
       },
     ],
   };
