@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomBytes } from 'crypto';
 import { query } from '../config/database.js';
 import { hashPassword, comparePasswords, generateToken, validatePassword } from '../utils/auth.js';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
@@ -66,7 +67,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 
 
     // Generar token y expiración para verificación de email
-    const verificationToken = require('crypto').randomBytes(32).toString('hex');
+    const verificationToken = randomBytes(32).toString('hex');
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
     await query(
@@ -516,7 +517,7 @@ router.post('/request-password-reset', registerLimiter, async (req, res) => {
     // Segundo paso: generar token y guardar en DB y enviar email
     if (userId) {
       // Generar token seguro y expiración (ejemplo: 1 hora)
-      const token = require('crypto').randomBytes(32).toString('hex');
+      const token = randomBytes(32).toString('hex');
       const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
 
       await query(
