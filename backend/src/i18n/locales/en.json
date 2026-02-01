@@ -1,5 +1,7 @@
 {
   "email": {
+    "greetings": "Hello",
+    "closing": "Best regards",
     "verify_subject": "Verify your email",
     "verify_message": "Please click the link below to verify your email address.",
     "verify_action": "Verify Email",

@@ -1,5 +1,7 @@
 {
   "email": {
+    "greetings": "Hallo",
+    "closing": "Freundliche Grüße",
     "verify_subject": "Bestätige deine E-Mail",
     "verify_message": "Klicke auf den folgenden Link, um deine E-Mail-Adresse zu bestätigen.",
     "verify_action": "E-Mail bestätigen",
