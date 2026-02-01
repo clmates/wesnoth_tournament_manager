@@ -1,5 +1,7 @@
 {
   "email": {
+    "greetings": "你好",
+    "closing": "此致敬礼",
     "verify_subject": "验证您的邮箱",
     "verify_message": "请点击下方链接以验证您的邮箱地址。",
     "verify_action": "验证邮箱",

@@ -5,7 +5,7 @@ const MAILERSEND_API_TOKEN = process.env.MAILERSEND_API_TOKEN;
 const MAILERSEND_SENDER_EMAIL = process.env.MAILERSEND_SENDER_EMAIL;
 
 function buildActionEmailHtml(variables: Record<string, string>): string {
-  const { message = '', action_url = '', action_label = 'Click here', nickname = '' } = variables;
+  const { message = '', action_url = '', action_label = 'Click here', greetings = 'Hello' } = variables;
   
   return `
     <!DOCTYPE html>
@@ -36,7 +36,7 @@ function buildActionEmailHtml(variables: Record<string, string>): string {
             <h1>Wesnoth Tournament Manager</h1>
           </div>
           <div class="content">
-            <p>Hello ${nickname},</p>
+            <p>${greetings},</p>
             <p>${message}</p>
             <center>
               <a href="${action_url}" class="button">${action_label}</a>

@@ -1,5 +1,7 @@
 {
   "email": {
+    "greetings": "Привет",
+    "closing": "С уважением",
     "verify_subject": "Подтвердите ваш email",
     "verify_message": "Пожалуйста, перейдите по ссылке ниже, чтобы подтвердить ваш email.",
     "verify_action": "Подтвердить email",
