@@ -5,9 +5,10 @@ import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// Los archivos i18n están en backend/src/i18n/locales
-// Desde dist/utils/ → suben 2 niveles a dist/ → luego acceden a ../../i18n/locales
-const LOCALES_PATH = path.resolve(__dirname, '../../i18n/locales');
+// Los archivos i18n están en src/i18n/locales
+// Después de compilar: dist/i18n/locales
+// Desde dist/utils/ → subir 1 nivel a dist/ → luego i18n/locales
+const LOCALES_PATH = path.resolve(__dirname, '../i18n/locales');
 const DEFAULT_LANG = 'en';
 
 const loadedLocales: Record<string, any> = {};
