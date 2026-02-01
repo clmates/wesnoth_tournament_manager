@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
@@ -8,6 +8,8 @@ const ForcePasswordChange: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
   
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -35,19 +37,19 @@ const ForcePasswordChange: React.FC = () => {
   const isPasswordValid = passwordValidation.every(rule => rule.satisfied);
 
   useEffect(() => {
-    // Check if user has been authenticated and has the forced password change flag
+    // Si hay token en la URL, permitir acceso al formulario sin autenticación ni flag
+    if (token) return;
+    // Si no hay token, requiere autenticación y flag
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-
     const flag = sessionStorage.getItem('mustChangePassword');
     if (flag !== 'true') {
-      // Not in forced password change mode, redirect to home
       navigate('/');
       return;
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,16 +75,22 @@ const ForcePasswordChange: React.FC = () => {
     setLoading(true);
 
     try {
-      // Use the new force-change-password endpoint that doesn't require old password
-      await api.post('/auth/force-change-password', {
-        newPassword
-      });
-      setMessage('Password changed successfully! Redirecting to home...');
-      sessionStorage.removeItem('mustChangePassword');
-      
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
+      if (token) {
+        // Reset por email
+        await api.post('/auth/reset-password', { token, newPassword });
+        setMessage('Password changed successfully! You can now log in.');
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
+      } else {
+        // Cambio forzado tras login
+        await api.post('/auth/force-change-password', { newPassword });
+        setMessage('Password changed successfully! Redirecting to home...');
+        sessionStorage.removeItem('mustChangePassword');
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.errors?.[0] || 'Failed to change password');
     } finally {
@@ -93,9 +101,13 @@ const ForcePasswordChange: React.FC = () => {
   return (
     <div className="w-full max-w-4xl mx-auto my-12 px-4 bg-white rounded-lg shadow-sm py-8">
       <div>
-        <h1 className="text-center text-2xl font-bold text-gray-800 mb-6">Change Your Password</h1>
+        <h1 className="text-center text-2xl font-bold text-gray-800 mb-6">
+          {token ? 'Reset Your Password' : 'Change Your Password'}
+        </h1>
         <p className="text-center text-gray-600 mb-6 font-medium">
-          Your password was reset by an administrator. Please set a new password to continue.
+          {token
+            ? 'You have requested a password reset. Please set a new password to continue.'
+            : 'Your password was reset by an administrator. Please set a new password to continue.'}
         </p>
 
         {error && <div className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-4 border-l-4 border-red-600">{error}</div>}

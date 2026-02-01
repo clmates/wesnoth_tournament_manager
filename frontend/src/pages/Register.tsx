@@ -268,8 +268,8 @@ const Register: React.FC = () => {
           <div className="bg-white p-10 rounded-xl max-w-md w-11/12 shadow-2xl animate-slideIn" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-gray-800 mb-4 text-center text-2xl font-bold">🎉 Welcome to Wesnoth Tournament Manager!</h2>
             <p className="text-gray-700 text-center leading-relaxed mb-4">Your account has been created successfully.</p>
-            <p className="bg-yellow-100 border-l-4 border-yellow-400 p-4 text-yellow-800 font-medium text-center mb-6 rounded">
-              ⚠️ Your account is temporarily locked. An admin will review and unlock it soon.
+            <p className="bg-blue-100 border-l-4 border-blue-400 p-4 text-blue-800 font-medium text-center mb-6 rounded">
+              📧 Please check your email and follow the verification link to activate your account.
             </p>
             <div className="bg-indigo-50 border-2 border-indigo-500 rounded-lg p-6 mb-6 text-center">
               <p className="text-gray-800 mb-2"><strong className="text-indigo-600 text-lg">Join our Discord community:</strong></p>
