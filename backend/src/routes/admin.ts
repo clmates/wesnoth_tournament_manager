@@ -142,6 +142,16 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
     try {
       const lang = user.language || 'en';
       const emailTexts = getEmailTexts(lang);
+      
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+        console.log('📧 Sending account unlocked email:', {
+          to: user.email,
+          subject: emailTexts.account_unlocked_subject,
+          nickname: user.nickname,
+          language: lang
+        });
+      }
+      
       await sendMailerSendEmail({
         to: user.email,
         subject: emailTexts.account_unlocked_subject,
@@ -153,10 +163,10 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
         },
       });
       if (process.env.BACKEND_DEBUG_LOGS === 'true') {
-        console.log('Account unlocked email sent to:', user.email);
+        console.log('✅ Account unlocked email sent to:', user.email);
       }
     } catch (mailError) {
-      console.error('MailerSend error (account unlocked):', mailError);
+      console.error('❌ MailerSend error (account unlocked):', mailError);
     }
 
     // Send Discord notification if enabled
