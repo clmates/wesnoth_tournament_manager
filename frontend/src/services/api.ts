@@ -218,6 +218,7 @@ export const adminService = {
   removeAdmin: (id: string) => api.post(`/admin/users/${id}/remove-admin`),
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
   forceResetPassword: (id: string) => api.post(`/admin/users/${id}/force-reset-password`),
+  resendVerificationEmail: (id: string) => api.post(`/admin/users/${id}/resend-verification-email`),
   recalculateAllStats: () => api.post('/admin/recalculate-all-stats'),
   
   // Audit logs
