@@ -42,3 +42,42 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Mobile Navigation Improvements */
+@media (max-width: 768px) {
+  /* Scrollbar styling for mobile navbars */
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 4px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+  }
+  
+  .scrollbar-track-blue-900::-webkit-scrollbar-track {
+    background: rgba(30, 58, 138, 0.3);
+  }
+  
+  .scrollbar-thumb-blue-800::-webkit-scrollbar-thumb {
+    background-color: rgba(30, 64, 175, 0.5);
+  }
+  
+  .scrollbar-thumb-blue-800::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(30, 64, 175, 0.7);
+  }
+  
+  /* Hide scrollbar when not needed, show when needed */
+  nav[class*="overflow-x-auto"] {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  }
+}
