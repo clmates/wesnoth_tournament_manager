@@ -246,78 +246,83 @@ const TournamentList: React.FC<TournamentListProps> = ({
 
       {/* Filters */}
       {showFilters && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 bg-gray-100 p-4 rounded-lg mb-6">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="name" className="font-semibold text-gray-700 text-sm">{t('tournament_name')}</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              placeholder={t('filter_by_tournament_name')}
-              value={inputFilters.name}
-              onChange={handleFilterInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            />
-          </div>
+        <div className="bg-gray-100 p-4 rounded-lg mb-6 overflow-x-auto -webkit-overflow-scrolling-touch">
+          <div className="flex gap-4 min-w-min items-end">
+            <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
+              <label htmlFor="name" className="font-semibold text-gray-700 text-sm">{t('tournament_name')}</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                placeholder={t('filter_by_tournament_name')}
+                value={inputFilters.name}
+                onChange={handleFilterInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+              />
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label htmlFor="status" className="font-semibold text-gray-700 text-sm">{t('filter_status')}</label>
-            <select
-              id="status"
-              name="status"
-              value={inputFilters.status}
-              onChange={handleFilterInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            >
-              <option value="">{t('option_all_statuses')}</option>
-              <option value="registration_open">{t('option_registration_open')}</option>
-              <option value="registration_closed">{t('option_registration_closed')}</option>
-              <option value="prepared">{t('option_prepared')}</option>
-              <option value="approved">{t('option_approved')}</option>
-              <option value="in_progress">{t('option_in_progress')}</option>
-              <option value="finished">{t('option_finished')}</option>
-              <option value="cancelled">{t('option_cancelled')}</option>
-            </select>
-          </div>
+            <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
+              <label htmlFor="status" className="font-semibold text-gray-700 text-sm">{t('filter_status')}</label>
+              <select
+                id="status"
+                name="status"
+                value={inputFilters.status}
+                onChange={handleFilterInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+              >
+                <option value="">{t('option_all_statuses')}</option>
+                <option value="registration_open">{t('option_registration_open')}</option>
+                <option value="registration_closed">{t('option_registration_closed')}</option>
+                <option value="prepared">{t('option_prepared')}</option>
+                <option value="approved">{t('option_approved')}</option>
+                <option value="in_progress">{t('option_in_progress')}</option>
+                <option value="finished">{t('option_finished')}</option>
+                <option value="cancelled">{t('option_cancelled')}</option>
+              </select>
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label htmlFor="type" className="font-semibold text-gray-700 text-sm">{t('filter_type')}</label>
-            <select
-              id="type"
-              name="type"
-              value={inputFilters.type}
-              onChange={handleFilterInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            >
-              <option value="">{t('option_all_types')}</option>
-              <option value="elimination">{t('option_type_elimination')}</option>
-              <option value="league">{t('option_type_league')}</option>
-              <option value="swiss">{t('option_type_swiss')}</option>
-            </select>
-          </div>
+            <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
+              <label htmlFor="type" className="font-semibold text-gray-700 text-sm">{t('filter_type')}</label>
+              <select
+                id="type"
+                name="type"
+                value={inputFilters.type}
+                onChange={handleFilterInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+              >
+                <option value="">{t('option_all_types')}</option>
+                <option value="elimination">{t('option_type_elimination')}</option>
+                <option value="league">{t('option_type_league')}</option>
+                <option value="swiss">{t('option_type_swiss')}</option>
+              </select>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="my_tournaments"
-              name="my_tournaments"
-              checked={inputFilters.my_tournaments || false}
-              onChange={handleFilterInputChange}
-              disabled={!isAuthenticated}
-              title={!isAuthenticated ? t('must_login_to_filter') : ''}
-              className="w-4 h-4 cursor-pointer"
-            />
-            <label 
-              htmlFor="my_tournaments"
-              className={`font-semibold text-gray-700 text-sm ${!isAuthenticated ? 'text-gray-500 cursor-not-allowed' : ''}`}
-            >
-              {t('filter_my_tournaments')}
-            </label>
-          </div>
+            <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+              <label className="font-semibold text-gray-700 text-sm">&nbsp;</label>
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="my_tournaments"
+                  name="my_tournaments"
+                  checked={inputFilters.my_tournaments || false}
+                  onChange={handleFilterInputChange}
+                  disabled={!isAuthenticated}
+                  title={!isAuthenticated ? t('must_login_to_filter') : ''}
+                  className="w-4 h-4 cursor-pointer"
+                />
+                <label 
+                  htmlFor="my_tournaments"
+                  className={`font-semibold text-gray-700 text-sm ${!isAuthenticated ? 'text-gray-500 cursor-not-allowed' : ''}`}
+                >
+                  {t('filter_my_tournaments')}
+                </label>
+              </div>
+            </div>
 
-          <button className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors col-span-1 sm:col-span-2 lg:col-span-1" onClick={handleResetFilters}>
-            {t('reset_filters')}
-          </button>
+            <button className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors flex-shrink-0 h-fit self-end" onClick={handleResetFilters}>
+              {t('reset_filters')}
+            </button>
+          </div>
         </div>
       )}
 
