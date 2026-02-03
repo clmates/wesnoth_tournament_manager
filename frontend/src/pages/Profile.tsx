@@ -350,6 +350,7 @@ const Profile: React.FC = () => {
                     />
                   </div>
                 )}
+              </section>
 
               <section className="bg-white rounded-lg shadow-md p-8 mb-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('password_change_title')}</h2>
