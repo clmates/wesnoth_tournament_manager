@@ -66,55 +66,53 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
         )}
       </div>
 
-      <div className="overflow-x-auto -webkit-overflow-scrolling-touch mt-8 max-md:mt-4">
-        <div className="flex gap-4 max-md:gap-2 min-w-min">
-          <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 flex-shrink-0 min-w-[140px] max-md:min-w-[110px]">
-            <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_elo')}</div>
-            <div className="text-3xl max-md:text-xl font-bold text-blue-600">
-              {player.elo_rating}
-            </div>
-            {player.level && <div className="text-xs max-md:text-[10px] text-gray-500 mt-2">{t(getLevelTranslationKey(player.level))}</div>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8 max-md:overflow-x-auto max-md:-webkit-overflow-scrolling-touch max-md:flex max-md:gap-2 max-md:min-w-min">
+        <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 max-md:flex-shrink-0 max-md:min-w-[110px]">
+          <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_elo')}</div>
+          <div className="text-3xl max-md:text-xl font-bold text-blue-600">
+            {player.elo_rating}
           </div>
+          {player.level && <div className="text-xs max-md:text-[10px] text-gray-500 mt-2">{t(getLevelTranslationKey(player.level))}</div>}
+        </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 flex-shrink-0 min-w-[140px] max-md:min-w-[110px]">
-            <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_trend')}</div>
-            <div className={`text-3xl max-md:text-xl font-bold ${player.trend?.startsWith('+') ? 'text-green-600' : player.trend?.startsWith('-') && player.trend !== '-' ? 'text-red-600' : 'text-gray-600'}`}>
-              {player.trend || '-'}
-            </div>
+        <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 max-md:flex-shrink-0 max-md:min-w-[110px]">
+          <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_trend')}</div>
+          <div className={`text-3xl max-md:text-xl font-bold ${player.trend?.startsWith('+') ? 'text-green-600' : player.trend?.startsWith('-') && player.trend !== '-' ? 'text-red-600' : 'text-gray-600'}`}>
+            {player.trend || '-'}
           </div>
+        </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 flex-shrink-0 min-w-[140px] max-md:min-w-[110px]">
-            <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_total_matches')}</div>
-            <div className="text-3xl max-md:text-xl font-bold text-gray-800">{totalMatches}</div>
+        <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 max-md:flex-shrink-0 max-md:min-w-[110px]">
+          <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_total_matches')}</div>
+          <div className="text-3xl max-md:text-xl font-bold text-gray-800">{totalMatches}</div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 max-md:flex-shrink-0 max-md:min-w-[110px]">
+          <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_wins')}</div>
+          <div className="text-3xl max-md:text-xl font-bold text-green-600">{player.total_wins || 0}</div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 max-md:flex-shrink-0 max-md:min-w-[110px]">
+          <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_losses')}</div>
+          <div className="text-3xl max-md:text-xl font-bold text-red-600">{player.total_losses || 0}</div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 max-md:flex-shrink-0 max-md:min-w-[110px]">
+          <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_win_pct')}</div>
+          <div className="text-3xl max-md:text-xl font-bold text-gray-800">{winPercentage}%</div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 max-md:flex-shrink-0 max-md:min-w-[110px]">
+          <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_record')}</div>
+          <div className="text-3xl max-md:text-xl font-bold text-gray-800">
+            {player.total_wins || 0}-{player.total_losses || 0}
           </div>
+        </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 flex-shrink-0 min-w-[140px] max-md:min-w-[110px]">
-            <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_wins')}</div>
-            <div className="text-3xl max-md:text-xl font-bold text-green-600">{player.total_wins || 0}</div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 flex-shrink-0 min-w-[140px] max-md:min-w-[110px]">
-            <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_losses')}</div>
-            <div className="text-3xl max-md:text-xl font-bold text-red-600">{player.total_losses || 0}</div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 flex-shrink-0 min-w-[140px] max-md:min-w-[110px]">
-            <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_win_pct')}</div>
-            <div className="text-3xl max-md:text-xl font-bold text-gray-800">{winPercentage}%</div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 flex-shrink-0 min-w-[140px] max-md:min-w-[110px]">
-            <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_record')}</div>
-            <div className="text-3xl max-md:text-xl font-bold text-gray-800">
-              {player.total_wins || 0}-{player.total_losses || 0}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 flex-shrink-0 min-w-[140px] max-md:min-w-[110px]">
-            <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_avg_elo_change') || 'Avg ELO Change'}</div>
-            <div className={`text-3xl max-md:text-xl font-bold ${(player.avg_elo_change || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {(player.avg_elo_change || 0) >= 0 ? '+' : ''}{Number(player.avg_elo_change || 0).toFixed(1)}
-            </div>
+        <div className="bg-white rounded-lg shadow-md p-6 max-md:p-3 max-md:flex-shrink-0 max-md:min-w-[110px]">
+          <div className="text-sm max-md:text-xs font-semibold text-gray-600 mb-2">{t('label_avg_elo_change') || 'Avg ELO Change'}</div>
+          <div className={`text-3xl max-md:text-xl font-bold ${(player.avg_elo_change || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {(player.avg_elo_change || 0) >= 0 ? '+' : ''}{Number(player.avg_elo_change || 0).toFixed(1)}
           </div>
         </div>
       </div>
