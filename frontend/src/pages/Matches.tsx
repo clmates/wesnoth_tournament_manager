@@ -262,68 +262,70 @@ const Matches: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-100 p-4 rounded-lg mb-6">
-        <div className="flex flex-col gap-2">
-          <label htmlFor="player" className="font-semibold text-gray-700 text-sm">{t('filter_player')}</label>
-          <input
-            type="text"
-            id="player"
-            name="player"
-            placeholder={t('filter_by_player')}
-            value={filters.player}
-            onChange={handleFilterChangeWithReset}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-          />
-        </div>
+      <div className="bg-gray-100 p-4 rounded-lg mb-6 overflow-x-auto -webkit-overflow-scrolling-touch">
+        <div className="flex gap-4 min-w-min">
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
+            <label htmlFor="player" className="font-semibold text-gray-700 text-sm">{t('filter_player')}</label>
+            <input
+              type="text"
+              id="player"
+              name="player"
+              placeholder={t('filter_by_player')}
+              value={filters.player}
+              onChange={handleFilterChangeWithReset}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            />
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="map" className="font-semibold text-gray-700 text-sm">{t('filter_map')}</label>
-          <input
-            type="text"
-            id="map"
-            name="map"
-            placeholder={t('filter_by_map')}
-            value={filters.map}
-            onChange={handleFilterChangeWithReset}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-          />
-        </div>
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
+            <label htmlFor="map" className="font-semibold text-gray-700 text-sm">{t('filter_map')}</label>
+            <input
+              type="text"
+              id="map"
+              name="map"
+              placeholder={t('filter_by_map')}
+              value={filters.map}
+              onChange={handleFilterChangeWithReset}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            />
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="status" className="font-semibold text-gray-700 text-sm">{t('filter_match_status')}</label>
-          <select
-            id="status"
-            name="status"
-            value={filters.status}
-            onChange={handleFilterChangeWithReset}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-          >
-            <option value="">{t('all')}</option>
-            <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
-            <option value="confirmed">{t('match_status_confirmed')}</option>
-            <option value="disputed">{t('match_status_disputed')}</option>
-            <option value="cancelled">{t('match_status_cancelled')}</option>
-          </select>
-        </div>
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
+            <label htmlFor="status" className="font-semibold text-gray-700 text-sm">{t('filter_match_status')}</label>
+            <select
+              id="status"
+              name="status"
+              value={filters.status}
+              onChange={handleFilterChangeWithReset}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            >
+              <option value="">{t('all')}</option>
+              <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
+              <option value="confirmed">{t('match_status_confirmed')}</option>
+              <option value="disputed">{t('match_status_disputed')}</option>
+              <option value="cancelled">{t('match_status_cancelled')}</option>
+            </select>
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="confirmed" className="font-semibold text-gray-700 text-sm">{t('filter_confirmation_status')}</label>
-          <select
-            id="confirmed"
-            name="confirmed"
-            value={filters.confirmed}
-            onChange={handleFilterChangeWithReset}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-          >
-            <option value="">{t('all')}</option>
-            <option value="confirmed">{t('match_status_confirmed')}</option>
-            <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
-            <option value="disputed">{t('match_status_disputed')}</option>
-            <option value="cancelled">{t('match_status_cancelled')}</option>
-          </select>
-        </div>
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
+            <label htmlFor="confirmed" className="font-semibold text-gray-700 text-sm">{t('filter_confirmation_status')}</label>
+            <select
+              id="confirmed"
+              name="confirmed"
+              value={filters.confirmed}
+              onChange={handleFilterChangeWithReset}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            >
+              <option value="">{t('all')}</option>
+              <option value="confirmed">{t('match_status_confirmed')}</option>
+              <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
+              <option value="disputed">{t('match_status_disputed')}</option>
+              <option value="cancelled">{t('match_status_cancelled')}</option>
+            </select>
+          </div>
 
-        <button className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors col-span-1 sm:col-span-2 lg:col-span-1 h-fit" onClick={resetFilters}>{t('reset_filters')}</button>
+          <button className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors flex-shrink-0 h-fit self-end" onClick={resetFilters}>{t('reset_filters')}</button>
+        </div>
       </div>
 
       <div className="text-gray-600 text-sm mb-4">

@@ -254,9 +254,9 @@ const Players: React.FC = () => {
       )}
 
       {/* Filters */}
-      <div className="bg-gray-100 p-6 rounded-lg mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="flex flex-col gap-2">
+      <div className="bg-gray-100 p-6 rounded-lg mb-6 overflow-x-auto -webkit-overflow-scrolling-touch">
+        <div className="flex gap-4 min-w-min">
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
             <label htmlFor="nickname" className="font-semibold text-gray-700 text-sm">{t('filter_nickname')}</label>
             <input
               type="text"
@@ -269,7 +269,7 @@ const Players: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
             <label htmlFor="min_elo" className="font-semibold text-gray-700 text-sm">{t('filter_min_elo')}</label>
             <input
               type="number"
@@ -282,7 +282,7 @@ const Players: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
             <label htmlFor="max_elo" className="font-semibold text-gray-700 text-sm">{t('filter_max_elo')}</label>
             <input
               type="number"
@@ -295,7 +295,7 @@ const Players: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
             <label htmlFor="min_matches" className="font-semibold text-gray-700 text-sm">{t('filter_min_matches')}</label>
             <input
               type="number"
@@ -308,7 +308,7 @@ const Players: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
             <label htmlFor="rated_only" className="font-semibold text-gray-700 text-sm flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -321,11 +321,11 @@ const Players: React.FC = () => {
               {t('filter_rated_only')}
             </label>
           </div>
-        </div>
 
-        <button className="mt-4 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded transition-colors" onClick={handleResetFilters}>
-          {t('reset_filters')}
-        </button>
+          <button className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded transition-colors flex-shrink-0 h-fit self-end" onClick={handleResetFilters}>
+            {t('reset_filters')}
+          </button>
+        </div>
       </div>
 
       <div className="mb-6">

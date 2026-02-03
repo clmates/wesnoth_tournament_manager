@@ -244,50 +244,52 @@ const Rankings: React.FC = () => {
       )}
 
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="flex flex-col">
-          <label htmlFor="nickname" className="text-sm font-semibold text-gray-700 mb-1">{t('filter_nickname')}</label>
-          <input
-            type="text"
-            id="nickname"
-            name="nickname"
-            placeholder={t('filter_by_nickname')}
-            value={inputFilters.nickname}
-            onChange={handleFilterInputChange}
-            className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+      <div className="overflow-x-auto -webkit-overflow-scrolling-touch mb-6">
+        <div className="flex gap-4 min-w-min">
+          <div className="flex flex-col flex-shrink-0 min-w-[200px]">
+            <label htmlFor="nickname" className="text-sm font-semibold text-gray-700 mb-1">{t('filter_nickname')}</label>
+            <input
+              type="text"
+              id="nickname"
+              name="nickname"
+              placeholder={t('filter_by_nickname')}
+              value={inputFilters.nickname}
+              onChange={handleFilterInputChange}
+              className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="min_elo" className="text-sm font-semibold text-gray-700 mb-1">{t('filter_min_elo')}</label>
-          <input
-            type="number"
-            id="min_elo"
-            name="min_elo"
-            placeholder={t('filter_min_elo_placeholder')}
-            value={inputFilters.min_elo}
-            onChange={handleFilterInputChange}
-            className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+          <div className="flex flex-col flex-shrink-0 min-w-[180px]">
+            <label htmlFor="min_elo" className="text-sm font-semibold text-gray-700 mb-1">{t('filter_min_elo')}</label>
+            <input
+              type="number"
+              id="min_elo"
+              name="min_elo"
+              placeholder={t('filter_min_elo_placeholder')}
+              value={inputFilters.min_elo}
+              onChange={handleFilterInputChange}
+              className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="max_elo" className="text-sm font-semibold text-gray-700 mb-1">{t('filter_max_elo')}</label>
-          <input
-            type="number"
-            id="max_elo"
-            name="max_elo"
-            placeholder={t('filter_max_elo_placeholder')}
-            value={inputFilters.max_elo}
-            onChange={handleFilterInputChange}
-            className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+          <div className="flex flex-col flex-shrink-0 min-w-[180px]">
+            <label htmlFor="max_elo" className="text-sm font-semibold text-gray-700 mb-1">{t('filter_max_elo')}</label>
+            <input
+              type="number"
+              id="max_elo"
+              name="max_elo"
+              placeholder={t('filter_max_elo_placeholder')}
+              value={inputFilters.max_elo}
+              onChange={handleFilterInputChange}
+              className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
-        <div className="flex flex-col justify-end">
-          <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-semibold" onClick={handleResetFilters}>
-            {t('reset_filters')}
-          </button>
+          <div className="flex flex-col justify-end flex-shrink-0">
+            <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-semibold self-end" onClick={handleResetFilters}>
+              {t('reset_filters')}
+            </button>
+          </div>
         </div>
       </div>
 
