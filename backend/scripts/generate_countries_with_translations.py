@@ -38,6 +38,7 @@ COUNTRIES_DATA = {
     "CH": {"en": "Switzerland", "es": "Suiza", "de": "Schweiz", "ru": "Швейцария", "zh": "瑞士", "flag": "🇨🇭", "region": "Europe"},
     "AT": {"en": "Austria", "es": "Austria", "de": "Österreich", "ru": "Австрия", "zh": "奥地利", "flag": "🇦🇹", "region": "Europe"},
     "BE": {"en": "Belgium", "es": "Bélgica", "de": "Belgien", "ru": "Бельгия", "zh": "比利时", "flag": "🇧🇪", "region": "Europe"},
+    "BG": {"en": "Bulgaria", "es": "Bulgaria", "de": "Bulgarien", "ru": "Болгария", "zh": "保加利亚", "flag": "🇧🇬", "region": "Europe"},
     "GR": {"en": "Greece", "es": "Grecia", "de": "Griechenland", "ru": "Греция", "zh": "希腊", "flag": "🇬🇷", "region": "Europe"},
     "CZ": {"en": "Czech Republic", "es": "República Checa", "de": "Tschechien", "ru": "Чехия", "zh": "捷克", "flag": "🇨🇿", "region": "Europe"},
     "HU": {"en": "Hungary", "es": "Hungría", "de": "Ungarn", "ru": "Венгрия", "zh": "匈牙利", "flag": "🇭🇺", "region": "Europe"},

@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "lastUpdated": "2025-12-30T23:00:38.138752",
-  "total": 54,
+  "lastUpdated": "2026-02-03T20:44:52.912049",
+  "total": 55,
   "languages": [
     "en",
     "es",
@@ -81,6 +81,18 @@
         "zh": "巴西"
       },
       "region": "South America"
+    },
+    {
+      "code": "BG",
+      "flag": "🇧🇬",
+      "names": {
+        "en": "Bulgaria",
+        "es": "Bulgaria",
+        "de": "Bulgarien",
+        "ru": "Болгария",
+        "zh": "保加利亚"
+      },
+      "region": "Europe"
     },
     {
       "code": "CA",
