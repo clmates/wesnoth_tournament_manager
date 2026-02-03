@@ -14,9 +14,9 @@ const UserProfileNav: React.FC = () => {
   };
 
   return (
-    <nav className="w-full bg-gradient-dark-blue border-b-2 border-blue-900 py-3 px-4 sticky top-0 z-100 shadow-md overflow-x-auto -webkit-overflow-scrolling-touch scrollbar-thin scrollbar-thumb-blue-800 scrollbar-track-blue-900">
+    <nav className="w-full bg-gradient-dark-blue border-b-2 border-blue-900 py-3 px-4 sticky top-0 z-100 shadow-md max-md:overflow-x-auto max-md:-webkit-overflow-scrolling-touch">
       <div className="max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2 justify-start w-full overflow-x-auto -webkit-overflow-scrolling-touch scrollbar-thin scrollbar-thumb-blue-800 scrollbar-track-blue-900">
+        <div className="flex flex-wrap max-md:flex-nowrap items-center gap-2 justify-start w-full max-md:overflow-x-auto max-md:-webkit-overflow-scrolling-touch">
           {/* My Profile */}
           <button 
             className="flex items-center gap-2 px-3 py-2 bg-white/10 border border-white/20 text-white text-sm font-medium rounded hover:bg-white/20 hover:border-white/40 active:bg-white/25 transition-all transform hover:-translate-y-0.5 whitespace-nowrap flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5"
