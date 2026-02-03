@@ -244,7 +244,7 @@ const Profile: React.FC = () => {
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.discord_title')}</h2>
                 {discordMessage && <p className="bg-green-100 text-green-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-green-600">{discordMessage}</p>}
                 {discordError && <p className="bg-red-100 text-red-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-red-600">{discordError}</p>}
-                <div className="flex gap-3">
+                <div className="flex gap-3 max-md:flex-col">
                   <input
                     type="text"
                     placeholder={t('profile.discord_placeholder')}
@@ -255,7 +255,7 @@ const Profile: React.FC = () => {
                   <button 
                     onClick={handleDiscordUpdate} 
                     disabled={updatingDiscord}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-lg font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+                    className="px-6 py-3 max-md:w-full bg-gradient-to-r from-purple-500 to-purple-700 text-white rounded-lg font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {updatingDiscord ? t('profile.updating') : t('profile.update_discord_button')}
                   </button>
