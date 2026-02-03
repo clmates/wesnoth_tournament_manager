@@ -107,52 +107,52 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <nav className="w-full bg-primary text-white shadow-sm p-3 min-h-[60px] flex items-center relative z-[999]">
-      <div className="w-full max-w-full mx-auto px-4 flex justify-between items-center gap-4 flex-wrap relative z-[999]">
+    <nav className="w-full bg-primary text-white shadow-sm p-3 min-h-[60px] flex items-center relative z-[999] overflow-hidden">
+      <div className="w-full max-w-full mx-auto px-2 flex justify-between items-center gap-2 relative z-[999] max-md:gap-1 overflow-x-auto -webkit-overflow-scrolling-touch">
         {/* Brand */}
-        <div className="flex-shrink-0">
-          <Link to="/" className="text-2xl font-bold text-white hover:opacity-90 transition-opacity">
+        <div className="flex-shrink-0 min-w-fit">
+          <Link to="/" className="text-2xl font-bold text-white hover:opacity-90 transition-opacity max-sm:text-xl">
             {t('app_name')}
           </Link>
         </div>
 
         {/* Links */}
-        <div className="flex flex-wrap flex-1 justify-center items-center gap-4 max-md:flex-col max-md:w-full max-md:order-3 max-md:mt-4 max-sm:gap-2">
-          <Link to="/" className="text-white hover:bg-white/10 px-4 py-2 rounded transition-colors min-h-[40px] flex items-center max-sm:px-2 max-sm:text-sm">
+        <div className="flex flex-1 justify-center items-center gap-2 max-md:gap-1 max-md:overflow-x-auto max-md:-webkit-overflow-scrolling-touch max-md:scrollbar-none max-lg:flex-nowrap min-w-0">
+          <Link to="/" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
             {t('navbar_home')}
           </Link>
-          <Link to="/players" className="text-white hover:bg-white/10 px-4 py-2 rounded transition-colors min-h-[40px] flex items-center max-sm:px-2 max-sm:text-sm">
+          <Link to="/players" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
             {t('navbar_players')}
           </Link>
-          <Link to="/rankings" className="text-white hover:bg-white/10 px-4 py-2 rounded transition-colors min-h-[40px] flex items-center max-sm:px-2 max-sm:text-sm">
+          <Link to="/rankings" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
             {t('navbar_ranking')}
           </Link>
-          <Link to="/statistics" className="text-white hover:bg-white/10 px-4 py-2 rounded transition-colors min-h-[40px] flex items-center max-sm:px-2 max-sm:text-sm">
+          <Link to="/statistics" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
             {t('statistics') || 'Statistics'}
           </Link>
-          <Link to="/tournaments" className="text-white hover:bg-white/10 px-4 py-2 rounded transition-colors min-h-[40px] flex items-center max-sm:px-2 max-sm:text-sm">
+          <Link to="/tournaments" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
             {t('navbar_tournaments')}
           </Link>
-          <Link to="/matches" className="text-white hover:bg-white/10 px-4 py-2 rounded transition-colors min-h-[40px] flex items-center max-sm:px-2 max-sm:text-sm">
+          <Link to="/matches" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
             {t('navbar_matches')}
           </Link>
-          <Link to="/faq" className="text-white hover:bg-white/10 px-4 py-2 rounded transition-colors min-h-[40px] flex items-center max-sm:px-2 max-sm:text-sm">
+          <Link to="/faq" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
             {t('navbar_faq')}
           </Link>
 
           {/* Report Match Button */}
           {isAuthenticated && (
-            <Link to="/report-match" className="bg-gradient-purple text-white px-5 py-2 rounded hover:opacity-90 hover:shadow-lg transition-all font-semibold min-h-[40px] flex items-center max-sm:px-3 max-sm:text-sm">
+            <Link to="/report-match" className="bg-gradient-purple text-white px-3 py-2 rounded hover:opacity-90 hover:shadow-lg transition-all font-semibold min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
               {t('report_match_link')}
             </Link>
           )}
 
           {/* User Menu */}
           {isAuthenticated && (
-            <div className="user-menu relative self-center z-[2000]">
+            <div className="user-menu relative self-center z-[2000] flex-shrink-0">
               <button 
                 ref={userBtnRef}
-                className="bg-secondary text-white px-4 py-2 rounded font-semibold hover:bg-blue-700 transition-colors max-sm:w-full"
+                className="bg-secondary text-white px-3 py-2 rounded font-semibold hover:bg-blue-700 transition-colors max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm flex-shrink-0 whitespace-nowrap"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 {userNickname} ▼
@@ -188,10 +188,10 @@ const Navbar: React.FC = () => {
           {/* Auth Links */}
           {!isAuthenticated && (
             <>
-              <Link to="/login" className="text-white hover:bg-white/10 px-4 py-2 rounded transition-colors min-h-[40px] flex items-center max-sm:px-2 max-sm:text-sm">
+              <Link to="/login" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
                 {t('navbar_login')}
               </Link>
-              <Link to="/register" className="text-white hover:bg-white/10 px-4 py-2 rounded transition-colors min-h-[40px] flex items-center max-sm:px-2 max-sm:text-sm">
+              <Link to="/register" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
                 {t('navbar_register')}
               </Link>
             </>
@@ -199,23 +199,24 @@ const Navbar: React.FC = () => {
         </div>
 
         {/* Language Selector */}
-        <div className="flex gap-2 max-md:order-4 max-md:w-full max-md:mt-2">
+        <div className="flex gap-1 flex-shrink-0 min-w-fit">
           <div className="language-dropdown relative z-[2000]">
             <button 
               ref={languageBtnRef}
-              className="px-3 py-2 bg-white/10 text-white border border-white/30 rounded hover:bg-white/20 transition-all flex items-center gap-2 font-semibold max-md:w-full max-md:justify-center"
+              className="px-2 py-2 bg-white/10 text-white border border-white/30 rounded hover:bg-white/20 transition-all flex items-center gap-1 font-semibold max-md:gap-0.5 max-md:px-1.5 max-md:py-1.5 max-sm:px-1 max-sm:text-xs"
               onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
+              title="Change language"
             >
               <img 
                 src={`https://flagcdn.com/w20/${currentLanguage.countryCode}.png`}
                 alt={currentLanguage.code}
-                className="w-6 h-3.75 rounded flex-shrink-0"
+                className="w-5 h-3 rounded flex-shrink-0 max-sm:w-4 max-sm:h-2.5"
               />
-              <span className="text-sm">{currentLanguage.code.toUpperCase()}</span>
+              <span className="text-sm max-sm:hidden max-md:text-xs">{currentLanguage.code.toUpperCase()}</span>
             </button>
             {languageDropdownOpen && languageDropdownPosition && createPortal(
               <div 
-                className="bg-white text-gray-800 min-w-[200px] rounded shadow-md z-[9999] overflow-hidden flex flex-col"
+                className="bg-white text-gray-800 min-w-[150px] rounded shadow-md z-[9999] overflow-hidden flex flex-col"
                 style={{
                   position: 'fixed',
                   top: `${languageDropdownPosition.top}px`,
@@ -226,7 +227,7 @@ const Navbar: React.FC = () => {
                 {languages.map((lang) => (
                   <button
                     key={lang.code}
-                    className={`flex items-center gap-3 w-full text-left px-4 py-3 transition-colors text-sm ${
+                    className={`flex items-center gap-2 w-full text-left px-3 py-2 transition-colors text-xs md:text-sm ${
                       lang.code === i18n.language 
                         ? 'bg-blue-100 font-semibold text-secondary' 
                         : 'hover:bg-gray-100'
@@ -236,9 +237,9 @@ const Navbar: React.FC = () => {
                     <img 
                       src={`https://flagcdn.com/w20/${lang.countryCode}.png`}
                       alt={lang.code}
-                      className="w-6 h-3.75 rounded flex-shrink-0"
+                      className="w-5 h-3 rounded flex-shrink-0"
                     />
-                    <span className="text-sm">{lang.code.toUpperCase()} - {lang.name}</span>
+                    <span className="text-xs md:text-sm">{lang.code.toUpperCase()}</span>
                   </button>
                 ))}
               </div>,
