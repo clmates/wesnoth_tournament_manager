@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      screens: {
+        'nav': '1310px',
+      },
       colors: {
         primary: '#2c3e50',
         secondary: '#3498db',
