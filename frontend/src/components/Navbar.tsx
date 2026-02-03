@@ -14,6 +14,7 @@ const Navbar: React.FC = () => {
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const userBtnRef = useRef<HTMLButtonElement>(null);
   const languageBtnRef = useRef<HTMLButtonElement>(null);
+  const languageBtnMobileRef = useRef<HTMLButtonElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; right: number } | null>(null);
   const [languageDropdownPosition, setLanguageDropdownPosition] = useState<{ top: number; right: number } | null>(null);
 
@@ -54,12 +55,15 @@ const Navbar: React.FC = () => {
 
   // Calculate language dropdown position when it opens
   useEffect(() => {
-    if (languageDropdownOpen && languageBtnRef.current) {
-      const rect = languageBtnRef.current.getBoundingClientRect();
-      setLanguageDropdownPosition({
-        top: rect.bottom + window.scrollY,
-        right: window.innerWidth - rect.right,
-      });
+    if (languageDropdownOpen) {
+      const ref = languageBtnMobileRef.current || languageBtnRef.current;
+      if (ref) {
+        const rect = ref.getBoundingClientRect();
+        setLanguageDropdownPosition({
+          top: rect.bottom + window.scrollY,
+          right: window.innerWidth - rect.right,
+        });
+      }
     }
   }, [languageDropdownOpen]);
 
@@ -108,12 +112,34 @@ const Navbar: React.FC = () => {
 
   return (
     <nav className="w-full bg-primary text-white shadow-sm p-3 min-h-[60px] flex items-center relative z-[999] overflow-hidden max-md:flex-col max-md:min-h-auto max-md:gap-2">
-      <div className="w-full max-w-full mx-auto px-2 flex justify-between items-center gap-2 relative z-[999] max-md:w-full max-md:flex-col max-md:gap-3 overflow-x-auto -webkit-overflow-scrolling-touch">
-        {/* Brand */}
-        <div className="flex-shrink-0 min-w-fit max-md:w-full max-md:text-center">
-          <Link to="/" className="text-2xl font-bold text-white hover:opacity-90 transition-opacity max-sm:text-xl">
-            {t('app_name')}
-          </Link>
+      <div className="w-full max-w-full mx-auto px-2 flex justify-between items-center gap-2 relative z-[999] max-md:w-full max-md:flex-col max-md:gap-2 overflow-x-auto -webkit-overflow-scrolling-touch">
+        
+        {/* Brand + Language Selector Row */}
+        <div className="flex justify-between items-center gap-4 max-md:w-full max-md:gap-2">
+          {/* Brand */}
+          <div className="flex-shrink-0 min-w-fit">
+            <Link to="/" className="text-2xl font-bold text-white hover:opacity-90 transition-opacity max-sm:text-xl">
+              {t('app_name')}
+            </Link>
+          </div>
+
+          {/* Language Selector for Mobile */}
+          <div className="hidden max-md:flex gap-1 flex-shrink-0">
+            <div className="language-dropdown relative z-[2000]">
+              <button 
+                ref={languageBtnMobileRef}
+                className="px-2 py-2 bg-white/10 text-white border border-white/30 rounded hover:bg-white/20 transition-all flex items-center gap-1 font-semibold max-sm:px-1 max-sm:text-xs"
+                onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
+                title="Change language"
+              >
+                <img 
+                  src={`https://flagcdn.com/w20/${currentLanguage.countryCode}.png`}
+                  alt={currentLanguage.code}
+                  className="w-5 h-3 rounded flex-shrink-0"
+                />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Links and Controls Container */}
@@ -200,17 +226,17 @@ const Navbar: React.FC = () => {
           )}
           </div>
 
-          {/* Language Selector */}
-          <div className="flex gap-1 flex-shrink-0 min-w-fit max-md:w-full max-md:justify-center">
+          {/* Language Selector - Desktop Only */}
+          <div className="hidden md:flex gap-1 flex-shrink-0 min-w-fit">
             <div className="language-dropdown relative z-[2000]">
               <button 
                 ref={languageBtnRef}
-                className="px-2 py-2 bg-white/10 text-white border border-white/30 rounded hover:bg-white/20 transition-all flex items-center gap-1 font-semibold max-md:gap-0.5 max-md:px-1.5 max-md:py-1.5 max-sm:px-1 max-sm:text-xs"
+                className="px-2 py-2 bg-white/10 text-white border border-white/30 rounded hover:bg-white/20 transition-all flex items-center gap-1 font-semibold"
                 onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
                 title="Change language"
-            >
-              <img 
-                src={`https://flagcdn.com/w20/${currentLanguage.countryCode}.png`}
+              >
+                <img 
+                  src={`https://flagcdn.com/w20/${currentLanguage.countryCode}.png`}
                 alt={currentLanguage.code}
                 className="w-5 h-3 rounded flex-shrink-0 max-sm:w-4 max-sm:h-2.5"
               />
