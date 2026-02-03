@@ -180,7 +180,7 @@ const Navbar: React.FC = () => {
             <div className="user-menu relative self-center z-[2000] flex-shrink-0">
               <button 
                 ref={userBtnRef}
-                className="bg-secondary text-white px-3 py-2 rounded font-semibold hover:bg-blue-700 transition-colors max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-nav:px-2.5 max-nav:py-1.5 max-nav:text-sm flex-shrink-0 whitespace-nowrap">
+                className="bg-secondary text-white px-3 py-2 rounded font-semibold hover:bg-blue-700 transition-colors max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-nav:px-2.5 max-nav:py-1.5 max-nav:text-sm flex-shrink-0 whitespace-nowrap"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 {userNickname} ▼
