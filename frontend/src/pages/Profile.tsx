@@ -31,6 +31,7 @@ const Profile: React.FC = () => {
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const [showPasswordHints, setShowPasswordHints] = useState(false);
   const [preferencesCollapsed, setPreferencesCollapsed] = useState(false);
+  const [avatarSectionCollapsed, setAvatarSectionCollapsed] = useState(true);
 
   const languages = useMemo(() => [
     { code: 'en', name: 'English', countryCode: 'us' },
@@ -324,14 +325,31 @@ const Profile: React.FC = () => {
                         onChange={handleCountryChange}
                         showFlag={true}
                       />
-                      <AvatarSelector
-                        value={selectedAvatar}
-                        onChange={handleAvatarChange}
-                      />
                     </div>
                   </div>
                 )}
               </section>
+
+              <section className="bg-white rounded-lg shadow-md mb-8">
+                <div className="p-8 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between" onClick={() => setAvatarSectionCollapsed(!avatarSectionCollapsed)}>
+                  <h2 className="text-2xl font-semibold text-gray-800 pb-0">{t('profile.avatar') || 'Avatar'}</h2>
+                  <svg 
+                    className={`w-6 h-6 text-gray-600 transition-transform ${avatarSectionCollapsed ? 'rotate-180' : ''}`}
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  </svg>
+                </div>
+                {!avatarSectionCollapsed && (
+                  <div className="p-8 pt-0 border-t border-gray-200">
+                    <AvatarSelector
+                      value={selectedAvatar}
+                      onChange={handleAvatarChange}
+                    />
+                  </div>
+                )}
 
               <section className="bg-white rounded-lg shadow-md p-8 mb-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('password_change_title')}</h2>
