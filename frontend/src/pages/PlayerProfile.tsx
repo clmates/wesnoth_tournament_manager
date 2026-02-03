@@ -314,56 +314,58 @@ const PlayerProfile: React.FC = () => {
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6">{t('all_matches')}</h2>
                 
                 {/* Filters */}
-                <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 items-end">
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="player" className="font-semibold text-gray-700">{t('filter_player')}</label>
-                    <input
-                      type="text"
-                      id="player"
-                      name="player"
-                      placeholder={t('filter_by_player')}
-                      value={filters.player}
-                      onChange={handleFilterChange}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                    />
-                  </div>
+                <div className="bg-gray-50 p-4 rounded-lg mb-6 overflow-x-auto -webkit-overflow-scrolling-touch">
+                  <div className="flex gap-3 min-w-min items-end">
+                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+                      <label htmlFor="player" className="font-semibold text-gray-700">{t('filter_player')}</label>
+                      <input
+                        type="text"
+                        id="player"
+                        name="player"
+                        placeholder={t('filter_by_player')}
+                        value={filters.player}
+                        onChange={handleFilterChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      />
+                    </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="map" className="font-semibold text-gray-700">{t('filter_map')}</label>
-                    <input
-                      type="text"
-                      id="map"
-                      name="map"
-                      placeholder={t('filter_by_map')}
-                      value={filters.map}
-                      onChange={handleFilterChange}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                    />
-                  </div>
+                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+                      <label htmlFor="map" className="font-semibold text-gray-700">{t('filter_map')}</label>
+                      <input
+                        type="text"
+                        id="map"
+                        name="map"
+                        placeholder={t('filter_by_map')}
+                        value={filters.map}
+                        onChange={handleFilterChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      />
+                    </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label htmlFor="status" className="font-semibold text-gray-700">{t('filter_match_status')}</label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={filters.status}
-                      onChange={handleFilterChange}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+                      <label htmlFor="status" className="font-semibold text-gray-700">{t('filter_match_status')}</label>
+                      <select
+                        id="status"
+                        name="status"
+                        value={filters.status}
+                        onChange={handleFilterChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      >
+                        <option value="">{t('all')}</option>
+                        <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
+                        <option value="confirmed">{t('match_status_confirmed')}</option>
+                        <option value="disputed">{t('match_status_disputed')}</option>
+                        <option value="cancelled">{t('match_status_cancelled')}</option>
+                      </select>
+                    </div>
+
+                    <button 
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold flex-shrink-0 h-fit"
+                      onClick={resetFilters}
                     >
-                      <option value="">{t('all')}</option>
-                      <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
-                      <option value="confirmed">{t('match_status_confirmed')}</option>
-                      <option value="disputed">{t('match_status_disputed')}</option>
-                      <option value="cancelled">{t('match_status_cancelled')}</option>
-                    </select>
+                      {t('reset_filters')}
+                    </button>
                   </div>
-
-                  <button 
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold md:col-span-1 col-span-1 sm:col-span-2"
-                    onClick={resetFilters}
-                  >
-                    {t('reset_filters')}
-                  </button>
                 </div>
 
                 <MatchesTable 
