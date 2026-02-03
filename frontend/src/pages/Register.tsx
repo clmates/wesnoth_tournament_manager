@@ -24,6 +24,7 @@ const Register: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [showPasswordHints, setShowPasswordHints] = useState(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [avatarSectionCollapsed, setAvatarSectionCollapsed] = useState(true);
 
   const passwordRules = [
     { regex: /.{8,}/, label: 'At least 8 characters' },
@@ -238,11 +239,26 @@ const Register: React.FC = () => {
               showFlag={true}
               disabled={loading}
             />
-            <AvatarSelector
-              value={formData.avatar}
-              onChange={(avatar) => setFormData(prev => ({ ...prev, avatar }))}
-              disabled={loading}
-            />
+          </div>
+
+          <div className="my-4 border border-gray-200 rounded-lg bg-gray-50">
+            <button
+              type="button"
+              onClick={() => setAvatarSectionCollapsed(!avatarSectionCollapsed)}
+              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-100 transition-colors font-semibold text-gray-800 rounded-lg"
+            >
+              <span>{t('profile.avatar') || 'Avatar'}</span>
+              <span className={`text-lg transition-transform ${avatarSectionCollapsed ? '' : 'rotate-180'}`}>▼</span>
+            </button>
+            {!avatarSectionCollapsed && (
+              <div className="p-4 border-t border-gray-200">
+                <AvatarSelector
+                  value={formData.avatar}
+                  onChange={(avatar) => setFormData(prev => ({ ...prev, avatar }))}
+                  disabled={loading}
+                />
+              </div>
+            )}
           </div>
 
           <button
