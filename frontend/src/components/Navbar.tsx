@@ -107,17 +107,19 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <nav className="w-full bg-primary text-white shadow-sm p-3 min-h-[60px] flex items-center relative z-[999] overflow-hidden">
-      <div className="w-full max-w-full mx-auto px-2 flex justify-between items-center gap-2 relative z-[999] max-md:gap-1 overflow-x-auto -webkit-overflow-scrolling-touch">
+    <nav className="w-full bg-primary text-white shadow-sm p-3 min-h-[60px] flex items-center relative z-[999] overflow-hidden max-md:flex-col max-md:min-h-auto max-md:gap-2">
+      <div className="w-full max-w-full mx-auto px-2 flex justify-between items-center gap-2 relative z-[999] max-md:w-full max-md:flex-col max-md:gap-3 overflow-x-auto -webkit-overflow-scrolling-touch">
         {/* Brand */}
-        <div className="flex-shrink-0 min-w-fit">
+        <div className="flex-shrink-0 min-w-fit max-md:w-full max-md:text-center">
           <Link to="/" className="text-2xl font-bold text-white hover:opacity-90 transition-opacity max-sm:text-xl">
             {t('app_name')}
           </Link>
         </div>
 
-        {/* Links */}
-        <div className="flex flex-1 justify-center items-center gap-2 max-md:gap-1 max-md:overflow-x-auto max-md:-webkit-overflow-scrolling-touch max-md:scrollbar-none max-lg:flex-nowrap min-w-0">
+        {/* Links and Controls Container */}
+        <div className="flex flex-1 justify-between items-center gap-2 max-md:w-full max-md:flex-col-reverse">
+          {/* Links */}
+          <div className="flex flex-1 justify-center items-center gap-2 max-md:overflow-x-auto max-md:-webkit-overflow-scrolling-touch max-md:scrollbar-none max-md:w-full max-lg:flex-nowrap min-w-0">
           <Link to="/" className="text-white hover:bg-white/10 px-3 py-2 rounded transition-colors min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5 max-md:py-1.5 max-md:text-sm">
             {t('navbar_home')}
           </Link>
@@ -196,16 +198,16 @@ const Navbar: React.FC = () => {
               </Link>
             </>
           )}
-        </div>
+          </div>
 
-        {/* Language Selector */}
-        <div className="flex gap-1 flex-shrink-0 min-w-fit">
-          <div className="language-dropdown relative z-[2000]">
-            <button 
-              ref={languageBtnRef}
-              className="px-2 py-2 bg-white/10 text-white border border-white/30 rounded hover:bg-white/20 transition-all flex items-center gap-1 font-semibold max-md:gap-0.5 max-md:px-1.5 max-md:py-1.5 max-sm:px-1 max-sm:text-xs"
-              onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-              title="Change language"
+          {/* Language Selector */}
+          <div className="flex gap-1 flex-shrink-0 min-w-fit max-md:w-full max-md:justify-center">
+            <div className="language-dropdown relative z-[2000]">
+              <button 
+                ref={languageBtnRef}
+                className="px-2 py-2 bg-white/10 text-white border border-white/30 rounded hover:bg-white/20 transition-all flex items-center gap-1 font-semibold max-md:gap-0.5 max-md:px-1.5 max-md:py-1.5 max-sm:px-1 max-sm:text-xs"
+                onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
+                title="Change language"
             >
               <img 
                 src={`https://flagcdn.com/w20/${currentLanguage.countryCode}.png`}
@@ -246,6 +248,7 @@ const Navbar: React.FC = () => {
               document.body
             )}
           </div>
+        </div>
         </div>
       </div>
     </nav>
