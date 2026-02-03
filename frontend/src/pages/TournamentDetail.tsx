@@ -1026,28 +1026,29 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       </div>
                     </div>
                     {team.members_with_elo && team.members_with_elo.length > 0 ? (
-                      <table className="w-full text-sm mt-4">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_nickname')}</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_elo')}</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">Position</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
-                            <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {team.members_with_elo.map((member: any) => (
-                            <tr key={member.user_id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-3 text-gray-700"><PlayerLink nickname={member.nickname} userId={member.user_id} /></td>
-                              <td className="px-4 py-3 text-gray-700">{member.elo_rating || '-'}</td>
-                              <td className="px-4 py-3 text-gray-700">{member.team_position || '-'}</td>
-                              <td className="px-4 py-3 text-gray-700">
-                                <span
-                                  className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold"
-                                  style={{ backgroundColor: getParticipationStatusColor(member.participation_status || 'pending') }}
-                                >
-                                  {member.participation_status === 'unconfirmed' ? 'Unconfirmed' :
+                      <div className="mt-4 max-md:overflow-x-auto max-md:-webkit-overflow-scrolling-touch">
+                        <table className="w-full text-sm max-md:min-w-[600px]">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-4 py-3 max-md:px-2 max-md:py-2 text-left font-semibold text-gray-700 border-b-2 border-gray-300 max-md:text-xs">{t('label_nickname')}</th>
+                              <th className="px-4 py-3 max-md:px-2 max-md:py-2 text-left font-semibold text-gray-700 border-b-2 border-gray-300 max-md:text-xs">{t('label_elo')}</th>
+                              <th className="px-4 py-3 max-md:px-2 max-md:py-2 text-left font-semibold text-gray-700 border-b-2 border-gray-300 max-md:text-xs">Position</th>
+                              <th className="px-4 py-3 max-md:px-2 max-md:py-2 text-left font-semibold text-gray-700 border-b-2 border-gray-300 max-md:text-xs">{t('label_status')}</th>
+                              <th className="px-4 py-3 max-md:px-2 max-md:py-2 text-left font-semibold text-gray-700 border-b-2 border-gray-300 max-md:text-xs">{t('label_actions')}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {team.members_with_elo.map((member: any) => (
+                              <tr key={member.user_id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-3 max-md:px-2 max-md:py-2 text-gray-700 max-md:text-xs"><PlayerLink nickname={member.nickname} userId={member.user_id} /></td>
+                                <td className="px-4 py-3 max-md:px-2 max-md:py-2 text-gray-700 max-md:text-xs">{member.elo_rating || '-'}</td>
+                                <td className="px-4 py-3 max-md:px-2 max-md:py-2 text-gray-700 max-md:text-xs">{member.team_position || '-'}</td>
+                                <td className="px-4 py-3 max-md:px-2 max-md:py-2 text-gray-700 max-md:text-xs">
+                                  <span
+                                    className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold"
+                                    style={{ backgroundColor: getParticipationStatusColor(member.participation_status || 'pending') }}
+                                  >
+                                    {member.participation_status === 'unconfirmed' ? 'Unconfirmed' :
                                    member.participation_status === 'pending' ? 'Pending' :
                                    member.participation_status === 'accepted' ? 'Accepted' : 'Pending'}
                                 </span>
@@ -1092,6 +1093,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     ) : (
                       <p className="text-gray-600 text-center py-4">No members</p>
                     )}
