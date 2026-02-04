@@ -192,12 +192,21 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
         console.log('🗺️ [MAP] Raw extracted map from replay:', replayData.map);
         const normalizedReplayMap = normalizeMapName(replayData.map);
         console.log('🗺️ [MAP] Normalized replay map:', normalizedReplayMap);
+        console.log('🗺️ [MAP] Normalized replay char codes:', Array.from(normalizedReplayMap).map((c, i) => ({ i, char: c, code: c.charCodeAt(0) })));
         console.log('🗺️ [MAP] Available maps in database:', maps.map(m => ({ name: m.name, normalized: normalizeMapName(m.name) })));
         
         const matchingMap = maps.find((m) => {
           const normalizedDbMap = normalizeMapName(m.name);
-          console.log(`🗺️ [MAP] Comparing "${normalizedReplayMap}" === "${normalizedDbMap}" (${m.name}): ${normalizedReplayMap === normalizedDbMap}`);
-          return normalizedReplayMap === normalizedDbMap;
+          const isMatch = normalizedReplayMap === normalizedDbMap;
+          if (normalizedReplayMap.toLowerCase().includes('sulla') || normalizedDbMap.toLowerCase().includes('sulla')) {
+            const dbMapCodes = Array.from(normalizedDbMap).map((c, i) => ({ i, char: c, code: c.charCodeAt(0) }));
+            const replayCodes = Array.from(normalizedReplayMap).map((c, i) => ({ i, char: c, code: c.charCodeAt(0) }));
+            console.log(`🗺️ [MAP] Comparing "${normalizedReplayMap}" === "${normalizedDbMap}":`, isMatch);
+            console.log(`   Replay codes:`, replayCodes);
+            console.log(`   DB codes:   `, dbMapCodes);
+            console.log(`   Lengths: replay=${normalizedReplayMap.length}, db=${normalizedDbMap.length}`);
+          }
+          return isMatch;
         });
         
         if (matchingMap) {
