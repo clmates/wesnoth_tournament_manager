@@ -22,7 +22,8 @@ interface ReplayData {
 export function normalizeMapName(mapName: string | null | undefined): string {
   if (!mapName) return '';
   
-  return mapName
+  const original = mapName;
+  const result = mapName
     // Replace smart quotes and apostrophes with standard ASCII versions
     .replace(/['']/g, "'")           // Smart single quotes → ASCII apostrophe
     .replace(/[""]/g, '"')           // Smart double quotes → ASCII double quote
@@ -30,6 +31,14 @@ export function normalizeMapName(mapName: string | null | undefined): string {
     .replace(/[‚]/g, "'")            // More apostrophe variants
     .trim()
     .toLowerCase();
+  
+  if (original !== result) {
+    console.log(`🗺️ [NORMALIZE] "${original}" → "${result}"`);
+    console.log(`🗺️ [NORMALIZE] Original char codes:`, Array.from(original).map((c, i) => ({ i, char: c, code: c.charCodeAt(0) })));
+    console.log(`🗺️ [NORMALIZE] Result char codes:`, Array.from(result).map((c, i) => ({ i, char: c, code: c.charCodeAt(0) })));
+  }
+  
+  return result;
 }
 
 /**
@@ -189,10 +198,16 @@ export function extractReplayInfo(xmlText: string): ReplayData {
   const scenarioMatch = xmlText.match(/mp_scenario_name="([^"]+)"/);
   if (scenarioMatch) {
     let mapName = scenarioMatch[1];
+    console.log('🗺️ [EXTRACT] Raw scenario match:', mapName);
+    console.log('🗺️ [EXTRACT] Char codes:', Array.from(mapName).map((c, i) => ({ i, char: c, code: c.charCodeAt(0) })));
+    
     // Remove "2p — " prefix if present
     mapName = mapName.replace(/^2p\s*—\s*/, '');
+    console.log('🗺️ [EXTRACT] After removing 2p prefix:', mapName);
+    
     data.map = mapName;
   }
+  console.log('🗺️ [EXTRACT] Final extracted map:', data.map);
 
   // Extract players from global side_users attribute (e.g., id1:Nick1,id2:Nick2)
   const sideUsersGlobal = xmlText.match(/side_users="([^"]+)"/);

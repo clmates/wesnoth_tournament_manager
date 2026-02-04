@@ -1305,9 +1305,12 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
     // Extract map name
     const scenarioMatch = xmlText.match(/mp_scenario_name="([^"]+)"/);
     let map = scenarioMatch ? scenarioMatch[1] : null;
+    console.log('[PREVIEW] Raw scenario match:', map);
     if (map) {
+      console.log('[PREVIEW] Char codes:', Array.from(map).map((c, i) => ({ i, char: c, code: c.charCodeAt(0) })));
       // Remove "2p — " prefix if present
       map = map.replace(/^2p\s*—\s*/, '');
+      console.log('[PREVIEW] After removing 2p prefix:', map);
     }
     console.log('[PREVIEW] Extracted map:', map);
 
