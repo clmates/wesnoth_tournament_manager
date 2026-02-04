@@ -23,12 +23,20 @@ export function normalizeMapName(mapName: string | null | undefined): string {
   if (!mapName) return '';
   
   const original = mapName;
-  const result = mapName
-    // Replace smart quotes and apostrophes with standard ASCII versions
-    .replace(/['']/g, "'")           // Smart single quotes → ASCII apostrophe
-    .replace(/[""]/g, '"')           // Smart double quotes → ASCII double quote
-    .replace(/[„‟]/g, '"')           // More quote variants
-    .replace(/[‚]/g, "'")            // More apostrophe variants
+  // Use Unicode escape sequences to handle all quote variants
+  let result = mapName
+    // U+2018 (') and U+2019 (') - Left and right single quotation marks
+    .replace(/[\u2018\u2019]/g, "'")
+    // U+201C (") and U+201D (") - Left and right double quotation marks  
+    .replace(/[\u201C\u201D]/g, '"')
+    // U+201E („) and U+201F (‟) - Double low-9 quotation mark
+    .replace(/[\u201E\u201F]/g, '"')
+    // U+2039 (‹) and U+203A (›) - Single-pointing angle quotation marks
+    .replace(/[\u2039\u203A]/g, "'")
+    // U+2035 (`) and U+2032 (′) - Grave accent and prime
+    .replace(/[\u2035\u2032]/g, "'")
+    // U+201A (‚) - Single low-9 quotation mark
+    .replace(/[\u201A]/g, "'")
     .trim()
     .toLowerCase();
   
