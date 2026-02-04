@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { matchService, api } from '../services/api';
-import { parseReplayFile, getMapFromReplay, getPlayerFactionFromReplay } from '../services/replayParser';
+import { parseReplayFile, getMapFromReplay, getPlayerFactionFromReplay, normalizeMapName } from '../services/replayParser';
 import FileUploadInput from './FileUploadInput';
 import StarRating from './StarRating';
 
@@ -189,8 +189,9 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
 
       // Autocomplete map
       if (replayData.map) {
+        const normalizedReplayMap = normalizeMapName(replayData.map);
         const matchingMap = maps.find((m) =>
-          m.name.toLowerCase() === replayData.map?.toLowerCase()
+          normalizeMapName(m.name) === normalizedReplayMap
         );
         if (matchingMap) {
           setFormData((prev) => ({
