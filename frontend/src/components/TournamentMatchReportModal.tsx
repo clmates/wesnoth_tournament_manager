@@ -189,15 +189,25 @@ const TournamentMatchReportModal: React.FC<TournamentMatchReportProps> = ({
 
       // Autocomplete map
       if (replayData.map) {
+        console.log('🗺️ [MAP] Raw extracted map from replay:', replayData.map);
         const normalizedReplayMap = normalizeMapName(replayData.map);
-        const matchingMap = maps.find((m) =>
-          normalizeMapName(m.name) === normalizedReplayMap
-        );
+        console.log('🗺️ [MAP] Normalized replay map:', normalizedReplayMap);
+        console.log('🗺️ [MAP] Available maps in database:', maps.map(m => ({ name: m.name, normalized: normalizeMapName(m.name) })));
+        
+        const matchingMap = maps.find((m) => {
+          const normalizedDbMap = normalizeMapName(m.name);
+          console.log(`🗺️ [MAP] Comparing "${normalizedReplayMap}" === "${normalizedDbMap}" (${m.name}): ${normalizedReplayMap === normalizedDbMap}`);
+          return normalizedReplayMap === normalizedDbMap;
+        });
+        
         if (matchingMap) {
+          console.log('✅ [MAP] Found matching map:', matchingMap.name);
           setFormData((prev) => ({
             ...prev,
             map: matchingMap.name,
           }));
+        } else {
+          console.log('❌ [MAP] No matching map found for:', replayData.map, '(normalized:', normalizedReplayMap, ')');
         }
       }
 
