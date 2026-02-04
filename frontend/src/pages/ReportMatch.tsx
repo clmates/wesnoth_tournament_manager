@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { matchService, userService, api } from '../services/api';
-import { parseReplayFile, getOpponentFromReplay, getMapFromReplay, getPlayerFactionFromReplay } from '../services/replayParser';
+import { parseReplayFile, getOpponentFromReplay, getMapFromReplay, getPlayerFactionFromReplay, normalizeMapName } from '../services/replayParser';
 import MainLayout from '../components/MainLayout';
 import OpponentSelector from '../components/OpponentSelector';
 import FileUploadInput from '../components/FileUploadInput';
@@ -97,15 +97,19 @@ const ReportMatch: React.FC = () => {
 
         // Autocomplete map (always load if found)
         if (replayData.map) {
+          const normalizedReplayMap = normalizeMapName(replayData.map);
           const matchingMap = maps.find((m) =>
-            m.name.toLowerCase() === replayData.map?.toLowerCase()
+            normalizeMapName(m.name) === normalizedReplayMap
           );
           if (matchingMap) {
+            // Display the matching database map name
             setFormData((prev) => ({
               ...prev,
               map: matchingMap.name,
             }));
             console.log('Set map to:', matchingMap.name);
+          } else {
+            console.log('No matching map found for:', replayData.map, '(normalized:', normalizedReplayMap, ')');
           }
         }
 

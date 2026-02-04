@@ -11,6 +11,28 @@ interface ReplayData {
 }
 
 /**
+ * Normalize map names for consistent comparison
+ * Handles special characters, smart quotes, and whitespace
+ * - Converts smart quotes (', ', ", ") to standard quotes (' and ")
+ * - Trims whitespace
+ * - Lowercases for comparison
+ * @param mapName - The map name to normalize
+ * @returns Normalized map name suitable for comparison
+ */
+export function normalizeMapName(mapName: string | null | undefined): string {
+  if (!mapName) return '';
+  
+  return mapName
+    // Replace smart quotes and apostrophes with standard ASCII versions
+    .replace(/['']/g, "'")           // Smart single quotes → ASCII apostrophe
+    .replace(/[""]/g, '"')           // Smart double quotes → ASCII double quote
+    .replace(/[„‟]/g, '"')           // More quote variants
+    .replace(/[‚]/g, "'")            // More apostrophe variants
+    .trim()
+    .toLowerCase();
+}
+
+/**
  * Parse a Wesnoth replay or save file and extract game information
  * - Handles .gz files: browser-side decompression
  * - Handles .bz2 files: backend-side decompression (via preview endpoint)

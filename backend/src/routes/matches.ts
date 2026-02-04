@@ -43,6 +43,28 @@ const upload = multer({
   },
 });
 
+/**
+ * Normalize map names for consistent comparison
+ * Handles special characters, smart quotes, and whitespace
+ * - Converts smart quotes (', ', ", ") to standard quotes (' and ")
+ * - Trims whitespace
+ * - Lowercases for comparison
+ * @param mapName - The map name to normalize
+ * @returns Normalized map name suitable for comparison
+ */
+function normalizeMapName(mapName: string | null | undefined): string {
+  if (!mapName) return '';
+  
+  return mapName
+    // Replace smart quotes and apostrophes with standard ASCII versions
+    .replace(/['']/g, "'")           // Smart single quotes → ASCII apostrophe
+    .replace(/[""]/g, '"')           // Smart double quotes → ASCII double quote
+    .replace(/[„‟]/g, '"')           // More quote variants
+    .replace(/[‚]/g, "'")            // More apostrophe variants
+    .trim()
+    .toLowerCase();
+}
+
 // Helper function to recalculate all stats (used by both admin and player self-cancel)
 // This does a FULL replay of all non-cancelled matches to recalculate ELO correctly
 async function performGlobalStatsRecalculation() {
