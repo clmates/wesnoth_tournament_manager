@@ -531,6 +531,9 @@ router.get('/matches', async (req, res) => {
     const map = req.query.map ? (req.query.map as string).trim() : null;
     const status = req.query.status ? (req.query.status as string).trim() : null;
     const confirmed = req.query.confirmed ? (req.query.confirmed as string).trim() : null;
+    const faction = req.query.faction ? (req.query.faction as string).trim() : null;
+
+    console.log('🔍 GET /api/public/matches - Filters received:', { player, map, status, confirmed, faction });
 
     // Build WHERE conditions
     const whereConditions: string[] = [];
@@ -560,6 +563,14 @@ router.get('/matches', async (req, res) => {
       whereConditions.push(`m.loser_confirmed = $${paramCount}`);
       params.push(isConfirmed);
       paramCount++;
+    }
+
+    if (faction) {
+      console.log('🔍 Faction filter applied:', faction);
+      whereConditions.push(`(m.winner_faction = $${paramCount} OR m.loser_faction = $${paramCount})`);
+      params.push(faction);
+      params.push(faction);
+      paramCount += 2;
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
