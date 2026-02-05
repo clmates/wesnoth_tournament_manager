@@ -48,8 +48,8 @@ DECLARE
   v_winner_faction_id UUID;
   v_loser_faction_id UUID;
 BEGIN
-  -- Skip matches that are admin-reviewed as disputed and cancelled
-  IF NEW.admin_reviewed = true AND NEW.status = 'cancelled' THEN
+  -- Skip cancelled matches
+  IF NEW.status = 'cancelled' THEN
     RETURN NEW;
   END IF;
   
@@ -92,7 +92,7 @@ BEGIN
   DO UPDATE SET 
     total_games = faction_map_statistics.total_games + 1,
     losses = faction_map_statistics.losses + 1,
-    winrate = ROUND(100.0 * faction_map_statistics.wins / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
+    winrate = ROUND(100.0 * faction_map_statistics.wins::NUMERIC / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
     last_updated = CURRENT_TIMESTAMP;
   
   RETURN NEW;
@@ -132,7 +132,7 @@ BEGIN
     JOIN game_maps gm ON gm.name = m.map
     JOIN factions f_winner ON f_winner.name = m.winner_faction
     JOIN factions f_loser ON f_loser.name = m.loser_faction
-    WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
+    WHERE m.status != 'cancelled'
     GROUP BY gm.id, f_winner.id, f_loser.id
   )
   INSERT INTO faction_map_statistics (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
@@ -165,7 +165,7 @@ BEGIN
     JOIN game_maps gm ON gm.name = m.map
     JOIN factions f_winner ON f_winner.name = m.winner_faction
     JOIN factions f_loser ON f_loser.name = m.loser_faction
-    WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
+    WHERE m.status != 'cancelled'
     GROUP BY gm.id, f_loser.id, f_winner.id
   )
   INSERT INTO faction_map_statistics (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
