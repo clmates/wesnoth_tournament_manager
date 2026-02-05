@@ -251,7 +251,7 @@ export const publicService = {
   getNews: () => api.get('/public/news'),
   getRecentMatches: () => api.get('/public/matches/recent'),
   getPlayerProfile: (id: string) => api.get(`/public/players/${id}`),
-  getFactions: () => api.get('/public/factions'),
+  getFactions: (rankedOnly: boolean = true) => api.get('/public/factions', { params: { is_ranked: rankedOnly } }),
   getAllMatches: (page: number = 1, filters?: any) => {
     const params: any = { page };
     if (filters) {
