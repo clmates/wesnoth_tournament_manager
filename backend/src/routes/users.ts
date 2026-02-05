@@ -110,6 +110,8 @@ router.get('/:id/matches', async (req, res) => {
     const statusFilter = (req.query.status as string)?.trim() || '';
     const factionFilter = (req.query.faction as string)?.trim() || '';
 
+    console.log('🔍 GET /users/:id/matches - Filters received:', { playerFilter, mapFilter, statusFilter, factionFilter });
+
     // Build WHERE clause dynamically
     let whereConditions: string[] = ['(m.winner_id = $1 OR m.loser_id = $1)'];
     let params: any[] = [id];
@@ -138,9 +140,13 @@ router.get('/:id/matches', async (req, res) => {
       params.push(factionFilter);
       params.push(factionFilter);
       paramCount++;
+      console.log('🔍 Faction filter applied:', factionFilter);
     }
 
     const whereClause = whereConditions.join(' AND ');
+
+    console.log('🔍 WHERE clause:', whereClause);
+    console.log('🔍 Query params:', params);
 
     // Get total count of filtered matches
     const countQuery = `SELECT COUNT(*) as total FROM matches m 
@@ -168,7 +174,7 @@ router.get('/:id/matches', async (req, res) => {
       params
     );
 
-    res.json({
+    console.log('🔍 Query returned', result.rows.length, 'matches');
       data: result.rows,
       pagination: {
         page,
