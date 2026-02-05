@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { matchService } from '../services/api';
+import { matchService, publicService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import MainLayout from '../components/MainLayout';
 import MatchesTable from '../components/MatchesTable';
@@ -121,6 +121,7 @@ const MyMatches: React.FC = () => {
 
   const handleFilterChangeWithReset = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    console.log(`🔍 MyMatches Filter changed: ${name} = ${value}`);
     setFilters(prev => ({
       ...prev,
       [name]: value,
@@ -145,7 +146,8 @@ const MyMatches: React.FC = () => {
     }
   };
 
-  const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
+  const handleDownloadReplay = async (matchId: string | null, replayFilePath: string, tournamentMatchId?: string): Promise<void> => {
+    if (!matchId) return;
     try {
       console.log('🔽 Starting download for match:', matchId);
       console.log('🔽 Incrementing download count...');

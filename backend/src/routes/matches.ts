@@ -1993,6 +1993,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     const confirmedFilter = (req.query.confirmed as string)?.trim() || '';
     const factionFilter = (req.query.faction as string)?.trim() || '';
 
+    console.log('🔍 GET /matches - Filters received:', { playerFilter, mapFilter, statusFilter, confirmedFilter, factionFilter });
+
     // Build WHERE clause dynamically
     let whereConditions: string[] = [];
     let params: any[] = [];
@@ -2027,6 +2029,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       params.push(factionFilter);
       params.push(factionFilter);
       paramCount++;
+      console.log('🔍 Faction filter applied:', factionFilter);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';

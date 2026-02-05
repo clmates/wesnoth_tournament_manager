@@ -83,7 +83,8 @@ const Matches: React.FC = () => {
     // Always fetch from server with current page and filters
     const fetchMatches = async () => {
       try {
-        console.log('Fetching matches for page:', currentPage, 'with filters:', filters);
+        console.log('🔍 Fetching matches for page:', currentPage, 'with filters:', filters);
+        console.log('🔍 Faction filter value:', filters.faction);
         const res = await publicService.getAllMatches(currentPage, filters);
         console.log('Full response:', res);
         console.log('Response data:', res.data);
@@ -113,6 +114,7 @@ const Matches: React.FC = () => {
   // Reset to page 1 when filters change
   const handleFilterChangeWithReset = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    console.log(`🔍 Filter changed: ${name} = ${value}`);
     setFilters(prev => ({
       ...prev,
       [name]: value,
