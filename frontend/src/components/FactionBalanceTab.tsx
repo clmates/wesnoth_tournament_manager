@@ -6,6 +6,8 @@ interface FactionStats {
   faction_id: string;
   faction_name: string;
   total_games: number;
+  wins: number;
+  losses: number;
   global_winrate: number;
   maps_played: number;
 }
@@ -56,11 +58,20 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
       try {
         setLoading(true);
         const data = await statisticsService.getGlobalFactionStats();
-        // Convert string winrates to numbers
-        const converted = data.map((item: any) => ({
-          ...item,
-          global_winrate: typeof item.global_winrate === 'string' ? parseFloat(item.global_winrate) : item.global_winrate,
-        }));
+        // Convert string winrates to numbers and calculate wins/losses if not present
+        const converted = data.map((item: any) => {
+          const winrate = typeof item.global_winrate === 'string' ? parseFloat(item.global_winrate) : item.global_winrate;
+          const total = item.total_games || 0;
+          const wins = item.wins || Math.round((winrate / 100) * total);
+          const losses = item.losses || (total - wins);
+          
+          return {
+            ...item,
+            global_winrate: winrate,
+            wins,
+            losses,
+          };
+        });
         setStats(converted);
       } catch (err) {
         console.error('Error fetching faction balance stats:', err);
@@ -179,6 +190,8 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction') || 'Faction'}</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('wins') || 'Wins'}</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('losses') || 'Losses'}</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('winrate') || 'Win Rate'}</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('maps_played') || 'Maps'}</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('balance_indicator') || 'Balance'}</th>
@@ -197,6 +210,18 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
                     <div className="flex flex-col gap-2">
                       <span className="font-semibold text-gray-800">{item.after?.total_games || '-'}</span>
                       {item.before && <span className="text-xs text-gray-600">{item.before.total_games}</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <span className="font-semibold text-green-600">{item.after?.wins || '-'}</span>
+                      {item.before && <span className="text-xs text-green-600">{item.before.wins}</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      <span className="font-semibold text-red-600">{item.after?.losses || '-'}</span>
+                      {item.before && <span className="text-xs text-red-600">{item.before.losses}</span>}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -263,6 +288,8 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
             <tr>
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction') || 'Faction'}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('wins') || 'Wins'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('losses') || 'Losses'}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('winrate') || 'Win Rate'}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('maps_played') || 'Maps'}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('balance_indicator') || 'Balance'}</th>
@@ -273,6 +300,8 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
               <tr key={stat.faction_id} className="border-b border-gray-200 hover:bg-gray-50">
                 <td className="px-4 py-3 font-semibold text-gray-800">{stat.faction_name}</td>
                 <td className="px-4 py-3 text-gray-700">{stat.total_games}</td>
+                <td className="px-4 py-3 text-green-600 font-semibold">{stat.wins}</td>
+                <td className="px-4 py-3 text-red-600 font-semibold">{stat.losses}</td>
                 <td className="px-4 py-3">
                   <span className={`px-3 py-1 rounded-lg font-semibold inline-block min-w-fit ${
                     stat.global_winrate > 55 ? 'bg-green-100 text-green-700' : 
