@@ -138,10 +138,10 @@ router.get('/:id/matches', async (req, res) => {
     }
 
     if (factionFilter) {
-      whereConditions.push(`(m.winner_faction = $${paramCount} OR m.loser_faction = $${paramCount})`);
+      whereConditions.push(`(m.winner_faction = $${paramCount} OR m.loser_faction = $${paramCount + 1})`);
       params.push(factionFilter);
       params.push(factionFilter);
-      paramCount++;
+      paramCount += 2;
       console.log('🔍 Faction filter applied:', factionFilter);
     }
 

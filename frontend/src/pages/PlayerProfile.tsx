@@ -18,6 +18,7 @@ interface FilterState {
   player: string;
   map: string;
   status: string;
+  faction: string;
 }
 
 const PlayerProfile: React.FC = () => {
@@ -37,10 +38,12 @@ const PlayerProfile: React.FC = () => {
   const [sortColumn, setSortColumn] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [filterOpponent, setFilterOpponent] = useState<string>('');
+  const [availableFactions, setAvailableFactions] = useState<any[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     player: '',
     map: '',
     status: '',
+    faction: '',
   });
 
   useEffect(() => {
@@ -60,6 +63,10 @@ const PlayerProfile: React.FC = () => {
         const matchesRes = await userService.getRecentMatches(id);
         const matchesData = matchesRes.data?.data || matchesRes.data || [];
         setMatches(matchesData);
+
+        // Fetch factions
+        const factionsRes = await publicService.getFactions();
+        setAvailableFactions(factionsRes.data || []);
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Error loading profile');
@@ -149,6 +156,7 @@ const PlayerProfile: React.FC = () => {
       player: '',
       map: '',
       status: '',
+      faction: '',
     });
   };
 
@@ -162,6 +170,9 @@ const PlayerProfile: React.FC = () => {
       return false;
     }
     if (filters.status && match.status !== filters.status) {
+      return false;
+    }
+    if (filters.faction && match.winner_faction !== filters.faction && match.loser_faction !== filters.faction) {
       return false;
     }
     return true;
@@ -356,6 +367,24 @@ const PlayerProfile: React.FC = () => {
                         <option value="confirmed">{t('match_status_confirmed')}</option>
                         <option value="disputed">{t('match_status_disputed')}</option>
                         <option value="cancelled">{t('match_status_cancelled')}</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+                      <label htmlFor="faction" className="font-semibold text-gray-700">{t('filter_faction')}</label>
+                      <select
+                        id="faction"
+                        name="faction"
+                        value={filters.faction}
+                        onChange={handleFilterChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      >
+                        <option value="">{t('all')}</option>
+                        {availableFactions.map((faction: any) => (
+                          <option key={faction.id || faction.name} value={faction.name}>
+                            {faction.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
