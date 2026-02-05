@@ -251,6 +251,7 @@ export const publicService = {
   getNews: () => api.get('/public/news'),
   getRecentMatches: () => api.get('/public/matches/recent'),
   getPlayerProfile: (id: string) => api.get(`/public/players/${id}`),
+  getFactions: () => api.get('/public/factions'),
   getAllMatches: (page: number = 1, filters?: any) => {
     const params: any = { page };
     if (filters) {
@@ -258,6 +259,7 @@ export const publicService = {
       if (filters.map) params.map = filters.map;
       if (filters.status) params.status = filters.status;
       if (filters.confirmed) params.confirmed = filters.confirmed;
+      if (filters.faction) params.faction = filters.faction;
     }
     return api.get('/public/matches', { params });
   },
