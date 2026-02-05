@@ -99,6 +99,8 @@ router.get('/:id/stats', async (req, res) => {
 // Get user matches with pagination and filters
 router.get('/:id/matches', async (req, res) => {
   try {
+    console.log('🔍🔍🔍 GET /users/:id/matches endpoint called with id:', req.params.id);
+    console.log('🔍🔍🔍 Query string:', req.query);
     const { id } = req.params;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = 20;
