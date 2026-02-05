@@ -123,6 +123,8 @@
   "filter_by_loser": "Фильтр по проигравшему...",
   "filter_map": "Карта",
   "filter_by_map": "Фильтр по карте...",
+  "filter_faction": "Фракция",
+  "filter_by_faction": "Фильтр по фракции...",
   "filter_match_status": "Статус матча",
   "filter_confirmation_status": "Статус подтверждения",
   "all": "Все",

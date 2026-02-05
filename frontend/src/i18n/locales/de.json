@@ -121,6 +121,8 @@
   "filter_by_loser": "Nach Verlierer filtern...",
   "filter_map": "Karte",
   "filter_by_map": "Nach Karte filtern...",
+  "filter_faction": "Fraktion",
+  "filter_by_faction": "Nach Fraktion filtern...",
   "filter_match_status": "Spielstatus",
   "filter_confirmation_status": "Bestätigungsstatus",
   "all": "Alle",

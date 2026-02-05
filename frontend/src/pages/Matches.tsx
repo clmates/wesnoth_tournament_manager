@@ -32,6 +32,7 @@ interface FilterState {
   map: string;
   status: string;
   confirmed: string;
+  faction: string;
 }
 
 interface MatchDetailsModal {
@@ -61,7 +62,22 @@ const Matches: React.FC = () => {
     map: '',
     status: '',
     confirmed: '',
+    faction: '',
   });
+  const [availableFactions, setAvailableFactions] = useState<any[]>([]);
+
+  // Fetch available factions on component mount
+  useEffect(() => {
+    const fetchFactions = async () => {
+      try {
+        const res = await publicService.getFactions();
+        setAvailableFactions(res.data || []);
+      } catch (err) {
+        console.error('Error fetching factions:', err);
+      }
+    };
+    fetchFactions();
+  }, []);
 
   useEffect(() => {
     // Always fetch from server with current page and filters
@@ -111,6 +127,7 @@ const Matches: React.FC = () => {
       map: '',
       status: '',
       confirmed: '',
+      faction: '',
     });
   };
 
@@ -321,6 +338,24 @@ const Matches: React.FC = () => {
               <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
               <option value="disputed">{t('match_status_disputed')}</option>
               <option value="cancelled">{t('match_status_cancelled')}</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
+            <label htmlFor="faction" className="font-semibold text-gray-700 text-sm">{t('filter_faction') || 'Faction'}</label>
+            <select
+              id="faction"
+              name="faction"
+              value={filters.faction}
+              onChange={handleFilterChangeWithReset}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            >
+              <option value="">{t('all')}</option>
+              {availableFactions.map((faction: any) => (
+                <option key={faction.id} value={faction.name}>
+                  {faction.name}
+                </option>
+              ))}
             </select>
           </div>
 
