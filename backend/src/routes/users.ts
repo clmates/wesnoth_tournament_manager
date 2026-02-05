@@ -175,6 +175,8 @@ router.get('/:id/matches', async (req, res) => {
     );
 
     console.log('🔍 Query returned', result.rows.length, 'matches');
+
+    res.json({
       data: result.rows,
       pagination: {
         page,
