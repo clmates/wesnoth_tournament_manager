@@ -123,6 +123,8 @@
   "filter_by_loser": "Filter by loser...",
   "filter_map": "Map",
   "filter_by_map": "Filter by map...",
+  "filter_faction": "Faction",
+  "filter_by_faction": "Filter by faction...",
   "filter_match_status": "Match Status",
   "filter_confirmation_status": "Confirmation Status",
   "all": "All",

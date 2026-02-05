@@ -123,6 +123,8 @@
   "filter_by_loser": "Filtrar por perdedor...",
   "filter_map": "Mapa",
   "filter_by_map": "Filtrar por mapa...",
+  "filter_faction": "Facción",
+  "filter_by_faction": "Filtrar por facción...",
   "filter_match_status": "Estado de la Partida",
   "filter_confirmation_status": "Estado de Confirmación",
   "all": "Todos",

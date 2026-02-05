@@ -108,6 +108,7 @@ router.get('/:id/matches', async (req, res) => {
     const playerFilter = (req.query.player as string)?.trim() || '';
     const mapFilter = (req.query.map as string)?.trim() || '';
     const statusFilter = (req.query.status as string)?.trim() || '';
+    const factionFilter = (req.query.faction as string)?.trim() || '';
 
     // Build WHERE clause dynamically
     let whereConditions: string[] = ['(m.winner_id = $1 OR m.loser_id = $1)'];
@@ -129,6 +130,13 @@ router.get('/:id/matches', async (req, res) => {
     if (statusFilter) {
       whereConditions.push(`m.status = $${paramCount}`);
       params.push(statusFilter);
+      paramCount++;
+    }
+
+    if (factionFilter) {
+      whereConditions.push(`(m.winner_faction = $${paramCount} OR m.loser_faction = $${paramCount})`);
+      params.push(factionFilter);
+      params.push(factionFilter);
       paramCount++;
     }
 

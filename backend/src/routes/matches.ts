@@ -1991,6 +1991,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     const mapFilter = (req.query.map as string)?.trim() || '';
     const statusFilter = (req.query.status as string)?.trim() || '';
     const confirmedFilter = (req.query.confirmed as string)?.trim() || '';
+    const factionFilter = (req.query.faction as string)?.trim() || '';
 
     // Build WHERE clause dynamically
     let whereConditions: string[] = [];
@@ -2018,6 +2019,13 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     if (confirmedFilter) {
       whereConditions.push(`m.status = $${paramCount}`);
       params.push(confirmedFilter);
+      paramCount++;
+    }
+
+    if (factionFilter) {
+      whereConditions.push(`(m.winner_faction = $${paramCount} OR m.loser_faction = $${paramCount})`);
+      params.push(factionFilter);
+      params.push(factionFilter);
       paramCount++;
     }
 

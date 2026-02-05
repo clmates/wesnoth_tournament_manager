@@ -155,6 +155,7 @@ export const matchService = {
       if (filters.player) params.player = filters.player;
       if (filters.map) params.map = filters.map;
       if (filters.status) params.status = filters.status;
+      if (filters.faction) params.faction = filters.faction;
     }
     return api.get(`/users/${userId}/matches`, { params });
   },
