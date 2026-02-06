@@ -656,4 +656,135 @@ router.post('/history/recalculate-snapshots', async (req, res) => {
   }
 });
 
+/**
+ * Get Faction A vs Faction B matchup analysis
+ * Shows global stats and breakdown by map
+ */
+router.get('/faction-vs-faction', async (req, res) => {
+  try {
+    const { faction1, faction2 } = req.query;
+    
+    if (!faction1 || !faction2) {
+      return res.status(400).json({ error: 'faction1 and faction2 query parameters required' });
+    }
+    
+    // Get faction IDs
+    const factionsResult = await query(
+      `SELECT id, name FROM factions WHERE name IN ($1, $2)`,
+      [faction1, faction2]
+    );
+    
+    if (factionsResult.rows.length !== 2) {
+      return res.status(404).json({ error: 'One or both factions not found' });
+    }
+    
+    const f1 = factionsResult.rows.find(f => f.name === faction1);
+    const f2 = factionsResult.rows.find(f => f.name === faction2);
+    
+    // Get global stats (sum across all maps)
+    const globalResult = await query(
+      `SELECT 
+        f1.id as faction_1_id,
+        f1.name as faction_1_name,
+        f2.id as faction_2_id,
+        f2.name as faction_2_name,
+        SUM(CASE 
+          WHEN fms.faction_id = f1.id AND fms.opponent_faction_id = f2.id THEN fms.total_games
+          WHEN fms.faction_id = f2.id AND fms.opponent_faction_id = f1.id THEN fms.total_games
+          ELSE 0 
+        END) as total_games,
+        SUM(CASE 
+          WHEN fms.faction_id = f1.id AND fms.opponent_faction_id = f2.id THEN fms.wins
+          WHEN fms.faction_id = f2.id AND fms.opponent_faction_id = f1.id THEN fms.losses
+          ELSE 0 
+        END) as faction_1_wins,
+        SUM(CASE 
+          WHEN fms.faction_id = f1.id AND fms.opponent_faction_id = f2.id THEN fms.losses
+          WHEN fms.faction_id = f2.id AND fms.opponent_faction_id = f1.id THEN fms.wins
+          ELSE 0 
+        END) as faction_2_wins,
+        CURRENT_TIMESTAMP as last_updated
+      FROM faction_map_statistics fms
+      CROSS JOIN (SELECT $1::UUID as f1_id, $2::UUID as f2_id) params
+      CROSS JOIN factions f1 ON f1.id = params.f1_id
+      CROSS JOIN factions f2 ON f2.id = params.f2_id
+      WHERE (fms.faction_id = params.f1_id AND fms.opponent_faction_id = params.f2_id)
+         OR (fms.faction_id = params.f2_id AND fms.opponent_faction_id = params.f1_id)`,
+      [f1.id, f2.id]
+    );
+    
+    // Get per-map breakdown
+    const mapsResult = await query(
+      `SELECT 
+        gm.id as map_id,
+        gm.name as map_name,
+        SUM(CASE 
+          WHEN fms.faction_id = $1 AND fms.opponent_faction_id = $2 THEN fms.total_games
+          WHEN fms.faction_id = $2 AND fms.opponent_faction_id = $1 THEN fms.total_games
+          ELSE 0 
+        END) as total_games,
+        SUM(CASE 
+          WHEN fms.faction_id = $1 AND fms.opponent_faction_id = $2 THEN fms.wins
+          WHEN fms.faction_id = $2 AND fms.opponent_faction_id = $1 THEN fms.losses
+          ELSE 0 
+        END) as faction_1_wins,
+        SUM(CASE 
+          WHEN fms.faction_id = $1 AND fms.opponent_faction_id = $2 THEN fms.losses
+          WHEN fms.faction_id = $2 AND fms.opponent_faction_id = $1 THEN fms.wins
+          ELSE 0 
+        END) as faction_2_wins
+      FROM faction_map_statistics fms
+      JOIN game_maps gm ON fms.map_id = gm.id
+      WHERE (fms.faction_id = $1 AND fms.opponent_faction_id = $2)
+         OR (fms.faction_id = $2 AND fms.opponent_faction_id = $1)
+      GROUP BY gm.id, gm.name
+      ORDER BY total_games DESC`,
+      [f1.id, f2.id]
+    );
+    
+    const global = globalResult.rows[0];
+    const faction1Winrate = global.total_games > 0 
+      ? parseFloat((100 * global.faction_1_wins / global.total_games).toFixed(2))
+      : 0;
+    const faction2Winrate = global.total_games > 0 
+      ? parseFloat((100 * global.faction_2_wins / global.total_games).toFixed(2))
+      : 0;
+    
+    res.json({
+      global: {
+        faction_1: {
+          id: f1.id,
+          name: f1.name,
+          wins: global.faction_1_wins || 0,
+          winrate: faction1Winrate
+        },
+        faction_2: {
+          id: f2.id,
+          name: f2.name,
+          wins: global.faction_2_wins || 0,
+          winrate: faction2Winrate
+        },
+        total_games: global.total_games || 0,
+        imbalance: Math.abs(global.faction_1_wins - global.faction_2_wins) || 0
+      },
+      by_map: mapsResult.rows.map(row => ({
+        map_id: row.map_id,
+        map_name: row.map_name,
+        total_games: row.total_games || 0,
+        faction_1_wins: row.faction_1_wins || 0,
+        faction_2_wins: row.faction_2_wins || 0,
+        faction_1_winrate: row.total_games > 0 
+          ? parseFloat((100 * row.faction_1_wins / row.total_games).toFixed(2))
+          : 0,
+        faction_2_winrate: row.total_games > 0 
+          ? parseFloat((100 * row.faction_2_wins / row.total_games).toFixed(2))
+          : 0
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching faction vs faction statistics:', error);
+    res.status(500).json({ error: 'Failed to fetch faction vs faction statistics' });
+  }
+});
+
 export default router;

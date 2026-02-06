@@ -3,9 +3,10 @@ import { useTranslation } from 'react-i18next';
 import FactionBalanceTab from '../components/FactionBalanceTab';
 import MapBalanceTab from '../components/MapBalanceTab';
 import MatchupBalanceTab from '../components/MatchupBalanceTab';
+import FactionVsFactionTab from '../components/FactionVsFactionTab';
 import BalanceEventImpactPanel from '../components/BalanceEventImpactPanel';
 
-type StatisticsTab = 'faction' | 'map' | 'matchups';
+type StatisticsTab = 'faction' | 'map' | 'matchups' | 'faction-vs-faction';
 
 interface ComparisonData {
   map_id?: string;
@@ -64,12 +65,19 @@ const Statistics: React.FC = () => {
         >
           {t('matchup_balance') || 'Matchup Analysis'}
         </button>
+        <button 
+          className={`px-4 py-3 font-semibold text-gray-600 border-b-2 border-transparent hover:text-gray-800 transition-colors cursor-pointer whitespace-nowrap ${activeTab === 'faction-vs-faction' ? 'text-blue-600 border-blue-600' : ''}`}
+          onClick={() => setActiveTab('faction-vs-faction')}
+        >
+          {t('faction_vs_faction') || 'Faction vs Faction'}
+        </button>
       </div>
 
       <div className="mt-8">
         {activeTab === 'faction' && <FactionBalanceTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
         {activeTab === 'map' && <MapBalanceTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
         {activeTab === 'matchups' && <MatchupBalanceTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
+        {activeTab === 'faction-vs-faction' && <FactionVsFactionTab />}
       </div>
     </div>
   );
