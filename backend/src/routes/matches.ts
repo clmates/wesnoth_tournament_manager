@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { calculateELO, getUserLevel } from '../utils/auth.js';
+import { getUserLevel } from '../utils/auth.js';
 import {
   calculateNewRating,
   calculateInitialRating,
@@ -152,13 +152,18 @@ async function performGlobalStatsRecalculation() {
       winner.trend = calculateTrend(winner.trend, true);
       loser.trend = calculateTrend(loser.trend, false);
 
-      // Update the match record with correct before/after ELO values
+      // Calculate ELO changes for both players
+      const winnerEloChange = winnerNewRating - winnerEloBefore;
+      const loserEloChange = loserNewRating - loserEloBefore;
+
+      // Update the match record with correct before/after ELO values and FIDE elo_change
       await query(
         `UPDATE matches 
          SET winner_elo_before = $1, winner_elo_after = $2, 
-             loser_elo_before = $3, loser_elo_after = $4
-         WHERE id = $5`,
-        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, matchRow.id]
+             loser_elo_before = $3, loser_elo_after = $4,
+             elo_change = $5
+         WHERE id = $6`,
+        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, winnerEloChange, matchRow.id]
       );
     }
 
@@ -372,15 +377,15 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
       loser = loserResult.rows[0];
     }
 
-    // Use legacy calculateELO and FIDE ratings only for ranked matches
-    let legacyEloChange = 0;
+    // Calculate FIDE ELO ratings for ranked matches
+    let eloChange = 0;
     let winnerNewRating = 0;
     let loserNewRating = 0;
 
     if (tournamentMode === 'ranked') {
-      legacyEloChange = calculateELO(winner!.elo_rating, loser!.elo_rating, true);
       winnerNewRating = calculateNewRating(winner!.elo_rating, loser!.elo_rating, 'win', winner!.matches_played);
       loserNewRating = calculateNewRating(loser!.elo_rating, winner!.elo_rating, 'loss', loser!.matches_played);
+      eloChange = winnerNewRating - winner!.elo_rating; // Store the actual FIDE ELO change for winner
     }
 
     // Insert match ONLY for ranked tournaments
@@ -402,7 +407,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
           null,
           tournament_id || null,
           tournamentMode,
-          legacyEloChange,
+          eloChange,
           winner!.elo_rating,
           loser!.elo_rating,
           winner!.level || 'novato',
@@ -795,7 +800,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     // Get current ranking positions for both players (only for ranked)
     let winnerCurrentRank = 0;
     let loserCurrentRank = 0;
-    let legacyEloChange = 0;
+    let eloChange = 0;
     let winnerNewRating = 0;
     let loserNewRating = 0;
 
@@ -826,12 +831,10 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       winnerCurrentRank = parseInt(winnerRankResult.rows[0].rank) + 1;
       loserCurrentRank = parseInt(loserRankResult.rows[0].rank) + 1;
 
-      // Use legacy calculateELO for now, store both old and new calculations
-      legacyEloChange = calculateELO(winner!.elo_rating, loser!.elo_rating, true);
-
       // Calculate FIDE ratings for both players
       winnerNewRating = calculateNewRating(winner!.elo_rating, loser!.elo_rating, 'win', winner!.matches_played);
       loserNewRating = calculateNewRating(loser!.elo_rating, winner!.elo_rating, 'loss', loser!.matches_played);
+      eloChange = winnerNewRating - winner!.elo_rating; // Store the actual FIDE ELO change for winner
     }
 
     // For team tournaments, don't store individual matches in the matches table
@@ -882,7 +885,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
           replayPath,
           tournament_id || null,
           tournamentMode,
-          legacyEloChange,
+          eloChange,
           winner.elo_rating,
           loser.elo_rating,
           winner.level || 'novato',
