@@ -12,6 +12,7 @@ TRUNCATE TABLE faction_map_statistics;
 
 -- Step 2: Rebuild statistics from scratch, handling mirror matches
 -- Mirror matches (same faction on both sides) are stored as single record
+-- Using ON CONFLICT to handle existing records and make migration idempotent
 
 -- Insert statistics for all matchups (separating mirror from normal)
 WITH all_matchups AS (
@@ -19,10 +20,9 @@ WITH all_matchups AS (
     gm.id as map_id,
     f_winner.id as faction_id,
     f_loser.id as opponent_faction_id,
-    COUNT(CASE WHEN f_winner.id = f_loser.id THEN 1 END)::INT as mirror_total,
-    COUNT(CASE WHEN f_winner.id = f_loser.id THEN 1 END)::INT as mirror_wins,
-    COUNT(CASE WHEN f_winner.id != f_loser.id THEN 1 END)::INT as normal_total,
-    COUNT(CASE WHEN f_winner.id != f_loser.id THEN 1 END)::INT as normal_wins
+    COUNT(*)::INT as total_games,
+    COUNT(*)::INT as wins,
+    0::INT as losses
   FROM matches m
   JOIN game_maps gm ON gm.name = m.map
   JOIN factions f_winner ON f_winner.name = m.winner_faction
@@ -36,15 +36,17 @@ SELECT
   map_id,
   faction_id,
   opponent_faction_id,
-  COALESCE(mirror_total, 0) + COALESCE(normal_total, 0),
-  COALESCE(mirror_wins, 0) + COALESCE(normal_wins, 0),
-  CASE WHEN mirror_total > 0 THEN 0 ELSE 0 END,
-  CASE 
-    WHEN (COALESCE(mirror_total, 0) + COALESCE(normal_total, 0)) = 0 THEN 0
-    ELSE ROUND(100.0 * (COALESCE(mirror_wins, 0) + COALESCE(normal_wins, 0)) / (COALESCE(mirror_total, 0) + COALESCE(normal_total, 0)), 2)::NUMERIC(5,2)
-  END
+  total_games,
+  wins,
+  losses,
+  ROUND(100.0 * wins / total_games, 2)::NUMERIC(5,2)
 FROM all_matchups
-WHERE COALESCE(mirror_total, 0) + COALESCE(normal_total, 0) > 0;
+ON CONFLICT (map_id, faction_id, opponent_faction_id)
+DO UPDATE SET
+  total_games = EXCLUDED.total_games,
+  wins = EXCLUDED.wins,
+  losses = EXCLUDED.losses,
+  winrate = EXCLUDED.winrate;
 
 -- Insert statistics for loser perspective (non-mirror matches only)
 -- Mirror matches are already handled above
@@ -74,7 +76,13 @@ SELECT
   wins,
   losses,
   ROUND(100.0 * wins / total_games, 2)::NUMERIC(5,2)
-FROM loser_stats;
+FROM loser_stats
+ON CONFLICT (map_id, faction_id, opponent_faction_id)
+DO UPDATE SET
+  total_games = EXCLUDED.total_games,
+  wins = EXCLUDED.wins,
+  losses = EXCLUDED.losses,
+  winrate = EXCLUDED.winrate;
 
 -- Verify the fix
 SELECT 
