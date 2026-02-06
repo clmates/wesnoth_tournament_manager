@@ -61,6 +61,10 @@ const FactionVsFactionTab: React.FC = () => {
           // Determine if we need to flip the order
           const isFlipped = f1 > f2;
           
+          // Parse winrates to numbers
+          const f1_wr = parseFloat(item.faction_1_winrate) || 0;
+          const f2_wr = parseFloat(item.faction_2_winrate) || 0;
+          
           const existing = factionMatchupMap.get(key);
           
           if (!existing) {
@@ -70,8 +74,8 @@ const FactionVsFactionTab: React.FC = () => {
               total_games: item.total_games,
               faction_1_wins: isFlipped ? item.faction_2_wins : item.faction_1_wins,
               faction_2_wins: isFlipped ? item.faction_1_wins : item.faction_2_wins,
-              faction_1_winrate: isFlipped ? item.faction_2_winrate : item.faction_1_winrate,
-              faction_2_winrate: isFlipped ? item.faction_1_winrate : item.faction_2_winrate,
+              faction_1_winrate: isFlipped ? f2_wr : f1_wr,
+              faction_2_winrate: isFlipped ? f1_wr : f2_wr,
               imbalance: Math.abs(item.faction_1_wins - item.faction_2_wins),
             });
           } else {
