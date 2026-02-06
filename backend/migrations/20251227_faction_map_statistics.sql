@@ -76,29 +76,44 @@ BEGIN
       RETURN NEW; -- Loser faction not found, skip statistics update
     END IF;
     
-    -- Insert or update for winner faction
-    INSERT INTO faction_map_statistics 
-      (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
-    VALUES 
-      (v_map_id, v_winner_faction_id, v_loser_faction_id, 1, 1, 0, 100.00)
-    ON CONFLICT (map_id, faction_id, opponent_faction_id)
-    DO UPDATE SET 
-      total_games = faction_map_statistics.total_games + 1,
-      wins = faction_map_statistics.wins + 1,
-      winrate = ROUND(100.0 * (faction_map_statistics.wins + 1) / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
-      last_updated = CURRENT_TIMESTAMP;
-    
-    -- Insert or update for loser faction (reverse perspective)
-    INSERT INTO faction_map_statistics 
-      (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
-    VALUES 
-      (v_map_id, v_loser_faction_id, v_winner_faction_id, 1, 0, 1, 0.00)
-    ON CONFLICT (map_id, faction_id, opponent_faction_id)
-    DO UPDATE SET 
-      total_games = faction_map_statistics.total_games + 1,
-      losses = faction_map_statistics.losses + 1,
-      winrate = ROUND(100.0 * faction_map_statistics.wins::NUMERIC / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
-      last_updated = CURRENT_TIMESTAMP;
+    -- Check if this is a mirror match (same faction on both sides)
+    IF v_winner_faction_id = v_loser_faction_id THEN
+      -- Mirror match: combine both perspectives into one record
+      INSERT INTO faction_map_statistics 
+        (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
+      VALUES 
+        (v_map_id, v_winner_faction_id, v_loser_faction_id, 1, 1, 0, 100.00)
+      ON CONFLICT (map_id, faction_id, opponent_faction_id)
+      DO UPDATE SET 
+        total_games = faction_map_statistics.total_games + 1,
+        wins = faction_map_statistics.wins + 1,
+        winrate = ROUND(100.0 * (faction_map_statistics.wins + 1) / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
+        last_updated = CURRENT_TIMESTAMP;
+    ELSE
+      -- Different factions: insert winner perspective
+      INSERT INTO faction_map_statistics 
+        (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
+      VALUES 
+        (v_map_id, v_winner_faction_id, v_loser_faction_id, 1, 1, 0, 100.00)
+      ON CONFLICT (map_id, faction_id, opponent_faction_id)
+      DO UPDATE SET 
+        total_games = faction_map_statistics.total_games + 1,
+        wins = faction_map_statistics.wins + 1,
+        winrate = ROUND(100.0 * (faction_map_statistics.wins + 1) / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
+        last_updated = CURRENT_TIMESTAMP;
+      
+      -- Insert loser perspective (different record since faction_id differs)
+      INSERT INTO faction_map_statistics 
+        (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
+      VALUES 
+        (v_map_id, v_loser_faction_id, v_winner_faction_id, 1, 0, 1, 0.00)
+      ON CONFLICT (map_id, faction_id, opponent_faction_id)
+      DO UPDATE SET 
+        total_games = faction_map_statistics.total_games + 1,
+        losses = faction_map_statistics.losses + 1,
+        winrate = ROUND(100.0 * faction_map_statistics.wins::NUMERIC / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
+        last_updated = CURRENT_TIMESTAMP;
+    END IF;
 
   -- Handle UPDATE: Remove stats if match is cancelled
   ELSIF TG_OP = 'UPDATE' THEN
