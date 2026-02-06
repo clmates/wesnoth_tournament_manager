@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { statisticsService } from '../services/statisticsService';
 
 interface FactionMatchupStats {
   faction_1_name: string;
@@ -23,8 +24,7 @@ const FactionVsFactionTab: React.FC = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch('/api/statistics/config');
-        const config = await response.json();
+        const config = await statisticsService.getConfig();
         if (config.minGamesThreshold) {
           setMinGamesThreshold(config.minGamesThreshold);
           setMinGames(config.minGamesThreshold);
@@ -41,22 +41,13 @@ const FactionVsFactionTab: React.FC = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const url = `/api/statistics/matchups?minGames=${minGames}`;
-        console.log('[FactionVsFactionTab] Fetching from:', url);
-        const response = await fetch(url);
+        console.log('[FactionVsFactionTab] Fetching matchup stats with minGames=', minGames);
+        const data = await statisticsService.getMatchupStats(minGames);
         
-        console.log('[FactionVsFactionTab] Response status:', response.status);
-        console.log('[FactionVsFactionTab] Response headers:', Object.fromEntries(response.headers));
-        
-        const text = await response.text();
-        console.log('[FactionVsFactionTab] Raw response (first 200 chars):', text.substring(0, 200));
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+        console.log('[FactionVsFactionTab] Received data count:', data.length);
+        if (data.length > 0) {
+          console.log('[FactionVsFactionTab] Sample data:', JSON.stringify(data.slice(0, 2), null, 2));
         }
-        
-        const data = JSON.parse(text);
-        console.log('[FactionVsFactionTab] Parsed data count:', data.length);
         
         // Aggregate by faction matchup (remove map dimension)
         const factionMatchupMap = new Map<string, FactionMatchupStats>();
