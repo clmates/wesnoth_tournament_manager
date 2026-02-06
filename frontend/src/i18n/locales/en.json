@@ -601,6 +601,8 @@
   "ranking_criteria_description": "Players must have a minimum ELO of 1400, have played a minimum of 10 games and have activity in the last 30 days.",
   "status_inactive": "Inactive",
   "last_activity": "Last Activity",
+  "faction_vs_faction": "Faction vs Faction",
+  "faction_vs_faction_analysis": "Faction vs Faction Analysis",
   "common": {
     "select": "Select...",
     "search": "Search...",

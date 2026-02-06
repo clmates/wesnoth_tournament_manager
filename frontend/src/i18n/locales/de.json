@@ -584,8 +584,8 @@
   "ranking_criteria_title": "Ranking-Kriterien",
   "ranking_criteria_description": "Spieler müssen ein Minimum-ELO von 1400 haben, mindestens 10 Spiele gespielt haben und in den letzten 30 Tagen aktiv gewesen sein.",
   "status_inactive": "Inaktiv",
-  "last_activity": "Letzte Aktivität",
-  "common": {
+  "last_activity": "Letzte Aktivität",  "faction_vs_faction": "Fraktion gegen Fraktion",
+  "faction_vs_faction_analysis": "Fraktions-gegen-Fraktions-Analyse",  "common": {
     "select": "Auswählen...",
     "search": "Suchen...",
     "loading": "Wird geladen...",
