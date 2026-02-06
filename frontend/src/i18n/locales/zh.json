@@ -582,8 +582,8 @@
   "ranking_criteria_title": "排名标准",
   "ranking_criteria_description": "玩家必须拥有1400的最低ELO，至少玩过10场比赛，且在过去30天内有活动。",
   "status_inactive": "不活跃",
-  "last_activity": "最后活动",
-  "common": {
+  "last_activity": "最后活动",  "faction_vs_faction": "阵营对阵",
+  "faction_vs_faction_analysis": "阵营对阵分析",  "common": {
     "select": "选择...",
     "search": "搜索...",
     "loading": "加载中...",
