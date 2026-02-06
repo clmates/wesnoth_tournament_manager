@@ -67,65 +67,59 @@ router.get('/matchups', async (req, res) => {
     );
     console.log(`[MATCHUPS] Total rows in faction_map_statistics: ${countResult.rows[0].total_rows}, Total games: ${countResult.rows[0].total_games_sum}`);
     
-    // Group matchups and aggregate: for each map + faction pair, sum across both directions
-    // We need to normalize the matchup order and sum the wins/losses
+    // Get matchups - including both non-mirror (faction_id < opponent_faction_id) and mirror matchups
     const result = await query(
-      `WITH normalized_matchups AS (
-        SELECT 
-          fms.map_id,
-          gm.name as map_name,
-          CASE WHEN fms.faction_id < fms.opponent_faction_id 
-               THEN fms.faction_id 
-               ELSE fms.opponent_faction_id 
-          END as f1_id,
-          CASE WHEN fms.faction_id < fms.opponent_faction_id 
-               THEN fms.opponent_faction_id 
-               ELSE fms.faction_id 
-          END as f2_id,
-          CASE WHEN fms.faction_id < fms.opponent_faction_id 
-               THEN fms.wins 
-               ELSE fms.losses 
-          END as f1_wins_val,
-          CASE WHEN fms.faction_id < fms.opponent_faction_id 
-               THEN fms.losses 
-               ELSE fms.wins 
-          END as f2_wins_val,
-          fms.total_games
-        FROM faction_map_statistics fms
-        JOIN game_maps gm ON fms.map_id = gm.id
-      ),
-      aggregated AS (
-        SELECT 
-          map_id,
-          map_name,
-          f1_id,
-          f2_id,
-          SUM(total_games) as total_games,
-          SUM(f1_wins_val) as f1_wins,
-          SUM(f2_wins_val) as f2_wins,
-          MAX(CURRENT_TIMESTAMP) as last_updated
-        FROM normalized_matchups
-        GROUP BY map_id, map_name, f1_id, f2_id
-        HAVING SUM(total_games) >= $1
-      )
+      `-- Non-mirror matchups (one perspective only)
       SELECT 
-        a.map_id,
-        a.map_name,
+        fms.map_id,
+        gm.name as map_name,
+        fms.faction_id as f1_id,
+        fms.opponent_faction_id as f2_id,
         f1.id as faction_1_id,
         f1.name as faction_1_name,
         f2.id as faction_2_id,
         f2.name as faction_2_name,
-        a.total_games,
-        a.f1_wins as faction_1_wins,
-        a.f2_wins as faction_2_wins,
-        ROUND(100.0 * a.f1_wins / a.total_games, 2) as faction_1_winrate,
-        ROUND(100.0 * a.f2_wins / a.total_games, 2) as faction_2_winrate,
-        ABS(a.f1_wins - a.f2_wins) as imbalance,
-        a.last_updated
-      FROM aggregated a
-      JOIN factions f1 ON a.f1_id = f1.id
-      JOIN factions f2 ON a.f2_id = f2.id
-      ORDER BY imbalance DESC, a.map_name, f1.name`,
+        fms.total_games,
+        fms.wins as faction_1_wins,
+        fms.losses as faction_2_wins,
+        ROUND(100.0 * fms.wins / fms.total_games, 2) as faction_1_winrate,
+        ROUND(100.0 * fms.losses / fms.total_games, 2) as faction_2_winrate,
+        ABS(fms.wins - fms.losses) as imbalance,
+        CURRENT_TIMESTAMP as last_updated
+      FROM faction_map_statistics fms
+      JOIN game_maps gm ON fms.map_id = gm.id
+      JOIN factions f1 ON fms.faction_id = f1.id
+      JOIN factions f2 ON fms.opponent_faction_id = f2.id
+      WHERE fms.faction_id < fms.opponent_faction_id
+        AND fms.total_games >= $1
+      
+      UNION ALL
+      
+      -- Mirror matchups (same faction plays both sides)
+      SELECT 
+        fms.map_id,
+        gm.name as map_name,
+        fms.faction_id as f1_id,
+        fms.opponent_faction_id as f2_id,
+        f1.id as faction_1_id,
+        f1.name as faction_1_name,
+        f2.id as faction_2_id,
+        f2.name as faction_2_name,
+        fms.total_games,
+        fms.wins as faction_1_wins,
+        fms.losses as faction_2_wins,
+        ROUND(100.0 * fms.wins / fms.total_games, 2) as faction_1_winrate,
+        ROUND(100.0 * fms.losses / fms.total_games, 2) as faction_2_winrate,
+        ABS(fms.wins - fms.losses) as imbalance,
+        CURRENT_TIMESTAMP as last_updated
+      FROM faction_map_statistics fms
+      JOIN game_maps gm ON fms.map_id = gm.id
+      JOIN factions f1 ON fms.faction_id = f1.id
+      JOIN factions f2 ON fms.opponent_faction_id = f2.id
+      WHERE fms.faction_id = fms.opponent_faction_id
+        AND fms.total_games >= $1
+      
+      ORDER BY imbalance DESC, map_name, faction_1_name`,
       [minGames]
     );
     
