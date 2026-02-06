@@ -41,13 +41,22 @@ const FactionVsFactionTab: React.FC = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/statistics/matchups?minGames=${minGames}`);
+        const url = `/api/statistics/matchups?minGames=${minGames}`;
+        console.log('[FactionVsFactionTab] Fetching from:', url);
+        const response = await fetch(url);
+        
+        console.log('[FactionVsFactionTab] Response status:', response.status);
+        console.log('[FactionVsFactionTab] Response headers:', Object.fromEntries(response.headers));
+        
+        const text = await response.text();
+        console.log('[FactionVsFactionTab] Raw response (first 200 chars):', text.substring(0, 200));
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch data: ${response.statusText}`);
+          throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
         }
         
-        const data = await response.json();
+        const data = JSON.parse(text);
+        console.log('[FactionVsFactionTab] Parsed data count:', data.length);
         
         // Aggregate by faction matchup (remove map dimension)
         const factionMatchupMap = new Map<string, FactionMatchupStats>();
@@ -93,10 +102,11 @@ const FactionVsFactionTab: React.FC = () => {
           .filter(m => m.total_games >= minGames)
           .sort((a, b) => b.imbalance - a.imbalance);
         
+        console.log('[FactionVsFactionTab] Aggregated count:', aggregated.length);
         setStats(aggregated);
       } catch (err) {
         console.error('Error fetching faction matchup stats:', err);
-        setError('Error loading faction matchup statistics');
+        setError(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
         setLoading(false);
       }

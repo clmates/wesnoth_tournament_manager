@@ -59,6 +59,7 @@ router.get('/faction-by-map', async (req, res) => {
 router.get('/matchups', async (req, res) => {
   try {
     const minGames = parseInt(req.query.minGames as string) || 5;
+    console.log(`[MATCHUPS] Request received with minGames=${minGames}`);
     
     // First check how many rows we have in faction_map_statistics
     const countResult = await query(
@@ -68,38 +69,38 @@ router.get('/matchups', async (req, res) => {
     console.log(`[MATCHUPS] Total rows in faction_map_statistics: ${countResult.rows[0].total_rows}, Total games: ${countResult.rows[0].total_games_sum}`);
     
     // Get matchups - including both non-mirror (faction_id < opponent_faction_id) and mirror matchups
-    const result = await query(
-      `SELECT 
-        fms.map_id,
-        gm.name as map_name,
-        fms.faction_id as f1_id,
-        fms.opponent_faction_id as f2_id,
-        f1.id as faction_1_id,
-        f1.name as faction_1_name,
-        f2.id as faction_2_id,
-        f2.name as faction_2_name,
-        fms.total_games,
-        fms.wins as faction_1_wins,
-        fms.losses as faction_2_wins,
-        ROUND(100.0 * fms.wins / fms.total_games, 2) as faction_1_winrate,
-        ROUND(100.0 * fms.losses / fms.total_games, 2) as faction_2_winrate,
-        ABS(fms.wins - fms.losses) as imbalance,
-        CURRENT_TIMESTAMP as last_updated
-      FROM faction_map_statistics fms
-      JOIN game_maps gm ON fms.map_id = gm.id
-      JOIN factions f1 ON fms.faction_id = f1.id
-      JOIN factions f2 ON fms.opponent_faction_id = f2.id
-      WHERE (fms.faction_id < fms.opponent_faction_id OR fms.faction_id = fms.opponent_faction_id)
-        AND fms.total_games >= $1
-      ORDER BY imbalance DESC, gm.name, f1.name`,
-      [minGames]
-    );
+    const queryText = `SELECT 
+      fms.map_id,
+      gm.name as map_name,
+      fms.faction_id as f1_id,
+      fms.opponent_faction_id as f2_id,
+      f1.id as faction_1_id,
+      f1.name as faction_1_name,
+      f2.id as faction_2_id,
+      f2.name as faction_2_name,
+      fms.total_games,
+      fms.wins as faction_1_wins,
+      fms.losses as faction_2_wins,
+      ROUND(100.0 * fms.wins / fms.total_games, 2) as faction_1_winrate,
+      ROUND(100.0 * fms.losses / fms.total_games, 2) as faction_2_winrate,
+      ABS(fms.wins - fms.losses) as imbalance,
+      CURRENT_TIMESTAMP as last_updated
+    FROM faction_map_statistics fms
+    JOIN game_maps gm ON fms.map_id = gm.id
+    JOIN factions f1 ON fms.faction_id = f1.id
+    JOIN factions f2 ON fms.opponent_faction_id = f2.id
+    WHERE (fms.faction_id < fms.opponent_faction_id OR fms.faction_id = fms.opponent_faction_id)
+      AND fms.total_games >= $1
+    ORDER BY imbalance DESC, gm.name, f1.name`;
+    
+    console.log('[MATCHUPS] Executing query with minGames=', minGames);
+    const result = await query(queryText, [minGames]);
     
     console.log(`[MATCHUPS] Aggregated matchups found: ${result.rows.length}`);
     if (result.rows.length > 0) {
       console.log('[MATCHUPS] Sample rows:', JSON.stringify(result.rows.slice(0, 2), null, 2));
     } else {
-      console.log('[MATCHUPS] ⚠️  Still no matchups. Checking data distribution...');
+      console.log('[MATCHUPS] ⚠️  No matchups returned. Checking data distribution...');
       const distResult = await query(
         `SELECT total_games, COUNT(*) as count FROM faction_map_statistics GROUP BY total_games ORDER BY total_games DESC`
       );
@@ -108,8 +109,10 @@ router.get('/matchups', async (req, res) => {
     
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching matchup statistics:', error);
-    res.status(500).json({ error: 'Failed to fetch matchup statistics' });
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('[MATCHUPS] Error caught:', errorMsg);
+    console.error('[MATCHUPS] Full error:', error);
+    res.status(500).json({ error: `Failed to fetch matchup statistics: ${errorMsg}` });
   }
 });
 
