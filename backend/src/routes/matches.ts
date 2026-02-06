@@ -77,14 +77,20 @@ function normalizeMapName(mapName: string | null | undefined): string {
 // Helper function to recalculate all stats (used by both admin and player self-cancel)
 // This does a FULL replay of all non-cancelled matches to recalculate ELO correctly
 async function performGlobalStatsRecalculation() {
+  const logs: string[] = [];
+  
   try {
-    console.log('🔄 Starting full stats recalculation with match replay');
+    const startMsg = '🔄 Starting full stats recalculation with match replay';
+    logs.push(startMsg);
+    console.log(startMsg);
 
     // STEP 1: Disable both triggers to prevent automatic stats updates during this process
     try {
       await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches CASCADE');
       await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches CASCADE');
-      console.log('Disabled triggers for stats recalculation');
+      const msg = 'Disabled triggers for stats recalculation';
+      logs.push(msg);
+      console.log(msg);
     } catch (error) {
       console.warn('Warning: Failed to disable triggers:', error);
     }
@@ -197,9 +203,14 @@ async function performGlobalStatsRecalculation() {
       matchProcessedCount++;
     }
 
-    console.log(`✅ Replayed ${allNonCancelledMatches.rows.length} matches with FIDE ELO recalculation`);
-    console.log('📊 DEBUG SAMPLE LOGS (primeros 3, cada 10, y ultimos):');
-    debugSampleLogs.forEach(log => console.log(log));
+    const finalMsg = `✅ Replayed ${allNonCancelledMatches.rows.length} matches with FIDE ELO recalculation`;
+    logs.push(finalMsg);
+    console.log(finalMsg);
+    logs.push('📊 DEBUG SAMPLE LOGS (primeros 3, cada 10, y ultimos):');
+    debugSampleLogs.forEach(log => {
+      logs.push(log);
+      console.log(log);
+    });
 
     // STEP 5: Update all users in the database with their recalculated stats
     for (const [userId, stats] of userStates.entries()) {
@@ -241,7 +252,9 @@ async function performGlobalStatsRecalculation() {
         FOR EACH ROW
         EXECUTE FUNCTION update_player_match_statistics();
       `);
-      console.log('Re-enabled trigger: trg_update_player_match_stats');
+      const msg = 'Re-enabled trigger: trg_update_player_match_stats';
+      logs.push(msg);
+      console.log(msg);
     } catch (error) {
       console.error('Warning: Failed to re-enable player match stats trigger:', error);
     }
@@ -254,7 +267,9 @@ async function performGlobalStatsRecalculation() {
         FOR EACH ROW
         EXECUTE FUNCTION update_faction_map_statistics();
       `);
-      console.log('Re-enabled trigger: trg_update_faction_map_stats');
+      const msg = 'Re-enabled trigger: trg_update_faction_map_stats';
+      logs.push(msg);
+      console.log(msg);
     } catch (error) {
       console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
     }
@@ -262,27 +277,34 @@ async function performGlobalStatsRecalculation() {
     // STEP 7: Recalculate player match statistics and faction/map balance statistics
     try {
       await query('SELECT recalculate_player_match_statistics()');
-      console.log('🟢 Player match statistics recalculated');
+      const msg = '🟢 Player match statistics recalculated';
+      logs.push(msg);
+      console.log(msg);
     } catch (error) {
       console.error('Error recalculating player match statistics:', error);
     }
 
     try {
       const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
-      console.log('🟢 Faction/map statistics recalculated');
+      const msg = '🟢 Faction/map statistics recalculated';
+      logs.push(msg);
+      console.log(msg);
       
       // Manage snapshots
       const snapshotResult = await query('SELECT * FROM manage_faction_map_statistics_snapshots()');
-      console.log('🟢 Snapshots managed');
+      const snapshotMsg = '🟢 Snapshots managed';
+      logs.push(snapshotMsg);
+      console.log(snapshotMsg);
     } catch (error: any) {
       console.error('🔴 ERROR recalculating faction/map statistics:', error);
       // Don't fail the entire operation if balance stats fail
     }
 
-    return true;
+    return { success: true, logs };
   } catch (error) {
     console.error('Error in performGlobalStatsRecalculation:', error);
-    return false;
+    logs.push(`❌ ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    return { success: false, logs };
   }
 }
 
@@ -2152,20 +2174,22 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
     );
     
     // STEP 2: Perform global stats recalculation
-    const recalcSuccess = await performGlobalStatsRecalculation();
+    const recalcResult = await performGlobalStatsRecalculation();
     
-    if (recalcSuccess) {
+    if (recalcResult.success) {
       console.log(`Match ${id} self-cancelled by reporter ${userId}: Stats recalculated`);
       res.json({ 
         message: 'Match cancelled successfully. Stats have been recalculated.',
-        matchId: id
+        matchId: id,
+        debugLogs: recalcResult.logs
       });
     } else {
       console.error(`Match ${id} cancelled but stats recalculation may have failed`);
       res.json({ 
         message: 'Match cancelled successfully.',
         matchId: id,
-        warning: 'Stats recalculation encountered some issues'
+        warning: 'Stats recalculation encountered some issues',
+        debugLogs: recalcResult.logs
       });
     }
   } catch (error) {
@@ -2177,4 +2201,5 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
 // Routes are now properly ordered with specific paths first
 
 export default router;
+export { performGlobalStatsRecalculation };
 

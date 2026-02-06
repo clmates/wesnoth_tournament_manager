@@ -11,6 +11,7 @@ import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 import { notifyAdminUserApproved, notifyAdminUserRejected, notifyUserUnlocked } from '../services/discord.js';
 import { sendMailerSendEmail } from '../services/mailersend.js';
 import { getEmailTexts } from '../utils/emailTexts.js';
+import { performGlobalStatsRecalculation } from './matches.js';
 
 const router = Router();
 
@@ -719,179 +720,14 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`Starting global stats recalculation by admin ${req.userId}`);
+    console.log(`🔄 Starting global stats recalculation by admin ${req.userId}`);
 
-    // CRITICAL: Disable trigger to prevent automatic faction/map stats updates during this process
-    // The trigger fires on UPDATE matches, which would cause double-counting
-    try {
-      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches');
-      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches');
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Disabled triggers: trg_update_faction_map_stats, trg_update_player_match_stats');
-    } catch (error) {
-      console.error('Warning: Failed to disable triggers:', error);
-    }
+    // Call the centralized recalculation function (handles ELO, player stats, faction/map stats, snapshots)
+    const recalcResult = await performGlobalStatsRecalculation();
 
-    const defaultElo = 1400; // FIDE standard baseline for new users
-
-    // Get ALL non-cancelled matches in chronological order
-    const allNonCancelledMatches = await query(
-      `SELECT m.id, m.winner_id, m.loser_id, m.created_at
-       FROM matches m
-       WHERE m.status IN ('confirmed', 'unconfirmed', 'pending', 'disputed')
-       ORDER BY m.created_at ASC, m.id ASC`
-    );
-
-    // Initialize all users with baseline ELO and zero stats
-    const userStates = new Map<string, {
-      elo_rating: number;
-      matches_played: number;
-      total_wins: number;
-      total_losses: number;
-      trend: string;
-    }>();
-
-    const allUsersResult = await query('SELECT id FROM users');
-    for (const userRow of allUsersResult.rows) {
-      userStates.set(userRow.id, {
-        elo_rating: defaultElo,
-        matches_played: 0,
-        total_wins: 0,
-        total_losses: 0,
-        trend: '-'
-      });
-    }
-
-    // Replay ALL non-cancelled matches chronologically to rebuild correct stats
-    for (const matchRow of allNonCancelledMatches.rows) {
-      const winnerId = matchRow.winner_id;
-      const loserId = matchRow.loser_id;
-
-      // Ensure both users exist in state map
-      if (!userStates.has(winnerId)) {
-        userStates.set(winnerId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
-      }
-      if (!userStates.has(loserId)) {
-        userStates.set(loserId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
-      }
-
-      const winner = userStates.get(winnerId)!;
-      const loser = userStates.get(loserId)!;
-
-      // Store before values
-      const winnerEloBefore = winner.elo_rating;
-      const loserEloBefore = loser.elo_rating;
-
-      // Calculate new ratings
-      const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
-      const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
-
-      // Update stats
-      winner.elo_rating = winnerNewRating;
-      loser.elo_rating = loserNewRating;
-      winner.matches_played++;
-      loser.matches_played++;
-      winner.total_wins++;
-      loser.total_losses++;
-      winner.trend = calculateTrend(winner.trend, true);
-      loser.trend = calculateTrend(loser.trend, false);
-
-      // Update the match record with correct before/after ELO values
-      await query(
-        `UPDATE matches 
-         SET winner_elo_before = $1, winner_elo_after = $2, 
-             loser_elo_before = $3, loser_elo_after = $4
-         WHERE id = $5`,
-        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, matchRow.id]
-      );
-    }
-
-    // Update all users in the database with their recalculated stats
-    for (const [userId, stats] of userStates.entries()) {
-      // Determine is_rated status
-      // Get current is_rated status from database
-      const userCurrentResult = await query('SELECT is_rated FROM users WHERE id = $1', [userId]);
-      const isCurrentlyRated = userCurrentResult.rows[0]?.is_rated || false;
-      
-      let isRated = isCurrentlyRated;
-      
-      // If rated and ELO falls below 1400, unrate the player
-      if (isCurrentlyRated && stats.elo_rating < 1400) {
-        isRated = false;
-      }
-      // If unrated, has 10+ matches, and ELO >= 1400, rate the player
-      else if (!isCurrentlyRated && stats.matches_played >= 10 && stats.elo_rating >= 1400) {
-        isRated = true;
-      }
-      
-      await query(
-        `UPDATE users 
-         SET elo_rating = $1, 
-             matches_played = $2,
-             total_wins = $3,
-             total_losses = $4,
-             trend = $5,
-             is_rated = $6,
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $7`,
-        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, isRated, userId]
-      );
-    }
-
-    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`Global stats recalculation completed: ${allNonCancelledMatches.rows.length} matches replayed, ${userStates.size} users updated`);
-
-    // Re-enable the triggers after all updates are done
-    try {
-      await query(`
-        CREATE TRIGGER trg_update_player_match_stats
-        AFTER INSERT OR UPDATE ON matches
-        FOR EACH ROW
-        EXECUTE FUNCTION update_player_match_statistics();
-      `);
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Re-enabled trigger: trg_update_player_match_stats');
-    } catch (error) {
-      console.error('Warning: Failed to re-enable player match stats trigger:', error);
-    }
-
-    try {
-      await query(`
-        CREATE TRIGGER trg_update_faction_map_stats
-        AFTER INSERT OR UPDATE ON matches
-        FOR EACH ROW
-        EXECUTE FUNCTION update_faction_map_statistics();
-      `);
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Re-enabled trigger: trg_update_faction_map_stats');
-    } catch (error) {
-      console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
-    }
-
-    // Recalculate player match statistics (head-to-head, opponent stats, etc.)
-    try {
-      await query('SELECT recalculate_player_match_statistics()');
-      console.log('🟢 Player match statistics recalculated successfully');
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Player match statistics recalculated successfully');
-    } catch (error: any) {
-      console.error('🔴 ERROR recalculating player match statistics:', error);
-      console.error('Error message:', error.message);
-      // Don't fail the entire operation if player match stats fail
-    }
-
-    // Recalculate faction/map balance statistics
-    try {
-      const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
-      console.log('🟢 Faction/map statistics recalculated successfully');
-      console.log('Result:', recalcResult.rows);
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Faction/map statistics recalculated successfully');
-      
-      // Manage snapshots: delete old ones after last event, create/update AFTER snapshot
-      const snapshotResult = await query('SELECT * FROM manage_faction_map_statistics_snapshots()');
-      console.log('🟢 Snapshots managed successfully');
-      console.log('Snapshot Management:', snapshotResult.rows[0]);
-    } catch (error: any) {
-      console.error('🔴 ERROR recalculating faction/map statistics:', error);
-      console.error('Error message:', error.message);
-      console.error('Error code:', error.code);
-      // Don't fail the entire operation if balance stats fail
-    }
+    // Log the results
+    console.log(`Global stats recalculation completed: ${recalcResult.success ? 'SUCCESS' : 'WITH ERRORS'}`);
+    recalcResult.logs.forEach(log => console.log(log));
 
     // Calculate player of the month for the previous month
     try {
@@ -906,8 +742,8 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
 
     res.json({
       message: 'Global stats recalculation completed successfully',
-      matchesProcessed: allNonCancelledMatches.rows.length,
-      usersUpdated: userStates.size
+      success: recalcResult.success,
+      debugLogs: recalcResult.logs
     });
   } catch (error) {
     console.error('Global stats recalculation error:', error);
