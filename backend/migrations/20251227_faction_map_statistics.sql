@@ -40,7 +40,10 @@ CREATE INDEX IF NOT EXISTS idx_faction_map_stats_map_faction
   ON faction_map_statistics(map_id, faction_id);
 
 -- Function to update statistics after each match
--- This is called by the trigger when matches are inserted or updated
+-- This function handles INSERT and selective UPDATE scenarios:
+--   - INSERT: Register the match (if not cancelled)
+--   - UPDATE to cancelled: Remove the match statistics
+--   - UPDATE to other status: Ignore (no action)
 CREATE OR REPLACE FUNCTION update_faction_map_statistics()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -48,53 +51,73 @@ DECLARE
   v_winner_faction_id UUID;
   v_loser_faction_id UUID;
 BEGIN
-  -- Skip cancelled matches
-  IF NEW.status = 'cancelled' THEN
-    RETURN NEW;
+  -- Handle INSERT: Register new matches
+  IF TG_OP = 'INSERT' THEN
+    -- Skip if match is cancelled at creation
+    IF NEW.status = 'cancelled' THEN
+      RETURN NEW;
+    END IF;
+
+    -- Get map ID from map name
+    SELECT id INTO v_map_id FROM game_maps WHERE name = NEW.map LIMIT 1;
+    IF v_map_id IS NULL THEN
+      RETURN NEW; -- Map not found, skip statistics update
+    END IF;
+    
+    -- Get winner faction ID from faction name
+    SELECT id INTO v_winner_faction_id FROM factions WHERE name = NEW.winner_faction LIMIT 1;
+    IF v_winner_faction_id IS NULL THEN
+      RETURN NEW; -- Winner faction not found, skip statistics update
+    END IF;
+    
+    -- Get loser faction ID from faction name
+    SELECT id INTO v_loser_faction_id FROM factions WHERE name = NEW.loser_faction LIMIT 1;
+    IF v_loser_faction_id IS NULL THEN
+      RETURN NEW; -- Loser faction not found, skip statistics update
+    END IF;
+    
+    -- Insert or update for winner faction
+    INSERT INTO faction_map_statistics 
+      (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
+    VALUES 
+      (v_map_id, v_winner_faction_id, v_loser_faction_id, 1, 1, 0, 100.00)
+    ON CONFLICT (map_id, faction_id, opponent_faction_id)
+    DO UPDATE SET 
+      total_games = faction_map_statistics.total_games + 1,
+      wins = faction_map_statistics.wins + 1,
+      winrate = ROUND(100.0 * (faction_map_statistics.wins + 1) / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
+      last_updated = CURRENT_TIMESTAMP;
+    
+    -- Insert or update for loser faction (reverse perspective)
+    INSERT INTO faction_map_statistics 
+      (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
+    VALUES 
+      (v_map_id, v_loser_faction_id, v_winner_faction_id, 1, 0, 1, 0.00)
+    ON CONFLICT (map_id, faction_id, opponent_faction_id)
+    DO UPDATE SET 
+      total_games = faction_map_statistics.total_games + 1,
+      losses = faction_map_statistics.losses + 1,
+      winrate = ROUND(100.0 * faction_map_statistics.wins::NUMERIC / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
+      last_updated = CURRENT_TIMESTAMP;
+
+  -- Handle UPDATE: Remove stats if match is cancelled
+  ELSIF TG_OP = 'UPDATE' THEN
+    -- Only process if status changed TO 'cancelled'
+    IF NEW.status = 'cancelled' AND OLD.status != 'cancelled' THEN
+      -- Get map ID and faction IDs for deletion
+      SELECT id INTO v_map_id FROM game_maps WHERE name = NEW.map LIMIT 1;
+      SELECT id INTO v_winner_faction_id FROM factions WHERE name = NEW.winner_faction LIMIT 1;
+      SELECT id INTO v_loser_faction_id FROM factions WHERE name = NEW.loser_faction LIMIT 1;
+      
+      -- Delete statistics for both perspectives
+      DELETE FROM faction_map_statistics 
+      WHERE map_id = v_map_id 
+        AND ((faction_id = v_winner_faction_id AND opponent_faction_id = v_loser_faction_id)
+          OR (faction_id = v_loser_faction_id AND opponent_faction_id = v_winner_faction_id));
+    END IF;
+    -- Ignore all other UPDATE cases (e.g., unconfirmed -> confirmed)
   END IF;
-  
-  -- Get map ID from map name
-  SELECT id INTO v_map_id FROM game_maps WHERE name = NEW.map LIMIT 1;
-  IF v_map_id IS NULL THEN
-    RETURN NEW; -- Map not found, skip statistics update
-  END IF;
-  
-  -- Get winner faction ID from faction name
-  SELECT id INTO v_winner_faction_id FROM factions WHERE name = NEW.winner_faction LIMIT 1;
-  IF v_winner_faction_id IS NULL THEN
-    RETURN NEW; -- Winner faction not found, skip statistics update
-  END IF;
-  
-  -- Get loser faction ID from faction name
-  SELECT id INTO v_loser_faction_id FROM factions WHERE name = NEW.loser_faction LIMIT 1;
-  IF v_loser_faction_id IS NULL THEN
-    RETURN NEW; -- Loser faction not found, skip statistics update
-  END IF;
-  
-  -- Insert or update for winner faction
-  INSERT INTO faction_map_statistics 
-    (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
-  VALUES 
-    (v_map_id, v_winner_faction_id, v_loser_faction_id, 1, 1, 0, 100.00)
-  ON CONFLICT (map_id, faction_id, opponent_faction_id)
-  DO UPDATE SET 
-    total_games = faction_map_statistics.total_games + 1,
-    wins = faction_map_statistics.wins + 1,
-    winrate = ROUND(100.0 * (faction_map_statistics.wins + 1) / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
-    last_updated = CURRENT_TIMESTAMP;
-  
-  -- Insert or update for loser faction (reverse perspective)
-  INSERT INTO faction_map_statistics 
-    (map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
-  VALUES 
-    (v_map_id, v_loser_faction_id, v_winner_faction_id, 1, 0, 1, 0.00)
-  ON CONFLICT (map_id, faction_id, opponent_faction_id)
-  DO UPDATE SET 
-    total_games = faction_map_statistics.total_games + 1,
-    losses = faction_map_statistics.losses + 1,
-    winrate = ROUND(100.0 * faction_map_statistics.wins::NUMERIC / (faction_map_statistics.total_games + 1), 2)::NUMERIC(5,2),
-    last_updated = CURRENT_TIMESTAMP;
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -102,7 +125,8 @@ $$ LANGUAGE plpgsql;
 -- Drop existing trigger if it exists
 DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches;
 
--- Create trigger to maintain statistics on match insertion/update
+-- Create trigger to maintain statistics on match operations
+-- Handles INSERT (add stats) and UPDATE (remove stats if cancelled)
 CREATE TRIGGER trg_update_faction_map_stats
 AFTER INSERT OR UPDATE ON matches
 FOR EACH ROW
