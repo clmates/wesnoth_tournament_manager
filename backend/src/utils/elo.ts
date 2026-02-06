@@ -37,6 +37,26 @@ export const getKFactor = (playerRating: number | null, matchesPlayed: number): 
 };
 
 /**
+ * Calculate K-factor and return reason for debugging
+ * Returns both the K-factor value and the explanation
+ */
+export const getKFactorWithReason = (playerRating: number | null, matchesPlayed: number): { k: number; reason: string } => {
+  const playerRatingValue = playerRating || 0;
+
+  if (playerRatingValue === 0 || playerRating === null) {
+    return { k: 40, reason: 'Unrated player' };
+  } else if (playerRatingValue >= 2400) {
+    return { k: 8, reason: 'Elite (rating >= 2400)' };
+  } else if (playerRatingValue >= 2100) {
+    return { k: 16, reason: 'Intermediate (rating 2100-2399)' };
+  } else if (matchesPlayed >= 30) {
+    return { k: 24, reason: 'Established (30+ games, rating < 2100)' };
+  } else {
+    return { k: 40, reason: 'New player (< 30 games)' };
+  }
+};
+
+/**
  * Calculate new rating after a match
  * Formula: RNew = ROld + K * (Score - EA)
  * where Score is 1 for win, 0.5 for draw, 0 for loss

@@ -7,6 +7,7 @@ import {
   calculateInitialRating,
   shouldPlayerBeRated,
   calculateTrend,
+  getKFactorWithReason,
 } from '../utils/elo.js';
 import { updateBestOfSeriesDB, createNextMatchInSeries } from '../utils/bestOf.js';
 import { checkAndCompleteRound } from '../utils/tournament.js';
@@ -119,6 +120,9 @@ async function performGlobalStatsRecalculation() {
     }
 
     // STEP 4: Replay ALL non-cancelled matches chronologically to rebuild correct stats
+    let matchProcessedCount = 0;
+    let debugSampleLogs: string[] = [];
+
     for (const matchRow of allNonCancelledMatches.rows) {
       const winnerId = matchRow.winner_id;
       const loserId = matchRow.loser_id;
@@ -137,10 +141,16 @@ async function performGlobalStatsRecalculation() {
       // Store before values
       const winnerEloBefore = winner.elo_rating;
       const loserEloBefore = loser.elo_rating;
+      const winnerMatchesBeforeCalc = winner.matches_played;
+      const loserMatchesBeforeCalc = loser.matches_played;
 
       // Calculate new ratings
       const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
       const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+      
+      // Get K-factor info for debugging (from elo.ts)
+      const winnerKInfo = getKFactorWithReason(winner.elo_rating, winner.matches_played);
+      const loserKInfo = getKFactorWithReason(loser.elo_rating, loser.matches_played);
 
       // Update stats
       winner.elo_rating = winnerNewRating;
@@ -156,6 +166,24 @@ async function performGlobalStatsRecalculation() {
       const winnerEloChange = winnerNewRating - winnerEloBefore;
       const loserEloChange = loserNewRating - loserEloBefore;
 
+      // DEBUG: Log sample matches (first 3, last 3, and every 10th)
+      if (matchProcessedCount < 3 || matchProcessedCount % 10 === 0 || matchProcessedCount === allNonCancelledMatches.rows.length - 1) {
+        const debugLog = `
+🎮 MATCH #${matchProcessedCount + 1}/${allNonCancelledMatches.rows.length} (${matchRow.created_at})
+   GANADOR: ${winnerId.substring(0, 8)}...
+     - ELO: ${winnerEloBefore} | Matches jugados: ${winnerMatchesBeforeCalc}
+     - K-factor: ${winnerKInfo.k} (${winnerKInfo.reason})
+     - Nuevo ELO: ${winnerNewRating} | Cambio: ${winnerEloChange > 0 ? '+' : ''}${winnerEloChange}
+   
+   PERDEDOR: ${loserId.substring(0, 8)}...
+     - ELO: ${loserEloBefore} | Matches jugados: ${loserMatchesBeforeCalc}
+     - K-factor: ${loserKInfo.k} (${loserKInfo.reason})
+     - Nuevo ELO: ${loserNewRating} | Cambio: ${loserEloChange > 0 ? '+' : ''}${loserEloChange}
+   
+   ✅ Ganador +${winnerEloChange}, Perdedor ${loserEloChange} (balance: ${winnerEloChange + loserEloChange})`;
+        debugSampleLogs.push(debugLog);
+      }
+
       // Update the match record with correct before/after ELO values and FIDE elo_change
       await query(
         `UPDATE matches 
@@ -165,9 +193,13 @@ async function performGlobalStatsRecalculation() {
          WHERE id = $6`,
         [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, winnerEloChange, matchRow.id]
       );
+
+      matchProcessedCount++;
     }
 
-    console.log(`✅ Replayed ${allNonCancelledMatches.rows.length} matches`);
+    console.log(`✅ Replayed ${allNonCancelledMatches.rows.length} matches with FIDE ELO recalculation`);
+    console.log('📊 DEBUG SAMPLE LOGS (primeros 3, cada 10, y ultimos):');
+    debugSampleLogs.forEach(log => console.log(log));
 
     // STEP 5: Update all users in the database with their recalculated stats
     for (const [userId, stats] of userStates.entries()) {
