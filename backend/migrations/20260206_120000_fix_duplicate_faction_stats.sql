@@ -43,10 +43,10 @@ SELECT
 FROM all_matchups
 ON CONFLICT (map_id, faction_id, opponent_faction_id)
 DO UPDATE SET
-  total_games = EXCLUDED.total_games,
-  wins = EXCLUDED.wins,
-  losses = EXCLUDED.losses,
-  winrate = EXCLUDED.winrate;
+  total_games = faction_map_statistics.total_games + EXCLUDED.total_games,
+  wins = faction_map_statistics.wins + EXCLUDED.wins,
+  losses = faction_map_statistics.losses + EXCLUDED.losses,
+  winrate = ROUND(100.0 * (faction_map_statistics.wins + EXCLUDED.wins) / (faction_map_statistics.total_games + EXCLUDED.total_games), 2)::NUMERIC(5,2);
 
 -- Insert statistics for loser perspective (non-mirror matches only)
 -- Mirror matches are already handled above
@@ -79,10 +79,10 @@ SELECT
 FROM loser_stats
 ON CONFLICT (map_id, faction_id, opponent_faction_id)
 DO UPDATE SET
-  total_games = EXCLUDED.total_games,
-  wins = EXCLUDED.wins,
-  losses = EXCLUDED.losses,
-  winrate = EXCLUDED.winrate;
+  total_games = faction_map_statistics.total_games + EXCLUDED.total_games,
+  wins = faction_map_statistics.wins + EXCLUDED.wins,
+  losses = faction_map_statistics.losses + EXCLUDED.losses,
+  winrate = ROUND(100.0 * (faction_map_statistics.wins + EXCLUDED.wins) / (faction_map_statistics.total_games + EXCLUDED.total_games), 2)::NUMERIC(5,2);
 
 -- Verify the fix
 SELECT 
