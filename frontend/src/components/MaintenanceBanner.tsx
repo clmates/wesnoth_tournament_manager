@@ -11,7 +11,7 @@ const MaintenanceBanner: React.FC<MaintenanceBannerProps> = ({ isVisible }) => {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 bg-red-600 text-white px-4 py-3 shadow-lg z-40">
+    <div className="fixed top-0 left-0 right-0 bg-red-600 text-white px-4 py-3 shadow-lg z-50">
       <div className="max-w-6xl mx-auto flex items-center justify-center gap-3">
         <div className="text-2xl animate-pulse">🔧</div>
         <div className="flex flex-col">
