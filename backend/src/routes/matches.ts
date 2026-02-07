@@ -22,7 +22,7 @@ const __dirname = path.dirname(__filename);
 
 const router = Router();
 
-console.log('🔧 Registrando rutas de matches');
+console.log('🔧 Registering match routes');
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'replays');
@@ -78,21 +78,26 @@ function normalizeMapName(mapName: string | null | undefined): string {
 // This does a FULL replay of all non-cancelled matches to recalculate ELO correctly
 async function performGlobalStatsRecalculation() {
   const logs: string[] = [];
+  const isDebugEnabled = process.env.BACKEND_DEBUG_LOGS === 'true';
   
   try {
     const startMsg = '🔄 Starting full stats recalculation with match replay';
-    logs.push(startMsg);
-    console.log(startMsg);
+    if (isDebugEnabled) {
+      logs.push(startMsg);
+      console.log(startMsg);
+    }
 
     // STEP 1: Disable both triggers to prevent automatic stats updates during this process
     try {
       await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches CASCADE');
       await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches CASCADE');
       const msg = 'Disabled triggers for stats recalculation';
-      logs.push(msg);
-      console.log(msg);
+      if (isDebugEnabled) {
+        logs.push(msg);
+        console.log(msg);
+      }
     } catch (error) {
-      console.warn('Warning: Failed to disable triggers:', error);
+      if (isDebugEnabled) console.warn('Warning: Failed to disable triggers:', error);
     }
 
     const defaultElo = 1400; // FIDE standard baseline for new users
@@ -183,22 +188,22 @@ async function performGlobalStatsRecalculation() {
       const loserEloChange = loserNewRating - loserEloBefore;
 
       // DEBUG: Log sample matches (first 3, last 3, and every 10th)
-      if (matchProcessedCount < 3 || matchProcessedCount % 10 === 0 || matchProcessedCount === allNonCancelledMatches.rows.length - 1) {
+      if (isDebugEnabled && (matchProcessedCount < 3 || matchProcessedCount % 10 === 0 || matchProcessedCount === allNonCancelledMatches.rows.length - 1)) {
         const debugLog = `
 🎮 MATCH #${matchProcessedCount + 1}/${allNonCancelledMatches.rows.length} (${matchRow.created_at})
-   GANADOR: ${winnerId.substring(0, 8)}...
-     - ELO: ${winnerEloBefore} | Matches jugados: ${winnerMatchesBeforeCalc}
+   WINNER: ${winnerId.substring(0, 8)}...
+     - ELO: ${winnerEloBefore} | Matches played: ${winnerMatchesBeforeCalc}
      - K-factor: ${winnerKInfo.k} (${winnerKInfo.reason})
-     - Nuevo ELO: ${winnerNewRating} | Cambio: ${winnerEloChange > 0 ? '+' : ''}${winnerEloChange}
+     - New ELO: ${winnerNewRating} | Change: ${winnerEloChange > 0 ? '+' : ''}${winnerEloChange}
      - Level: ${winnerLevelBefore} → ${winner.level}
    
-   PERDEDOR: ${loserId.substring(0, 8)}...
-     - ELO: ${loserEloBefore} | Matches jugados: ${loserMatchesBeforeCalc}
+   LOSER: ${loserId.substring(0, 8)}...
+     - ELO: ${loserEloBefore} | Matches played: ${loserMatchesBeforeCalc}
      - K-factor: ${loserKInfo.k} (${loserKInfo.reason})
-     - Nuevo ELO: ${loserNewRating} | Cambio: ${loserEloChange > 0 ? '+' : ''}${loserEloChange}
+     - New ELO: ${loserNewRating} | Change: ${loserEloChange > 0 ? '+' : ''}${loserEloChange}
      - Level: ${loserLevelBefore} → ${loser.level}
    
-   ✅ Ganador +${winnerEloChange}, Perdedor ${loserEloChange} (balance: ${winnerEloChange + loserEloChange})`;
+   ✅ Winner +${winnerEloChange}, Loser ${loserEloChange} (balance: ${winnerEloChange + loserEloChange})`;
         debugSampleLogs.push(debugLog);
       }
 
@@ -218,15 +223,18 @@ async function performGlobalStatsRecalculation() {
     }
 
     const finalMsg = `✅ Replayed ${allNonCancelledMatches.rows.length} matches with FIDE ELO recalculation`;
-    logs.push(finalMsg);
-    console.log(finalMsg);
-    logs.push('📊 DEBUG SAMPLE LOGS (primeros 3, cada 10, y ultimos):');
-    debugSampleLogs.forEach(log => {
-      logs.push(log);
-      console.log(log);
-    });
+    if (isDebugEnabled) {
+      logs.push(finalMsg);
+      console.log(finalMsg);
+      logs.push('📊 DEBUG SAMPLE LOGS (first 3, every 10th, and last):');
+      debugSampleLogs.forEach(log => {
+        logs.push(log);
+        console.log(log);
+      });
+    }
 
     // STEP 5: Update all users in the database with their recalculated stats
+    let usersUpdatedCount = 0;
     for (const [userId, stats] of userStates.entries()) {
       // Get current is_rated status from database
       const userCurrentResult = await query('SELECT is_rated FROM users WHERE id = $1', [userId]);
@@ -256,6 +264,7 @@ async function performGlobalStatsRecalculation() {
          WHERE id = $8`,
         [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, stats.level, isRated, userId]
       );
+      usersUpdatedCount++;
     }
 
     // STEP 6: Re-enable both triggers
@@ -268,10 +277,12 @@ async function performGlobalStatsRecalculation() {
         EXECUTE FUNCTION update_player_match_statistics();
       `);
       const msg = 'Re-enabled trigger: trg_update_player_match_stats';
-      logs.push(msg);
-      console.log(msg);
+      if (isDebugEnabled) {
+        logs.push(msg);
+        console.log(msg);
+      }
     } catch (error) {
-      console.error('Warning: Failed to re-enable player match stats trigger:', error);
+      if (isDebugEnabled) console.error('Warning: Failed to re-enable player match stats trigger:', error);
     }
 
     try {
@@ -283,43 +294,63 @@ async function performGlobalStatsRecalculation() {
         EXECUTE FUNCTION update_faction_map_statistics();
       `);
       const msg = 'Re-enabled trigger: trg_update_faction_map_stats';
-      logs.push(msg);
-      console.log(msg);
+      if (isDebugEnabled) {
+        logs.push(msg);
+        console.log(msg);
+      }
     } catch (error) {
-      console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
+      if (isDebugEnabled) console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
     }
 
     // STEP 7: Recalculate player match statistics and faction/map balance statistics
     try {
       await query('SELECT recalculate_player_match_statistics()');
       const msg = '🟢 Player match statistics recalculated';
-      logs.push(msg);
-      console.log(msg);
+      if (isDebugEnabled) {
+        logs.push(msg);
+        console.log(msg);
+      }
     } catch (error) {
-      console.error('Error recalculating player match statistics:', error);
+      if (isDebugEnabled) console.error('Error recalculating player match statistics:', error);
     }
 
     try {
       const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
       const msg = '🟢 Faction/map statistics recalculated';
-      logs.push(msg);
-      console.log(msg);
+      if (isDebugEnabled) {
+        logs.push(msg);
+        console.log(msg);
+      }
       
       // Manage snapshots
       const snapshotResult = await query('SELECT * FROM manage_faction_map_statistics_snapshots()');
       const snapshotMsg = '🟢 Snapshots managed';
-      logs.push(snapshotMsg);
-      console.log(snapshotMsg);
+      if (isDebugEnabled) {
+        logs.push(snapshotMsg);
+        console.log(snapshotMsg);
+      }
     } catch (error: any) {
-      console.error('🔴 ERROR recalculating faction/map statistics:', error);
+      if (isDebugEnabled) console.error('🔴 ERROR recalculating faction/map statistics:', error);
       // Don't fail the entire operation if balance stats fail
     }
 
-    return { success: true, logs };
+    return { 
+      success: true, 
+      logs,
+      matchesProcessed: matchProcessedCount,
+      usersUpdated: usersUpdatedCount
+    };
   } catch (error) {
     console.error('Error in performGlobalStatsRecalculation:', error);
-    logs.push(`❌ ERROR: ${error instanceof Error ? error.message : String(error)}`);
-    return { success: false, logs };
+    if (isDebugEnabled) {
+      logs.push(`❌ ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return { 
+      success: false, 
+      logs,
+      matchesProcessed: 0,
+      usersUpdated: 0
+    };
   }
 }
 

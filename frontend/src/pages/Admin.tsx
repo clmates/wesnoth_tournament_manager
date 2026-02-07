@@ -192,8 +192,10 @@ const AdminUsers: React.FC = () => {
       setError('');
       setMessage('');
       const res = await adminService.recalculateAllStats();
+      const matchesProcessed = res.data.matchesProcessed || 0;
+      const usersUpdated = res.data.usersUpdated || 0;
       setMessage(
-        `Stats recalculated successfully! Processed ${res.data.matchesProcessed} matches and updated ${res.data.usersUpdated} users.`
+        `Stats recalculated successfully! Processed ${matchesProcessed} matches and updated ${usersUpdated} users.`
       );
       // Refresh users list
       fetchUsers();
