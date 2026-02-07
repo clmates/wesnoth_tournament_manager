@@ -112,6 +112,7 @@ async function performGlobalStatsRecalculation() {
       total_wins: number;
       total_losses: number;
       trend: string;
+      level: string;
     }>();
 
     const allUsersResult = await query('SELECT id FROM users');
@@ -121,7 +122,8 @@ async function performGlobalStatsRecalculation() {
         matches_played: 0,
         total_wins: 0,
         total_losses: 0,
-        trend: '-'
+        trend: '-',
+        level: 'Novato'
       });
     }
 
@@ -135,10 +137,10 @@ async function performGlobalStatsRecalculation() {
 
       // Ensure both users exist in state map
       if (!userStates.has(winnerId)) {
-        userStates.set(winnerId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+        userStates.set(winnerId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-', level: 'Novato' });
       }
       if (!userStates.has(loserId)) {
-        userStates.set(loserId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+        userStates.set(loserId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-', level: 'Novato' });
       }
 
       const winner = userStates.get(winnerId)!;
@@ -158,6 +160,10 @@ async function performGlobalStatsRecalculation() {
       const winnerKInfo = getKFactorWithReason(winner.elo_rating, winner.matches_played);
       const loserKInfo = getKFactorWithReason(loser.elo_rating, loser.matches_played);
 
+      // Store before values for levels (before ELO update)
+      const winnerLevelBefore = winner.level;
+      const loserLevelBefore = loser.level;
+
       // Update stats
       winner.elo_rating = winnerNewRating;
       loser.elo_rating = loserNewRating;
@@ -167,6 +173,10 @@ async function performGlobalStatsRecalculation() {
       loser.total_losses++;
       winner.trend = calculateTrend(winner.trend, true);
       loser.trend = calculateTrend(loser.trend, false);
+      
+      // Calculate new levels based on updated ELO
+      winner.level = getUserLevel(winner.elo_rating);
+      loser.level = getUserLevel(loser.elo_rating);
 
       // Calculate ELO changes for both players
       const winnerEloChange = winnerNewRating - winnerEloBefore;
@@ -180,24 +190,28 @@ async function performGlobalStatsRecalculation() {
      - ELO: ${winnerEloBefore} | Matches jugados: ${winnerMatchesBeforeCalc}
      - K-factor: ${winnerKInfo.k} (${winnerKInfo.reason})
      - Nuevo ELO: ${winnerNewRating} | Cambio: ${winnerEloChange > 0 ? '+' : ''}${winnerEloChange}
+     - Level: ${winnerLevelBefore} → ${winner.level}
    
    PERDEDOR: ${loserId.substring(0, 8)}...
      - ELO: ${loserEloBefore} | Matches jugados: ${loserMatchesBeforeCalc}
      - K-factor: ${loserKInfo.k} (${loserKInfo.reason})
      - Nuevo ELO: ${loserNewRating} | Cambio: ${loserEloChange > 0 ? '+' : ''}${loserEloChange}
+     - Level: ${loserLevelBefore} → ${loser.level}
    
    ✅ Ganador +${winnerEloChange}, Perdedor ${loserEloChange} (balance: ${winnerEloChange + loserEloChange})`;
         debugSampleLogs.push(debugLog);
       }
 
-      // Update the match record with correct before/after ELO values and FIDE elo_change
+      // Update the match record with correct before/after ELO values, FIDE elo_change, and levels
       await query(
         `UPDATE matches 
          SET winner_elo_before = $1, winner_elo_after = $2, 
              loser_elo_before = $3, loser_elo_after = $4,
-             elo_change = $5
-         WHERE id = $6`,
-        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, winnerEloChange, matchRow.id]
+             winner_level_before = $5, winner_level_after = $6,
+             loser_level_before = $7, loser_level_after = $8,
+             elo_change = $9
+         WHERE id = $10`,
+        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, winnerLevelBefore, winner.level, loserLevelBefore, loser.level, winnerEloChange, matchRow.id]
       );
 
       matchProcessedCount++;
@@ -236,10 +250,11 @@ async function performGlobalStatsRecalculation() {
              total_wins = $3,
              total_losses = $4,
              trend = $5,
-             is_rated = $6,
+             level = $6,
+             is_rated = $7,
              updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $7`,
-        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, isRated, userId]
+         WHERE id = $8`,
+        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, stats.level, isRated, userId]
       );
     }
 
