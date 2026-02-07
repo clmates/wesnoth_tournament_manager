@@ -352,10 +352,7 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'English title and content are required' });
     }
 
-    // Delete existing news for this id in all languages
-    await query('DELETE FROM public.news WHERE id = $1', [id]);
-
-    // Re-insert with new data for each language
+    // Update existing news for each language (preserving created_at, published_at, and updating only updated_at)
     for (const lang of languages) {
       const langData = req.body[lang];
       // Skip languages that are not provided (except English which is required)
@@ -363,11 +360,28 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
         continue;
       }
 
-      await query(
-        `INSERT INTO public.news (id, title, content, language_code, author_id, published_at)
-         VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
-        [id, langData.title, langData.content, lang, req.userId]
+      // Check if record exists for this language
+      const existsResult = await query(
+        `SELECT id FROM public.news WHERE id = $1 AND language_code = $2`,
+        [id, lang]
       );
+
+      if (existsResult.rows.length > 0) {
+        // Update existing record, only updating title, content, and updated_at
+        await query(
+          `UPDATE public.news 
+           SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3 AND language_code = $4`,
+          [langData.title, langData.content, id, lang]
+        );
+      } else {
+        // Insert new language version (if it doesn't exist)
+        await query(
+          `INSERT INTO public.news (id, title, content, language_code, author_id, published_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          [id, langData.title, langData.content, lang, req.userId]
+        );
+      }
     }
 
     res.json({ message: 'News updated' });
