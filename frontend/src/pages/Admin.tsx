@@ -24,6 +24,10 @@ const AdminUsers: React.FC = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [tempPassword, setTempPassword] = useState('');
   const [passwordCopied, setPasswordCopied] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceReason, setMaintenanceReason] = useState('');
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [togglingMaintenance, setTogglingMaintenance] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated || !isAdmin) {
@@ -32,6 +36,7 @@ const AdminUsers: React.FC = () => {
     }
 
     fetchUsers();
+    fetchMaintenanceStatus();
   }, [isAuthenticated, isAdmin, navigate]);
 
   const fetchUsers = async () => {
@@ -48,6 +53,37 @@ const AdminUsers: React.FC = () => {
       setFilteredUsers([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMaintenanceStatus = async () => {
+    try {
+      const res = await adminService.getMaintenanceStatus();
+      setMaintenanceMode(res.data.maintenance_mode);
+    } catch (err: any) {
+      console.error('Error fetching maintenance status:', err);
+    }
+  };
+
+  const handleToggleMaintenance = async () => {
+    try {
+      setTogglingMaintenance(true);
+      setError('');
+      const newStatus = !maintenanceMode;
+      await adminService.toggleMaintenance(newStatus, maintenanceReason || undefined);
+      setMaintenanceMode(newStatus);
+      setMessage(
+        newStatus
+          ? t('admin.maintenance_enabled', 'Maintenance mode enabled')
+          : t('admin.maintenance_disabled', 'Maintenance mode disabled')
+      );
+      setShowMaintenanceModal(false);
+      setMaintenanceReason('');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to toggle maintenance mode');
+    } finally {
+      setTogglingMaintenance(false);
     }
   };
 
@@ -198,11 +234,22 @@ const AdminUsers: React.FC = () => {
 
       <section className="mb-6">
         <button
-          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 mr-3"
           onClick={handleRecalculateAllStats}
           disabled={recalculatingStats}
         >
           {recalculatingStats ? t('admin.recalculating') : t('admin.recalculate_all_stats')}
+        </button>
+        <button
+          className={`px-4 py-2 rounded-lg text-white font-semibold ${
+            maintenanceMode
+              ? 'bg-red-600 hover:bg-red-700'
+              : 'bg-yellow-600 hover:bg-yellow-700'
+          } disabled:opacity-50`}
+          onClick={() => setShowMaintenanceModal(true)}
+          disabled={togglingMaintenance}
+        >
+          {maintenanceMode ? '⚠️ Maintenance ON' : '✓ Maintenance OFF'}
         </button>
       </section>
 
@@ -423,6 +470,65 @@ const AdminUsers: React.FC = () => {
                 }}
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMaintenanceModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              {maintenanceMode ? '⚠️ Disable Maintenance Mode?' : '🔧 Enable Maintenance Mode?'}
+            </h3>
+            <p className="text-gray-700 mb-4">
+              {maintenanceMode
+                ? 'Disabling maintenance mode will allow all users to login again.'
+                : 'Enabling maintenance mode will prevent non-admin users from logging in. Only admins will have access.'}
+            </p>
+            {!maintenanceMode && (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Reason (optional):</label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                  rows={3}
+                  placeholder="E.g., Database migration, server updates..."
+                  value={maintenanceReason}
+                  onChange={(e) => setMaintenanceReason(e.target.value)}
+                />
+              </div>
+            )}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-yellow-800">
+                💡 A banner will be displayed to inform users about the maintenance mode.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+              <button
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                onClick={() => {
+                  setShowMaintenanceModal(false);
+                  setMaintenanceReason('');
+                }}
+                disabled={togglingMaintenance}
+              >
+                Cancel
+              </button>
+              <button
+                className={`px-4 py-2 text-white rounded-lg font-semibold ${
+                  maintenanceMode
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-red-600 hover:bg-red-700'
+                } disabled:opacity-50`}
+                onClick={handleToggleMaintenance}
+                disabled={togglingMaintenance}
+              >
+                {togglingMaintenance
+                  ? 'Updating...'
+                  : maintenanceMode
+                  ? 'Disable Maintenance'
+                  : 'Enable Maintenance'}
               </button>
             </div>
           </div>

@@ -2241,5 +2241,120 @@ router.post('/tournaments/:id/calculate-tiebreakers', authMiddleware, async (req
   }
 });
 
+// ============================================================================
+// MAINTENANCE MODE ENDPOINTS
+// ============================================================================
+
+/**
+ * Get current maintenance mode status
+ * Public endpoint - anyone can check if maintenance is active
+ */
+router.get('/maintenance-status', async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT setting_value FROM system_settings WHERE setting_key = $1',
+      ['maintenance_mode']
+    );
+
+    const isMaintenanceMode = result.rows.length > 0 && result.rows[0].setting_value === 'true';
+    res.json({ maintenance_mode: isMaintenanceMode });
+  } catch (error) {
+    console.error('Error fetching maintenance status:', error);
+    res.status(500).json({ error: 'Failed to fetch maintenance status' });
+  }
+});
+
+/**
+ * Toggle maintenance mode
+ * Admin only - enable/disable maintenance mode and log the change
+ */
+router.post('/toggle-maintenance', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Check if user is admin
+    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Only admins can toggle maintenance mode' });
+    }
+
+    const { enable, reason } = req.body;
+
+    // Validate input
+    if (typeof enable !== 'boolean') {
+      return res.status(400).json({ error: 'enable parameter must be a boolean' });
+    }
+
+    // Update maintenance mode setting
+    await query(
+      `UPDATE system_settings SET setting_value = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
+       WHERE setting_key = $3`,
+      [enable ? 'true' : 'false', req.userId, 'maintenance_mode']
+    );
+
+    // Get admin nickname for logging
+    const adminUser = await query('SELECT nickname FROM public.users WHERE id = $1', [req.userId]);
+    const adminNickname = adminUser.rows[0]?.nickname || 'Unknown Admin';
+
+    const action = enable ? 'ENABLED' : 'DISABLED';
+    console.log(`✅ [MAINTENANCE MODE] ${action} by ${adminNickname}. Reason: ${reason || 'None provided'}`);
+
+    // Log audit event
+    await logAuditEvent({
+      event_type: 'MAINTENANCE_MODE_TOGGLE',
+      user_id: req.userId,
+      username: adminNickname,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: { action, reason: reason || null, enabled: enable }
+    });
+
+    res.json({
+      success: true,
+      maintenance_mode: enable,
+      message: `Maintenance mode ${enable ? 'enabled' : 'disabled'}`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error toggling maintenance mode:', error);
+    res.status(500).json({ error: 'Failed to toggle maintenance mode' });
+  }
+});
+
+/**
+ * Get maintenance mode history/logs via audit log
+ * Admin only
+ */
+router.get('/maintenance-logs', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Check if user is admin
+    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Only admins can access maintenance logs' });
+    }
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+    // Get maintenance mode toggle events from audit log
+    const result = await query(
+      `SELECT 
+        id,
+        event_type,
+        user_id,
+        username,
+        details,
+        created_at
+       FROM audit_logs
+       WHERE event_type = $1
+       ORDER BY created_at DESC
+       LIMIT $2`,
+      ['MAINTENANCE_MODE_TOGGLE', limit]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching maintenance logs:', error);
+    res.status(500).json({ error: 'Failed to fetch maintenance logs' });
+  }
+});
+
 export default router;
 
