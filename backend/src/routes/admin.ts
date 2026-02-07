@@ -720,29 +720,41 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    console.log(`🔄 Starting global stats recalculation by admin ${req.userId}`);
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+      console.log(`🔄 Starting global stats recalculation by admin ${req.userId}`);
+    }
 
     // Call the centralized recalculation function (handles ELO, player stats, faction/map stats, snapshots)
     const recalcResult = await performGlobalStatsRecalculation();
 
     // Log the results
-    console.log(`Global stats recalculation completed: ${recalcResult.success ? 'SUCCESS' : 'WITH ERRORS'}`);
-    recalcResult.logs.forEach(log => console.log(log));
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+      console.log(`Global stats recalculation completed: ${recalcResult.success ? 'SUCCESS' : 'WITH ERRORS'}`);
+      recalcResult.logs.forEach(log => console.log(log));
+    }
 
     // Calculate player of the month for the previous month
     try {
       const { calculatePlayerOfMonth } = await import('../jobs/playerOfMonthJob.js');
-      console.log('🎯 Recalculating player of month...');
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+        console.log('🎯 Recalculating player of month...');
+      }
       await calculatePlayerOfMonth();
-      console.log('✅ Player of month recalculated successfully');
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+        console.log('✅ Player of month recalculated successfully');
+      }
     } catch (error: any) {
-      console.error('⚠️  Warning: Failed to recalculate player of month:', error.message);
+      if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+        console.error('⚠️  Warning: Failed to recalculate player of month:', error.message);
+      }
       // Don't fail the entire operation if player of month calculation fails
     }
 
     res.json({
       message: 'Global stats recalculation completed successfully',
       success: recalcResult.success,
+      matchesProcessed: recalcResult.matchesProcessed,
+      usersUpdated: recalcResult.usersUpdated,
       debugLogs: recalcResult.logs
     });
   } catch (error) {
