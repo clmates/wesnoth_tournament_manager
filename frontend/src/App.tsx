@@ -90,7 +90,7 @@ const App: React.FC = () => {
       <BrowserRouter>
         <MaintenanceBanner isVisible={maintenanceMode} />
         <Navbar />
-        <main className={`main-content ${maintenanceMode ? 'pt-24' : ''}`}>
+        <main className={`main-content ${maintenanceMode ? 'pt-40' : ''}`}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
