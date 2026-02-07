@@ -218,6 +218,13 @@ export const adminService = {
   unlockAccount: (id: string) => api.post(`/admin/users/${id}/unlock`),
   makeAdmin: (id: string) => api.post(`/admin/users/${id}/make-admin`),
   removeAdmin: (id: string) => api.post(`/admin/users/${id}/remove-admin`),
+
+  // Maintenance mode
+  getMaintenanceStatus: () => api.get('/admin/maintenance-status'),
+  toggleMaintenance: (enable: boolean, reason?: string) =>
+    api.post('/admin/toggle-maintenance', { enable, reason }),
+  getMaintenanceLogs: (limit?: number) =>
+    api.get('/admin/maintenance-logs', { params: limit ? { limit } : {} }),
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
   forceResetPassword: (id: string) => api.post(`/admin/users/${id}/force-reset-password`),
   resendVerificationEmail: (id: string) => api.post(`/admin/users/${id}/resend-verification-email`),

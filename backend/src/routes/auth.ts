@@ -224,7 +224,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     // Get user by nickname or email
     // COALESCE handles case where columns don't exist yet (before migration)
     const result = await query(
-      `SELECT id, nickname, password_hash, is_blocked, 
+      `SELECT id, nickname, password_hash, is_blocked, is_admin,
               COALESCE(failed_login_attempts, 0) as failed_login_attempts,
               locked_until,
               COALESCE(password_must_change, false) as password_must_change
@@ -248,6 +248,30 @@ router.post('/login', loginLimiter, async (req, res) => {
     }
 
     const user = result.rows[0];
+
+    // Check if maintenance mode is enabled
+    const maintenanceResult = await query(
+      'SELECT setting_value FROM system_settings WHERE setting_key = $1',
+      ['maintenance_mode']
+    );
+    const isMaintenanceMode = maintenanceResult.rows.length > 0 && maintenanceResult.rows[0].setting_value === 'true';
+
+    if (isMaintenanceMode && !user.is_admin) {
+      // Only admins can login during maintenance mode
+      await logAuditEvent({
+        event_type: 'LOGIN_FAILED',
+        user_id: user.id,
+        username: user.nickname,
+        ip_address: ip,
+        user_agent: userAgent,
+        details: { reason: 'maintenance_mode_active' }
+      });
+
+      return res.status(503).json({
+        error: 'Site under maintenance',
+        message: 'The site is currently under maintenance. Please try again later.'
+      });
+    }
 
     // Check if account is locked
     if (await isAccountLocked(user.id)) {

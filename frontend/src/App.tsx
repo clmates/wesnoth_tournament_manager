@@ -5,6 +5,7 @@ import i18n from './i18n/config';
 import { useAuthStore } from './store/authStore';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import MaintenanceBanner from './components/MaintenanceBanner';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -34,11 +35,13 @@ import FAQ from './pages/FAQ';
 import Tournaments from './pages/Tournaments';
 import TournamentDetail from './pages/TournamentDetail';
 import VerifyEmail from './pages/VerifyEmail';
+import { adminService } from './services/api';
 import './App.css';
 
 const App: React.FC = () => {
   const { isAdmin, token, validateToken, isValidating } = useAuthStore();
   const [authChecked, setAuthChecked] = React.useState(false);
+  const [maintenanceMode, setMaintenanceMode] = React.useState(false);
 
   useEffect(() => {
     // Validate token on app load if token exists
@@ -51,6 +54,24 @@ const App: React.FC = () => {
     
     checkAuth();
   }, [token, validateToken]);
+
+  useEffect(() => {
+    // Fetch maintenance status on app load
+    const checkMaintenance = async () => {
+      try {
+        const res = await adminService.getMaintenanceStatus();
+        setMaintenanceMode(res.data.maintenance_mode);
+      } catch (error) {
+        console.error('Error fetching maintenance status:', error);
+      }
+    };
+
+    checkMaintenance();
+
+    // Check maintenance status every 30 seconds
+    const interval = setInterval(checkMaintenance, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Show loading while validating auth
   if (isValidating && !authChecked) {
@@ -67,8 +88,9 @@ const App: React.FC = () => {
   return (
     <I18nextProvider i18n={i18n}>
       <BrowserRouter>
+        <MaintenanceBanner isVisible={maintenanceMode} />
         <Navbar />
-        <main className="main-content">
+        <main className={`main-content ${maintenanceMode ? 'pt-24' : ''}`}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
