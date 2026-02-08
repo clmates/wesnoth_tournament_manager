@@ -1354,6 +1354,146 @@ router.options('/preview-replay', (req, res) => {
   res.status(200).end();
 });
 
+// OPTIONS for base64 endpoint
+router.options('/preview-replay-base64', (req, res) => {
+  console.log('✅ [PREVIEW-B64] OPTIONS request received for /preview-replay-base64');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.status(200).end();
+});
+
+// Alternative endpoint for preview-replay that accepts base64 encoded file in JSON body
+// This avoids multipart/form-data issues with some Cloudflare configurations
+router.post('/preview-replay-base64', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    console.log('✅ [PREVIEW-B64] POST /preview-replay-base64 endpoint reached');
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    const { fileData, fileName } = req.body;
+    
+    if (!fileData || !fileName) {
+      console.warn('[PREVIEW-B64] Missing fileData or fileName');
+      return res.status(400).json({ error: 'Missing fileData or fileName in request body' });
+    }
+    
+    // Decode base64 to buffer
+    const fileBuffer = Buffer.from(fileData, 'base64');
+    const fileExt = path.extname(fileName).toLowerCase();
+    
+    console.log(`📂 [PREVIEW-B64] Previewing replay file: ${fileName} (${fileBuffer.length} bytes), ext: ${fileExt}`);
+    
+    let decompressed: Buffer;
+    
+    if (fileExt === '.gz') {
+      console.log('[PREVIEW-B64] Handling GZIP decompression');
+      const { createGunzip } = await import('zlib');
+      const { Readable } = await import('stream');
+
+      const stream = Readable.from(fileBuffer);
+      const gunzip = createGunzip();
+      const chunks: Buffer[] = [];
+
+      await new Promise((resolve, reject) => {
+        stream
+          .pipe(gunzip)
+          .on('data', (chunk: Buffer) => chunks.push(chunk))
+          .on('end', resolve)
+          .on('error', reject);
+      });
+
+      decompressed = Buffer.concat(chunks);
+      console.log('[PREVIEW-B64] GZIP decompression complete, decompressed size:', decompressed.length);
+    } else if (fileExt === '.bz2') {
+      console.log('[PREVIEW-B64] Handling BZ2 decompression');
+      const bz2Module = await import('bz2');
+      let decompress = bz2Module.decompress || bz2Module.default?.decompress;
+      
+      if (!decompress && typeof bz2Module === 'function') {
+        decompress = bz2Module;
+      }
+
+      if (typeof decompress !== 'function') {
+        console.error('[PREVIEW-B64] Could not find decompress function in bz2 module');
+        throw new Error('bz2.decompress is not available');
+      }
+
+      const decompressedData = decompress(fileBuffer);
+      decompressed = Buffer.from(decompressedData);
+      console.log('[PREVIEW-B64] BZ2 decompression complete, decompressed size:', decompressed.length);
+    } else {
+      console.warn('[PREVIEW-B64] Unsupported file extension:', fileExt);
+      return res.status(400).json({ error: 'Unsupported file format. Only .gz and .bz2 files are allowed.' });
+    }
+
+    // Convert to string and extract replay info (same as multipart endpoint)
+    const xmlText = decompressed.toString('utf-8');
+    const scenarioMatch = xmlText.match(/mp_scenario_name="([^"]+)"/);
+    let map = scenarioMatch ? scenarioMatch[1] : null;
+    if (map) {
+      map = map.replace(/^2p\s*—\s*/, '');
+    }
+
+    const sideUsersGlobal = xmlText.match(/side_users="([^"]+)"/);
+    const playerNames: string[] = [];
+    if (sideUsersGlobal && sideUsersGlobal[1]) {
+      const pairs = sideUsersGlobal[1].split(',');
+      for (const pair of pairs) {
+        const parts = pair.split(':');
+        const name = (parts[1] || parts[0]).trim();
+        if (name) playerNames.push(name);
+      }
+    }
+
+    const factionsInOrder: string[] = [];
+    const factionRegex = /faction_name\s*=\s*_?"([^"]+)"/g;
+    let factionMatch;
+    while ((factionMatch = factionRegex.exec(xmlText)) !== null) {
+      const raw = factionMatch[1];
+      const clean = raw.replace(/^_/, '');
+      factionsInOrder.push(clean);
+    }
+
+    const factionByPlayer: Record<string, string> = {};
+    const oldSideBlockRegex = /\[old_side[^\]]*\][\s\S]*?(?=\[old_side|\Z)/g;
+    let sideBlockMatch;
+    while ((sideBlockMatch = oldSideBlockRegex.exec(xmlText)) !== null) {
+      const text = sideBlockMatch[0];
+      const playerMatch = text.match(/current_player="([^"]+)"/);
+      if (!playerMatch) continue;
+      const player = playerMatch[1];
+      const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+      const factionMatchLocal = text.match(/faction="([^"]+)"/);
+      const rawFaction = (factionNameMatch?.[1] || factionMatchLocal?.[1] || '').trim();
+      if (!rawFaction) continue;
+      const cleanFaction = rawFaction.replace(/^_/, '');
+      factionByPlayer[player] = cleanFaction;
+    }
+
+    const players: Array<{ id: string; name: string; faction: string }> = [];
+    const count = Math.min(playerNames.length, factionsInOrder.length);
+    for (let i = 0; i < count; i++) {
+      const name = playerNames[i];
+      const faction = factionByPlayer[name] ?? factionsInOrder[i] ?? 'Unknown';
+      players.push({ id: name, name, faction });
+    }
+
+    if (playerNames.length === 0 && Object.keys(factionByPlayer).length > 0) {
+      for (const [name, faction] of Object.entries(factionByPlayer)) {
+        players.push({ id: name, name, faction });
+      }
+    }
+
+    console.log('[PREVIEW-B64] Extracted data:', { map, players: players.length });
+    return res.json({ map, players });
+  } catch (error) {
+    console.error('[PREVIEW-B64] Error in preview-replay-base64 endpoint:', error);
+    res.status(500).json({ error: 'Failed to parse replay file', details: error instanceof Error ? error.message : String(error) });
+  }
+});
+
 router.post('/preview-replay', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
   try {
     // Ensure CORS headers are present for Cloudflare
