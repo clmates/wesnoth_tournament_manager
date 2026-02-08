@@ -117,29 +117,41 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
       // Decompress bzip2 file using backend endpoint
       console.log('[REPLAY] Detected BZ2 file:', file.name);
       
-      const formData = new FormData();
-      formData.append('replay', file);
-      
       const token = localStorage.getItem('token') || '';
       console.log('[REPLAY] Token available:', !!token);
       
-      // Determine backend URL based on environment
-      let backendUrl = '/api/matches/preview-replay';
-      if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-        backendUrl = 'https://wesnothtournamentmanager-main.up.railway.app/api/matches/preview-replay';
-      } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-        backendUrl = 'https://wesnothtournamentmanager-production.up.railway.app/api/matches/preview-replay';
-      } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-        backendUrl = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api/matches/preview-replay';
+      // Convert file to base64 for JSON transmission (avoids multipart/form-data issues)
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binaryString = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binaryString += String.fromCharCode(bytes[i]);
       }
-      console.log('[REPLAY] Sending request to', backendUrl);
+      const fileData = btoa(binaryString);
+      
+      // Determine backend URL based on environment
+      let backendUrl = '/api/matches/preview-replay-base64';
+      if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+        backendUrl = 'https://wesnothtournamentmanager-main.up.railway.app/api/matches/preview-replay-base64';
+      } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+        backendUrl = 'https://wesnothtournamentmanager-production.up.railway.app/api/matches/preview-replay-base64';
+      } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+        backendUrl = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api/matches/preview-replay-base64';
+      } else if (window.location.hostname === 'wesnoth.playranked.org') {
+        backendUrl = 'https://wesnothtournamentmanager-production.up.railway.app/api/matches/preview-replay-base64';
+      }
+      console.log('[REPLAY] Sending BZ2 request to', backendUrl);
       
       const response = await fetch(backendUrl, {
         method: 'POST',
-        body: formData,
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          fileData,
+          fileName: file.name,
+        }),
       });
       
       console.log('[REPLAY] Response status:', response.status, response.statusText);
