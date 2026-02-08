@@ -359,6 +359,7 @@
   "success_tournament_configuration_updated": "锦标赛配置已更新！",
   "success_participant_accepted": "参与者已接受！",
   "error_failed_accept_participant": "接受参与者失败",
+  "success_participation_confirmed": "参与已确认！",
   "success_participant_rejected": "参与者被拒绝！",
   "error_failed_reject_participant": "拒绝参与者失败",
   "success_match_reported": "比赛报告成功！",
