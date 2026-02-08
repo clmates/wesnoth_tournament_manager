@@ -999,15 +999,6 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
       rejectedTeamId = rejectedTeamResult.rows[0].id;
     }
 
-    // Get next available position in rejected team (no limit)
-    const positionResult = await query(
-      `SELECT MAX(CAST(team_position AS INTEGER)) as max_position 
-       FROM tournament_participants 
-       WHERE team_id = $1`,
-      [rejectedTeamId]
-    );
-    const nextPosition = (positionResult.rows[0]?.max_position || 0) + 1;
-
     // If the rejected participant is in a team, check if there's another player and move them to position 1
     if (participant.team_id && participant.team_id !== REJECTED_TEAM_ID) {
       const otherTeamMembersResult = await query(
@@ -1032,12 +1023,13 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     }
 
     // Update participant: change team to rejected team, update status to denied
+    // For rejected players, set team_position to NULL (not a real team)
     const result = await query(
       `UPDATE tournament_participants 
        SET participation_status = $1, team_id = $2, team_position = $3
        WHERE id = $4 AND tournament_id = $5
        RETURNING id`,
-      ['denied', rejectedTeamId, nextPosition, participantId, tournamentId]
+      ['denied', rejectedTeamId, null, participantId, tournamentId]
     );
 
     if (result.rows.length === 0) {
