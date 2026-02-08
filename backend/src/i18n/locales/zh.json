@@ -1,4 +1,7 @@
 {
+  "teams": {
+    "rejected_players": "被拒绝的玩家"
+  },
   "email": {
     "greetings": "你好",
     "closing": "此致敬礼",

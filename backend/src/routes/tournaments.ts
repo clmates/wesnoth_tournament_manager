@@ -6,6 +6,23 @@ import discordService from '../services/discordService.js';
 
 const router = Router();
 
+// Reserved team name (system team for rejected players)
+const SYSTEM_TEAM_ID = 'rejected_players_team';
+const REJECTED_PLAYERS_TRANSLATIONS = [
+  'Rejected players',      // English
+  'Jugadores rechazados',  // Spanish
+  'Abgelehnte Spieler',    // German
+  'Отклоненные игроки',    // Russian
+  '被拒绝的玩家'            // Chinese
+];
+
+// Check if team name is reserved
+function isReservedTeamName(teamName: string): boolean {
+  return REJECTED_PLAYERS_TRANSLATIONS.some(translation => 
+    translation.toLowerCase() === teamName.toLowerCase()
+  );
+}
+
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { 
@@ -605,6 +622,11 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         return res.status(400).json({ error: 'You cannot select yourself as a teammate' });
       }
 
+      // Check if trying to use reserved team name
+      if (isReservedTeamName(team_name)) {
+        return res.status(400).json({ error: 'Team name is reserved and cannot be used' });
+      }
+
       let teammateUserId: string | null = null;
 
       // If teammate provided, validate and get their ID
@@ -629,15 +651,15 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         }
       }
 
-      // Try to find existing team with this name and exactly 1 member
+      // Try to find existing team with this name and exactly 1 member (excluding Rejected players team)
       const existingTeamResult = await query(
         `SELECT tt.id, COUNT(tp.id) as member_count
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
-         WHERE tt.tournament_id = $1 AND tt.name = $2
+         WHERE tt.tournament_id = $1 AND LOWER(tt.name) = LOWER($2) AND tt.id != $3
          GROUP BY tt.id
          HAVING COUNT(tp.id) = 1`,
-        [id, team_name]
+        [id, team_name, SYSTEM_TEAM_ID]
       );
 
       if (existingTeamResult.rows.length > 0) {
@@ -663,15 +685,15 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
           console.log('Teammate added to team at position 1 (unconfirmed - awaiting confirmation)');
         }
       } else {
-        // Check if team already exists with max members
+        // Check if team already exists with max members (excluding Rejected players team)
         const fullTeamResult = await query(
           `SELECT tt.id
            FROM tournament_teams tt
            LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
-           WHERE tt.tournament_id = $1 AND tt.name = $2
+           WHERE tt.tournament_id = $1 AND LOWER(tt.name) = LOWER($2) AND tt.id != $3
            GROUP BY tt.id
            HAVING COUNT(tp.id) >= 2`,
-          [id, team_name]
+          [id, team_name, SYSTEM_TEAM_ID]
         );
 
         if (fullTeamResult.rows.length > 0) {
@@ -945,13 +967,43 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
 
     const participant = participantResult.rows[0];
 
-    // Update participant status to denied
+    // Get or create "Rejected players" system team with special ID
+    const rejectedTeamResult = await query(
+      `SELECT id FROM tournament_teams 
+       WHERE tournament_id = $1 AND id = $2`,
+      [tournamentId, SYSTEM_TEAM_ID]
+    );
+
+    let rejectedTeamId: string;
+    if (rejectedTeamResult.rows.length === 0) {
+      // Create the "Rejected players" system team with special ID
+      const createResult = await query(
+        `INSERT INTO tournament_teams (id, tournament_id, name, created_by)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id`,
+        [SYSTEM_TEAM_ID, tournamentId, 'Rejected players', tournamentResult.rows[0].creator_id]
+      );
+      rejectedTeamId = createResult.rows[0].id;
+    } else {
+      rejectedTeamId = rejectedTeamResult.rows[0].id;
+    }
+
+    // Get next available position in rejected team (no limit)
+    const positionResult = await query(
+      `SELECT MAX(CAST(team_position AS INTEGER)) as max_position 
+       FROM tournament_participants 
+       WHERE team_id = $1`,
+      [rejectedTeamId]
+    );
+    const nextPosition = (positionResult.rows[0]?.max_position || 0) + 1;
+
+    // Update participant: change team to rejected team, update status to denied, remove old team_position
     const result = await query(
       `UPDATE tournament_participants 
-       SET participation_status = $1 
-       WHERE id = $2 AND tournament_id = $3
+       SET participation_status = $1, team_id = $2, team_position = $3
+       WHERE id = $4 AND tournament_id = $5
        RETURNING id`,
-      ['denied', participantId, tournamentId]
+      ['denied', rejectedTeamId, nextPosition, participantId, tournamentId]
     );
 
     if (result.rows.length === 0) {
@@ -2786,8 +2838,10 @@ router.get('/:id/standings', async (req, res) => {
          LEFT JOIN users u ON tp.user_id = u.id
          WHERE tt.tournament_id = $1
          GROUP BY tt.id
-         ORDER BY ${orderBy}`,
-        [id]
+         ORDER BY 
+           CASE WHEN tt.id = $2 THEN 1 ELSE 0 END ASC,
+           ${orderBy}`,
+        [id, SYSTEM_TEAM_ID]
       );
 
       res.json({ 
@@ -2822,9 +2876,9 @@ router.get('/:id/standings', async (req, res) => {
         `SELECT tp.*, u.nickname, u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 
+         WHERE tp.tournament_id = $1 AND tp.team_id != $2
          ORDER BY ${orderBy1v1}`,
-        [id]
+        [id, SYSTEM_TEAM_ID]
       );
       
       res.json({ 
