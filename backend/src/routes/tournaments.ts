@@ -6,8 +6,8 @@ import discordService from '../services/discordService.js';
 
 const router = Router();
 
-// Reserved team name (system team for rejected players)
-const SYSTEM_TEAM_ID = 'rejected_players_team';
+// Reserved team ID for rejected players (special system UUID)
+const REJECTED_TEAM_ID = '00000000-0000-0000-0000-000000000001';
 const REJECTED_PLAYERS_TRANSLATIONS = [
   'Rejected players',      // English
   'Jugadores rechazados',  // Spanish
@@ -21,6 +21,16 @@ function isReservedTeamName(teamName: string): boolean {
   return REJECTED_PLAYERS_TRANSLATIONS.some(translation => 
     translation.toLowerCase() === teamName.toLowerCase()
   );
+}
+
+// Generate a UUID that never matches REJECTED_TEAM_ID
+async function generateSafeTeamId(): Promise<string> {
+  const crypto = await import('crypto');
+  let teamId: string;
+  do {
+    teamId = crypto.randomUUID();
+  } while (teamId === REJECTED_TEAM_ID);
+  return teamId;
 }
 
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
@@ -659,7 +669,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
          WHERE tt.tournament_id = $1 AND LOWER(tt.name) = LOWER($2) AND tt.id != $3
          GROUP BY tt.id
          HAVING COUNT(tp.id) = 1`,
-        [id, team_name, SYSTEM_TEAM_ID]
+        [id, team_name, REJECTED_TEAM_ID]
       );
 
       if (existingTeamResult.rows.length > 0) {
@@ -693,19 +703,20 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
            WHERE tt.tournament_id = $1 AND LOWER(tt.name) = LOWER($2) AND tt.id != $3
            GROUP BY tt.id
            HAVING COUNT(tp.id) >= 2`,
-          [id, team_name, SYSTEM_TEAM_ID]
+          [id, team_name, REJECTED_TEAM_ID]
         );
 
         if (fullTeamResult.rows.length > 0) {
           return res.status(400).json({ error: `Team "${team_name}" is already full (2/2 members)` });
         }
 
-        // Create new team
+        // Create new team with safe UUID (avoiding REJECTED_TEAM_ID collision)
+        const newTeamId = await generateSafeTeamId();
         const createTeamResult = await query(
-          `INSERT INTO tournament_teams (tournament_id, name, created_by)
-           VALUES ($1, $2, $3)
+          `INSERT INTO tournament_teams (id, tournament_id, name, created_by)
+           VALUES ($1, $2, $3, $4)
            RETURNING id`,
-          [id, team_name, req.userId]
+          [newTeamId, id, team_name, req.userId]
         );
         teamId = createTeamResult.rows[0].id;
         console.log('New team created:', { teamId, name: team_name });
@@ -967,21 +978,21 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
 
     const participant = participantResult.rows[0];
 
-    // Get or create "Rejected players" system team with special ID
+    // Get or create "Rejected players" system team with special UUID
     const rejectedTeamResult = await query(
       `SELECT id FROM tournament_teams 
-       WHERE tournament_id = $1 AND id = $2`,
-      [tournamentId, SYSTEM_TEAM_ID]
+       WHERE id = $1`,
+      [REJECTED_TEAM_ID]
     );
 
     let rejectedTeamId: string;
     if (rejectedTeamResult.rows.length === 0) {
-      // Create the "Rejected players" system team with special ID
+      // Create the "Rejected players" system team with special UUID
       const createResult = await query(
         `INSERT INTO tournament_teams (id, tournament_id, name, created_by)
          VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [SYSTEM_TEAM_ID, tournamentId, 'Rejected players', tournamentResult.rows[0].creator_id]
+        [REJECTED_TEAM_ID, tournamentId, 'Rejected players', tournamentResult.rows[0].creator_id]
       );
       rejectedTeamId = createResult.rows[0].id;
     } else {
@@ -2841,7 +2852,7 @@ router.get('/:id/standings', async (req, res) => {
          ORDER BY 
            CASE WHEN tt.id = $2 THEN 1 ELSE 0 END ASC,
            ${orderBy}`,
-        [id, SYSTEM_TEAM_ID]
+        [id, REJECTED_TEAM_ID]
       );
 
       res.json({ 
@@ -2878,7 +2889,7 @@ router.get('/:id/standings', async (req, res) => {
          LEFT JOIN users u ON tp.user_id = u.id
          WHERE tp.tournament_id = $1 AND tp.team_id != $2
          ORDER BY ${orderBy1v1}`,
-        [id, SYSTEM_TEAM_ID]
+        [id, REJECTED_TEAM_ID]
       );
       
       res.json({ 
