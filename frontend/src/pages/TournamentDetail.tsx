@@ -865,78 +865,82 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         </div>
       </div>
 
-      {/* Organizer Controls Section */}
-      {isCreator && (
-        <div>
-          <h3>{t('tournaments.management')}</h3>
-          
-          {editMode && tournament.status !== 'in_progress' ? (
-            <TournamentForm 
-              mode="edit"
-              formData={editData}
-              onFormDataChange={setEditData}
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSaveChanges();
-              }}
-              unrankedFactions={unrankedFactions.map(f => f.id)}
-              onUnrankedFactionsChange={(factionIds: string[]) => {
-                // Convert selected IDs back to objects by filtering allFactions
-                const selected = allFactions.filter(f => factionIds.includes(f.id));
-                setUnrankedFactions(selected);
-              }}
-              unrankedMaps={unrankedMaps.map(m => m.id)}
-              onUnrankedMapsChange={(mapIds: string[]) => {
-                // Convert selected IDs back to objects by filtering allMaps
-                const selected = allMaps.filter(m => mapIds.includes(m.id));
-                setUnrankedMaps(selected);
-              }}
-            />
-          ) : (
-            <div className="flex flex-wrap gap-3">
-              {tournament.status !== 'prepared' && tournament.status !== 'in_progress' && tournament.status !== 'finished' && (
-                <button onClick={() => setEditMode(true)} className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">{t('btn_edit', 'Edit')}</button>
-              )}
+      {/* Tournament Actions Section */}
+      <div className="flex flex-row flex-wrap gap-3 items-center justify-between mb-6">
+        {/* Join button (only if logged in) - Left side */}
+        {tournament.status === 'registration_open' && !userParticipationStatus && userId && (
+          <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors" onClick={handleJoinTournament}>
+            {t('tournaments.request_join')}
+          </button>
+        )}
+        {(!tournament.status || tournament.status !== 'registration_open' || userParticipationStatus || !userId) && !isCreator && (
+          <div></div>
+        )}
 
-              {tournament.status === 'registration_open' && (
-                <button onClick={handleCloseRegistration} className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">{t('tournaments.btn_close_registration')}</button>
-              )}
+        {/* Organizer Controls - Right side */}
+        {isCreator && (
+          <>
+            {editMode && tournament.status !== 'in_progress' ? (
+              <TournamentForm 
+                mode="edit"
+                formData={editData}
+                onFormDataChange={setEditData}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveChanges();
+                }}
+                unrankedFactions={unrankedFactions.map(f => f.id)}
+                onUnrankedFactionsChange={(factionIds: string[]) => {
+                  // Convert selected IDs back to objects by filtering allFactions
+                  const selected = allFactions.filter(f => factionIds.includes(f.id));
+                  setUnrankedFactions(selected);
+                }}
+                unrankedMaps={unrankedMaps.map(m => m.id)}
+                onUnrankedMapsChange={(mapIds: string[]) => {
+                  // Convert selected IDs back to objects by filtering allMaps
+                  const selected = allMaps.filter(m => mapIds.includes(m.id));
+                  setUnrankedMaps(selected);
+                }}
+              />
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {tournament.status !== 'prepared' && tournament.status !== 'in_progress' && tournament.status !== 'finished' && (
+                  <button onClick={() => setEditMode(true)} className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">{t('btn_edit', 'Edit')}</button>
+                )}
 
-              {tournament.status === 'registration_closed' && (
-                <button onClick={handlePrepareAndStart} className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">{t('tournaments.btn_prepare')}</button>
-              )}
+                {tournament.status === 'registration_open' && (
+                  <button onClick={handleCloseRegistration} className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">{t('tournaments.btn_close_registration')}</button>
+                )}
 
-              {tournament.status === 'prepared' && (
-                <button onClick={handleStartTournament} className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">{t('tournaments.btn_start')}</button>
-              )}
+                {tournament.status === 'registration_closed' && (
+                  <button onClick={handlePrepareAndStart} className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">{t('tournaments.btn_prepare')}</button>
+                )}
 
-              {tournament.status === 'in_progress' && (
-                <p className="text-green-600">✓ {t('tournaments.started_locked')}</p>
-              )}
+                {tournament.status === 'prepared' && (
+                  <button onClick={handleStartTournament} className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">{t('tournaments.btn_start')}</button>
+                )}
 
-              {(tournament.status !== 'in_progress' && tournament.status !== 'finished') && (
-                <button 
-                  onClick={() => {
-                    if (confirm(t('confirm_cancel_tournament', 'Are you sure you want to cancel this tournament? All data will be deleted.'))) {
-                      handleCancelTournament();
-                    }
-                  }} 
-                  className="px-6 py-2 bg-red-700 text-white rounded hover:bg-red-800 transition-colors"
-                >
-                  {t('cancel_tournament', 'Cancel Tournament')}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+                {tournament.status === 'in_progress' && (
+                  <p className="text-green-600">✓ {t('tournaments.started_locked')}</p>
+                )}
 
-      {/* Join button (only if logged in) */}
-      {tournament.status === 'registration_open' && !userParticipationStatus && userId && (
-        <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors" onClick={handleJoinTournament}>
-          {t('tournaments.request_join')}
-        </button>
-      )}
+                {(tournament.status !== 'in_progress' && tournament.status !== 'finished') && (
+                  <button 
+                    onClick={() => {
+                      if (confirm(t('confirm_cancel_tournament', 'Are you sure you want to cancel this tournament? All data will be deleted.'))) {
+                        handleCancelTournament();
+                      }
+                    }} 
+                    className="px-6 py-2 bg-red-700 text-white rounded hover:bg-red-800 transition-colors"
+                  >
+                    {t('cancel_tournament', 'Cancel Tournament')}
+                  </button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {userParticipationStatus === 'pending' && (
         <p className="text-orange-600">⏳ {t('join_pending_msg')}</p>
