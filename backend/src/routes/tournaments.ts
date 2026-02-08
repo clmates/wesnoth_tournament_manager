@@ -559,7 +559,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
 
     // Check if tournament exists and get tournament_mode
     const tournamentResult = await query(
-      'SELECT id, discord_thread_id, max_participants, tournament_mode FROM tournaments WHERE id = $1',
+      'SELECT id, discord_thread_id, max_participants, tournament_mode, creator_id FROM tournaments WHERE id = $1',
       [id]
     );
     if (tournamentResult.rows.length === 0) {
@@ -568,6 +568,8 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     }
 
     const tournament = tournamentResult.rows[0];
+    const isOrganizer = tournament.creator_id === req.userId;
+    const participationStatus = isOrganizer ? 'accepted' : 'pending';
     let teamId: string | null = null;
 
     // If team tournament, handle team logic
@@ -647,7 +649,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         await query(
           `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
            VALUES ($1, $2, $3, $4, $5)`,
-          [id, req.userId, 'pending', teamId, 2]
+          [id, req.userId, participationStatus, teamId, 2]
         );
         console.log('Player joined team at position 2');
 
@@ -690,7 +692,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         await query(
           `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
            VALUES ($1, $2, $3, $4, $5)`,
-          [id, req.userId, 'pending', teamId, 1]
+          [id, req.userId, participationStatus, teamId, 1]
         );
         console.log('Player 1 added to new team');
 

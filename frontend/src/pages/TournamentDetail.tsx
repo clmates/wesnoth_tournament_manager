@@ -683,17 +683,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | undefined | null) => {
     const colorMap: { [key: string]: string } = {
       'pending': '#FF9800',
       'active': '#4CAF50',
       'completed': '#2196F3',
       'cancelled': '#f44336',
     };
-    return colorMap[status] || '#999';
+    return colorMap[status || ''] || '#999';
   };
 
-  const getParticipationStatusColor = (status: string) => {
+  const getParticipationStatusColor = (status: string | undefined | null) => {
     const colorMap: { [key: string]: string } = {
       'pending': '#FFC107',
       'unconfirmed': '#2196F3',
@@ -701,7 +701,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       'denied': '#f44336',
       'cancelled': '#999',
     };
-    return colorMap[status] || '#999';
+    return colorMap[status || ''] || '#999';
   };
 
   const formatDate = (date: string) => {
@@ -710,7 +710,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   };
 
   // Normalize status values to match locale keys like `option_in_progress`
-  const normalizeStatus = (s?: string) => {
+  const normalizeStatus = (s?: string | null) => {
     if (!s) return 'pending';
     return s.toString().toLowerCase().replace(/\s+/g, '_').replace(/-+/g, '_');
   };
@@ -931,8 +931,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         </div>
       )}
 
-      {/* Join button for non-creators (only if logged in) */}
-      {!isCreator && tournament.status === 'registration_open' && !userParticipationStatus && userId && (
+      {/* Join button (only if logged in) */}
+      {tournament.status === 'registration_open' && !userParticipationStatus && userId && (
         <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors" onClick={handleJoinTournament}>
           {t('tournaments.request_join')}
         </button>
@@ -1347,12 +1347,12 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           
                           // If no match_id and status is pending, it was determined by admin, show "ADMIN" status
                           const isAdminDetermined = !match.match_id && match.match_status === 'pending';
-                          const hasReportedMatch = match.match_id || (['unranked', 'team'].includes(tournament?.tournament_mode) && match.match_status === 'completed');
+                          const hasReportedMatch = match.match_id || (['unranked', 'team'].includes(tournament?.tournament_mode || '') && match.match_status === 'completed');
                           // Use match_status_from_matches from the matches table (confirmed, disputed, unconfirmed, cancelled)
                           const confirmationStatus = isAdminDetermined ? 'admin' : (match.match_status_from_matches || 'unconfirmed');
                           
                           // Check if next round has been started (for unranked and team tournaments)
-                          const nextRound = ['unranked', 'team'].includes(tournament?.tournament_mode) 
+                          const nextRound = ['unranked', 'team'].includes(tournament?.tournament_mode || '') 
                             ? rounds.find(r => r.round_number === (match.round_number || 0) + 1)
                             : null;
                           const nextRoundStarted = nextRound && nextRound.round_status !== 'pending';
@@ -1663,8 +1663,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           <td className="px-4 py-3 text-gray-700">{team.gwp != null ? Number(team.gwp).toFixed(2) : '-'}</td>
                           <td className="px-4 py-3 text-gray-700">{team.ogp != null ? Number(team.ogp).toFixed(2) : '-'}</td>
                           <td className="px-4 py-3 text-gray-700">
-                            <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: getStatusColor(team.status || undefined) }}>
-                              {t(`option_${normalizeStatus(team.status || undefined)}`) !== `option_${normalizeStatus(team.status || undefined)}` ? t(`option_${normalizeStatus(team.status || undefined)}`) : (team.status || t('option_active'))}
+                            <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: getStatusColor(team.status) }}>
+                              {t(`option_${normalizeStatus(team.status)}`) !== `option_${normalizeStatus(team.status)}` ? t(`option_${normalizeStatus(team.status)}`) : (team.status || t('option_active'))}
                             </span>
                           </td>
                         </tr>

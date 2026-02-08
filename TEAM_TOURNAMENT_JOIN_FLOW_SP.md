@@ -12,6 +12,9 @@ Se ha mejorado significativamente el flujo de registro para **torneos en equipo 
 2. ✅ Unirse a un equipo **existente con 1 slot libre**
 3. ✅ Crear un **nuevo equipo solo o con compañero**
 4. ✅ El compañero queda en estado **"pending confirmation"**
+5. ✅ **El organizador del torneo puede unirse** (nuevo - 8 de Febrero de 2026)
+   - Su participación es **aprobada automáticamente**
+   - Sin necesidad de confirmación (ya que es organizador)
 
 ---
 
@@ -436,6 +439,211 @@ When registering for a **Team Tournament (2v2)**:
 ### After Registration
 - Wait for organizer to approve all registrations
 - Once approved, your team can participate in matches
+
+---
+
+## 👨‍💼 Caso Especial: Registro del Organizador del Torneo
+
+**Nuevo (8 de Febrero de 2026)**
+
+El organizador del torneo ahora **puede unirse como jugador** a su propio torneo con un flujo simplificado.
+
+### Cambios en Frontend
+
+**Botón "Request Join Tournament" ahora visible para el organizador:**
+- Anteriormente: Solo aparecía para usuarios que no eran los creadores del torneo
+- Ahora: Aparece para todos los usuarios, incluyendo el organizador
+- Condición: `tournament.status === 'registration_open' && !userParticipationStatus && userId`
+
+### Cambios en Backend
+
+**Participación automática del organizador:**
+
+Cuando el organizador solicita unirse, su estado se asigna automáticamente como `'accepted'`:
+
+```typescript
+const isOrganizer = tournament.creator_id === req.userId;
+const participationStatus = isOrganizer ? 'accepted' : 'pending';
+```
+
+### Flujos del Organizador
+
+#### Caso 1: Organizador se inscribe solo
+
+```typescript
+POST /tournaments/{id}/request-join
+{
+  "team_name": "My Team"
+}
+
+Result:
+- Team "My Team" created
+- Organizador added as Position 1
+- Status: "accepted" ✅ (automáticamente aprobado)
+- Equipo incompleto: 1/2 miembros
+- El organizador necesita otro jugador que se una para completar el equipo
+```
+
+#### Caso 2: Organizador se inscribe con compañero
+
+```typescript
+POST /tournaments/{id}/request-join
+{
+  "team_name": "My Team",
+  "teammate_name": "Player2"
+}
+
+Result:
+- Team "My Team" created
+- Organizador = Position 1, Status: "accepted" ✅
+- Player2 = Position 2, Status: "unconfirmed" ⏳
+- Flujo normal:
+  1. Player2 debe confirmar su participación (unconfirmed → pending)
+  2. El organizador aprueba a Player2 (pending → accepted)
+  3. Ambos en "accepted" = equipo listo para competencia
+```
+
+#### Caso 3: Organizador se une a equipo existente (solo)
+
+```typescript
+POST /tournaments/{id}/request-join
+{
+  "team_name": "Existing Team"
+}
+
+Result:
+- Team "Existing Team" encontrado con 1 miembro
+- Organizador joins as Position 2
+- Status: "accepted" ✅ (automáticamente aprobado)
+- Equipo completo: 2/2 miembros ✓
+- PERO: El otro miembro puede estar en estado "pending" o "unconfirmed"
+- El organizador DEBE aprobar al miembro 1 si aún no está aceptado
+  - Si Player1 está en "unconfirmed": Player1 debe confirmar primero
+  - Si Player1 está en "pending": Organizador lo aprueba
+- Ambos en "accepted" = equipo ready para competencia
+```
+
+#### Caso 4: Organizador se une a equipo existente con compañero
+
+```typescript
+POST /tournaments/{id}/request-join
+{
+  "team_name": "Existing Team",
+  "teammate_name": "Player3"
+}
+
+Result:
+- ERROR: No se permite (equipo ya tendría 3 miembros, máximo es 2)
+- Los equipos son solo de 2 jugadores
+```
+
+### Diferencias Clave
+
+| Aspecto | Usuario Normal | Organizador |
+|---------|---|---|
+| Botón "Request Join" | ✅ Visible | ✅ Visible (NUEVO) |
+| Status inicial (solo) | `pending` | `accepted` ✅ |
+| Status inicial (con compañero) | `pending` | `accepted` ✅ |
+| Necesita aprobación propia | ✅ Sí | ❌ No (automático) |
+| Compañero status | `unconfirmed` → `pending` | `unconfirmed` → `pending` |
+| Confirmación de compañero | Por el compañero | Por el compañero (mismo) |
+| Aprobación de compañero | Por organizador | Por organizador (él mismo) |
+
+### Flujo de Estados del Equipo
+
+**Estado de Readiness del Equipo (para competencia):**
+
+Un equipo está **listo para competencia** solo cuando:
+- ✅ Tiene exactamente 2 miembros
+- ✅ **Ambos** miembros tienen status `'accepted'`
+
+**Estados intermedios (No listo):**
+- ❌ 1 miembro: Incompleto (espera segundo jugador)
+- ❌ 1 miembro `unconfirmed`: Espera confirmación
+- ❌ 1 miembro `accepted`, 1 miembro `pending`: Espera aprobación
+- ❌ Cualquier miembro en estado diferente a `'accepted'`
+
+### Ejemplo Práctico: Organizador + Usuario Normal
+
+**Paso 1:** Usuario Normal crea equipo con compañero invitado
+```
+Team "Dragons"
+├─ User A (Position 1, pending) - esperando aprobación
+└─ User B (Position 2, unconfirmed) - no ha confirmado
+
+Status del equipo: ❌ Incompleto (espera confirmaciones)
+```
+
+**Paso 2:** User B confirma su participación
+```
+Team "Dragons"
+├─ User A (Position 1, pending) - esperando aprobación
+└─ User B (Position 2, pending) - confirmó, ahora espera aprobación
+
+Status del equipo: ❌ Incompleto (espera aprobaciones)
+```
+
+**Paso 3:** Organizador (diferentes opciones)
+
+**Opción A: Organizador aprueba a ambos**
+```
+Team "Dragons"
+├─ User A (Position 1, accepted) ✅
+└─ User B (Position 2, accepted) ✅
+
+Status del equipo: ✅ LISTO PARA COMPETENCIA
+```
+
+**Opción B: Organizador se une como organizador**
+```
+Organizador POST /request-join con team_name="Dragons"
+```
+Pero Dragons ya tiene 2 miembros → ERROR: Equipo lleno
+
+---
+
+**Escenario Alternativo: Organizador se une a equipo incompleto**
+
+**Paso 1:** User A crea equipo solo
+```
+Team "Dragons"
+├─ User A (Position 1, pending)
+
+Status del equipo: ❌ Incompleto (1/2 miembros)
+```
+
+**Paso 2:** Organizador se une (automático accept)
+```
+Organizador POST /request-join con team_name="Dragons"
+```
+
+```
+Team "Dragons"
+├─ User A (Position 1, pending) - esperando aprobación
+└─ Organizador (Position 2, accepted) ✅
+
+Status del equipo: ❌ Incompleto (esperando aprobación de User A)
+```
+
+**Paso 3:** Organizador (como creador del torneo) aprueba a User A
+```
+POST /tournaments/{id}/participants/{participantId}/accept
+
+Team "Dragons"
+├─ User A (Position 1, accepted) ✅
+└─ Organizador (Position 2, accepted) ✅
+
+Status del equipo: ✅ LISTO PARA COMPETENCIA
+```
+
+### Impacto en el Flujo
+
+1. **Antes:** El organizador no podía participar (restricción técnica)
+2. **Ahora:** El organizador se auto-aprueba instantáneamente (accepted)
+3. **Resultado:** 
+   - Organizador no necesita aprobación propia
+   - Pero sigue siendo responsable de aprobar a otros participantes
+   - El equipo necesita ambos miembros en "accepted" para estar ready
 
 ---
 
