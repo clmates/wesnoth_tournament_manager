@@ -999,12 +999,15 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
       rejectedTeamId = rejectedTeamResult.rows[0].id;
     }
 
+    // Store the original team_id to check if it becomes empty after rejection
+    const originalTeamId = participant.team_id;
+
     // If the rejected participant is in a team, check if there's another player and move them to position 1
-    if (participant.team_id && participant.team_id !== REJECTED_TEAM_ID) {
+    if (originalTeamId && originalTeamId !== REJECTED_TEAM_ID) {
       const otherTeamMembersResult = await query(
         `SELECT id, team_position FROM tournament_participants 
          WHERE team_id = $1 AND id != $2 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
-        [participant.team_id, participantId]
+        [originalTeamId, participantId]
       );
 
       // If there's another active member, move them to position 1
@@ -1031,6 +1034,27 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
        RETURNING id`,
       ['denied', rejectedTeamId, null, participantId, tournamentId]
     );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Participant not found' });
+    }
+
+    // Check if the original team is now empty and delete it if so
+    if (originalTeamId && originalTeamId !== REJECTED_TEAM_ID) {
+      const remainingMembersResult = await query(
+        `SELECT COUNT(*) as count FROM tournament_participants 
+         WHERE team_id = $1 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
+        [originalTeamId]
+      );
+
+      if (remainingMembersResult.rows[0].count === '0' || remainingMembersResult.rows[0].count === 0) {
+        await query(
+          `DELETE FROM tournament_teams WHERE id = $1`,
+          [originalTeamId]
+        );
+        console.log(`Deleted empty team ${originalTeamId} after rejecting last member`);
+      }
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Participant not found' });
