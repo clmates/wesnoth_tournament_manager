@@ -763,9 +763,23 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
+// OPTIONS handler for /report endpoint (file upload with CORS)
+router.options('/report', (req, res) => {
+  console.log('✅ [REPORT] OPTIONS request received for /report');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.status(200).end();
+});
+
 // Report match (with file upload)
 router.post('/report', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
   try {
+    // Ensure CORS headers are present for Cloudflare
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
     console.log('📤 [UPLOAD] Starting match report from user:', req.userId);
     console.log('📤 [UPLOAD] File info:', req.file ? { fieldname: req.file.fieldname, originalname: req.file.originalname, size: req.file.size } : 'NO FILE');
     
@@ -1334,11 +1348,19 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
  */
 router.options('/preview-replay', (req, res) => {
   console.log('✅ [PREVIEW] OPTIONS request received for /preview-replay');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.status(200).end();
 });
 
 router.post('/preview-replay', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
   try {
+    // Ensure CORS headers are present for Cloudflare
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
     console.log('✅ [PREVIEW] POST /preview-replay endpoint reached');
     console.log('[PREVIEW] User ID:', req.userId);
     console.log('[PREVIEW] File info:', req.file ? { fieldname: req.file.fieldname, originalname: req.file.originalname, size: req.file.size } : 'NO FILE');
