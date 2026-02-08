@@ -1008,7 +1008,30 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     );
     const nextPosition = (positionResult.rows[0]?.max_position || 0) + 1;
 
-    // Update participant: change team to rejected team, update status to denied, remove old team_position
+    // If the rejected participant is in a team, check if there's another player and move them to position 1
+    if (participant.team_id && participant.team_id !== REJECTED_TEAM_ID) {
+      const otherTeamMembersResult = await query(
+        `SELECT id, team_position FROM tournament_participants 
+         WHERE team_id = $1 AND id != $2 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
+        [participant.team_id, participantId]
+      );
+
+      // If there's another active member, move them to position 1
+      if (otherTeamMembersResult.rows.length > 0) {
+        const otherMember = otherTeamMembersResult.rows[0];
+        if (otherMember.team_position !== 1) {
+          await query(
+            `UPDATE tournament_participants 
+             SET team_position = 1
+             WHERE id = $1`,
+            [otherMember.id]
+          );
+          console.log(`Moved teammate ${otherMember.id} to position 1 after rejection`);
+        }
+      }
+    }
+
+    // Update participant: change team to rejected team, update status to denied
     const result = await query(
       `UPDATE tournament_participants 
        SET participation_status = $1, team_id = $2, team_position = $3
