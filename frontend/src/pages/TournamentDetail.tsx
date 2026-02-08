@@ -989,7 +989,24 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
             // Team view: Group participants by team from standings (which has team_total_elo and members_with_elo)
             participants.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {participants.map((team: any) => (
+                {participants
+                  .filter((team: any) => {
+                    // Show "Rejected players" team only if registration is open
+                    const isRejectedTeam = team.nickname === 'Rejected players';
+                    if (isRejectedTeam && tournament?.status !== 'registration_open') {
+                      return false;
+                    }
+                    return true;
+                  })
+                  .sort((a: any, b: any) => {
+                    // Always show "Rejected players" team last if it exists
+                    const aIsRejected = a.nickname === 'Rejected players';
+                    const bIsRejected = b.nickname === 'Rejected players';
+                    if (aIsRejected && !bIsRejected) return 1;
+                    if (!aIsRejected && bIsRejected) return -1;
+                    return 0;
+                  })
+                  .map((team: any) => (
                   <div key={team.id} className="border-2 border-blue-400 rounded-lg p-6 bg-gray-50 shadow hover:shadow-lg transition-all hover:-translate-y-1">
                     <div className="flex justify-between items-start gap-6 mb-4 pb-3 border-b-2 border-blue-400 flex-wrap">
                       <div className="flex flex-col gap-1">

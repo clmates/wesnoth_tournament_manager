@@ -1,4 +1,7 @@
 {
+  "teams": {
+    "rejected_players": "Rejected players"
+  },
   "email": {
     "greetings": "Hello",
     "closing": "Best regards",

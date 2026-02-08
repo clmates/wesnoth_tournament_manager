@@ -1,4 +1,7 @@
 {
+  "teams": {
+    "rejected_players": "Abgelehnte Spieler"
+  },
   "email": {
     "greetings": "Hallo",
     "closing": "Freundliche Grüße",

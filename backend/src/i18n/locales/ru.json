@@ -1,4 +1,7 @@
 {
+  "teams": {
+    "rejected_players": "Отклоненные игроки"
+  },
   "email": {
     "greetings": "Привет",
     "closing": "С уважением",
