@@ -356,6 +356,7 @@
   "success_tournament_configuration_updated": "¡Configuración del torneo actualizada!",
   "success_participant_accepted": "¡Participante aceptado!",
   "error_failed_accept_participant": "Error al aceptar participante",
+  "success_participation_confirmed": "¡Participación confirmada!",
   "success_participant_rejected": "¡Participante rechazado!",
   "error_failed_reject_participant": "Error al rechazar participante",
   "success_match_reported": "Partida reportada correctamente",

@@ -372,6 +372,7 @@
   "success_tournament_configuration_updated": "Turnierkonfiguration aktualisiert!",
   "success_participant_accepted": "Teilnehmer akzeptiert!",
   "error_failed_accept_participant": "Teilnehmer konnte nicht akzeptiert werden",
+  "success_participation_confirmed": "Teilnahme bestätigt!",
   "success_participant_rejected": "Teilnehmer abgelehnt!",
   "error_failed_reject_participant": "Teilnehmer konnte nicht abgelehnt werden",
   "success_match_reported": "Spiel erfolgreich gemeldet",

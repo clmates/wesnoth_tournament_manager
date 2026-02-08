@@ -374,6 +374,7 @@
   "success_tournament_configuration_updated": "Конфигурация турнира обновлена!",
   "success_participant_accepted": "Участник принят!",
   "error_failed_accept_participant": "Не удалось принять участника",
+  "success_participation_confirmed": "Участие подтверждено!",
   "success_participant_rejected": "Участник отклонён!",
   "error_failed_reject_participant": "Не удалось отклонить участника",
   "success_match_reported": "Матч успешно отправлен",
