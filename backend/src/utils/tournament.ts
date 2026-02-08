@@ -851,13 +851,24 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     
     // Get the round with format info
     const roundResult = await query(
-      `SELECT tr.id, tr.round_status, tr.tournament_id, t.tournament_type,
+      `SELECT tr.id, tr.round_status, tr.tournament_id, t.tournament_type, t.total_rounds,
               CASE 
+                -- For pure elimination: use general_rounds_format for all except final round
+                WHEN t.tournament_type = 'elimination' 
+                THEN CASE 
+                  WHEN tr.round_number = t.total_rounds THEN t.final_rounds_format
+                  ELSE t.general_rounds_format
+                END
+                -- For swiss_elimination: use general_rounds_format for Swiss phase, final_rounds_format only for grand final
+                WHEN t.tournament_type = 'swiss_elimination' 
+                THEN CASE
+                  WHEN tr.round_number <= t.general_rounds THEN t.general_rounds_format
+                  WHEN tr.round_number = t.total_rounds THEN t.final_rounds_format
+                  ELSE t.general_rounds_format
+                END
+                -- For other types: use the logic based on general/final rounds
                 WHEN tr.round_number <= t.general_rounds 
                 THEN t.general_rounds_format 
-                -- For swiss_elimination: final format only for the grand final (last round)
-                WHEN t.tournament_type = 'swiss_elimination' AND tr.round_number < (t.general_rounds + t.final_rounds)
-                THEN t.general_rounds_format
                 ELSE t.final_rounds_format 
               END as round_format
        FROM tournament_rounds tr
