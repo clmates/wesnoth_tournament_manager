@@ -1461,7 +1461,7 @@ router.post('/preview-replay-base64', authMiddleware, async (req: AuthRequest, r
     let sideBlockMatch;
     while ((sideBlockMatch = oldSideBlockRegex.exec(xmlText)) !== null) {
       const text = sideBlockMatch[0];
-      const playerMatch = text.match(/current_player="([^"]+)"/);
+      const playerMatch = text.match(/current_player="([^"]*?)"/);
       if (!playerMatch) continue;
       const player = playerMatch[1];
       const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
@@ -1470,6 +1470,26 @@ router.post('/preview-replay-base64', authMiddleware, async (req: AuthRequest, r
       if (!rawFaction) continue;
       const cleanFaction = rawFaction.replace(/^_/, '');
       factionByPlayer[player] = cleanFaction;
+    }
+
+    // If [old_side] blocks didn't work, try [side ...] blocks (from [replay_start] or direct scenario blocks)
+    if (Object.keys(factionByPlayer).length === 0) {
+      const sideBlockRegex = /\[side[^\]]*\][\s\S]*?(?=\[side|\[\/)/g;
+      let match;
+      while ((match = sideBlockRegex.exec(xmlText)) !== null) {
+        const text = match[0];
+        const playerMatch = text.match(/current_player="([^"]*?)"/);
+        if (!playerMatch) continue;
+        const player = playerMatch[1];
+        // Skip if player name is empty
+        if (!player) continue;
+        const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+        const factionMatchLocal = text.match(/faction="([^"]+)"/);
+        const rawFaction = (factionNameMatch?.[1] || factionMatchLocal?.[1] || '').trim();
+        if (!rawFaction) continue;
+        const cleanFaction = rawFaction.replace(/^_/, '');
+        factionByPlayer[player] = cleanFaction;
+      }
     }
 
     const players: Array<{ id: string; name: string; faction: string }> = [];
@@ -1482,7 +1502,19 @@ router.post('/preview-replay-base64', authMiddleware, async (req: AuthRequest, r
 
     if (playerNames.length === 0 && Object.keys(factionByPlayer).length > 0) {
       for (const [name, faction] of Object.entries(factionByPlayer)) {
-        players.push({ id: name, name, faction });
+        if (name) { // Only add players with non-empty names
+          players.push({ id: name, name, faction });
+        }
+      }
+    }
+    
+    // If still no players found but factions exist, assign to unnamed slots
+    if (players.length === 0 && factionsInOrder.length > 0) {
+      for (let i = 0; i < factionsInOrder.length; i++) {
+        const faction = factionsInOrder[i];
+        if (faction && faction !== 'Unknown') {
+          players.push({ id: `player_${i}`, name: `Player ${i + 1}`, faction });
+        }
       }
     }
 
@@ -1615,7 +1647,7 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
     let sideBlockMatch;
     while ((sideBlockMatch = oldSideBlockRegex.exec(xmlText)) !== null) {
       const text = sideBlockMatch[0];
-      const playerMatch = text.match(/current_player="([^"]+)"/);
+      const playerMatch = text.match(/current_player="([^"]*?)"/);
       if (!playerMatch) continue;
       const player = playerMatch[1];
       const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
@@ -1624,6 +1656,26 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
       if (!rawFaction) continue;
       const cleanFaction = rawFaction.replace(/^_/, '');
       factionByPlayer[player] = cleanFaction;
+    }
+
+    // If [old_side] blocks didn't work, try [side ...] blocks (from [replay_start] or direct scenario blocks)
+    if (Object.keys(factionByPlayer).length === 0) {
+      const sideBlockRegex = /\[side[^\]]*\][\s\S]*?(?=\[side|\[\/)/g;
+      let match;
+      while ((match = sideBlockRegex.exec(xmlText)) !== null) {
+        const text = match[0];
+        const playerMatch = text.match(/current_player="([^"]*?)"/);
+        if (!playerMatch) continue;
+        const player = playerMatch[1];
+        // Skip if player name is empty
+        if (!player) continue;
+        const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+        const factionMatchLocal = text.match(/faction="([^"]+)"/);
+        const rawFaction = (factionNameMatch?.[1] || factionMatchLocal?.[1] || '').trim();
+        if (!rawFaction) continue;
+        const cleanFaction = rawFaction.replace(/^_/, '');
+        factionByPlayer[player] = cleanFaction;
+      }
     }
 
     // Build players array by index mapping
@@ -1635,10 +1687,22 @@ router.post('/preview-replay', authMiddleware, upload.single('replay'), async (r
       players.push({ id: name, name, faction });
     }
 
-    // If playerNames are empty but old_side mapping exists, use it to populate players
+    // If playerNames are empty but factionByPlayer mapping exists, use it to populate players (excluding empty player names)
     if (playerNames.length === 0 && Object.keys(factionByPlayer).length > 0) {
       for (const [name, faction] of Object.entries(factionByPlayer)) {
-        players.push({ id: name, name, faction });
+        if (name) { // Only add players with non-empty names
+          players.push({ id: name, name, faction });
+        }
+      }
+    }
+    
+    // If still no players found but factions exist, assign to unnamed slots
+    if (players.length === 0 && factionsInOrder.length > 0) {
+      for (let i = 0; i < factionsInOrder.length; i++) {
+        const faction = factionsInOrder[i];
+        if (faction && faction !== 'Unknown') {
+          players.push({ id: `player_${i}`, name: `Player ${i + 1}`, faction });
+        }
       }
     }
     console.log('[PREVIEW] Extracted players:', players);

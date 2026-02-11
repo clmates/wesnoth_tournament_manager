@@ -256,7 +256,7 @@ export function extractReplayInfo(xmlText: string): ReplayData {
   const oldSideBlockRegex = /\[old_side[^\]]*\][\s\S]*?(?=\[old_side|\Z)/g;
   for (const block of xmlText.matchAll(oldSideBlockRegex)) {
     const text = block[0];
-    const playerMatch = text.match(/current_player="([^"]+)"/);
+    const playerMatch = text.match(/current_player="([^"]*?)"/);
     if (!playerMatch) continue;
     const player = playerMatch[1];
     const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
@@ -267,6 +267,25 @@ export function extractReplayInfo(xmlText: string): ReplayData {
     factionByPlayer[player] = cleanFaction;
   }
 
+  // If [old_side] blocks didn't work, try [side ...] blocks (from [replay_start] or direct scenario blocks)
+  if (Object.keys(factionByPlayer).length === 0) {
+    const sideBlockRegex = /\[side[^\]]*\][\s\S]*?(?=\[side|\[\/)/g;
+    for (const block of xmlText.matchAll(sideBlockRegex)) {
+      const text = block[0];
+      const playerMatch = text.match(/current_player="([^"]*?)"/);
+      if (!playerMatch) continue;
+      const player = playerMatch[1];
+      // Skip if player name is empty
+      if (!player) continue;
+      const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+      const factionMatch = text.match(/faction="([^"]+)"/);
+      const rawFaction = (factionNameMatch?.[1] || factionMatch?.[1] || '').trim();
+      if (!rawFaction) continue;
+      const cleanFaction = rawFaction.replace(/^_/, '');
+      factionByPlayer[player] = cleanFaction;
+    }
+  }
+
   // Build players array by index mapping
   const count = Math.min(playerNames.length, factionsInOrder.length);
   for (let i = 0; i < count; i++) {
@@ -275,10 +294,22 @@ export function extractReplayInfo(xmlText: string): ReplayData {
     data.players.push({ id: name, name, faction });
   }
 
-  // If playerNames are empty but old_side mapping exists, use it to populate players
+  // If playerNames are empty but factionByPlayer mapping exists, use it to populate players (excluding empty player names)
   if (playerNames.length === 0 && Object.keys(factionByPlayer).length > 0) {
     for (const [name, faction] of Object.entries(factionByPlayer)) {
-      data.players.push({ id: name, name, faction });
+      if (name) { // Only add players with non-empty names
+        data.players.push({ id: name, name, faction });
+      }
+    }
+  }
+  
+  // If still no players found but factions exist, assign to unnamed slots
+  if (data.players.length === 0 && factionsInOrder.length > 0) {
+    for (let i = 0; i < factionsInOrder.length; i++) {
+      const faction = factionsInOrder[i];
+      if (faction && faction !== 'Unknown') {
+        data.players.push({ id: `player_${i}`, name: `Player ${i + 1}`, faction });
+      }
     }
   }
 
