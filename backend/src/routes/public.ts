@@ -451,6 +451,7 @@ router.get('/players', async (req, res) => {
     const minMatches = req.query.min_matches ? parseInt(req.query.min_matches as string) : null;
 
     // Build WHERE clause dynamically
+    // NOTE: Show all players (active AND inactive) - only filter blocked users
     let whereConditions: string[] = ['is_blocked = false'];
     let params: any[] = [];
     let paramCount = 1;
@@ -649,7 +650,7 @@ router.get('/players/:id', async (req, res) => {
         AND pms.opponent_id IS NULL 
         AND pms.map_id IS NULL 
         AND pms.faction_id IS NULL
-      WHERE u.id = $1 AND u.is_active = true AND u.is_blocked = false`,
+      WHERE u.id = $1`,
       [id]
     );
 

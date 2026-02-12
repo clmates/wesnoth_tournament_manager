@@ -1015,6 +1015,13 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         console.log('✅ [UPLOAD] Replay stored in Supabase at:', replayPath);
       }
 
+      // Mark both players as active (they just played!)
+      await query(
+        `UPDATE users SET is_active = true, updated_at = CURRENT_TIMESTAMP WHERE id IN ($1, $2)`,
+        [req.userId, opponent_id]
+      );
+      console.log(`✅ Marked players ${req.userId} and ${opponent_id} as active`);
+
       // Calculate new trends: winner gets a win, loser gets a loss
       const currentWinnerTrend = winner!.trend || '-';
       const currentLoserTrend = loser!.trend || '-';
