@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { getUserLevel } from '../utils/auth.js';
@@ -2233,11 +2233,12 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
 });
 
 // Get signed download URL for replay file - PUBLIC endpoint with expiring URLs
-// Returns a 5-minute signed URL that client can use for direct download from Supabase
-router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
+// Returns a 7-day signed URL that client can use for direct download from Supabase
+// NO AUTHENTICATION REQUIRED - any user can download replays
+router.get('/:matchId/replay/download', async (req: Request, res: Response) => {
   try {
     const { matchId } = req.params;
-    console.log('📥 [DOWNLOAD] Signed URL request for match:', matchId);
+    console.log('📥 [DOWNLOAD] Public signed URL request for match:', matchId);
 
     // Get match and replay file path from database
     const result = await query(
