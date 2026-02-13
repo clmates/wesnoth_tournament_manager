@@ -147,34 +147,52 @@ const MyMatches: React.FC = () => {
   };
 
   const handleDownloadReplay = async (matchId: string | null, replayFilePath: string, tournamentMatchId?: string): Promise<void> => {
-    if (!matchId) return;
+    // Normalize matchId to string
+    const normalizedId = matchId ? String(matchId).trim() : null;
+    
+    if (!normalizedId) {
+      console.error('❌ No matchId provided for download. Raw value:', matchId);
+      alert('Error: Could not identify match for download. Please refresh the page and try again.');
+      return;
+    }
+
     try {
-      console.log('🔽 Starting download for match:', matchId);
+      console.log('🔽 Starting download for match:', normalizedId);
       console.log('🔽 Incrementing download count...');
-      await matchService.incrementReplayDownloads(matchId);
+      await matchService.incrementReplayDownloads(normalizedId);
       
       // Fetch signed URL from the backend
       console.log('🔽 Fetching signed URL from backend...');
-      const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
+      const downloadUrl = `${API_URL}/matches/${normalizedId}/replay/download`;
       console.log('🔽 Download URL:', downloadUrl);
       const response = await fetch(downloadUrl, {
-        method: 'GET'
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
       });
 
       console.log('🔽 Response status:', response.status);
       if (!response.ok) {
-        throw new Error(`Download failed with status ${response.status}`);
+        const errorText = await response.text();
+        console.error('🔽 Response error:', errorText);
+        throw new Error(`Download failed with status ${response.status}: ${response.statusText}`);
       }
 
       // Get signed URL from response and redirect
       console.log('🔽 Getting signed URL...');
       const { signedUrl, filename } = await response.json();
+      if (!signedUrl) {
+        console.error('🔽 No signedUrl in response:', { signedUrl, filename });
+        throw new Error('Server did not provide a valid download link');
+      }
       console.log('🔽 Redirecting to signed URL:', signedUrl);
       window.location.href = signedUrl;
       console.log('✅ Download initiated:', filename);
     } catch (err) {
       console.error('❌ Error downloading replay:', err);
-      alert('Failed to download replay. Check console for details.');
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error occurred';
+      alert(`Failed to download replay: ${errorMsg}`);
     }
   };
 

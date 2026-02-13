@@ -2243,24 +2243,30 @@ router.get('/:matchId/replay/download', async (req: Request, res: Response) => {
     
     console.log('📥 [DOWNLOAD] ========== REPLAY DOWNLOAD REQUEST ==========');
     console.log('📥 [DOWNLOAD] Match ID:', matchId);
+    console.log('📥 [DOWNLOAD] Match ID type:', typeof matchId);
     console.log('📥 [DOWNLOAD] Origin:', origin);
     console.log('📥 [DOWNLOAD] Referer:', referer);
     console.log('📥 [DOWNLOAD] URL:', req.originalUrl);
     console.log('📥 [DOWNLOAD] Method:', req.method);
-    console.log('📥 [DOWNLOAD] Headers:', JSON.stringify(req.headers, null, 2));
+
+    // Validate matchId
+    if (!matchId || matchId.trim() === '') {
+      console.warn('📥 [DOWNLOAD] Invalid match ID provided');
+      return res.status(400).json({ error: 'Match ID is required' });
+    }
 
     // Get match and replay file path from database
     const result = await query(
-      'SELECT replay_file_path FROM matches WHERE id = $1',
+      'SELECT id, replay_file_path FROM matches WHERE id = $1',
       [matchId]
     );
 
     if (result.rows.length === 0) {
-      console.warn('📥 [DOWNLOAD] Match not found:', matchId);
+      console.warn('📥 [DOWNLOAD] Match not found in matches table:', matchId);
       return res.status(404).json({ error: 'Match not found' });
     }
 
-    let replayFilePath = result.rows[0].replay_file_path;
+    const replayFilePath = result.rows[0].replay_file_path;
     console.log('📥 [DOWNLOAD] Retrieved replay path from DB:', replayFilePath);
 
     if (!replayFilePath) {
@@ -2273,33 +2279,40 @@ router.get('/:matchId/replay/download', async (req: Request, res: Response) => {
       console.log('📥 [DOWNLOAD] Generating signed URL for:', replayFilePath);
       const filename = path.basename(replayFilePath);
       const expirationSeconds = 604800; // 1 week
+      
       const { data: signedData, error: signedError } = await supabase.storage
         .from('replays')
         .createSignedUrl(replayFilePath, expirationSeconds);
 
-      if (signedError || !signedData?.signedUrl) {
-        console.error('❌ [DOWNLOAD] Failed to generate signed URL:', signedError?.message || 'No signed URL');
+      if (signedError) {
+        console.error('❌ [DOWNLOAD] Supabase error:', signedError.message);
+        return res.status(500).json({ error: 'Failed to generate download link: ' + signedError.message });
+      }
+
+      if (!signedData?.signedUrl) {
+        console.error('❌ [DOWNLOAD] No signed URL returned from Supabase');
         return res.status(500).json({ error: 'Failed to generate download link' });
       }
 
       console.log('✅ [DOWNLOAD] Signed URL generated (7-day expiry)');
-      console.log('📥 [DOWNLOAD] Returning JSON response with signedUrl');
 
       // Return the signed URL to client (7-day validity - shareable)
       res.setHeader('Content-Type', 'application/json');
-      res.json({
+      const responseBody = {
         signedUrl: signedData.signedUrl,
         filename: filename,
         expiresIn: expirationSeconds
-      });
+      };
+      console.log('📥 [DOWNLOAD] Returning JSON response');
+      res.json(responseBody);
       console.log('✅ [DOWNLOAD] Response sent successfully');
     } catch (supabaseError) {
       console.error('❌ [DOWNLOAD] Supabase error:', supabaseError);
-      res.status(500).json({ error: 'Failed to generate download link' });
+      res.status(500).json({ error: 'Failed to generate download link: ' + (supabaseError instanceof Error ? supabaseError.message : 'Unknown error') });
     }
   } catch (error) {
     console.error('❌ [DOWNLOAD] Replay download error:', error);
-    res.status(500).json({ error: 'Failed to download replay' });
+    res.status(500).json({ error: 'Failed to download replay', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 

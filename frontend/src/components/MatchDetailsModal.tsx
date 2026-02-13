@@ -66,39 +66,72 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
 
   const getSignedUrl = async (matchId: string | null): Promise<string | null> => {
     try {
-      if (!matchId) return null;
-      await matchService.incrementReplayDownloads(matchId);
+      if (!matchId) {
+        console.error('🔽 [MODAL] getSignedUrl called with null/undefined matchId');
+        return null;
+      }
+
+      console.log('🔽 [MODAL] Starting getSignedUrl for matchId:', matchId);
+      console.log('🔽 [MODAL] Match object:', JSON.stringify({
+        id: match?.id,
+        match_id: match?.match_id,
+        replay_file_path: match?.replay_file_path
+      }, null, 2));
+
+      // Increment replay downloads  
+      try {
+        console.log('🔽 [MODAL] Incrementing download count for:', matchId);
+        await matchService.incrementReplayDownloads(matchId);
+        console.log('✅ [MODAL] Download count incremented');
+      } catch (err) {
+        console.warn('⚠️ [MODAL] Failed to increment download count:', err);
+        // Continue anyway, this is not critical
+      }
+
       const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
-      console.log('🔽 Fetching signed URL from:', downloadUrl);
-      const response = await fetch(downloadUrl, { method: 'GET' });
+      console.log('🔽 [MODAL] Fetching signed URL from:', downloadUrl);
+      const response = await fetch(downloadUrl, { 
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
       
       // Check for HTTP errors
+      console.log('🔽 [MODAL] Response status:', response.status, response.statusText);
       if (!response.ok) {
-        console.error('🔽 HTTP error:', response.status, response.statusText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('🔽 [MODAL] HTTP error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
       }
       
       // Get content type to verify it's JSON
       const contentType = response.headers.get('content-type');
-      console.log('🔽 Response content-type:', contentType);
+      console.log('🔽 [MODAL] Response content-type:', contentType);
       
       if (!contentType?.includes('application/json')) {
         const text = await response.text();
-        console.error('🔽 Invalid content type. Expected JSON but got:', contentType);
-        console.error('🔽 Response text (first 500 chars):', text.substring(0, 500));
+        console.error('🔽 [MODAL] Invalid content type. Expected JSON but got:', contentType);
+        console.error('🔽 [MODAL] Response text (first 500 chars):', text.substring(0, 500));
         throw new Error(`Invalid response format: ${contentType || 'unknown'}`);
       }
       
       const data = await response.json();
+      console.log('🔽 [MODAL] Response JSON:', JSON.stringify({
+        hasSignedUrl: !!data.signedUrl,
+        filename: data.filename,
+        expiresIn: data.expiresIn
+      }, null, 2));
+
       if (!data.signedUrl) {
-        console.error('🔽 No signedUrl in response:', data);
+        console.error('🔽 [MODAL] No signedUrl in response:', data);
         throw new Error('Missing signedUrl in response');
       }
       
-      console.log('✅ Signed URL obtained successfully');
+      console.log('✅ [MODAL] Signed URL obtained successfully');
       return data.signedUrl;
     } catch (err) {
-      console.error('❌ Error getting signed URL:', err);
+      console.error('❌ [MODAL] Error getting signed URL:', err);
       if (err instanceof Error) {
         alert(`Failed to get replay link: ${err.message}`);
       } else {
@@ -112,12 +145,23 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
     e.preventDefault();
     e.stopPropagation();
 
+    // Convert matchId to string and validate
+    const idStr = matchId ? String(matchId).trim() : null;
+    console.log('🔽 [MODAL] handleDownloadReplay called with:', { rawMatchId: matchId, stringId: idStr });
+
     if (onDownloadReplay) {
-      onDownloadReplay(matchId, match.replay_file_path, match.id);
+      // Pass the correct IDs: matchId for the matches table, and match.id as tournament match ID if needed
+      onDownloadReplay(idStr, match.replay_file_path, match.id ? String(match.id) : undefined);
       return;
     }
 
-    const signedUrl = await getSignedUrl(matchId);
+    if (!idStr) {
+      console.error('❌ [MODAL] No valid match ID for download:', { match_id: match?.match_id, id: match?.id });
+      alert('Error: No match ID available for download');
+      return;
+    }
+
+    const signedUrl = await getSignedUrl(idStr);
     if (!signedUrl) {
       // Error already shown in getSignedUrl
       return;
@@ -252,8 +296,23 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
                       <td colSpan={2} className="px-4 py-3 text-center">
                         <button 
                           className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-colors"
-                          onClick={(e) => handleDownloadReplay(e, match.match_id || match.id)}
-                          onContextMenu={(e) => handleDownloadContextMenu(e, match.match_id || match.id)}
+                          onClick={(e) => {
+                            // Use match_id if available (for ranked tournaments), otherwise use id (for regular matches or unranked)
+                            const downloadId = match.match_id || match.id;
+                            if (!downloadId) {
+                              alert('Error: No valid match ID found for download');
+                              return;
+                            }
+                            handleDownloadReplay(e, downloadId);
+                          }}
+                          onContextMenu={(e) => {
+                            const downloadId = match.match_id || match.id;
+                            if (!downloadId) {
+                              alert('Error: No valid match ID found for download');
+                              return;
+                            }
+                            handleDownloadContextMenu(e, downloadId);
+                          }}
                           title={`Downloads: ${match.replay_downloads || 0} | ${t('replay_right_click')}`}
                         >
                           ⬇️ Download ({match.replay_downloads || 0})
