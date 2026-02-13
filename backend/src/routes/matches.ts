@@ -2274,7 +2274,8 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
 
       console.log('✅ [DOWNLOAD] Signed URL generated (7-day expiry), can be shared');
 
-      // Return the signed URL to client (24-hour validity - shareable)
+      // Return the signed URL to client (7-day validity - shareable)
+      res.setHeader('Content-Type', 'application/json');
       res.json({
         signedUrl: signedData.signedUrl,
         filename: filename,

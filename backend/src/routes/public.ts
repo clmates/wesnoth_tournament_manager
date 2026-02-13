@@ -921,10 +921,11 @@ router.get('/replay/download-url', async (req, res) => {
 
     console.log('✅ [REPLAY-DL] Signed URL generated (7-day expiry), can be shared');
 
+    res.setHeader('Content-Type', 'application/json');
     return res.json({
       signedUrl: signedData.signedUrl,
       filename: filename,
-      expiresIn: 300
+      expiresIn: expirationSeconds
     });
   } catch (error) {
     console.error('❌ [REPLAY-DL] Unexpected error:', error);

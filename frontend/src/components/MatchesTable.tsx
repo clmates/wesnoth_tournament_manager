@@ -60,12 +60,41 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
     try {
       await matchService.incrementReplayDownloads(matchId);
       const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
+      console.log('🔽 Fetching signed URL from:', downloadUrl);
       const response = await fetch(downloadUrl, { method: 'GET' });
-      if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
-      const { signedUrl } = await response.json();
-      return signedUrl;
+      
+      // Check for HTTP errors
+      if (!response.ok) {
+        console.error('🔽 HTTP error:', response.status, response.statusText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      // Get content type to verify it's JSON
+      const contentType = response.headers.get('content-type');
+      console.log('🔽 Response content-type:', contentType);
+      
+      if (!contentType?.includes('application/json')) {
+        const text = await response.text();
+        console.error('🔽 Invalid content type. Expected JSON but got:', contentType);
+        console.error('🔽 Response text (first 500 chars):', text.substring(0, 500));
+        throw new Error(`Invalid response format: ${contentType || 'unknown'}`);
+      }
+      
+      const data = await response.json();
+      if (!data.signedUrl) {
+        console.error('🔽 No signedUrl in response:', data);
+        throw new Error('Missing signedUrl in response');
+      }
+      
+      console.log('✅ Signed URL obtained successfully');
+      return data.signedUrl;
     } catch (err) {
-      console.error('Error getting signed URL:', err);
+      console.error('❌ Error getting signed URL:', err);
+      if (err instanceof Error) {
+        alert(`Failed to get replay link: ${err.message}`);
+      } else {
+        alert('Failed to get replay link.');
+      }
       return null;
     }
   };
@@ -81,7 +110,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
 
     const signedUrl = await getSignedUrl(matchId);
     if (!signedUrl) {
-      alert('Failed to get replay link.');
+      // Error already shown in getSignedUrl
       return;
     }
 
