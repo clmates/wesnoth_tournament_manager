@@ -1,17 +1,42 @@
+# Dependencies
 node_modules/
-dist/
+.venv
+venv/
+
+# Build outputs
+backend/dist/
+backend/build/
+frontend/dist/
+frontend/build/
+
+# Environment files (keep .env.example files)
 .env
 .env.local
-.env.migration
-.venv
-uploads/
-replays/
+backend/.env
+backend/.env.local
+backend/.env.migration
+frontend/.env
+frontend/.env.local
+frontend/.env.development
+frontend/.env.staging
+frontend/.env.main
+frontend/.env.production
+
+# Log files
 *.log
+logs/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE files
 .idea/
 .vscode/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 
 # Testing artifacts
 /testing/results/
@@ -19,3 +44,13 @@ replays/
 /testing/scripts/test_tournament.ps1
 /backend/test_credentials.csv
 
+# Runtime
+uploads/
+replays/
+temp/
+tmp/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
