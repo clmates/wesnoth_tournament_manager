@@ -85,14 +85,8 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
       return;
     }
 
-    // Ctrl+Click or Cmd+Click: open in new tab
-    if (e.ctrlKey || e.metaKey) {
-      window.open(signedUrl, '_blank');
-    }
     // Normal click: download
-    else {
-      window.location.href = signedUrl;
-    }
+    window.location.href = signedUrl;
   };
 
   const handleDownloadContextMenu = async (e: React.MouseEvent, matchId: string) => {
@@ -316,7 +310,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                         className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
                         onClick={(e) => handleDownloadReplay(e, match.id, match.replay_file_path)}
                         onContextMenu={(e) => handleDownloadContextMenu(e, match.id)}
-                        title={`${t('downloads')}: ${match.replay_downloads || 0} | Ctrl+Click para nueva pestaña | Click derecho para opciones`}
+                        title={`${t('downloads')}: ${match.replay_downloads || 0} | Click derecho para opciones`}
                       >
                         ⬇️ {match.replay_downloads || 0}
                       </button>

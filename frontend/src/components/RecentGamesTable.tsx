@@ -2,30 +2,16 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MatchesTable from './MatchesTable';
 import MatchConfirmationModal from './MatchConfirmationModal';
-import { matchService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-
-// Get API URL for direct backend calls
-let API_URL: string;
-if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-} else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
-} else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-  API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
-} else {
-  API_URL = '/api';
-}
 
 interface RecentGamesTableProps {
   matches: any[];
   currentPlayerId: string;
-  onDownloadReplay?: (matchId: string, filename: string) => void;
   onMatchConfirmed?: () => void;
   onViewDetails?: (match: any) => void;
 }
 
-const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPlayerId, onDownloadReplay, onMatchConfirmed, onViewDetails }) => {
+const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPlayerId, onMatchConfirmed, onViewDetails }) => {
   const { t } = useTranslation();
   const { isAuthenticated } = useAuthStore();
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
@@ -59,39 +45,6 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
     }
   };
 
-  const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
-    try {
-      // Increment download count in the database
-      await matchService.incrementReplayDownloads(matchId);
-      
-      // Refresh the matches to show updated download count
-      if (onMatchConfirmed) {
-        onMatchConfirmed();
-      }
-      
-      // Fetch signed URL from the backend
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Fetching signed URL from backend...');
-      const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Download URL:', downloadUrl);
-      const response = await fetch(downloadUrl, {
-        method: 'GET'
-      });
-
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Response status:', response.status);
-      if (!response.ok) {
-        throw new Error(`Download failed with status ${response.status}`);
-      }
-
-      // Get signed URL from response and redirect
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Getting signed URL...');
-      const { signedUrl, filename } = await response.json();
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Redirecting to signed URL:', signedUrl);
-      window.location.href = signedUrl;
-    } catch (err) {
-      console.error('Error downloading replay:', err);
-    }
-  };
-
   if (!matches || matches.length === 0) {
     return <div className="text-center text-gray-500 italic py-8">{t('recent_games_no_data') || 'No recent games'}</div>;
   }
@@ -105,7 +58,6 @@ const RecentGamesTable: React.FC<RecentGamesTableProps> = ({ matches, currentPla
           currentPlayerId={currentPlayerId}
           onViewDetails={handleDetailsClick}
           onOpenConfirmation={handleReportClick}
-          onDownloadReplay={handleDownloadReplay}
         />
       </div>
 

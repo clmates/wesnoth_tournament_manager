@@ -3,6 +3,20 @@ import { useAuthStore } from '../store/authStore';
 import { matchService } from '../services/api';
 import StarDisplay from './StarDisplay';
 
+// Get API URL for direct backend calls
+const getApiUrl = (): string => {
+  if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+    return 'https://wesnothtournamentmanager-main.up.railway.app/api';
+  } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+    return 'https://wesnothtournamentmanager-production.up.railway.app/api';
+  } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+    return 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
+  } else {
+    return '/api';
+  }
+};
+const API_URL = getApiUrl();
+
 interface MatchDetailsModalProps {
   match: any;
   isOpen: boolean;
@@ -16,6 +30,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelSuccess, setCancelSuccess] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; url: string } | null>(null);
   
   if (!isOpen || !match) {
     return null;
@@ -45,6 +60,61 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
     } finally {
       setCancelLoading(false);
     }
+  };
+
+  const getSignedUrl = async (matchId: string | null): Promise<string | null> => {
+    try {
+      if (!matchId) return null;
+      await matchService.incrementReplayDownloads(matchId);
+      const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
+      const response = await fetch(downloadUrl, { method: 'GET' });
+      if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
+      const { signedUrl } = await response.json();
+      return signedUrl;
+    } catch (err) {
+      console.error('Error getting signed URL:', err);
+      return null;
+    }
+  };
+
+  const handleDownloadReplay = async (e: React.MouseEvent, matchId: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (onDownloadReplay) {
+      onDownloadReplay(matchId, match.replay_file_path, match.id);
+      return;
+    }
+
+    const signedUrl = await getSignedUrl(matchId);
+    if (!signedUrl) {
+      alert('Failed to get replay link.');
+      return;
+    }
+
+    // Normal click: download
+    window.location.href = signedUrl;
+  };
+
+  const handleDownloadContextMenu = async (e: React.MouseEvent, matchId: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const signedUrl = await getSignedUrl(matchId);
+    if (signedUrl) {
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        url: signedUrl,
+      });
+    }
+  };
+
+  const copyToClipboard = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Enlace copiado al portapapeles');
+      setContextMenu(null);
+    });
   };
 
   return (
@@ -151,12 +221,9 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
                       <td colSpan={2} className="px-4 py-3 text-center">
                         <button 
                           className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-colors"
-                          onClick={() => {
-                            if (onDownloadReplay && (match.id || match.match_id)) {
-                              onDownloadReplay(match.match_id || null, match.replay_file_path, match.id);
-                            }
-                          }}
-                          title={`Downloads: ${match.replay_downloads || 0}`}
+                          onClick={(e) => handleDownloadReplay(e, match.match_id || match.id)}
+                          onContextMenu={(e) => handleDownloadContextMenu(e, match.match_id || match.id)}
+                          title={`Downloads: ${match.replay_downloads || 0} | Click derecho para opciones`}
                         >
                           ⬇️ Download ({match.replay_downloads || 0})
                         </button>
@@ -198,6 +265,50 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
           </button>
         </div>
       </div>
+
+      {/* Context Menu para descargas */}
+      {contextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setContextMenu(null)}
+          />
+          <div
+            className="fixed bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+            style={{
+              left: `${contextMenu.x}px`,
+              top: `${contextMenu.y}px`,
+            }}
+          >
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 border-b border-gray-100"
+              onClick={() => {
+                copyToClipboard(contextMenu.url);
+              }}
+            >
+              📋 Copiar enlace
+            </button>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 border-b border-gray-100"
+              onClick={() => {
+                window.open(contextMenu.url, '_blank');
+                setContextMenu(null);
+              }}
+            >
+              🔗 Abrir en nueva pestaña
+            </button>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+              onClick={() => {
+                window.location.href = contextMenu.url;
+                setContextMenu(null);
+              }}
+            >
+              ⬇️ Descargar
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
