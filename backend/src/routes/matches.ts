@@ -2238,7 +2238,16 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
 router.get('/:matchId/replay/download', async (req: Request, res: Response) => {
   try {
     const { matchId } = req.params;
-    console.log('📥 [DOWNLOAD] Public signed URL request for match:', matchId);
+    const origin = req.get('origin');
+    const referer = req.get('referer');
+    
+    console.log('📥 [DOWNLOAD] ========== REPLAY DOWNLOAD REQUEST ==========');
+    console.log('📥 [DOWNLOAD] Match ID:', matchId);
+    console.log('📥 [DOWNLOAD] Origin:', origin);
+    console.log('📥 [DOWNLOAD] Referer:', referer);
+    console.log('📥 [DOWNLOAD] URL:', req.originalUrl);
+    console.log('📥 [DOWNLOAD] Method:', req.method);
+    console.log('📥 [DOWNLOAD] Headers:', JSON.stringify(req.headers, null, 2));
 
     // Get match and replay file path from database
     const result = await query(
@@ -2273,7 +2282,8 @@ router.get('/:matchId/replay/download', async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Failed to generate download link' });
       }
 
-      console.log('✅ [DOWNLOAD] Signed URL generated (7-day expiry), can be shared');
+      console.log('✅ [DOWNLOAD] Signed URL generated (7-day expiry)');
+      console.log('📥 [DOWNLOAD] Returning JSON response with signedUrl');
 
       // Return the signed URL to client (7-day validity - shareable)
       res.setHeader('Content-Type', 'application/json');
@@ -2282,6 +2292,7 @@ router.get('/:matchId/replay/download', async (req: Request, res: Response) => {
         filename: filename,
         expiresIn: expirationSeconds
       });
+      console.log('✅ [DOWNLOAD] Response sent successfully');
     } catch (supabaseError) {
       console.error('❌ [DOWNLOAD] Supabase error:', supabaseError);
       res.status(500).json({ error: 'Failed to generate download link' });

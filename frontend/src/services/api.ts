@@ -10,7 +10,7 @@ if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
 } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
   // Production environment (production branch on Cloudflare)
   API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
-} else if (window.location.hostname === 'wesnoth.playranked.org') {
+} else if (window.location.hostname === 'wesnoth.playranked.org' || window.location.hostname === 'www.wesnoth.playranked.org' || window.location.hostname.includes('playranked.org')) {
   // Custom domain production - use production backend
   API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
 } else if (window.location.hostname.includes('feature-unranked-tournaments')) {

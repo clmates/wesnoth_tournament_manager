@@ -7,13 +7,25 @@ import { useAuthStore } from '../store/authStore';
 
 // Get API URL for direct backend calls
 const getApiUrl = (): string => {
-  if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  
+  console.log('🔍 [API_URL] Hostname:', hostname, 'Protocol:', protocol);
+  
+  if (hostname === 'main.wesnoth-tournament-manager.pages.dev') {
+    console.log('🔍 [API_URL] Using main.wesnoth-tournament-manager.pages.dev backend');
     return 'https://wesnothtournamentmanager-main.up.railway.app/api';
-  } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+  } else if (hostname === 'wesnoth-tournament-manager.pages.dev') {
+    console.log('🔍 [API_URL] Using wesnoth-tournament-manager.pages.dev backend');
     return 'https://wesnothtournamentmanager-production.up.railway.app/api';
-  } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
+  } else if (hostname === 'wesnoth.playranked.org' || hostname === 'www.wesnoth.playranked.org' || hostname.includes('playranked.org')) {
+    console.log('🔍 [API_URL] Using playranked.org backend');
+    return 'https://wesnothtournamentmanager-production.up.railway.app/api';
+  } else if (hostname.includes('feature-unranked-tournaments')) {
+    console.log('🔍 [API_URL] Using feature-unranked-tournaments backend');
     return 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
   } else {
+    console.log('🔍 [API_URL] Using fallback /api');
     return '/api';
   }
 };
