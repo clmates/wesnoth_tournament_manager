@@ -105,7 +105,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
 
   const copyToClipboard = (url: string) => {
     navigator.clipboard.writeText(url).then(() => {
-      alert('Enlace copiado al portapapeles');
+      alert(t('replay_copied'));
       setContextMenu(null);
     });
   };
@@ -310,7 +310,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                         className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
                         onClick={(e) => handleDownloadReplay(e, match.id, match.replay_file_path)}
                         onContextMenu={(e) => handleDownloadContextMenu(e, match.id)}
-                        title={`${t('downloads')}: ${match.replay_downloads || 0} | Click derecho para opciones`}
+                        title={`${t('downloads')}: ${match.replay_downloads || 0} | ${t('replay_right_click')}`}
                       >
                         ⬇️ {match.replay_downloads || 0}
                       </button>
@@ -331,39 +331,45 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
           <div
             className="fixed inset-0 z-40"
             onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => e.preventDefault()}
           />
           <div
-            className="fixed bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+            className="fixed bg-white rounded-lg shadow-xl border border-gray-200 z-50 min-w-[180px]"
             style={{
-              left: `${contextMenu.x}px`,
-              top: `${contextMenu.y}px`,
+              left: contextMenu.x <= window.innerWidth - 200 ? `${contextMenu.x}px` : 'auto',
+              right: contextMenu.x > window.innerWidth - 200 ? `${window.innerWidth - contextMenu.x}px` : 'auto',
+              top: contextMenu.y <= window.innerHeight - 140 ? `${contextMenu.y}px` : 'auto',
+              bottom: contextMenu.y > window.innerHeight - 140 ? `${window.innerHeight - contextMenu.y}px` : 'auto',
             }}
           >
             <button
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 border-b border-gray-100"
-              onClick={() => {
+              className="block w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 border-b border-gray-100 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
                 copyToClipboard(contextMenu.url);
               }}
             >
-              📋 Copiar enlace
+              📋 {t('replay_copy_link')}
             </button>
             <button
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 border-b border-gray-100"
-              onClick={() => {
+              className="block w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 border-b border-gray-100 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
                 window.open(contextMenu.url, '_blank');
                 setContextMenu(null);
               }}
             >
-              🔗 Abrir en nueva pestaña
+              🔗 {t('replay_open_tab')}
             </button>
             <button
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
-              onClick={() => {
+              className="block w-full text-left px-4 py-2 hover:bg-blue-50 text-sm text-gray-700 transition-colors rounded-b-lg"
+              onClick={(e) => {
+                e.stopPropagation();
                 window.location.href = contextMenu.url;
                 setContextMenu(null);
               }}
             >
-              ⬇️ Descargar
+              ⬇️ {t('replay_download_action')}
             </button>
           </div>
         </>
