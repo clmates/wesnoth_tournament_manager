@@ -38,15 +38,25 @@
 - ❌ `POST /change-password` - Password change disabled
 - ❌ `POST /force-change-password` - Force password change disabled
 
-**New Login Flow:**
+**New Login Flow (Case-Insensitive):**
 ```
 1. Client sends: username + password
-2. Get Wesnoth user profile
-3. Validate password against Wesnoth phpBB
-4. Auto-create users_extension record if needed
-5. Check maintenance mode, blocking status
-6. Generate JWT token
-7. Return token + user info
+2. Normalize username to lowercase
+3. Get Wesnoth user profile (case-insensitive lookup)
+4. Validate password against Wesnoth multiplayer server via WML protocol
+5. Auto-create users_extension record if needed (stores normalized username)
+6. Check maintenance mode, blocking status (case-insensitive DB queries)
+7. Generate JWT token with normalized username
+8. Return token + user info
+```
+
+**Key Implementation Details:**
+- ✅ Username normalized to lowercase on all requests: `ClmateS` → `clmates`
+- ✅ All database lookups use case-insensitive SQL: `LOWER(username) = LOWER($1)`
+- ✅ JWT token contains normalized username for consistency
+- ✅ Wesnoth profile lookup accepts any case variation
+- ✅ Password validation works with any case combination
+
 ---
 
 ### Phase 5: Automatic User Population ✅

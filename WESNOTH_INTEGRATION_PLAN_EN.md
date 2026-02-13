@@ -1,13 +1,14 @@
 # Integration Plan: Tournament Manager into Wesnoth
 
 **Creation Date:** February 4, 2026  
-**Status:** Planning Document (Not implemented)
+**Status:** ✅ FULLY IMPLEMENTED (February 13, 2026)  
+**Last Updated:** February 13, 2026
 
 ---
 
 ## Executive Summary (TL;DR)
 
-Integration of Tournament Manager as an independent sub-project in the root of the Wesnoth repository. Single migration from PostgreSQL to shared MariaDB. Reuse of Wesnoth `users` table (phpBB). Login validation by porting C++ function `fuh::login()` to Node.js (bcryptjs + native crypto). Complete elimination of user registration in Tournament Manager. User data migrated from Wesnoth filesaves (existing parser). Independent versioning and releases.
+✅ **COMPLETE** - Integration of Tournament Manager with Wesnoth is fully implemented. Single migration from PostgreSQL to shared MariaDB. Reuse of Wesnoth `users` table (phpBB). Login validation using WML protocol against official Wesnoth multiplayer server. Complete elimination of user registration in Tournament Manager. Auto-creation of users on first login. Case-insensitive username handling throughout the system.
 
 ---
 
@@ -470,5 +471,151 @@ No new dependencies added (no registration form changes).
 ---
 
 **Document created:** February 4, 2026  
-**Status:** Planning Document (Pending approval)  
+**Last Updated:** February 13, 2026  
+**Status:** ✅ IMPLEMENTATION COMPLETE  
 **Author:** Wesnoth Tournament Manager Integration Plan
+
+---
+
+## IMPLEMENTATION COMPLETION SUMMARY
+
+### ✅ All Phases Complete
+
+**Phase 1: Wesnoth Investigation** ✅  
+- Identified official WML protocol (server.wesnoth.org:15000)
+- Analyzed phpBB authentication requirements
+- Determined case-insensitive username handling
+
+**Phase 2: Database Migration** ✅  
+- PostgreSQL to MariaDB migration completed
+- `users_extension` table created and populated
+- Database schema validated
+
+**Phase 3: Wesnoth Authentication Service** ✅  
+- `wesnothAuth.ts` implemented with full WML protocol support
+- Case-insensitive password validation
+- User profile retrieval
+- Auto-creation on first login
+
+**Phase 4: Login Endpoint Refactored** ✅  
+- All registration/password reset endpoints removed
+- Single `/login` endpoint using Wesnoth credentials
+- Case-insensitive username handling throughout
+- JWT token generation with normalized username
+- Account blocking and maintenance mode still supported
+
+**Phase 5: Automatic User Population** ✅  
+- Auto-creation via `ensureUserExtensionExists()`
+- No manual migration needed
+- Default values set correctly on first login
+
+**Phase 6: Frontend Migration** ✅  
+- Login form updated for username-only input
+- API service simplified
+- Environment-based configuration
+- Registration/password reset UI disabled
+
+### Key Features Implemented
+
+✅ **Case-Insensitive Login**
+- Username normalized to lowercase: `ClmateS` → `clmates`
+- All database lookups use `LOWER(username) = LOWER($1)`
+- JWT tokens contain normalized username
+- Transparent to users - any case variation works
+
+✅ **WML Protocol Authentication**
+- Validates against official Wesnoth server (server.wesnoth.org:15000)
+- Supports MD5 (legacy) and Bcrypt (modern) password hashes
+- No password storage in Tournament Manager
+- Future-proof (works with Wesnoth updates)
+
+✅ **Production Ready**
+- Nginx reverse proxy with SSL/TLS
+- CORS properly configured
+- Rate limiting on login attempts
+- Audit logging of authentication events
+- Account blocking still functional
+- Maintenance mode supported
+
+### Testing Results
+
+✅ **Backend Tests**
+- Login with valid Wesnoth credentials: PASS
+- Login with invalid credentials: FAIL (expected)
+- Case-insensitive login variations: PASS
+- users_extension auto-creation: PASS
+- JWT token generation: PASS
+- Maintenance mode blocking: PASS
+- Account blocking: PASS
+
+✅ **Frontend Tests**
+- Login form submits correct data: PASS
+- Token stored in localStorage: PASS
+- API calls include JWT header: PASS
+- 401 errors trigger re-login: PASS
+- Case-insensitive usernames work: PASS
+
+✅ **Integration Tests**
+- End-to-end login flow: PASS
+- No CORS errors: PASS
+- Database auto-creation works: PASS
+- Token validation succeeds: PASS
+
+### Files Delivered
+
+**Backend:**
+- ✅ `backend/src/services/wesnothAuth.ts` - Authentication service
+- ✅ `backend/src/services/wesnothMultiplayerClient.ts` - WML protocol client
+- ✅ `backend/src/routes/auth.ts` - Login endpoint (refactored)
+- ✅ `backend/src/middleware/accountLockout.ts` - Account locking support
+- ✅ `backend/src/middleware/audit.ts` - Audit logging
+- ✅ `backend/scripts/testWesnothClient.js` - Testing utility
+
+**Frontend:**
+- ✅ `frontend/src/pages/Login.tsx` - Updated login page
+- ✅ `frontend/src/services/api.ts` - Simplified API service
+- ✅ `frontend/.env.example` - Configuration template
+
+**Documentation:**
+- ✅ `WESNOTH_INTEGRATION_STATUS.md` - Current status and deployment guide
+- ✅ `WESNOTH_INTEGRATION_PLAN_EN.md` - This plan (updated)
+- ✅ `NGINX_CERTBOT_SETUP_EN.md` - Nginx + SSL configuration
+- ✅ `FRONTEND_ENV_CONFIGURATION_EN.md` - Frontend configuration guide
+
+### Production Deployment
+
+The system is ready for production deployment:
+
+1. **Backend**: Listens on `localhost:3000` (not publicly exposed)
+2. **Nginx**: Reverse proxy on `wesnoth.org:4443` with SSL/TLS
+3. **Frontend**: Cloudflare Pages with auto-detected API URL
+4. **Database**: MariaDB with Wesnoth integration
+5. **Authentication**: Official WML protocol validation
+
+**Deployment Steps:**
+1. Install Node.js dependencies
+2. Configure `.env` with database credentials
+3. Build backend and start on localhost:3000
+4. Configure Nginx as reverse proxy
+5. Deploy frontend to Cloudflare
+6. Test end-to-end login flow
+
+### Known Limitations
+
+- Email/language retrieved from Wesnoth defaults (can be enhanced with forums API)
+- No real-time password sync (acceptable - uses official server)
+- users_extension auto-created only on first login (by design)
+
+### Future Enhancements
+
+- Wesnoth forums API integration for user profiles
+- Statistics synchronization with Wesnoth servers
+- Multi-language support for UI
+- Mobile app authentication
+
+---
+
+**Implementation Status:** ✅ COMPLETE AND PRODUCTION READY  
+**Date Completed:** February 13, 2026  
+**Next Phase:** Production Deployment and Monitoring
+````
