@@ -2259,25 +2259,26 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
     }
 
     try {
-      // Generate a short-lived signed URL (5 minutes) for direct download from Supabase
+      // Generate a signed URL (1 week) for direct download from Supabase - allows sharing
       console.log('📥 [DOWNLOAD] Generating signed URL for:', replayFilePath);
       const filename = path.basename(replayFilePath);
+      const expirationSeconds = 604800; // 1 week
       const { data: signedData, error: signedError } = await supabase.storage
         .from('replays')
-        .createSignedUrl(replayFilePath, 300); // 5 minutes expiration
+        .createSignedUrl(replayFilePath, expirationSeconds);
 
       if (signedError || !signedData?.signedUrl) {
         console.error('❌ [DOWNLOAD] Failed to generate signed URL:', signedError?.message || 'No signed URL');
         return res.status(500).json({ error: 'Failed to generate download link' });
       }
 
-      console.log('✅ [DOWNLOAD] Signed URL generated (5-min expiry), sending to client');
+      console.log('✅ [DOWNLOAD] Signed URL generated (7-day expiry), can be shared');
 
-      // Return the signed URL to client (5-minute validity)
+      // Return the signed URL to client (24-hour validity - shareable)
       res.json({
         signedUrl: signedData.signedUrl,
         filename: filename,
-        expiresIn: 300
+        expiresIn: expirationSeconds
       });
     } catch (supabaseError) {
       console.error('❌ [DOWNLOAD] Supabase error:', supabaseError);

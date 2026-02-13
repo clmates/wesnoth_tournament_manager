@@ -907,18 +907,19 @@ router.get('/replay/download-url', async (req, res) => {
 
     console.log('📥 [REPLAY-DL] Generating signed URL for path:', replayFilePath);
 
-    // Generate a short-lived signed URL (5 minutes) for direct download from Supabase
+    // Generate a signed URL (1 week) for direct download from Supabase - allows sharing
     const filename = replayFilePath.split('/').pop() || 'replay.zip';
+    const expirationSeconds = 604800; // 1 week
     const { data: signedData, error: signedError } = await supabase.storage
       .from('replays')
-      .createSignedUrl(replayFilePath, 300); // 5 minutes expiration
+      .createSignedUrl(replayFilePath, expirationSeconds);
 
     if (signedError || !signedData?.signedUrl) {
       console.error('❌ [REPLAY-DL] Failed to generate signed URL:', signedError?.message || 'No signed URL');
       return res.status(500).json({ error: 'Failed to generate download link', details: signedError?.message });
     }
 
-    console.log('✅ [REPLAY-DL] Signed URL generated (5-min expiry)');
+    console.log('✅ [REPLAY-DL] Signed URL generated (7-day expiry), can be shared');
 
     return res.json({
       signedUrl: signedData.signedUrl,

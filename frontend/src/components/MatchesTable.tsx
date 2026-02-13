@@ -42,6 +42,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
 
   const [sortColumn, setSortColumn] = React.useState<SortColumn>('');
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; url: string } | null>(null);
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -55,21 +56,64 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   const winnerEloChange = (match: any) => (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
   const loserEloChange = (match: any) => (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
 
-  const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
+  const getSignedUrl = async (matchId: string): Promise<string | null> => {
     try {
-      if (onDownloadReplay) {
-        await onDownloadReplay(matchId, replayFilePath);
-        return;
-      }
       await matchService.incrementReplayDownloads(matchId);
       const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
       const response = await fetch(downloadUrl, { method: 'GET' });
       if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
       const { signedUrl } = await response.json();
-      window.location.href = signedUrl;
+      return signedUrl;
     } catch (err) {
-      console.error('Error downloading replay:', err);
+      console.error('Error getting signed URL:', err);
+      return null;
     }
+  };
+
+  const handleDownloadReplay = async (e: React.MouseEvent, matchId: string, replayFilePath: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (onDownloadReplay) {
+      await onDownloadReplay(matchId, replayFilePath);
+      return;
+    }
+
+    const signedUrl = await getSignedUrl(matchId);
+    if (!signedUrl) {
+      alert('Failed to get replay link.');
+      return;
+    }
+
+    // Ctrl+Click or Cmd+Click: open in new tab
+    if (e.ctrlKey || e.metaKey) {
+      window.open(signedUrl, '_blank');
+    }
+    // Normal click: download
+    else {
+      window.location.href = signedUrl;
+    }
+  };
+
+  const handleDownloadContextMenu = async (e: React.MouseEvent, matchId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const signedUrl = await getSignedUrl(matchId);
+    if (signedUrl) {
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        url: signedUrl,
+      });
+    }
+  };
+
+  const copyToClipboard = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Enlace copiado al portapapeles');
+      setContextMenu(null);
+    });
   };
 
   // Sorting logic for matches
@@ -270,8 +314,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     {match.replay_file_path ? (
                       <button
                         className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
-                        onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
-                        title={`${t('downloads')}: ${match.replay_downloads || 0}`}
+                        onClick={(e) => handleDownloadReplay(e, match.id, match.replay_file_path)}
+                        onContextMenu={(e) => handleDownloadContextMenu(e, match.id)}
+                        title={`${t('downloads')}: ${match.replay_downloads || 0} | Ctrl+Click para nueva pestaña | Click derecho para opciones`}
                       >
                         ⬇️ {match.replay_downloads || 0}
                       </button>
@@ -285,6 +330,50 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
           ))}
         </tbody>
       </table>
+
+      {/* Context Menu para descargas */}
+      {contextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setContextMenu(null)}
+          />
+          <div
+            className="fixed bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+            style={{
+              left: `${contextMenu.x}px`,
+              top: `${contextMenu.y}px`,
+            }}
+          >
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 border-b border-gray-100"
+              onClick={() => {
+                copyToClipboard(contextMenu.url);
+              }}
+            >
+              📋 Copiar enlace
+            </button>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700 border-b border-gray-100"
+              onClick={() => {
+                window.open(contextMenu.url, '_blank');
+                setContextMenu(null);
+              }}
+            >
+              🔗 Abrir en nueva pestaña
+            </button>
+            <button
+              className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+              onClick={() => {
+                window.location.href = contextMenu.url;
+                setContextMenu(null);
+              }}
+            >
+              ⬇️ Descargar
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -145,35 +145,27 @@ const Matches: React.FC = () => {
     if (!matchId) return;
     try {
       console.log('🔽 Starting download for match:', matchId);
-      // Extract filename from path
-      const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
       
       // Increment download count in the database
-      console.log('🔽 Incrementing download count...');
       await matchService.incrementReplayDownloads(matchId);
       
       // Get signed URL from backend
-      console.log('🔽 Requesting signed URL from backend...');
       const token = localStorage.getItem('token');
       const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
-      console.log('🔽 Signed URL endpoint:', downloadUrl);
       const response = await fetch(downloadUrl, {
         method: 'GET',
         headers: token ? { 'Authorization': `Bearer ${token}` } : {}
       });
 
-      console.log('🔽 Response status:', response.status);
       if (!response.ok) {
         throw new Error(`Failed to get signed URL: ${response.status}`);
       }
 
-      const { signedUrl, filename: serverFilename, expiresIn } = await response.json();
-      console.log('🔽 Got signed URL (expires in', expiresIn, 'seconds)');
+      const { signedUrl } = await response.json();
       
-      // Redirect to signed URL for download
-      console.log('🔽 Redirecting to Supabase signed URL...');
+      // Perform download with signed URL
       window.location.href = signedUrl;
-      console.log('✅ Download completed:', serverFilename);
+      console.log('✅ Download initiated');
     } catch (err) {
       console.error('❌ Error downloading replay:', err);
       alert('Failed to download replay. Check console for details.');
