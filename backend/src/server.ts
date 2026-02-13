@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
 const initDatabase = async () => {
   try {
@@ -41,8 +41,11 @@ const startServer = async () => {
   try {
     await initDatabase();
 
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+    // Listen only on localhost (127.0.0.1)
+    // Nginx reverse proxy on wesnoth.org:4443 will forward to this
+    app.listen(PORT, '127.0.0.1', () => {
+      console.log(`🚀 Backend server running on http://127.0.0.1:${PORT}`);
+      console.log('📡 Nginx will reverse proxy wesnoth.org:4443 → localhost:3000');
     });
 
     // Initialize all scheduled jobs (crons)

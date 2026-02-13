@@ -22,6 +22,7 @@ const allowedOrigins = [
   'https://wesnoth-tournament-manager.pages.dev',       // Cloudflare Pages (production)
   'https://main.wesnoth-tournament-manager.pages.dev',  // Cloudflare Pages preview (main branch)
   'https://wesnoth.playranked.org',                     // PlayRanked custom domain
+  'https://wesnoth.org:4443',                           // Nginx reverse proxy (production)
   'http://localhost:3000',                              // Local backend
   'http://localhost:5173'                               // Local frontend (Vite)
 ];

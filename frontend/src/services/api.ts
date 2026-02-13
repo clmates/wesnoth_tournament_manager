@@ -4,21 +4,18 @@ import axios, { AxiosError } from 'axios';
 let API_URL: string;
 
 // Check hostname first (more specific than environment variables)
-if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-  // Main branch preview on Cloudflare
-  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-} else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-  // Production environment (production branch on Cloudflare)
-  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
-} else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-  // PR preview on Cloudflare (feature-unranked-tournaments.wesnoth-tournament-manager.pages.dev)
-  API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
-} else if (import.meta.env.VITE_API_URL) {
+if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
+  // Production on Cloudflare Pages
+  API_URL = 'https://wesnoth.org:4443/api';
+} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
+  // PR preview or other subdomains on Cloudflare Pages
+  API_URL = 'https://wesnoth.org:4443/api';
+} else if (import.meta.env.VITE_API_BASE_URL) {
   // Explicit environment variable as fallback
-  API_URL = import.meta.env.VITE_API_URL;
+  API_URL = import.meta.env.VITE_API_BASE_URL;
 } else {
-  // Development/fallback
-  API_URL = '/api';
+  // Development/local
+  API_URL = 'http://localhost:3000/api';
 }
 
 const api = axios.create({
@@ -45,17 +42,27 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Retry logic for rate limiting (429) and server errors
-const retryConfig = {
-  maxRetries: 3,
-  baseDelay: 1000, // 1 second
-  maxDelay: 30000, // 30 seconds
-};
-
+// Error handling and 401 logout
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const config = error.config;
+    
+    // Handle 401 - logout user
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('username');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+    
+    // Retry logic for rate limiting (429) and server errors
+    const retryConfig = {
+      maxRetries: 3,
+      baseDelay: 1000, // 1 second
+      maxDelay: 30000, // 30 seconds
+    };
     
     // Don't retry if no config or if it's not a GET request
     if (!config || config.method !== 'get') {
@@ -91,24 +98,15 @@ api.interceptors.response.use(
   }
 );
 
+// Authentication service - Wesnoth only
 export const authService = {
-  register: (data: any) => api.post('/auth/register', data),
-  login: (usernameOrEmail: string, password: string) => {
-    // Determine if input is email or nickname
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usernameOrEmail);
-    
-    return api.post('/auth/login', {
-      nickname: isEmail ? undefined : usernameOrEmail,
-      email: isEmail ? usernameOrEmail : undefined,
-      password
-    });
-  },
-  changePassword: (oldPassword: string, newPassword: string) =>
-    api.post('/auth/change-password', { oldPassword, newPassword }),
-  requestPasswordReset: (data: { nickname: string; discord_id: string }) =>
-    api.post('/auth/request-password-reset', data),
-  checkDiscordPasswordResetAvailable: () =>
-    api.get('/auth/discord-password-reset-available'),
+  // Login with Wesnoth credentials (username only)
+  login: (username: string, password: string) => 
+    api.post('/auth/login', { username, password }),
+  
+  // Validate token
+  validateToken: () => 
+    api.get('/auth/validate-token'),
 };
 
 export const userService = {

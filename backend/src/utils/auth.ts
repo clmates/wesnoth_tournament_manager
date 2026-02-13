@@ -20,6 +20,15 @@ export const generateToken = (userId: string): string => {
   } as any);
 };
 
+export const generateTokenWithUsername = (username: string, userId: number): string => {
+  const secret = (process.env.JWT_SECRET || 'your-secret-key') as string;
+  // Store userId as numeric ID for backwards compatibility
+  // The middleware will use this as the primary identifier
+  return jwt.sign({ userId: userId.toString(), username }, secret, {
+    expiresIn: (process.env.JWT_EXPIRATION || '7d') as string,
+  } as any);
+};
+
 export const verifyToken = (token: string): any => {
   const secret = (process.env.JWT_SECRET || 'your-secret-key') as string;
   return jwt.verify(token, secret);

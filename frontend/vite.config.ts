@@ -1,12 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// CRITICAL REBUILD TRIGGER - Jan 14 2026 14:30 UTC
-// CSS fully bundled: Players, Rankings, Statistics, ReportMatch
-// Build cache DISABLED - forcing complete Cloudflare rebuild
-// Asset hash regeneration enforced for all files
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'process.env.VITE_API_BASE_URL': JSON.stringify(
+      process.env.VITE_API_BASE_URL || 'http://localhost:3000/api'
+    ),
+  },
   css: {
     postcss: './postcss.config.js',
   },

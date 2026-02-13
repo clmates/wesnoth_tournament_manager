@@ -1,91 +1,67 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import MainLayout from '../components/MainLayout';
 
+/**
+ * Forgot Password Page - DISABLED
+ * Password recovery is no longer available in this application.
+ * All passwords are managed by Wesnoth. Use the Wesnoth forum to reset your password.
+ */
 const ForgotPassword: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [success, setSuccess] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setLoading(true);
-    try {
-      const res = await api.post('/auth/request-password-reset', {
-        email,
-      });
-      setSuccess(res.data.message || t('auth.reset_email_sent') || 'If an account exists with that email, you will receive a password reset link.');
-      setEmail('');
-    } catch (err: any) {
-      setError(err.response?.data?.error || t('auth.reset_error') || 'Failed to send reset email');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
-    <MainLayout>
-      <div className="max-w-md mx-auto mt-12 p-6 bg-white rounded shadow">
-        <h2 className="text-xl font-bold mb-4">{t('auth.reset_password') || 'Reset Password'}</h2>
-        {error && <div className="mb-4 text-red-600">{error}</div>}
-        {success && <div className="mb-4 text-green-600">{success}</div>}
-        {!success && (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <p className="text-gray-600 text-sm mb-4">
-              {t('auth.reset_password_description') || 'Enter your email address. If an account exists with that email, you will receive a password reset link.'}
-            </p>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('auth.email') || 'Email'}
-              </label>
-              <input
-                type="email"
-                className="w-full border rounded px-3 py-2"
-                placeholder="your@email.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                disabled={loading}
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-gray-400"
-              disabled={loading}
-            >
-              {loading ? t('loading') || 'Loading...' : t('auth.send_reset') || 'Send Reset Link'}
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
-              className="w-full text-blue-600 py-2 rounded hover:underline"
-            >
-              {t('auth.back_to_login') || 'Back to Login'}
-            </button>
-          </form>
-        )}
-        {success && (
-          <div className="text-center mt-6">
-            <p className="text-gray-600">
-              <button
-                type="button"
-                onClick={() => navigate('/login')}
+    <div className="w-full max-w-2xl mx-auto my-12 px-4 bg-white rounded-lg shadow-sm py-8">
+      <h1 className="text-center mb-6 text-2xl font-bold text-gray-800">
+        {t('forgot_password_disabled', 'Password Recovery Disabled')}
+      </h1>
+      
+      <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6">
+        <p className="text-gray-800 mb-4">
+          {t('forgot_password_info', 'Password recovery is no longer available in this application.')}
+        </p>
+        
+        <p className="text-gray-700 mb-4">
+          {t('forgot_password_instruction', 'Your Wesnoth password is managed by the official Wesnoth website.')}
+        </p>
+        
+        <div className="bg-white p-4 rounded border border-blue-200 mb-4">
+          <p className="text-gray-700 mb-2">
+            {t('forgot_password_reset', 'To reset your Wesnoth password:')}
+          </p>
+          <ol className="list-decimal list-inside text-gray-700 space-y-2 ml-2">
+            <li>
+              {t('forgot_password_step1', 'Visit')}{' '}
+              <a 
+                href="https://www.wesnoth.org/account/login" 
+                target="_blank" 
+                rel="noopener noreferrer"
                 className="text-blue-500 hover:underline font-semibold"
               >
-                {t('auth.back_to_login') || 'Back to Login'}
-              </button>
-            </p>
-          </div>
-        )}
+                wesnoth.org/account/login
+              </a>
+            </li>
+            <li>
+              {t('forgot_password_step2', 'Click "Forgot password?" link')}
+            </li>
+            <li>
+              {t('forgot_password_step3', 'Follow the password reset instructions')}
+            </li>
+            <li>
+              {t('forgot_password_step4', 'Log in to this tournament manager with your new password')}
+            </li>
+          </ol>
+        </div>
       </div>
-    </MainLayout>
+      
+      <div className="text-center">
+        <a 
+          href="/login" 
+          className="inline-block px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+        >
+          {t('forgot_password_go_to_login', 'Go to Login')}
+        </a>
+      </div>
+    </div>
   );
 };
 

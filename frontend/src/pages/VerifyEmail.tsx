@@ -1,52 +1,39 @@
-import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import api from '../services/api';
-import MainLayout from '../components/MainLayout';
 
+/**
+ * Verify Email Page - DISABLED
+ * Email verification is no longer part of the authentication process.
+ * User registration and email verification have been replaced by Wesnoth authentication.
+ */
 const VerifyEmail: React.FC = () => {
   const { t } = useTranslation();
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending');
-  const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    const token = searchParams.get('token');
-    if (!token) {
-      setStatus('error');
-      setMessage(t('auth.verify_email_missing_token') || 'Token de verificación no válido.');
-      return;
-    }
-    api.get(`/auth/verify-email?token=${encodeURIComponent(token)}`)
-      .then(res => {
-        setStatus('success');
-        setMessage(res.data.message || t('auth.verify_email_success'));
-      })
-      .catch(err => {
-        setStatus('error');
-        setMessage(err.response?.data?.error || t('auth.verify_email_error'));
-      });
-  }, [searchParams, t]);
 
   return (
-    <MainLayout>
-      <div className="max-w-md mx-auto mt-12 p-6 bg-white rounded shadow text-center">
-        <h2 className="text-xl font-bold mb-4">{t('auth.verify_email_title') || 'Verificación de email'}</h2>
-        {status === 'pending' && <div className="text-gray-600">{t('auth.verifying') || 'Verificando...'}</div>}
-        {status !== 'pending' && (
-          <>
-            <div className={status === 'success' ? 'text-green-600 mb-4' : 'text-red-600 mb-4'}>{message}</div>
-            <button
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              onClick={() => navigate('/login')}
-            >
-              {t('auth.return_to_login') || 'Volver a iniciar sesión'}
-            </button>
-          </>
-        )}
+    <div className="w-full max-w-2xl mx-auto my-12 px-4 bg-white rounded-lg shadow-sm py-8">
+      <h1 className="text-center mb-6 text-2xl font-bold text-gray-800">
+        {t('verify_email_disabled', 'Email Verification Disabled')}
+      </h1>
+      
+      <div className="bg-blue-50 border-l-4 border-blue-500 p-6 mb-6">
+        <p className="text-gray-800 mb-4">
+          {t('verify_email_info', 'Email verification is no longer required in this application.')}
+        </p>
+        
+        <p className="text-gray-700">
+          {t('verify_email_wesnoth', 'This application now uses Wesnoth authentication. Your account is automatically created when you log in with your Wesnoth credentials.')}
+        </p>
       </div>
-    </MainLayout>
+      
+      <div className="text-center">
+        <a 
+          href="/login" 
+          className="inline-block px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+        >
+          {t('verify_email_go_to_login', 'Go to Login')}
+        </a>
+      </div>
+    </div>
   );
 };
 

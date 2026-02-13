@@ -18,9 +18,7 @@ Integration of Tournament Manager as an independent sub-project in the root of t
 - ✅ **Shared database** with existing Wesnoth
 - ✅ **`users` table** reused from Wesnoth (phpBB)
 - ✅ **Extension tables** separated for Tournament Manager data:
-  - `user_ratings` (ELO, level, is_rated, wins/losses, trend, matches_played)
-  - `user_security` (failed_login_attempts, locked_until, last_login_attempt, password_must_change)
-  - `user_profiles` (country, avatar, language, discord_id)
+  - `users_extension` (ELO, level, is_rated, wins/losses, trend, matches_played, failed_login_attempts, locked_until, last_login_attempt, password_must_change, country, avatar, language, discord_id)
 
 ### 1.2 Authentication
 - ✅ **No registration in Tournament Manager** (completely removed)
