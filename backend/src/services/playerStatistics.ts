@@ -94,7 +94,7 @@ export async function updatePlayerStatistics(
       isWin: true,
       eloChange: winnerEloChange,
       dimensionName: 'H2H Aggregated (Winner)',
-      opponentEloAfter: loserEloChange, // Store opponent's ELO after
+      opponentEloAfter: finalLoserRating, // Store opponent's final ELO rating for H2H only
     });
 
     // === DIMENSION 4: H2H AGGREGATED (LOSER PERSPECTIVE) ===
@@ -107,7 +107,7 @@ export async function updatePlayerStatistics(
       isWin: false,
       eloChange: loserEloChange,
       dimensionName: 'H2H Aggregated (Loser)',
-      opponentEloAfter: winnerEloChange, // Store opponent's ELO after
+      opponentEloAfter: finalWinnerRating, // Store opponent's final ELO rating for H2H only
     });
 
     // === DIMENSION 5: WINNER PER-MAP ===
@@ -193,7 +193,6 @@ async function updateOrInsertStat(params: {
 
   try {
     // Build query with proper parameter indices
-    let paramIndex = 1;
     const queryParams: any[] = [playerId, opponentId, mapId, factionId];
     
     // Build the SET clause for UPDATE
@@ -223,26 +222,47 @@ async function updateOrInsertStat(params: {
     } else {
       // INSERT if UPDATE didn't match
       const insertId = uuidv4();
-      const insertParams = [
-        insertId,
-        playerId,
-        opponentId,
-        mapId,
-        factionId,
-        opponentFactionId,
-        isWin ? 1 : 0,
-        isWin ? 0 : 1,
-        isWin ? 100.0 : 0.0,
-        opponentEloAfter || null,
-      ];
       
-      await query(
-        `INSERT INTO player_match_statistics (
-           id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
-           total_games, wins, losses, winrate, last_elo_against_me, last_match_date
-         ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, CURRENT_TIMESTAMP)`,
-        insertParams
-      );
+      // Only include last_elo_against_me if we have an opponent (H2H records)
+      if (opponentEloAfter !== undefined && opponentId) {
+        await query(
+          `INSERT INTO player_match_statistics (
+             id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+             total_games, wins, losses, winrate, last_elo_against_me, last_match_date
+           ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, CURRENT_TIMESTAMP)`,
+          [
+            insertId,
+            playerId,
+            opponentId,
+            mapId,
+            factionId,
+            opponentFactionId,
+            isWin ? 1 : 0,
+            isWin ? 0 : 1,
+            isWin ? 100.0 : 0.0,
+            opponentEloAfter,
+          ]
+        );
+      } else {
+        // No ELO to store (global/map/faction records)
+        await query(
+          `INSERT INTO player_match_statistics (
+             id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+             total_games, wins, losses, winrate, last_match_date
+           ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, CURRENT_TIMESTAMP)`,
+          [
+            insertId,
+            playerId,
+            opponentId,
+            mapId,
+            factionId,
+            opponentFactionId,
+            isWin ? 1 : 0,
+            isWin ? 0 : 1,
+            isWin ? 100.0 : 0.0,
+          ]
+        );
+      }
       console.log(
         `   ✓ [${dimensionName}] INSERT: new record created (${insertId}), ${isWin ? '1 win' : '1 loss'}`
       );
