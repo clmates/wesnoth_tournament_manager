@@ -595,7 +595,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
       );
 
       // === UPDATE PLAYER STATISTICS (8 DIMENSIONS) ===
-      if (map && winner_faction && loser_faction) {
+      if (map && winner_faction && loser_faction && req.userId) {
         try {
           const winnerEloChange = finalWinnerRating - winner!.elo_rating;
           const loserEloChange = finalLoserRating - loser!.elo_rating;
