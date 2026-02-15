@@ -201,31 +201,34 @@ async function updateOrInsertStat(params: {
 
     if (opponentEloAfter !== undefined && opponentId) {
       // H2H records: include last_elo_against_me
+      // Parameters: $1=playerId, $2=opponentId, $3=opponentEloAfter
       updateSql = `UPDATE player_match_statistics
         SET total_games = total_games + 1,
             ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
             winrate = ROUND(100.0 * ${isWin ? '(wins + 1)' : 'wins'} / (total_games + 1), 2),
-            last_elo_against_me = $5
+            last_elo_against_me = $3
         WHERE player_id = $1
           AND opponent_id = $2
           AND map_id IS NULL
           AND faction_id IS NULL
           AND opponent_faction_id IS NULL`;
-      updateParams = [playerId, opponentId, mapId, factionId, opponentEloAfter];
+      updateParams = [playerId, opponentId, opponentEloAfter];
     } else if (mapId && !opponentId && !factionId) {
       // Per-Map records: no opponent, no faction
+      // Parameters: $1=playerId, $2=mapId
       updateSql = `UPDATE player_match_statistics
         SET total_games = total_games + 1,
             ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
             winrate = ROUND(100.0 * ${isWin ? '(wins + 1)' : 'wins'} / (total_games + 1), 2)
         WHERE player_id = $1
           AND opponent_id IS NULL
-          AND map_id = $3
+          AND map_id = $2
           AND faction_id IS NULL
           AND opponent_faction_id IS NULL`;
-      updateParams = [playerId, opponentId, mapId, factionId];
+      updateParams = [playerId, mapId];
     } else if (factionId && !opponentId && !mapId) {
       // Per-Faction records: no opponent, no map
+      // Parameters: $1=playerId, $2=factionId
       updateSql = `UPDATE player_match_statistics
         SET total_games = total_games + 1,
             ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
@@ -233,11 +236,12 @@ async function updateOrInsertStat(params: {
         WHERE player_id = $1
           AND opponent_id IS NULL
           AND map_id IS NULL
-          AND faction_id = $4
+          AND faction_id = $2
           AND opponent_faction_id IS NULL`;
-      updateParams = [playerId, opponentId, mapId, factionId];
+      updateParams = [playerId, factionId];
     } else {
       // Global records: no opponent, no map, no faction
+      // Parameters: $1=playerId
       updateSql = `UPDATE player_match_statistics
         SET total_games = total_games + 1,
             ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
@@ -247,7 +251,7 @@ async function updateOrInsertStat(params: {
           AND map_id IS NULL
           AND faction_id IS NULL
           AND opponent_faction_id IS NULL`;
-      updateParams = [playerId, opponentId, mapId, factionId];
+      updateParams = [playerId];
     }
 
     console.log(`   [DEBUG] UPDATE SQL: ${updateSql}`);
@@ -269,35 +273,60 @@ async function updateOrInsertStat(params: {
 
     if (opponentEloAfter !== undefined && opponentId) {
       // H2H records: include last_elo_against_me
+      // Parameters: $1=id, $2=playerId, $3=opponentId, $4=opponentEloAfter ($5=wins, $6=losses, $7=winrate)
       insertSql = `INSERT INTO player_match_statistics (
         id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
         total_games, wins, losses, winrate, last_elo_against_me, last_match_date
-      ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, CURRENT_TIMESTAMP)`;
+      ) VALUES ($1, $2, $3, NULL, NULL, NULL, 1, $4, $5, $6, $7, CURRENT_TIMESTAMP)`;
       insertParams = [
         insertId,
         playerId,
         opponentId,
-        mapId,
-        factionId,
-        opponentFactionId,
         isWin ? 1 : 0,
         isWin ? 0 : 1,
         isWin ? 100.0 : 0.0,
         opponentEloAfter,
       ];
-    } else {
-      // Global/Map/Faction records: no last_elo_against_me
+    } else if (mapId && !opponentId && !factionId) {
+      // Per-Map records: no opponent, no faction
+      // Parameters: $1=id, $2=playerId, $3=mapId ($4=wins, $5=losses, $6=winrate)
       insertSql = `INSERT INTO player_match_statistics (
         id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
         total_games, wins, losses, winrate, last_match_date
-      ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, CURRENT_TIMESTAMP)`;
+      ) VALUES ($1, $2, NULL, $3, NULL, NULL, 1, $4, $5, $6, CURRENT_TIMESTAMP)`;
       insertParams = [
         insertId,
         playerId,
-        opponentId,
         mapId,
+        isWin ? 1 : 0,
+        isWin ? 0 : 1,
+        isWin ? 100.0 : 0.0,
+      ];
+    } else if (factionId && !opponentId && !mapId) {
+      // Per-Faction records: no opponent, no map
+      // Parameters: $1=id, $2=playerId, $3=factionId ($4=wins, $5=losses, $6=winrate)
+      insertSql = `INSERT INTO player_match_statistics (
+        id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+        total_games, wins, losses, winrate, last_match_date
+      ) VALUES ($1, $2, NULL, NULL, $3, NULL, 1, $4, $5, $6, CURRENT_TIMESTAMP)`;
+      insertParams = [
+        insertId,
+        playerId,
         factionId,
-        opponentFactionId,
+        isWin ? 1 : 0,
+        isWin ? 0 : 1,
+        isWin ? 100.0 : 0.0,
+      ];
+    } else {
+      // Global records: no opponent, no map, no faction
+      // Parameters: $1=id, $2=playerId ($3=wins, $4=losses, $5=winrate)
+      insertSql = `INSERT INTO player_match_statistics (
+        id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+        total_games, wins, losses, winrate, last_match_date
+      ) VALUES ($1, $2, NULL, NULL, NULL, NULL, 1, $3, $4, $5, CURRENT_TIMESTAMP)`;
+      insertParams = [
+        insertId,
+        playerId,
         isWin ? 1 : 0,
         isWin ? 0 : 1,
         isWin ? 100.0 : 0.0,
