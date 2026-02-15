@@ -193,16 +193,21 @@ async function updateOrInsertStat(params: {
 
   try {
     // Build query with proper parameter indices
-    let queryParams: any[] = [playerId, opponentId, mapId, factionId];
+    let paramIndex = 1;
+    const queryParams: any[] = [playerId, opponentId, mapId, factionId];
+    
+    // Build the SET clause for UPDATE
+    let updateClause = `total_games = total_games + 1,
+           ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
+           winrate = ROUND(100.0 * ${isWin ? 'wins + 1' : 'wins'} / (total_games + 1), 2)`;
+    
     if (opponentEloAfter !== undefined) {
       queryParams.push(opponentEloAfter);
+      updateClause += `, last_elo_against_me = $5`;
     }
 
     const updateSql = `UPDATE player_match_statistics
-       SET total_games = total_games + 1,
-           ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
-           winrate = ROUND(100.0 * ${isWin ? 'wins + 1' : 'wins'} / (total_games + 1), 2)
-           ${opponentEloAfter !== undefined ? ', last_elo_against_me = $5' : ''}
+       SET ${updateClause}
        WHERE player_id = $1
          AND (opponent_id = $2 OR ($2 IS NULL AND opponent_id IS NULL))
          AND (map_id = $3 OR ($3 IS NULL AND map_id IS NULL))
@@ -218,25 +223,25 @@ async function updateOrInsertStat(params: {
     } else {
       // INSERT if UPDATE didn't match
       const insertId = uuidv4();
+      const insertParams = [
+        insertId,
+        playerId,
+        opponentId,
+        mapId,
+        factionId,
+        opponentFactionId,
+        isWin ? 1 : 0,
+        isWin ? 0 : 1,
+        isWin ? 100.0 : 0.0,
+        opponentEloAfter || null,
+      ];
+      
       await query(
         `INSERT INTO player_match_statistics (
            id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
-           total_games, wins, losses, winrate, avg_elo_change, 
-           last_elo_against_me, last_match_date
-         ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)`,
-        [
-          insertId,
-          playerId,
-          opponentId,
-          mapId,
-          factionId,
-          opponentFactionId,
-          isWin ? 1 : 0,
-          isWin ? 0 : 1,
-          isWin ? 100.0 : 0.0,
-          eloChange,
-          opponentEloAfter || null,
-        ]
+           total_games, wins, losses, winrate, last_elo_against_me, last_match_date
+         ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, CURRENT_TIMESTAMP)`,
+        insertParams
       );
       console.log(
         `   ✓ [${dimensionName}] INSERT: new record created (${insertId}), ${isWin ? '1 win' : '1 loss'}`
