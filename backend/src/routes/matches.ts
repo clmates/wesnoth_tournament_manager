@@ -11,6 +11,7 @@ import {
 } from '../utils/elo.js';
 import { updateBestOfSeriesDB, createNextMatchInSeries } from '../utils/bestOf.js';
 import { checkAndCompleteRound } from '../utils/tournament.js';
+import { updatePlayerStatistics } from '../services/playerStatistics.js';
 import { supabase, uploadReplayToSupabase, downloadReplayFromSupabase, deleteReplayFromSupabase } from '../config/supabase.js';
 import multer from 'multer';
 import path from 'path';
@@ -592,6 +593,24 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
       console.log(
         `Match ${matchId}: Winner ${req.userId} (${winner!.elo_rating} -> ${finalWinnerRating}, rated: ${winnerIsNowRated}) vs Loser ${opponent_id} (${loser!.elo_rating} -> ${finalLoserRating}, rated: ${loserIsNowRated})`
       );
+
+      // === UPDATE PLAYER STATISTICS (8 DIMENSIONS) ===
+      try {
+        const winnerEloChange = finalWinnerRating - winner!.elo_rating;
+        const loserEloChange = finalLoserRating - loser!.elo_rating;
+        await updatePlayerStatistics(
+          req.userId,
+          opponent_id,
+          map,
+          winner_faction!,
+          loser_faction!,
+          winnerEloChange,
+          loserEloChange
+        );
+      } catch (statsError) {
+        console.error('❌ Error updating player statistics:', statsError);
+        // Don't fail the match report if stats update fails
+      }
     } else {
       // For unranked/team tournaments, log match report only
       const modeLabel = isTournamentTeamMode ? '[TEAM]' : '[UNRANKED]';
