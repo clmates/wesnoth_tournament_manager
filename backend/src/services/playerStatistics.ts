@@ -169,6 +169,7 @@ export async function updatePlayerStatistics(
 
 /**
  * Helper function to UPDATE or INSERT a single stats record
+ * Uses explicit SQL statements for clarity and debugging
  */
 async function updateOrInsertStat(params: {
   playerId: string;
@@ -194,81 +195,122 @@ async function updateOrInsertStat(params: {
   } = params;
 
   try {
-    // Build query with proper parameter indices
-    const queryParams: any[] = [playerId, opponentId, mapId, factionId];
-    
-    // Build the SET clause for UPDATE
-    let updateClause = `total_games = total_games + 1,
-           ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
-           winrate = ROUND(100.0 * ${isWin ? 'wins + 1' : 'wins'} / (total_games + 1), 2)`;
-    
-    if (opponentEloAfter !== undefined) {
-      queryParams.push(opponentEloAfter);
-      updateClause += `, last_elo_against_me = $5`;
+    // === EXPLICIT UPDATE STATEMENT ===
+    let updateSql: string;
+    let updateParams: any[];
+
+    if (opponentEloAfter !== undefined && opponentId) {
+      // H2H records: include last_elo_against_me
+      updateSql = `UPDATE player_match_statistics
+        SET total_games = total_games + 1,
+            ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
+            winrate = ROUND(100.0 * ${isWin ? '(wins + 1)' : 'wins'} / (total_games + 1), 2),
+            last_elo_against_me = $5
+        WHERE player_id = $1
+          AND opponent_id = $2
+          AND map_id IS NULL
+          AND faction_id IS NULL
+          AND opponent_faction_id IS NULL`;
+      updateParams = [playerId, opponentId, mapId, factionId, opponentEloAfter];
+    } else if (mapId && !opponentId && !factionId) {
+      // Per-Map records: no opponent, no faction
+      updateSql = `UPDATE player_match_statistics
+        SET total_games = total_games + 1,
+            ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
+            winrate = ROUND(100.0 * ${isWin ? '(wins + 1)' : 'wins'} / (total_games + 1), 2)
+        WHERE player_id = $1
+          AND opponent_id IS NULL
+          AND map_id = $3
+          AND faction_id IS NULL
+          AND opponent_faction_id IS NULL`;
+      updateParams = [playerId, opponentId, mapId, factionId];
+    } else if (factionId && !opponentId && !mapId) {
+      // Per-Faction records: no opponent, no map
+      updateSql = `UPDATE player_match_statistics
+        SET total_games = total_games + 1,
+            ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
+            winrate = ROUND(100.0 * ${isWin ? '(wins + 1)' : 'wins'} / (total_games + 1), 2)
+        WHERE player_id = $1
+          AND opponent_id IS NULL
+          AND map_id IS NULL
+          AND faction_id = $4
+          AND opponent_faction_id IS NULL`;
+      updateParams = [playerId, opponentId, mapId, factionId];
+    } else {
+      // Global records: no opponent, no map, no faction
+      updateSql = `UPDATE player_match_statistics
+        SET total_games = total_games + 1,
+            ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
+            winrate = ROUND(100.0 * ${isWin ? '(wins + 1)' : 'wins'} / (total_games + 1), 2)
+        WHERE player_id = $1
+          AND opponent_id IS NULL
+          AND map_id IS NULL
+          AND faction_id IS NULL
+          AND opponent_faction_id IS NULL`;
+      updateParams = [playerId, opponentId, mapId, factionId];
     }
 
-    const updateSql = `UPDATE player_match_statistics
-       SET ${updateClause}
-       WHERE player_id = $1
-         AND (opponent_id = $2 OR ($2 IS NULL AND opponent_id IS NULL))
-         AND (map_id = $3 OR ($3 IS NULL AND map_id IS NULL))
-         AND (faction_id = $4 OR ($4 IS NULL AND faction_id IS NULL))
-         AND opponent_faction_id IS NULL`;
+    console.log(`   [DEBUG] UPDATE SQL: ${updateSql}`);
+    console.log(`   [DEBUG] Params: ${JSON.stringify(updateParams)}`);
 
-    const updateResult = await query(updateSql, queryParams);
+    const updateResult = await query(updateSql, updateParams);
 
     if (updateResult.rowCount! > 0) {
       console.log(
         `   ✓ [${dimensionName}] UPDATE: +1 game, ${isWin ? '+1 win' : '+1 loss'} (rows: ${updateResult.rowCount})`
       );
-    } else {
-      // INSERT if UPDATE didn't match
-      const insertId = uuidv4();
-      
-      // Only include last_elo_against_me if we have an opponent (H2H records)
-      if (opponentEloAfter !== undefined && opponentId) {
-        await query(
-          `INSERT INTO player_match_statistics (
-             id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
-             total_games, wins, losses, winrate, last_elo_against_me, last_match_date
-           ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, CURRENT_TIMESTAMP)`,
-          [
-            insertId,
-            playerId,
-            opponentId,
-            mapId,
-            factionId,
-            opponentFactionId,
-            isWin ? 1 : 0,
-            isWin ? 0 : 1,
-            isWin ? 100.0 : 0.0,
-            opponentEloAfter,
-          ]
-        );
-      } else {
-        // No ELO to store (global/map/faction records)
-        await query(
-          `INSERT INTO player_match_statistics (
-             id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
-             total_games, wins, losses, winrate, last_match_date
-           ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, CURRENT_TIMESTAMP)`,
-          [
-            insertId,
-            playerId,
-            opponentId,
-            mapId,
-            factionId,
-            opponentFactionId,
-            isWin ? 1 : 0,
-            isWin ? 0 : 1,
-            isWin ? 100.0 : 0.0,
-          ]
-        );
-      }
-      console.log(
-        `   ✓ [${dimensionName}] INSERT: new record created (${insertId}), ${isWin ? '1 win' : '1 loss'}`
-      );
+      return;
     }
+
+    // === EXPLICIT INSERT STATEMENT ===
+    const insertId = uuidv4();
+    let insertSql: string;
+    let insertParams: any[];
+
+    if (opponentEloAfter !== undefined && opponentId) {
+      // H2H records: include last_elo_against_me
+      insertSql = `INSERT INTO player_match_statistics (
+        id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+        total_games, wins, losses, winrate, last_elo_against_me, last_match_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, CURRENT_TIMESTAMP)`;
+      insertParams = [
+        insertId,
+        playerId,
+        opponentId,
+        mapId,
+        factionId,
+        opponentFactionId,
+        isWin ? 1 : 0,
+        isWin ? 0 : 1,
+        isWin ? 100.0 : 0.0,
+        opponentEloAfter,
+      ];
+    } else {
+      // Global/Map/Faction records: no last_elo_against_me
+      insertSql = `INSERT INTO player_match_statistics (
+        id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+        total_games, wins, losses, winrate, last_match_date
+      ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, CURRENT_TIMESTAMP)`;
+      insertParams = [
+        insertId,
+        playerId,
+        opponentId,
+        mapId,
+        factionId,
+        opponentFactionId,
+        isWin ? 1 : 0,
+        isWin ? 0 : 1,
+        isWin ? 100.0 : 0.0,
+      ];
+    }
+
+    console.log(`   [DEBUG] INSERT SQL: ${insertSql}`);
+    console.log(`   [DEBUG] Params: ${JSON.stringify(insertParams)}`);
+
+    await query(insertSql, insertParams);
+    console.log(
+      `   ✓ [${dimensionName}] INSERT: new record created, ${isWin ? '1 win' : '1 loss'}`
+    );
   } catch (error) {
     console.error(`❌ [${dimensionName}] Error:`, error);
     throw error;
