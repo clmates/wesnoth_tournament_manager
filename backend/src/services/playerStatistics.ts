@@ -192,22 +192,25 @@ async function updateOrInsertStat(params: {
   } = params;
 
   try {
-    // Try UPDATE first
-    const updateResult = await query(
-      `UPDATE player_match_statistics
+    // Build query with proper parameter indices
+    let queryParams: any[] = [eloChange, playerId, opponentId, mapId, factionId];
+    if (opponentEloAfter !== undefined) {
+      queryParams.push(opponentEloAfter);
+    }
+
+    const updateSql = `UPDATE player_match_statistics
        SET total_games = total_games + 1,
            ${isWin ? 'wins = wins + 1' : 'losses = losses + 1'},
            winrate = ROUND(100.0 * ${isWin ? 'wins + 1' : 'wins'} / (total_games + 1), 2),
-           avg_elo_change = ROUND((avg_elo_change * total_games + $1) / (total_games + 1), 2),
-           last_updated = CURRENT_TIMESTAMP
-           ${opponentEloAfter !== undefined ? ', last_elo_against_me = $7' : ''}
+           avg_elo_change = ROUND((avg_elo_change * total_games + $1) / (total_games + 1), 2)
+           ${opponentEloAfter !== undefined ? ', last_elo_against_me = $6' : ''}
        WHERE player_id = $2
-         AND opponent_id IS ${opponentId ? 'NOT' : ''} NULL ${opponentId ? 'AND opponent_id = $3' : ''}
-         AND map_id IS ${mapId ? 'NOT' : ''} NULL ${mapId ? 'AND map_id = $4' : ''}
-         AND faction_id IS ${factionId ? 'NOT' : ''} NULL ${factionId ? 'AND faction_id = $5' : ''}
-         AND opponent_faction_id IS NULL`,
-      [eloChange, playerId, opponentId, mapId, factionId, opponentFactionId, opponentEloAfter || 0]
-    );
+         AND (opponent_id = $3 OR ($3 IS NULL AND opponent_id IS NULL))
+         AND (map_id = $4 OR ($4 IS NULL AND map_id IS NULL))
+         AND (faction_id = $5 OR ($5 IS NULL AND faction_id IS NULL))
+         AND opponent_faction_id IS NULL`;
+
+    const updateResult = await query(updateSql, queryParams);
 
     if (updateResult.rowCount! > 0) {
       console.log(
@@ -220,8 +223,8 @@ async function updateOrInsertStat(params: {
         `INSERT INTO player_match_statistics (
            id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
            total_games, wins, losses, winrate, avg_elo_change, 
-           last_elo_against_me, elo_gained, elo_lost, last_match_date
-         ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)`,
+           last_elo_against_me, last_match_date
+         ) VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)`,
         [
           insertId,
           playerId,
@@ -234,8 +237,6 @@ async function updateOrInsertStat(params: {
           isWin ? 100.0 : 0.0,
           eloChange,
           opponentEloAfter || null,
-          isWin && eloChange > 0 ? eloChange : 0,
-          !isWin && eloChange < 0 ? Math.abs(eloChange) : 0,
         ]
       );
       console.log(
