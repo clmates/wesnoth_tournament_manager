@@ -22,7 +22,9 @@ export async function updatePlayerStatistics(
   winnerFactionName: string,
   loserFactionName: string,
   winnerEloChange: number,
-  loserEloChange: number
+  loserEloChange: number,
+  finalWinnerRating: number,
+  finalLoserRating: number
 ): Promise<void> {
   console.log('🔄 [STATS] Starting player statistics update...');
   console.log(`   Winner: ${winnerId}, Loser: ${loserId}`);

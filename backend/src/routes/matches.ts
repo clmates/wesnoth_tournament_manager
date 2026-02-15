@@ -606,7 +606,9 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
             winner_faction,
             loser_faction,
             winnerEloChange,
-            loserEloChange
+            loserEloChange,
+            finalWinnerRating,
+            finalLoserRating
           );
         } catch (statsError) {
           console.error('❌ Error updating player statistics:', statsError);
@@ -1192,7 +1194,9 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
             winner_faction,
             loser_faction,
             winnerEloChange,
-            loserEloChange
+            loserEloChange,
+            finalWinnerRating,
+            finalLoserRating
           );
         } catch (statsError) {
           console.error('❌ Error updating player statistics:', statsError);
