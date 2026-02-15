@@ -1179,6 +1179,25 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       console.log(
         `Match ${matchId}: Winner ${req.userId} (${winner!.elo_rating} -> ${finalWinnerRating}, rated: ${winnerIsNowRated}) vs Loser ${opponent_id} (${loser!.elo_rating} -> ${finalLoserRating}, rated: ${loserIsNowRated})`
       );
+
+      // === UPDATE PLAYER STATISTICS (8 DIMENSIONS) ===
+      if (map && winner_faction && loser_faction && req.userId) {
+        try {
+          const winnerEloChange = finalWinnerRating - winner!.elo_rating;
+          const loserEloChange = finalLoserRating - loser!.elo_rating;
+          await updatePlayerStatistics(
+            req.userId,
+            opponent_id,
+            map,
+            winner_faction,
+            loser_faction,
+            winnerEloChange,
+            loserEloChange
+          );
+        } catch (statsError) {
+          console.error('❌ Error updating player statistics:', statsError);
+        }
+      }
     } else {
       // For unranked/team tournaments, log the match report (no match stored in matches table)
       const modeLabel = tournamentMode === 'team' ? '[TEAM]' : '[UNRANKED]';
