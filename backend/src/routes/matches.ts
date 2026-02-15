@@ -595,21 +595,23 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
       );
 
       // === UPDATE PLAYER STATISTICS (8 DIMENSIONS) ===
-      try {
-        const winnerEloChange = finalWinnerRating - winner!.elo_rating;
-        const loserEloChange = finalLoserRating - loser!.elo_rating;
-        await updatePlayerStatistics(
-          req.userId,
-          opponent_id,
-          map,
-          winner_faction!,
-          loser_faction!,
-          winnerEloChange,
-          loserEloChange
-        );
-      } catch (statsError) {
-        console.error('❌ Error updating player statistics:', statsError);
-        // Don't fail the match report if stats update fails
+      if (winner_faction && loser_faction) {
+        try {
+          const winnerEloChange = finalWinnerRating - winner!.elo_rating;
+          const loserEloChange = finalLoserRating - loser!.elo_rating;
+          await updatePlayerStatistics(
+            req.userId,
+            opponent_id,
+            map,
+            winner_faction,
+            loser_faction,
+            winnerEloChange,
+            loserEloChange
+          );
+        } catch (statsError) {
+          console.error('❌ Error updating player statistics:', statsError);
+          // Don't fail the match report if stats update fails
+        }
       }
     } else {
       // For unranked/team tournaments, log match report only
