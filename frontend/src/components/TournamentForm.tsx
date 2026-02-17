@@ -22,6 +22,7 @@ interface TournamentFormProps {
   mode: 'create' | 'edit';
   formData: TournamentFormData;
   onFormDataChange: (data: TournamentFormData) => void;
+  onMaxParticipantsChange?: (maxParticipants: number | null) => void;
   onSubmit: (e: React.FormEvent) => void;
   unrankedFactions: string[];
   onUnrankedFactionsChange: (factionIds: string[]) => void;
@@ -34,6 +35,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
   mode,
   formData,
   onFormDataChange,
+  onMaxParticipantsChange,
   onSubmit,
   unrankedFactions,
   onUnrankedFactionsChange,
@@ -51,7 +53,37 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
   };
 
   const handleTournamentTypeChange = (newType: string) => {
-    onFormDataChange({ ...formData, tournament_type: newType });
+    // Apply default values based on tournament type
+    const updatedFormData = { ...formData, tournament_type: newType };
+    
+    // Set appropriate defaults for each tournament type
+    if (newType === 'league') {
+      // League defaults: 1 wave, bo3 format
+      updatedFormData.general_rounds = 1;
+      updatedFormData.final_rounds = 0;
+      updatedFormData.general_rounds_format = 'bo3';
+      updatedFormData.final_rounds_format = 'bo5';
+    } else if (newType === 'swiss') {
+      // Swiss defaults: 3 rounds, bo3 format
+      updatedFormData.general_rounds = 3;
+      updatedFormData.final_rounds = 0;
+      updatedFormData.general_rounds_format = 'bo3';
+      updatedFormData.final_rounds_format = 'bo5';
+    } else if (newType === 'swiss_elimination') {
+      // Swiss-Elimination defaults: 3 qualifying rounds (swiss), 4 elimination rounds
+      updatedFormData.general_rounds = 3;
+      updatedFormData.final_rounds = 4;
+      updatedFormData.general_rounds_format = 'bo3';
+      updatedFormData.final_rounds_format = 'bo5';
+    } else if (newType === 'elimination') {
+      // Elimination: no need for general_rounds (will be auto-calculated)
+      updatedFormData.general_rounds = 0;
+      updatedFormData.final_rounds = 0;
+      updatedFormData.general_rounds_format = 'bo3';
+      updatedFormData.final_rounds_format = 'bo5';
+    }
+    
+    onFormDataChange(updatedFormData);
   };
 
   return (
@@ -153,10 +185,17 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
               min="2"
               max="256"
               value={formData.max_participants || ''}
-              onChange={(e) => onFormDataChange({ 
-                ...formData, 
-                max_participants: e.target.value ? parseInt(e.target.value) : null 
-              })}
+              onChange={(e) => {
+                const value = e.target.value ? parseInt(e.target.value) : null;
+                if (onMaxParticipantsChange) {
+                  onMaxParticipantsChange(value);
+                } else {
+                  onFormDataChange({ 
+                    ...formData, 
+                    max_participants: value
+                  });
+                }
+              }}
               disabled={isLoading}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             />

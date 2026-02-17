@@ -38,7 +38,7 @@ const MyTournaments: React.FC = () => {
     max_participants: null as number | null,
     round_duration_days: 7,
     auto_advance_round: false,
-    general_rounds: 0,
+    general_rounds: 1,
     final_rounds: 0,
     general_rounds_format: 'bo3',
     final_rounds_format: 'bo5',
@@ -70,6 +70,35 @@ const MyTournaments: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMaxParticipantsChange = (maxParticipants: number | null) => {
+    const updatedData = {
+      ...formData,
+      max_participants: maxParticipants,
+    };
+
+    // If max_participants is set and tournament type requires round configuration, validate and set defaults
+    if (maxParticipants && maxParticipants > 0 && formData.tournament_type !== 'elimination') {
+      // Check if rounds are not properly configured
+      const totalRounds = (formData.general_rounds || 0) + (formData.final_rounds || 0);
+      
+      if (totalRounds <= 0) {
+        // Apply defaults based on tournament type
+        if (formData.tournament_type === 'league') {
+          updatedData.general_rounds = 1;
+          updatedData.final_rounds = 0;
+        } else if (formData.tournament_type === 'swiss') {
+          updatedData.general_rounds = 3;
+          updatedData.final_rounds = 0;
+        } else if (formData.tournament_type === 'swiss_elimination') {
+          updatedData.general_rounds = 3;
+          updatedData.final_rounds = 4;
+        }
+      }
+    }
+
+    setFormData(updatedData);
   };
 
   const handleCreateTournament = async (e: React.FormEvent) => {
@@ -105,7 +134,7 @@ const MyTournaments: React.FC = () => {
         max_participants: null,
         round_duration_days: 7,
         auto_advance_round: false,
-        general_rounds: 0,
+        general_rounds: 1,
         final_rounds: 0,
         general_rounds_format: 'bo3',
         final_rounds_format: 'bo5',
@@ -153,6 +182,7 @@ const MyTournaments: React.FC = () => {
             mode="create"
             formData={formData}
             onFormDataChange={setFormData}
+            onMaxParticipantsChange={handleMaxParticipantsChange}
             onSubmit={handleCreateTournament}
             unrankedFactions={unrankedFactions}
             onUnrankedFactionsChange={setUnrankedFactions}
