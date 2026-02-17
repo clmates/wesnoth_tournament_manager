@@ -11,7 +11,7 @@ import {
 } from '../utils/elo.js';
 import { updateBestOfSeriesDB, createNextMatchInSeries } from '../utils/bestOf.js';
 import { checkAndCompleteRound } from '../utils/tournament.js';
-import { supabase, uploadReplayToSupabase, downloadReplayFromSupabase, deleteReplayFromSupabase } from '../config/supabase.js';
+// NOTE: Supabase replay storage temporarily disabled - using /uploads/replays instead
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -958,7 +958,9 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     let matchId: string | null = null;
     let replayPath: string | null = null;
 
-    // Upload replay to Supabase if file exists (for ranked/unranked/team)
+    // NOTE: Replay upload to Supabase temporarily disabled - using /uploads/replays instead
+    // Replays will be handled via local file uploads
+    /*
     if ((tournamentMode === 'ranked' || tournamentMode === 'unranked' || tournamentMode === 'team') && req.file) {
       try {
         console.log('📤 [UPLOAD] Starting Supabase upload...');
@@ -980,6 +982,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         // Don't fail the entire request if upload fails - we can retry later
       }
     }
+    */
 
     if (tournamentMode === 'ranked') {
       // Insert match with ranking positions and tournament_mode (only for ranked/unranked)
@@ -2187,34 +2190,14 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'No replay file for this match' });
     }
 
-    try {
-      // Generate a short-lived signed URL (5 minutes) for direct download from Supabase
-      console.log('📥 [DOWNLOAD] Generating signed URL for:', replayFilePath);
-      const filename = path.basename(replayFilePath);
-      const { data: signedData, error: signedError } = await supabase.storage
-        .from('replays')
-        .createSignedUrl(replayFilePath, 300); // 5 minutes expiration
-
-      if (signedError || !signedData?.signedUrl) {
-        console.error('❌ [DOWNLOAD] Failed to generate signed URL:', signedError?.message || 'No signed URL');
-        return res.status(500).json({ error: 'Failed to generate download link' });
-      }
-
-      console.log('✅ [DOWNLOAD] Signed URL generated (5-min expiry), sending to client');
-
-      // Return the signed URL to client (5-minute validity)
-      res.json({
-        signedUrl: signedData.signedUrl,
-        filename: filename,
-        expiresIn: 300
-      });
-    } catch (supabaseError) {
-      console.error('❌ [DOWNLOAD] Supabase error:', supabaseError);
-      res.status(500).json({ error: 'Failed to generate download link' });
-    }
+    // NOTE: Supabase replay download temporarily disabled - using /uploads/replays instead
+    console.log('📥 [DOWNLOAD] Replay download feature will be implemented');
+    
+    // TODO: Implement local file download from /uploads/replays
+    return res.status(501).json({ error: 'Replay download feature will be implemented' });
   } catch (error) {
     console.error('❌ [DOWNLOAD] Replay download error:', error);
-    res.status(500).json({ error: 'Failed to download replay' });
+    return res.status(500).json({ error: 'Failed to download replay' });
   }
 });
 

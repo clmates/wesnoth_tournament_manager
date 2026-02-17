@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { query } from '../config/database.js';
 import { getWinnerAndRunnerUp } from '../utils/tournament.js';
 import { optionalAuthMiddleware } from '../middleware/auth.js';
-import { supabase } from '../config/supabase.js';
+// NOTE: Supabase replay storage temporarily disabled - using /uploads/replays instead
 
 const router = Router();
 
@@ -906,7 +906,8 @@ router.get('/replay/download-url', async (req, res) => {
 
     console.log('📥 [REPLAY-DL] Generating signed URL for path:', replayFilePath);
 
-    // Generate a short-lived signed URL (5 minutes) for direct download from Supabase
+    // NOTE: Supabase replay download temporarily disabled - using /uploads/replays instead
+    /*
     const filename = replayFilePath.split('/').pop() || 'replay.zip';
     const { data: signedData, error: signedError } = await supabase.storage
       .from('replays')
@@ -924,6 +925,10 @@ router.get('/replay/download-url', async (req, res) => {
       filename: filename,
       expiresIn: 300
     });
+    */
+    
+    // TODO: Implement local file download from /uploads/replays
+    return res.status(501).json({ error: 'Replay download feature will be implemented' });
   } catch (error) {
     console.error('❌ [REPLAY-DL] Unexpected error:', error);
     return res.status(500).json({ error: 'Failed to download replay', details: (error as any)?.message });

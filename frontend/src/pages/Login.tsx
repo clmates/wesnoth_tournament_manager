@@ -58,7 +58,7 @@ const Login: React.FC = () => {
   return (
     <div className="w-full max-w-4xl mx-auto my-12 px-4 bg-white rounded-lg shadow-sm py-8">
       <h1 className="text-center mb-2 text-2xl font-bold text-gray-800">{t('login_title')}</h1>
-      <p className="text-center mb-6 text-gray-600">{t('login_wesnoth_account', 'Log in with your Wesnoth account')}</p>
+      <p className="text-center mb-6 text-gray-600">{t('login_wesnoth_account', 'Log in with your Wesnoth forum account')}</p>
       
       {error && (
         <p className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-4 border-l-4 border-red-600">
@@ -69,7 +69,7 @@ const Login: React.FC = () => {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="text"
-          placeholder={t('login_username', 'Wesnoth Username')}
+          placeholder={t('login_username', 'Wesnoth Forum Username')}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
@@ -97,17 +97,31 @@ const Login: React.FC = () => {
         </button>
       </form>
       
-      <p className="text-center mt-6 text-sm text-gray-600">
-        {t('login_need_account', "Don't have a Wesnoth account?")}{' '}
-        <a 
-          href="https://www.wesnoth.org/account/register" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-blue-500 hover:underline"
-        >
-          {t('login_create_wesnoth', 'Create one on Wesnoth.org')}
-        </a>
-      </p>
+      <div className="mt-6 space-y-4 text-sm text-gray-600">
+        <p className="text-center">
+          {t('login_need_account', "Don't have a Wesnoth account?")}{' '}
+          <a 
+            href="https://forum.wesnoth.org/ucp.php?mode=register" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            {t('login_create_wesnoth', 'Register on Wesnoth Forum')}
+          </a>
+        </p>
+        
+        <p className="text-center">
+          {t('login_forgot_password', 'Forgot your password?')}{' '}
+          <a 
+            href="https://forum.wesnoth.org/ucp.php?mode=sendpassword" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            {t('login_reset_password', 'Reset it on Wesnoth Forum')}
+          </a>
+        </p>
+      </div>
     </div>
   );
 };

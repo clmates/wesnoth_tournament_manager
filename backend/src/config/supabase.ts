@@ -3,15 +3,19 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  console.error('❌ Missing Supabase credentials in environment variables');
-  console.error('   Required: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
-  process.exit(1);
-}
+// Supabase is optional - can be disabled if using alternative storage
+let supabase: any = null;
 
-// Use service role key for backend operations (full access)
-// This is safe because it runs on a private server
-export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+if (!supabaseUrl || !supabaseServiceRoleKey) {
+  if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+    console.warn('⚠️  Supabase credentials not configured - replay storage disabled');
+    console.warn('   To enable: set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env');
+  }
+} else {
+  // Use service role key for backend operations (full access)
+  // This is safe because it runs on a private server
+  supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+}
 
 // Helper function to upload replay to Supabase Storage
 // Expects caller to provide the final filename (including extension) to avoid double extensions
@@ -20,6 +24,11 @@ export async function uploadReplayToSupabase(
   fileBuffer: Buffer
 ): Promise<{ path: string; url: string }> {
   try {
+    if (!supabase) {
+      console.warn('⚠️  [SUPABASE] Supabase not configured, replay storage disabled');
+      return { path: storedFilename, url: '' };
+    }
+
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📤 [SUPABASE] Uploading replay to Supabase:', storedFilename);
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📤 [SUPABASE] File size:', fileBuffer.length, 'bytes');
 
@@ -57,6 +66,11 @@ export async function downloadReplayFromSupabase(
   filename: string
 ): Promise<Buffer> {
   try {
+    if (!supabase) {
+      console.warn('⚠️  [SUPABASE] Supabase not configured, cannot download replay');
+      throw new Error('Supabase not configured');
+    }
+
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📥 [SUPABASE] ===== DOWNLOAD START =====');
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('📥 [SUPABASE] Filename:', filename);
 
@@ -93,6 +107,11 @@ export async function downloadReplayFromSupabase(
 // Helper function to delete replay from Supabase Storage
 export async function deleteReplayFromSupabase(filename: string): Promise<void> {
   try {
+    if (!supabase) {
+      console.warn('⚠️  [SUPABASE] Supabase not configured, skipping replay deletion');
+      return;
+    }
+
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('🗑️ [SUPABASE] Deleting replay from Supabase:', filename);
 
     const { error } = await supabase.storage.from('replays').remove([filename]);
@@ -108,3 +127,4 @@ export async function deleteReplayFromSupabase(filename: string): Promise<void> 
     throw error;
   }
 }
+export { supabase };
