@@ -2926,7 +2926,7 @@ router.get('/:id/standings', async (req, res) => {
         `SELECT tp.*, u.nickname, u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.team_id != $2
+         WHERE tp.tournament_id = $1 AND (tp.team_id IS NULL OR tp.team_id != $2)
          ORDER BY ${orderBy1v1}`,
         [id, REJECTED_TEAM_ID]
       );
