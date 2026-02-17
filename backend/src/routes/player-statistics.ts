@@ -272,9 +272,9 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
         pms.wins,
         pms.losses,
         pms.winrate,
-        COALESCE(pms.elo_gained, 0)::NUMERIC(8,2) as elo_gained,
-        COALESCE(pms.elo_lost, 0)::NUMERIC(8,2) as elo_lost,
-        pms.last_match_date::TEXT as last_match_date,
+        CAST(COALESCE(pms.elo_gained, 0) AS DECIMAL(8,2)) as elo_gained,
+        CAST(COALESCE(pms.elo_lost, 0) AS DECIMAL(8,2)) as elo_lost,
+        CAST(pms.last_match_date AS CHAR) as last_match_date,
         pms.last_elo_against_me
       FROM player_match_statistics pms
       JOIN users u ON pms.opponent_id = u.id

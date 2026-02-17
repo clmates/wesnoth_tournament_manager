@@ -508,7 +508,7 @@ router.get('/data/countries', async (req, res) => {
         region
        FROM countries 
        WHERE is_active = true 
-       ORDER BY names_json->>'en' ASC`
+       ORDER BY JSON_EXTRACT(names_json, '$.en') ASC`
     );
     
     console.log('✅ Query result rows:', result.rows.length);

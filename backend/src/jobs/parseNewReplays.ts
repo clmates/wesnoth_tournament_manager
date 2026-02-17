@@ -168,27 +168,32 @@ export class ParseNewReplaysJob {
             const lastIntegrationTimestamp = 
                 (timestampResult as unknown as any[])?.[0]?.setting_value || null;
             
-            const timestampFilter = lastIntegrationTimestamp 
-                ? `AND detected_at > '${lastIntegrationTimestamp}'`
-                : '';
-            
             if (lastIntegrationTimestamp) {
                 console.log(
                     `Resuming replay processing from timestamp: ${lastIntegrationTimestamp}`
                 );
             }
 
-            const query_sql = `SELECT id, replay_filename, replay_path, detected_at, file_write_closed_at
-                 FROM replays
-                 WHERE parsed = 0
+            // Use parameterized query for MariaDB compatibility and security
+            const params: any[] = [];
+            let whereClause = `WHERE parsed = 0
                  AND file_write_closed_at IS NOT NULL
                  AND file_write_closed_at < NOW() - INTERVAL 5 SECOND
-                 AND parse_status NOT IN ('error', 'parsing')
-                 ${timestampFilter}
-                 ORDER BY detected_at ASC
-                 LIMIT 10`;
+                 AND parse_status NOT IN ('error', 'parsing')`;
             
-            const result = await query(query_sql);
+            // Add timestamp filter if available (for resilience)
+            if (lastIntegrationTimestamp) {
+                whereClause += ` AND detected_at > ?`;
+                params.push(lastIntegrationTimestamp);
+            }
+            
+            whereClause += ` ORDER BY detected_at ASC LIMIT 10`;
+            
+            const query_sql = `SELECT id, replay_filename, replay_path, detected_at, file_write_closed_at
+                 FROM replays
+                 ${whereClause}`;
+            
+            const result = await query(query_sql, params);
 
             return (result as unknown as any[]) || [];
         } catch (error: any) {

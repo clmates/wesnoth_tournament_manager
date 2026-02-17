@@ -280,7 +280,7 @@ router.get('/history/trend', async (req, res) => {
     }
     
     const result = await query(
-      `SELECT * FROM get_balance_trend($1, $2, $3, $4::DATE, $5::DATE)`,
+      `SELECT * FROM get_balance_trend($1, $2, $3, CAST($4 AS DATE), CAST($5 AS DATE))`,
       [mapId, factionId, opponentFactionId, dateFrom, dateTo]
     );
     
@@ -457,8 +457,8 @@ router.get('/history/snapshot', async (req, res) => {
       JOIN game_maps gm ON fms.map_id = gm.id
       JOIN factions f1 ON fms.faction_id = f1.id
       JOIN factions f2 ON fms.opponent_faction_id = f2.id
-      WHERE fms.snapshot_date = $1::DATE
-      AND fms.total_games >= $2::INT
+      WHERE fms.snapshot_date = CAST($1 AS DATE)
+      AND fms.total_games >= CAST($2 AS INT)
       ORDER BY gm.name, fms.winrate DESC`,
       [date, parseInt(minGames as string)]
     );
@@ -550,7 +550,7 @@ router.post('/history/snapshot', async (req, res) => {
     }
     
     const result = await query(
-      `SELECT * FROM create_faction_map_statistics_snapshot($1::DATE)`,
+      `SELECT * FROM create_faction_map_statistics_snapshot(CAST($1 AS DATE))`,
       [date]
     );
     
@@ -600,7 +600,7 @@ router.post('/history/recalculate-snapshots', async (req, res) => {
       
       try {
         const result = await query(
-          `SELECT snapshots_created, snapshots_skipped FROM create_faction_map_statistics_snapshot($1::DATE)`,
+          `SELECT snapshots_created, snapshots_skipped FROM create_faction_map_statistics_snapshot(CAST($1 AS DATE))`,
           [dateStr]
         );
         

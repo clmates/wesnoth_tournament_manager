@@ -15,10 +15,10 @@ export async function runMigrations() {
 
     // Create migrations tracking table if it doesn't exist
     await query(`
-      CREATE TABLE IF NOT EXISTS public.migrations (
-        id SERIAL PRIMARY KEY,
+      CREATE TABLE IF NOT EXISTS migrations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) UNIQUE NOT NULL,
-        executed_at TIMESTAMP DEFAULT NOW()
+        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

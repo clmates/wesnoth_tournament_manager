@@ -794,7 +794,7 @@ router.get('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
     let paramCount = 1;
 
     // Filter by date range
-    whereConditions.push(`created_at >= NOW() - INTERVAL '${parseInt(daysBack as string) || 7} days'`);
+    whereConditions.push(`created_at >= DATE_SUB(NOW(), INTERVAL ${parseInt(daysBack as string) || 7} DAY)`);
 
     if (eventType) {
       whereConditions.push(`event_type = $${paramCount}`);
@@ -888,13 +888,13 @@ router.delete('/audit-logs/old', authMiddleware, async (req: AuthRequest, res) =
     // Get count before deletion
     const countBefore = await query(
       `SELECT COUNT(*) as count FROM public.audit_logs 
-       WHERE created_at < NOW() - INTERVAL '${daysBack} days'`
+       WHERE created_at < DATE_SUB(NOW(), INTERVAL ${daysBack} DAY)`
     );
 
     // Delete old logs
     await query(
       `DELETE FROM public.audit_logs 
-       WHERE created_at < NOW() - INTERVAL '${daysBack} days'`
+       WHERE created_at < DATE_SUB(NOW(), INTERVAL ${daysBack} DAY)`
     );
 
     const deletedCount = parseInt(countBefore.rows[0].count);

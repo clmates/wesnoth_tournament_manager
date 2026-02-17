@@ -39,7 +39,7 @@ export const initializeScheduledJobs = (): void => {
                FROM users u
                INNER JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id)
                WHERE m.status != 'cancelled' 
-                 AND m.created_at >= CURRENT_DATE - INTERVAL '30 days'
+                 AND m.created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)
              )
            RETURNING id`
         );
