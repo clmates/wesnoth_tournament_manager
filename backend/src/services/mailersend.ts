@@ -51,6 +51,106 @@ function buildActionEmailHtml(variables: Record<string, string>): string {
   `;
 }
 
+function buildAutoReportedMatchEmailHtml(variables: Record<string, string>): string {
+  const { 
+    greetings = 'Hello',
+    username = '',
+    opponent_name = '',
+    map_name = '',
+    scenario_name = '',
+    result = 'won',
+    confirm_url = '',
+    confirm_label = 'Confirm Match'
+  } = variables;
+  
+  const resultColor = result === 'won' ? '#28a745' : '#dc3545';
+  const resultText = result === 'won' ? 'You won' : 'You lost';
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .match-card { 
+            background-color: #f8f9fa; 
+            border-left: 4px solid ${resultColor}; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 5px;
+          }
+          .match-result { 
+            font-size: 18px; 
+            font-weight: bold; 
+            color: ${resultColor}; 
+            margin-bottom: 15px;
+          }
+          .match-details { 
+            margin: 10px 0; 
+            font-size: 14px;
+          }
+          .match-detail-label { 
+            font-weight: bold; 
+            color: #555; 
+            display: inline-block; 
+            width: 100px;
+          }
+          .button { 
+            display: inline-block; 
+            padding: 12px 30px; 
+            background-color: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            margin: 20px 0;
+          }
+          .footer { text-align: center; margin-top: 40px; font-size: 12px; color: #666; }
+          .divider { border-top: 1px solid #ddd; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Wesnoth Tournament Manager</h1>
+          </div>
+          
+          <p>${greetings} ${username},</p>
+          
+          <div class="match-card">
+            <div class="match-result">${resultText}</div>
+            
+            <div class="match-details">
+              <div><span class="match-detail-label">Opponent:</span> <strong>${opponent_name}</strong></div>
+              <div><span class="match-detail-label">Map:</span> ${map_name}</div>
+              <div><span class="match-detail-label">Scenario:</span> ${scenario_name}</div>
+            </div>
+          </div>
+          
+          <p>Your match has been automatically detected and reported. Please review the details above and confirm this match.</p>
+          
+          <center>
+            <a href="${confirm_url}" class="button">${confirm_label}</a>
+          </center>
+          
+          <div class="divider"></div>
+          
+          <p style="font-size: 12px; color: #666;">
+            This match was automatically detected from replay files. If you believe this is incorrect, please contact a tournament administrator.
+          </p>
+          
+          <div class="footer">
+            <p>© 2026 Wesnoth Tournament Manager. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+}
+
 export async function sendMailerSendEmail({
   to,
   subject,
@@ -100,3 +200,7 @@ export async function sendMailerSendEmail({
     throw error;
   }
 }
+
+export {
+  buildAutoReportedMatchEmailHtml
+};
