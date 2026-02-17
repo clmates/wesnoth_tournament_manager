@@ -24,9 +24,11 @@ import * as path from 'path';
 import { query } from '../config/database.js';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
+import type { FSWatcher } from 'chokidar';
+import chokidar from 'chokidar';
 
 interface ReplayDetectionEvent {
-    type: 'CREATE' | 'CLOSE_WRITE';
+    type: 'ADD' | 'CHANGE';
     filename: string;
     filepath: string;
     timestamp: Date;
@@ -35,9 +37,10 @@ interface ReplayDetectionEvent {
 export class ReplayMonitor extends EventEmitter {
     private readonly replayDir: string;
     private readonly replayExtension: string;
-    private inotifyInstance: any;
+    private watcher: FSWatcher | null = null;
     private isRunning: boolean = false;
-    private watchDescriptor: number = -1;
+    private fileTimestamps: Map<string, number> = new Map();
+    private readonly CLOSE_WRITE_DELAY_MS = 500; // Delay after last change to consider file closed
 
     constructor(
         replayDir: string = process.env.WESNOTH_REPLAY_DIR || '/var/games/wesnoth/replays',
@@ -49,10 +52,10 @@ export class ReplayMonitor extends EventEmitter {
     }
 
     /**
-     * Start the inotify watcher
+     * Start the file watcher using chokidar (inotify-based on Linux)
      * 
      * IMPORTANT: This function:
-     * - Creates an inotify instance to watch the replay directory
+     * - Uses chokidar which leverages inotify on Linux for kernel-level monitoring
      * - Does NOT modify any files
      * - Does NOT slow down file writing (kernel event at I/O level)
      * - Can be stopped/restarted without affecting ongoing writes
@@ -73,8 +76,7 @@ export class ReplayMonitor extends EventEmitter {
                 );
             }
 
-            // Verify write permissions for database, not for files
-            const testFile = path.join(this.replayDir, '.permission_test');
+            // Verify read permissions
             try {
                 fs.accessSync(this.replayDir, fs.constants.R_OK);
                 console.log(`✅ Replay directory readable: ${this.replayDir}`);
@@ -85,26 +87,46 @@ export class ReplayMonitor extends EventEmitter {
                 );
             }
 
-            // Create inotify instance
-            // ⚠️ IMPORTANT: inotify DOES NOT interfere with file writes
-            // It only watches for events - it's completely passive
-            // TEMPORARILY COMMENTED: inotify will be re-enabled after database migration testing
-            // import('./inotify') as inotify would go here
-            // this.inotifyInstance = new inotify.Inotify();
+            // Create chokidar watcher (uses inotify on Linux)
+            this.watcher = chokidar.watch(this.replayDir, {
+                persistent: true,
+                ignoreInitial: true, // Don't process existing files on startup
+                ignored: (path: string) => !path.endsWith(this.replayExtension),
+                usePolling: false, // Use inotify instead of polling on Linux
+                interval: 100,
+                binaryInterval: 300,
+                awaitWriteFinish: {
+                    stabilityThreshold: 1000, // File considered written when stable for 1 second
+                    pollInterval: 100
+                }
+            });
 
-            // Add watch to replay directory
-            // Event mask: We're watching for file creation and write closure
-            // These are metadata-level events (not data-level interference)
-            // const eventMask = inotify.IN_CREATE | inotify.IN_CLOSE_WRITE;
-            // 
-            // this.watchDescriptor = this.inotifyInstance.addWatch({
-            //     path: this.replayDir,
-            //     events: eventMask,
-            //     callback: this.handleInotifyEvent.bind(this)
-            // });
+            // Handle file additions (new replay created)
+            this.watcher.on('add', (filepath: string) => {
+                this.handleFileAdded(filepath).catch((error: unknown) => {
+                    console.error(`Error handling file addition: ${filepath}`, error);
+                });
+            });
 
-            // TEMPORARY: Stub implementation for compilation purposes
-            // This will be functional after inotify re-integration
+            // Handle file changes (ongoing write completion)
+            this.watcher.on('change', (filepath: string) => {
+                this.handleFileChanged(filepath).catch((error: unknown) => {
+                    console.error(`Error handling file change: ${filepath}`, error);
+                });
+            });
+
+            // Handle errors
+            this.watcher.on('error', (error: unknown) => {
+                console.error('Watcher error', error);
+                this.emit('error', error);
+            });
+
+            // Wait for watcher to be ready
+            await new Promise<void>((resolve) => {
+                this.watcher!.on('ready', () => {
+                    resolve();
+                });
+            });
 
             this.isRunning = true;
 
@@ -113,7 +135,8 @@ export class ReplayMonitor extends EventEmitter {
                 {
                     directory: this.replayDir,
                     extension: this.replayExtension,
-                    events_watched: 'CREATE, CLOSE_WRITE',
+                    events_watched: 'ADD, CHANGE (inotify-based on Linux)',
+                    write_finish_threshold: '1000ms',
                     performance_impact: 'minimal (kernel-level event monitoring)'
                 }
             );
@@ -123,12 +146,13 @@ export class ReplayMonitor extends EventEmitter {
         } catch (error) {
             console.error('Failed to start Replay Monitor', error);
             this.isRunning = false;
+            this.watcher = null;
             throw error;
         }
     }
 
     /**
-     * Stop the inotify watcher
+     * Stop the file watcher
      * 
      * Safe to call at any time:
      * - Ongoing file writes will continue unaffected
@@ -137,11 +161,12 @@ export class ReplayMonitor extends EventEmitter {
      */
     public async stop(): Promise<void> {
         try {
-            if (this.inotifyInstance && this.watchDescriptor) {
-                this.inotifyInstance.removeWatch(this.watchDescriptor);
-                this.inotifyInstance.close();
+            if (this.watcher) {
+                await this.watcher.close();
+                this.watcher = null;
             }
             this.isRunning = false;
+            this.fileTimestamps.clear();
             console.log('✅ Replay Monitor stopped');
             this.emit('stopped');
         } catch (error) {
@@ -150,67 +175,46 @@ export class ReplayMonitor extends EventEmitter {
     }
 
     /**
-     * Handle inotify events from kernel
+     * Handle file added event from chokidar/inotify
      * 
-     * This callback is called by the kernel when:
-     * - IN_CREATE: File/directory is created
-     * - IN_CLOSE_WRITE: File that was opened for writing is closed
-     * 
-     * Both events are metadata-level (no data interference)
-     * This function is completely async and non-blocking
-     */
-    private async handleInotifyEvent(event: any): Promise<void> {
-        try {
-            // Filter by extension
-            if (!event.name || !event.name.endsWith(this.replayExtension)) {
-                return; // Ignore non-replay files
-            }
-
-            const filename = event.name;
-            const filepath = path.join(this.replayDir, filename);
-
-            // Handle CREATE event: Register new replay in database
-            // TEMPORARILY COMMENTED: Re-enable after inotify re-integration
-            // if (event.mask & inotify.IN_CREATE) {
-            //     await this.handleCreateEvent(filename, filepath);
-            // }
-
-            // Handle CLOSE_WRITE event: File finished writing, ready for parsing
-            // TEMPORARILY COMMENTED: Re-enable after inotify re-integration
-            // if (event.mask & inotify.IN_CLOSE_WRITE) {
-            //     await this.handleCloseWriteEvent(filename, filepath);
-            // }
-
-        } catch (error) {
-            console.error('Error handling inotify event', error);
-            // Don't throw - continue watching for other events
-        }
-    }
-
-    /**
-     * Handle CREATE event (file just created)
-     * 
-     * We insert a pending record in the replays table.
-     * This is early detection - the file is still being written.
+     * This corresponds to inotify's IN_CREATE event.
+     * We register the new replay in the database as "pending".
      * 
      * GUARANTEE: This does not interfere with file writing.
-     * The inotify CREATE event fires AFTER file creation begins,
-     * and database insert is completely async.
+     * The ADD event fires after creation, and database insert is completely async.
      */
-    private async handleCreateEvent(filename: string, filepath: string): Promise<void> {
+    private async handleFileAdded(filepath: string): Promise<void> {
         try {
-            // Get file size if possible (may still be growing)
+            const filename = path.basename(filepath);
+
+            // Skip if not a replay file
+            if (!filename.endsWith(this.replayExtension)) {
+                return;
+            }
+
+            // Get file size (may still be growing)
             let fileSize = 0;
             try {
                 const stats = fs.statSync(filepath);
                 fileSize = stats.size;
             } catch (e) {
-                // File not immediately readable - ignore
+                console.warn(`Could not stat file on add: ${filename}`);
             }
 
             const replayId = uuidv4();
 
-            // Insert pending record in database
+            // Check if already registered
+            const existing = await query(
+                `SELECT id FROM replays WHERE replay_filename = ?`,
+                [filename]
+            );
+
+            if ((existing as unknown as any[]).length > 0) {
+                console.log(`⏭️ Replay already registered: ${filename}`);
+                return;
+            }
+
+            // Insert pending record in database (MariaDB compatible)
             await query(
                 `INSERT INTO replays (
                     id, replay_filename, replay_path, file_size_bytes,
@@ -219,49 +223,55 @@ export class ReplayMonitor extends EventEmitter {
                 [replayId, filename, filepath, fileSize]
             );
 
-            console.log(`📥 Replay detected (CREATE): ${filename}`, {
+            console.log(`📥 Replay detected (ADD): ${filename}`, {
                 size: fileSize,
                 id: replayId
             });
 
             this.emit('replay_detected', {
-                type: 'CREATE',
+                type: 'ADD',
                 filename,
                 filepath,
                 timestamp: new Date()
             } as ReplayDetectionEvent);
 
         } catch (error) {
-            // Log but don't throw - other events continue
             console.warn(
-                `Failed to record replay creation: ${filename}`,
+                `Failed to record replay creation: ${path.basename(filepath)}`,
                 error
             );
         }
     }
 
     /**
-     * Handle CLOSE_WRITE event (file finished writing)
+     * Handle file changed event from chokidar/inotify
      * 
-     * Update the record with file_write_closed_at timestamp.
-     * This is the signal to background job: "file is now ready to parse".
+     * This corresponds to inotify's IN_CLOSE_WRITE event.
+     * chokidar's awaitWriteFinish ensures the file is fully written.
+     * We update the record with file_write_closed_at timestamp.
      * 
-     * GUARANTEE: inotify CLOSE_WRITE is fired by kernel AFTER write completes.
-     * At this point, the file is closed and we can read it safely.
-     * Our database update is completely non-intrusive.
+     * GUARANTEE: chokidar waits for file stability (1 second of no changes)
+     * before firing the 'change' event. At this point, file is definitely closed.
      */
-    private async handleCloseWriteEvent(filename: string, filepath: string): Promise<void> {
+    private async handleFileChanged(filepath: string): Promise<void> {
         try {
+            const filename = path.basename(filepath);
+
+            // Skip if not a replay file
+            if (!filename.endsWith(this.replayExtension)) {
+                return;
+            }
+
             // Get final file size
             let fileSize = 0;
             try {
                 const stats = fs.statSync(filepath);
                 fileSize = stats.size;
             } catch (e) {
-                console.warn(`Could not stat file after close: ${filename}`);
+                console.warn(`Could not stat file after change: ${filename}`);
             }
 
-            // Update record with write completion timestamp
+            // Update record with write completion timestamp (MariaDB compatible)
             const result = await query(
                 `UPDATE replays 
                  SET file_write_closed_at = NOW(), file_size_bytes = ?
@@ -270,20 +280,22 @@ export class ReplayMonitor extends EventEmitter {
                 [fileSize, filename]
             );
 
-            if ((result as unknown as any).affectedRows === 0) {
+            const affectedRows = ((result as unknown as any).changedRows || (result as unknown as any).rowCount || 0);
+            
+            if (affectedRows === 0) {
                 console.warn(
-                    `CLOSE_WRITE record not found or already processed: ${filename}`
+                    `CHANGE_WRITE record not found or already processed: ${filename}`
                 );
                 return;
             }
 
-            console.log(`✅ Replay write completed (CLOSE_WRITE): ${filename}`, {
+            console.log(`✅ Replay write completed (CHANGE): ${filename}`, {
                 final_size: fileSize,
                 status: 'ready_for_parsing'
             });
 
             this.emit('replay_ready_for_parsing', {
-                type: 'CLOSE_WRITE',
+                type: 'CHANGE',
                 filename,
                 filepath,
                 timestamp: new Date()
@@ -294,7 +306,7 @@ export class ReplayMonitor extends EventEmitter {
 
         } catch (error) {
             console.error(
-                `Failed to update replay write status: ${filename}`,
+                `Failed to update replay write status: ${path.basename(filepath)}`,
                 error
             );
         }
