@@ -56,6 +56,7 @@ export interface ReplayVictory {
         | 'victory_points'
         | 'fallback';
     detected_from: string;
+    confidence_level: 1 | 2; // 1=manual_confirm_needed, 2=auto_report
 }
 
 export interface ReplayAnalysis {

@@ -46,6 +46,7 @@ interface ReplayAnalysis {
         winner_name: string;
         result_type: string;
         detected_from: string;
+        confidence_level: 1 | 2; // 1=manual_confirm_needed, 2=auto_report
     };
     timestamp: Date;
 }
@@ -67,6 +68,48 @@ export class ReplayParser {
     }
 
     /**
+     * Decompress replay file based on extension
+     * Supports both .bz2 and .gz formats
+     */
+    private async decompressReplay(replayPath: string): Promise<string> {
+        const filename = path.basename(replayPath);
+        const fileBuffer = fs.readFileSync(replayPath);
+        let wmlText: string;
+
+        try {
+            // Detect format by file extension
+            if (filename.endsWith('.bz2')) {
+                // BZ2 decompression
+                const bz2Module = await import('bz2');
+                let decompress = bz2Module.decompress || bz2Module.default?.decompress;
+                
+                if (!decompress && typeof bz2Module === 'function') {
+                    decompress = bz2Module;
+                }
+
+                if (typeof decompress !== 'function') {
+                    throw new Error('bz2.decompress is not available');
+                }
+
+                const decompressedData = decompress(fileBuffer);
+                wmlText = Buffer.from(decompressedData).toString('utf-8');
+            } else {
+                // GZIP decompression (default for .gz, .rpy.gz, etc.)
+                const decompressed = pako.inflate(fileBuffer, { to: 'string' });
+                wmlText = decompressed;
+            }
+
+            return wmlText;
+        } catch (error) {
+            const errorMsg = (error as any)?.message || String(error);
+            throw new Error(
+                `Failed to decompress replay file (${filename}): ${errorMsg}. ` +
+                `File may be corrupted or not in a supported format (.bz2 or .gz).`
+            );
+        }
+    }
+
+    /**
      * Stage 1: Quick Addon Check (< 1 second)
      * 
      * Decompress and search for tournament addon UUID.
@@ -81,20 +124,8 @@ export class ReplayParser {
                 throw new Error(`Replay file not found: ${replayPath}`);
             }
 
-            // Decompress .gz file
-            const gzBuffer = fs.readFileSync(replayPath);
-            let wmlText: string;
-
-            try {
-                const decompressed = pako.inflate(gzBuffer, { to: 'string' });
-                wmlText = decompressed;
-            } catch (error) {
-                const errorMsg = (error as any)?.message || String(error);
-                throw new Error(
-                    `Failed to decompress replay file: ${errorMsg}. ` +
-                    `File may be corrupted or not a valid .gz file.`
-                );
-            }
+            // Decompress replay file (auto-detects .bz2 or .gz)
+            const wmlText = await this.decompressReplay(replayPath);
 
             // Parse WML to find addons section
             // Use simple regex for speed (avoids full WML parsing)
@@ -159,17 +190,8 @@ export class ReplayParser {
         const startTime = Date.now();
 
         try {
-            // Decompress file
-            const gzBuffer = fs.readFileSync(replayPath);
-            let wmlText: string;
-
-            try {
-                const decompressed = pako.inflate(gzBuffer, { to: 'string' });
-                wmlText = decompressed;
-            } catch (error) {
-                const errorMsg = (error as any)?.message || String(error);
-                throw new Error(`Failed to decompress replay: ${errorMsg}`);
-            }
+            // Decompress replay file (auto-detects .bz2 or .gz)
+            const wmlText = await this.decompressReplay(replayPath);
 
             // Parse WML structure (simplified parser for key sections)
             const wmlRoot = this.parseWML(wmlText);
@@ -274,12 +296,22 @@ export class ReplayParser {
 
     /**
      * Extract metadata from WML
+     * Captures: version, scenario ID, scenario name (map), era
      */
     private extractMetadata(wml: WMLNode) {
+        // Extract map name - look for mp_scenario_name first (multiplayer), then scenario name
+        let mapName = wml.scenario?.name || '';
+        if (wml.scenario?.mp_scenario_name) {
+            mapName = wml.scenario.mp_scenario_name;
+        }
+        
+        // Clean up map name - remove "2p — " prefix if present
+        mapName = mapName.replace(/^2p\s*—\s*/, '');
+        
         return {
             version: wml.version || 'unknown',
             scenario_id: wml.scenario?.id || '',
-            scenario_name: wml.scenario?.name || '',
+            scenario_name: mapName,
             map_file: wml.scenario?.map_data || '',
             era_id: wml.era_id || ''
         };
@@ -302,36 +334,52 @@ export class ReplayParser {
 
     /**
      * Extract players from WML side sections
+     * Captures: side number, player name, faction (ID and display name)
      */
     private extractPlayers(wml: WMLNode) {
         if (!wml.sides || !Array.isArray(wml.sides)) {
             return [];
         }
 
-        return wml.sides.map((side: any, index: number) => ({
-            side: (side.side || index + 1) as number,
-            name: side.name || `Player ${index + 1}`,
-            faction_id: side.faction || '',
-            faction_name: side.faction || '',
-            leader_id: side.leader || '',
-            leader_type: side.type || '',
-            controller: side.controller || 'human'
-        }));
+        return wml.sides.map((side: any, index: number) => {
+            // faction_name can be "Drakes", "Undead", etc.
+            // faction_id is the internal identifier
+            // Both may be prefixed with underscore (internationalization)
+            let factionName = side.faction_name || side.faction || '';
+            factionName = factionName.replace(/^_/, '');  // Remove underscore prefix if present
+            
+            return {
+                side: (side.side || index + 1) as number,
+                name: side.current_player || side.name || `Player ${index + 1}`,
+                faction_id: side.faction || '',
+                faction_name: factionName,
+                leader_id: side.leader || '',
+                leader_type: side.type || '',
+                controller: side.controller || 'human'
+            };
+        });
     }
 
     /**
      * Determine victory from WML
      * 
      * Priority detection:
-     * 1. Explicit endlevel result
-     * 2. Resignation
-     * 3. Leader death
+     * 1. Explicit endlevel result (victory)
+     * 2. Resignation (player quit)
+     * 3. Leader death (canrecruit unit died)
      * 4. Victory points
+     * 5. Fallback: first player
      */
-    private determineVictory(wml: WMLNode, players: Array<any>) {
+    private determineVictory(wml: WMLNode, players: Array<any>): {
+        winner_side: number;
+        winner_name: string;
+        result_type: string;
+        detected_from: string;
+        confidence_level: 1 | 2;
+    } {
         const totalPlayers = players.length;
 
-        // 1. Check explicit endlevel result
+        // 1. Check explicit endlevel result (highest confidence)
         if (wml.endlevel) {
             if (wml.endlevel.result === 'victory' && wml.endlevel.side) {
                 const winnerSide = parseInt(wml.endlevel.side, 10);
@@ -340,11 +388,12 @@ export class ReplayParser {
                     winner_side: winnerSide,
                     winner_name: winner?.name || `Player ${winnerSide}`,
                     result_type: 'explicit_victory',
-                    detected_from: 'endlevel_result'
+                    detected_from: 'endlevel_victory',
+                    confidence_level: 2 as const // AUTO: Clear explicit victory
                 };
             }
 
-            // 2. Check resignation
+            // 2. Check resignation (high confidence)
             if (wml.endlevel.result === 'resign' && wml.endlevel.side) {
                 const loserSide = parseInt(wml.endlevel.side, 10);
                 const winnerSide = totalPlayers === 2 ? (loserSide === 1 ? 2 : 1) : null;
@@ -354,19 +403,21 @@ export class ReplayParser {
                         winner_side: winnerSide,
                         winner_name: winner?.name || `Player ${winnerSide}`,
                         result_type: 'resignation',
-                        detected_from: 'endlevel_resign'
+                        detected_from: 'endlevel_resign',
+                        confidence_level: 2 as const // AUTO: Clear resignation
                     };
                 }
             }
         }
 
-        // 3. Default: assume first player or highest points
-        const winner = players[0];
+        // 3. Default/Fallback: assume first player (LOW confidence - needs manual confirmation)
+        const winner = players.find((p: any) => p.side === 1) || players[0];
         return {
             winner_side: winner?.side || 1,
             winner_name: winner?.name || 'Unknown',
             result_type: 'fallback',
-            detected_from: 'default_assumption'
+            detected_from: 'default_assumption',
+            confidence_level: 1 as const // MANUAL: Player must confirm
         };
     }
 
@@ -379,31 +430,139 @@ export class ReplayParser {
         isTournamentMatch: boolean
     ): Promise<void> {
         try {
+            const summary = this.generateSummary(analysis);
+            const confidenceLevel = analysis.victory.confidence_level;
+            
             await query(
                 `UPDATE replays 
                  SET parsed = 1, 
                      need_integration = ?,
+                     integration_confidence = ?,
                      wesnoth_version = ?,
                      map_name = ?,
                      era_id = ?,
                      tournament_addon_id = ?,
-                     parse_status = 'parsed',
+                     parse_status = ?,
+                     parse_summary = ?,
                      parsing_completed_at = NOW()
                  WHERE id = ?`,
                 [
                     isTournamentMatch ? 1 : 0,
+                    confidenceLevel, // 1=manual_confirm, 2=auto_report
                     analysis.metadata.version,
-                    analysis.metadata.map_file,
+                    analysis.metadata.scenario_name,  // Use scenario_name which now contains proper map name
                     analysis.metadata.era_id,
                     analysis.addons.find(
                         (a: any) => a.id === this.tournamentAddonFilter
                     )?.id || null,
+                    isTournamentMatch ? 'success' : 'parsed',
+                    summary,
                     replayId
                 ]
             );
+
+            // Register participants if this is a tournament match
+            if (isTournamentMatch) {
+                await this.recordReplayParticipants(replayId, analysis);
+            }
         } catch (error) {
             console.error(`Failed to update replay record: ${replayId}`, error);
             throw error;
+        }
+    }
+
+    /**
+     * Record all players who participated in this replay
+     * Used for linking players to replays for confirmation queries
+     */
+    private async recordReplayParticipants(
+        replayId: string,
+        analysis: ReplayAnalysis
+    ): Promise<void> {
+        try {
+            for (const player of analysis.players) {
+                try {
+                    const participantId = uuidv4();
+                    
+                    // Check if player already exists for this replay
+                    const existing = await query(
+                        `SELECT id FROM replay_participants WHERE replay_id = ? AND player_id = ?`,
+                        [replayId, player.side] // Using side as placeholder if no real player_id mapping
+                    );
+
+                    const existingRows = (existing as any).rows || (existing as unknown as any[]);
+                    if (!existingRows || existingRows.length === 0) {
+                        await query(
+                            `INSERT INTO replay_participants 
+                             (id, replay_id, player_id, player_name, side, faction_name, result_side, created_at)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+                            [
+                                participantId,
+                                replayId,
+                                0, // placeholder - would need actual phpBB user_id mapping from username
+                                player.name,
+                                player.side,
+                                player.faction_name,
+                                analysis.victory.winner_side === player.side ? 1 : 0,
+                            ]
+                        );
+                    }
+                } catch (error) {
+                    console.warn(`Failed to record participant ${player.name} for replay ${replayId}:`, error);
+                }
+            }
+        } catch (error) {
+            console.error(`Failed to record replay participants for ${replayId}:`, error);
+            // Don't throw - this is non-critical
+        }
+    }
+
+    /**
+     * Generate human-readable summary of parsed replay
+     * Returns concise text with key information
+     */
+    public generateSummary(analysis: ReplayAnalysis): string {
+        const players = analysis.players.map(p => `${p.name} (${p.faction_name || 'Unknown'})`).join(' vs ');
+        const addons = analysis.addons.map(a => a.id).join(', ') || 'None';
+        
+        return [
+            `Map: ${analysis.metadata.scenario_name || 'Unknown'}`,
+            `Players: ${players || 'Unknown'}`,
+            `Era: ${analysis.metadata.era_id || 'Unknown'}`,
+            `Victory: ${analysis.victory.result_type}`,
+            `Add-ons: ${addons}`,
+            `Winner: ${analysis.victory.winner_name}`
+        ].join(' | ');
+    }
+
+    /**
+     * Add log entry to replay_parsing_logs table
+     */
+    public async addParsingLog(
+        replayId: string,
+        stage: string,
+        status: 'started' | 'success' | 'error',
+        details?: any,
+        errorMessage?: string
+    ): Promise<void> {
+        try {
+            const logId = uuidv4();
+            const startTime = Date.now();
+            
+            await query(
+                `INSERT INTO replay_parsing_logs (id, replay_id, stage, status, error_message, details, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+                [
+                    logId,
+                    replayId,
+                    stage,
+                    status,
+                    errorMessage ? errorMessage.substring(0, 500) : null,
+                    details ? JSON.stringify(details) : null
+                ]
+            );
+        } catch (error) {
+            console.error(`Failed to add parsing log for ${replayId}:`, error);
         }
     }
 
@@ -417,7 +576,7 @@ export class ReplayParser {
         try {
             await query(
                 `UPDATE replays 
-                 SET parse_status = 'error',
+                 SET parse_status = 'failed',
                      parse_error_message = ?,
                      parsing_completed_at = NOW()
                  WHERE id = ?`,
