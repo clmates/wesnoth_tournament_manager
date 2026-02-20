@@ -211,7 +211,7 @@ export class ReplayMonitor extends EventEmitter {
                                     `INSERT INTO replays (
                                         id, replay_filename, replay_path, file_size_bytes,
                                         parsed, need_integration, parse_status, detected_at
-                                    ) VALUES (?, ?, ?, ?, 0, 0, 'pending', ?)`,
+                                    ) VALUES (?, ?, ?, ?, 0, 0, 'new', ?)`,
                                     [replayId, filename, filepath, stats.size, fileTime]
                                 );
                                 
@@ -583,7 +583,7 @@ export class ReplayMonitor extends EventEmitter {
                 `INSERT INTO replays (
                     id, replay_filename, replay_path, file_size_bytes,
                     parsed, need_integration, parse_status, detected_at
-                ) VALUES (?, ?, ?, ?, 0, 0, 'pending', NOW())`,
+                ) VALUES (?, ?, ?, ?, 0, 0, 'new', NOW())`,
                 [replayId, filename, filepath, fileSize]
             );
 

@@ -54,20 +54,27 @@ export const initializeScheduledJobs = (): void => {
     // Schedule replay parsing job every minute
     // Processes pending replays, extracts metadata, and prepares for match integration
     const replayParser = new ReplayParser();
-    cron.schedule('* * * * *', async () => {
+    
+    // Get configuration from environment variables
+    const replayParserIntervalSeconds = parseInt(process.env.REPLAY_PARSER_INTERVAL_SECONDS || '60', 10);
+    const replayParserBatchSize = parseInt(process.env.REPLAY_PARSER_BATCH_SIZE || '3', 10);
+    
+    const replayParserIntervalMs = replayParserIntervalSeconds * 1000;
+    
+    // Use setInterval for more flexible scheduling (supports any interval in seconds)
+    setInterval(async () => {
       try {
-        console.log('🎬 [CRON] Starting replay parsing job...');
+        console.log(`🎬 [CRON] Starting replay parsing job (interval: ${replayParserIntervalSeconds}s, batch size: ${replayParserBatchSize})...`);
         
-        // Get all pending replays (max 3 concurrent)
-        // Process replays detected more than 30 seconds ago (sufficient time for write completion)
+        // Get pending replays up to batch size
         const pendingReplaysResult = await query(
           `SELECT id, replay_filename, replay_path, file_write_closed_at
            FROM replays
-           WHERE parse_status = 'pending' 
-             AND parsed = 0 
-             AND detected_at < NOW() - INTERVAL 30 SECOND
+           WHERE parse_status IN ('new', 'pending')
+             AND parsed = 0
            ORDER BY detected_at ASC
-           LIMIT 3`
+           LIMIT ?`,
+          [replayParserBatchSize]
         );
         
         const pendingReplays = (pendingReplaysResult as any).rows || (pendingReplaysResult as unknown as any[]);
@@ -86,6 +93,9 @@ export const initializeScheduledJobs = (): void => {
               const replayPath = replay.replay_path;
               const replayFilename = replay.replay_filename;
               
+              // Capture start time for this entire parse/processing
+              const processingStartTime = new Date();
+              
               console.log(`🎬 [PARSING] Starting: ${replayFilename}`);
               
               // Log: parsing started
@@ -102,19 +112,24 @@ export const initializeScheduledJobs = (): void => {
                 era_id: quickCheck.era_id
               });
               
-              // If not a tournament match, mark as parsed but don't integrate
+              // If not a tournament match, mark as completed but don't integrate
               if (!quickCheck.has_tournament_addon) {
                 console.log(`ℹ️  [PARSING] Not a tournament match: ${replayFilename}`);
                 
+                const processingEndTime = new Date();
+                const startTimeStr = processingStartTime.toISOString().slice(0, 19).replace('T', ' ');
+                const endTimeStr = processingEndTime.toISOString().slice(0, 19).replace('T', ' ');
+                
                 await query(
                   `UPDATE replays 
-                   SET parse_status = 'success', 
+                   SET parse_status = 'completed', 
                        parsed = 1, 
                        need_integration = 0,
                        parse_summary = 'Non-tournament replay (no tournament addon detected)',
-                       parsing_completed_at = NOW()
+                       parsing_started_at = ?,
+                       parsing_completed_at = ?
                    WHERE id = ?`,
-                  [replayId]
+                  [startTimeStr, endTimeStr, replayId]
                 );
                 
                 await replayParser.addParsingLog(replayId, 'integration_decision', 'success', {
@@ -125,22 +140,32 @@ export const initializeScheduledJobs = (): void => {
                 continue;
               }
               
+              // Tournament addon detected, mark as pending full parse
+              await query(
+                `UPDATE replays SET parse_status = 'pending' WHERE id = ?`,
+                [replayId]
+              );
+              
               // Stage 2: Full parse for tournament matches
               console.log(`🎬 [PARSING] Full parse: ${replayFilename}`);
+              
               await replayParser.addParsingLog(replayId, 'full_parse', 'started');
               
               const analysis = await replayParser.fullReplayParse(replayPath);
+              const parsingEndTime = new Date();
               
               // Log: full parse completed
               await replayParser.addParsingLog(replayId, 'full_parse', 'success', {
                 players_count: analysis.players.length,
                 map: analysis.metadata.scenario_name,
                 era: analysis.metadata.era_id,
-                winner: analysis.victory.winner_name
+                winner: analysis.victory.winner_name,
+                duration_ms: parsingEndTime.getTime() - processingStartTime.getTime()
               });
               
-              // Update replay record with parsed data
-              await replayParser.updateReplayRecord(replayId, analysis, true);
+              // Update replay record with parsed data and timestamps
+              // Use processingStartTime (beginning of all processing) and parsingEndTime (end of full parse)
+              await replayParser.updateReplayRecord(replayId, analysis, true, processingStartTime, parsingEndTime);
               
               // Log: integration marked
               await replayParser.addParsingLog(replayId, 'mark_for_integration', 'success', {
@@ -153,13 +178,29 @@ export const initializeScheduledJobs = (): void => {
               
             } catch (error) {
               const errorMsg = (error as any)?.message || String(error);
-              console.error(`❌ [PARSING] Failed for ${replay.replay_filename}:`, errorMsg);
               
-              // Mark as failed
-              await replayParser.markParsingError(replay.id, errorMsg);
-              
-              // Log the error
-              await replayParser.addParsingLog(replay.id, 'parse_error', 'error', undefined, errorMsg);
+              // Check if this is a DISCARD error (replay not a real match)
+              if (errorMsg.startsWith('DISCARD:')) {
+                const discardReason = errorMsg.substring(8).trim(); // Remove 'DISCARD: ' prefix
+                console.log(`ℹ️  [PARSING] Discarded ${replay.replay_filename}: ${discardReason}`);
+                
+                // Mark as discarded (not an error, just a decision)
+                await replayParser.markAsDiscarded(replay.id, discardReason);
+                
+                // Log the discard decision
+                await replayParser.addParsingLog(replay.id, 'discard_validation', 'success', {
+                  reason: discardReason
+                });
+              } else {
+                // Actual parsing error
+                console.error(`❌ [PARSING] Failed for ${replay.replay_filename}:`, errorMsg);
+                
+                // Mark as failed
+                await replayParser.markParsingError(replay.id, errorMsg);
+                
+                // Log the error
+                await replayParser.addParsingLog(replay.id, 'parse_error', 'error', undefined, errorMsg);
+              }
             }
           }
         }
@@ -188,7 +229,7 @@ export const initializeScheduledJobs = (): void => {
       } catch (error) {
         console.error('❌ [CRON] Replay parsing job failed:', error);
       }
-    });
+    }, replayParserIntervalMs);
     
     // Schedule player of month calculation at 01:30 UTC on the 1st of every month
     cron.schedule('30 1 1 * *', async () => {

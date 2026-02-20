@@ -14,7 +14,7 @@ export interface ReplayFile {
     parsed: boolean;
     need_integration: boolean;
     match_id: string | null;
-    parse_status: 'pending' | 'parsing' | 'parsed' | 'error';
+    parse_status: 'new' | 'pending' | 'completed' | 'error';
     parse_error_message: string | null;
     detected_at: Date;
     file_write_closed_at: Date | null;
