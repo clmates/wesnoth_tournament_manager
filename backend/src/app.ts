@@ -36,8 +36,11 @@ app.use(cors({
     } else if (allowedOrigins.includes(origin)) {
       // Exact match
       callback(null, true);
-    } else if (origin.endsWith('.wesnoth-tournament-manager.pages.dev')) {
+    } else if (origin.endsWith('.wesnoth-tournament-manager.pages.dev') || origin.includes('wesnoth-tournament-manager.pages.dev')) {
       // Allow all subdomains of wesnoth-tournament-manager.pages.dev (main, PR previews, etc.)
+      callback(null, true);
+    } else if (origin.includes('chantal.wesnoth.org')) {
+      // Allow requests from chantal.wesnoth.org (for Cloudflare preview deployments)
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
