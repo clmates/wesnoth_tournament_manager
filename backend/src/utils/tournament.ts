@@ -40,7 +40,7 @@ export async function selectPlayersForEliminationPhase(
     
     // Get tournament mode to determine which table to use
     const tournResultFirst = await query(
-      'SELECT tournament_mode FROM tournaments WHERE id = $1',
+      'SELECT tournament_mode FROM tournaments WHERE id = ?',
       [tournamentId]
     );
     const tournamentMode = tournResultFirst.rows[0]?.tournament_mode || 'ranked';
@@ -53,7 +53,7 @@ export async function selectPlayersForEliminationPhase(
       const functionName = tournamentMode === 'team' ? 'update_team_tiebreakers' : 'update_tournament_tiebreakers';
       console.log(`[DEBUG] Using tiebreaker function: ${functionName}`);
       const tiebreakersResult = await query(
-        `SELECT updated_count, error_message FROM ${functionName}($1)`,
+        `SELECT updated_count, error_message FROM ${functionName}(?)`,
         [tournamentId]
       );
       
@@ -82,11 +82,11 @@ export async function selectPlayersForEliminationPhase(
       
       const topPlayersResult = await query(
         `SELECT tt.id as user_id FROM tournament_teams tt
-         WHERE tt.tournament_id = $1 AND tt.status = 'active'
+         WHERE tt.tournament_id = ? AND tt.status = 'active'
          ORDER BY tt.tournament_points DESC, tt.tournament_wins DESC,
                   COALESCE(tt.omp, 0) DESC, COALESCE(tt.gwp, 0) DESC, COALESCE(tt.ogp, 0) DESC,
                   COALESCE(tt.team_elo, 0) DESC, tt.id
-         LIMIT $2`,
+         LIMIT ?`,
         [tournamentId, playersToAdvance]
       );
 
@@ -102,7 +102,7 @@ export async function selectPlayersForEliminationPhase(
       fullRankingResult = await query(
         `SELECT tt.id as user_id, tt.tournament_points, tt.tournament_wins, tt.omp, tt.gwp, tt.ogp, tt.team_elo as elo_rating, tt.name as team_name
          FROM tournament_teams tt
-         WHERE tt.tournament_id = $1 AND tt.status = 'active'
+         WHERE tt.tournament_id = ? AND tt.status = 'active'
          ORDER BY tt.tournament_points DESC, tt.tournament_wins DESC,
                   COALESCE(tt.omp, 0) DESC, COALESCE(tt.gwp, 0) DESC, COALESCE(tt.ogp, 0) DESC,
                   COALESCE(tt.team_elo, 0) DESC, tt.id`,
@@ -120,7 +120,7 @@ export async function selectPlayersForEliminationPhase(
       const activateResult = await query(
         `UPDATE tournament_teams
          SET status = 'active'
-         WHERE tournament_id = $1 
+         WHERE tournament_id = ? 
          AND id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
         [tournamentId, ...topPlayerIds]
       );
@@ -130,7 +130,7 @@ export async function selectPlayersForEliminationPhase(
       const result = await query(
         `UPDATE tournament_teams
          SET status = 'eliminated'
-         WHERE tournament_id = $1 
+         WHERE tournament_id = ? 
          AND id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
         [tournamentId, ...topPlayerIds]
       );
@@ -139,7 +139,7 @@ export async function selectPlayersForEliminationPhase(
       // Verify the update
       const verifyResult = await query(
         `SELECT status, COUNT(*) as count FROM tournament_teams
-         WHERE tournament_id = $1
+         WHERE tournament_id = ?
          GROUP BY status`,
         [tournamentId]
       );
@@ -155,11 +155,11 @@ export async function selectPlayersForEliminationPhase(
       const topPlayersResult = await query(
         `SELECT tp.user_id FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
          ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
                   COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
                   COALESCE(u.elo_rating, 0) DESC, tp.user_id
-         LIMIT $2`,
+         LIMIT ?`,
         [tournamentId, playersToAdvance]
       );
 
@@ -177,7 +177,7 @@ export async function selectPlayersForEliminationPhase(
         `SELECT tp.user_id, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp, u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
          ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
                   COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
                   COALESCE(u.elo_rating, 0) DESC, tp.user_id`,
@@ -195,7 +195,7 @@ export async function selectPlayersForEliminationPhase(
       const activateResult = await query(
         `UPDATE tournament_participants
          SET status = 'active'
-         WHERE tournament_id = $1 
+         WHERE tournament_id = ? 
          AND participation_status = 'accepted'
          AND user_id IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
         [tournamentId, ...topPlayerIds]
@@ -208,7 +208,7 @@ export async function selectPlayersForEliminationPhase(
       const result = await query(
         `UPDATE tournament_participants
          SET status = 'eliminated'
-         WHERE tournament_id = $1 
+         WHERE tournament_id = ? 
          AND participation_status = 'accepted'
          AND user_id NOT IN (${topPlayerIds.map((_, i) => `$${i + 2}`).join(',')})`,
         [tournamentId, ...topPlayerIds]
@@ -219,7 +219,7 @@ export async function selectPlayersForEliminationPhase(
       // Verify the update
       const verifyResult = await query(
         `SELECT status, COUNT(*) as count FROM tournament_participants
-         WHERE tournament_id = $1
+         WHERE tournament_id = ?
          GROUP BY status`,
         [tournamentId]
       );
@@ -263,7 +263,7 @@ export async function generateRoundMatches(
         `SELECT winner_id, player1_id, player2_id FROM tournament_matches 
          WHERE round_id = (
            SELECT id FROM tournament_rounds 
-           WHERE tournament_id = $1 AND round_number = $2
+           WHERE tournament_id = ? AND round_number = ?
          )`,
         [tournamentId, roundNumber - 1]
       );
@@ -283,7 +283,7 @@ export async function generateRoundMatches(
     for (const match of matches) {
       await query(
         `INSERT INTO tournament_matches (tournament_id, round_id, player1_id, player2_id, match_status)
-         VALUES ($1, $2, $3, $4, 'pending')`,
+         VALUES (?, ?, ?, ?, 'pending')`,
         [match.tournament_id, match.round_id, match.player1_id, match.player2_id]
       );
     }
@@ -517,7 +517,7 @@ async function generateSwissMatches(
           tt.gwp,
           tt.ogp
          FROM tournament_teams tt
-         WHERE tt.tournament_id = $1 AND tt.id = ANY($2)
+         WHERE tt.tournament_id = ? AND tt.id = ANY(?)
          ORDER BY 
            (tt.tournament_wins - tt.tournament_losses) DESC,
            tt.omp DESC,
@@ -539,7 +539,7 @@ async function generateSwissMatches(
           tp.ogp
          FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.user_id = ANY($2)
+         WHERE tp.tournament_id = ? AND tp.user_id = ANY(?)
          ORDER BY 
            (tp.tournament_wins - tp.tournament_losses) DESC,
            tp.omp DESC,
@@ -593,7 +593,7 @@ async function generateSwissMatches(
         LEAST(player1_id, player2_id) as player_a,
         GREATEST(player1_id, player2_id) as player_b
        FROM tournament_round_matches
-       WHERE tournament_id = $1 AND player1_id IS NOT NULL AND player2_id IS NOT NULL`,
+       WHERE tournament_id = ? AND player1_id IS NOT NULL AND player2_id IS NOT NULL`,
       [tournamentId]
     );
 
@@ -873,7 +873,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
               END as round_format
        FROM tournament_rounds tr
        JOIN tournaments t ON tr.tournament_id = t.id
-       WHERE tr.tournament_id = $1 AND tr.round_number = $2`,
+       WHERE tr.tournament_id = ? AND tr.round_number = ?`,
       [tournamentId, roundNumber]
     );
 
@@ -891,7 +891,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
 
     // Get tournament info (including tournament_mode for team tournament handling)
     const tournamentResult = await query(
-      `SELECT tournament_type, tournament_mode FROM tournaments WHERE id = $1`,
+      `SELECT tournament_type, tournament_mode FROM tournaments WHERE id = ?`,
       [tournamentId]
     );
 
@@ -912,7 +912,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       
       const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
       const roundTypeResult = await query(
-        `SELECT round_type FROM tournament_rounds WHERE id = $1`,
+        `SELECT round_type FROM tournament_rounds WHERE id = ?`,
         [round.id]
       );
       const roundType = roundTypeResult.rows[0]?.round_type?.toLowerCase() || 'general';
@@ -927,7 +927,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         console.log(`\n✅ [ACTIVATE_ROUND] Detected Swiss-Elimination Mix entering elimination phase`);
         
         const tournamentInfo = await query(
-          `SELECT general_rounds, final_rounds FROM tournaments WHERE id = $1`,
+          `SELECT general_rounds, final_rounds FROM tournaments WHERE id = ?`,
           [tournamentId]
         );
         const { general_rounds, final_rounds } = tournamentInfo.rows[0];
@@ -940,7 +940,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         console.log(`\n[DEBUG] About to query eliminated players...`);
         const eliminatedCount = await query(
           `SELECT COUNT(*) as count FROM tournament_participants 
-           WHERE tournament_id = $1 AND status = 'eliminated'`,
+           WHERE tournament_id = ? AND status = 'eliminated'`,
           [tournamentId]
         );
         
@@ -977,7 +977,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         const teamsResult = await query(
           `SELECT tt.id as user_id, tt.team_elo as elo_rating
            FROM tournament_teams tt
-           WHERE tt.tournament_id = $1 AND tt.status = 'active'`,
+           WHERE tt.tournament_id = ? AND tt.status = 'active'`,
           [tournamentId]
         );
         participants = teamsResult.rows;
@@ -988,7 +988,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
           `SELECT tp.id, tp.user_id, u.elo_rating
            FROM tournament_participants tp
            LEFT JOIN users u ON tp.user_id = u.id
-           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'`,
+           WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'`,
           [tournamentId]
         );
         participants = participantsResult.rows;
@@ -999,7 +999,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       
       // Get the round type - must query it since it wasn't in the initial round fetch
       const roundTypeResult = await query(
-        `SELECT round_type FROM tournament_rounds WHERE id = $1`,
+        `SELECT round_type FROM tournament_rounds WHERE id = ?`,
         [round.id]
       );
       const roundType = roundTypeResult.rows[0]?.round_type?.toLowerCase() || 'general';
@@ -1013,7 +1013,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
           const teamsResult = await query(
             `SELECT tt.id as user_id, tt.team_elo as elo_rating, tt.tournament_ranking
              FROM tournament_teams tt
-             WHERE tt.tournament_id = $1 AND tt.status = 'active'
+             WHERE tt.tournament_id = ? AND tt.status = 'active'
              ORDER BY tt.tournament_ranking ASC`,
             [tournamentId]
           );
@@ -1024,7 +1024,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
           const teamsResult = await query(
             `SELECT tt.id as user_id, tt.team_elo as elo_rating, tt.tournament_ranking
              FROM tournament_teams tt
-             WHERE tt.tournament_id = $1 AND tt.status = 'active'
+             WHERE tt.tournament_id = ? AND tt.status = 'active'
              ORDER BY tt.tournament_ranking ASC`,
             [tournamentId]
           );
@@ -1037,7 +1037,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
           `SELECT tp.id, tp.user_id, u.elo_rating
            FROM tournament_participants tp
            LEFT JOIN users u ON tp.user_id = u.id
-           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted' AND status = 'active'`,
+           WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted' AND status = 'active'`,
           [tournamentId]
         );
         participants = participantsResult.rows;
@@ -1050,7 +1050,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
           `SELECT tp.id, tp.user_id, u.elo_rating, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp
            FROM tournament_participants tp
            LEFT JOIN users u ON tp.user_id = u.id
-           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted' AND status = 'active'
+           WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted' AND status = 'active'
            ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC, u.elo_rating DESC, tp.user_id`,
           [tournamentId]
         );
@@ -1064,7 +1064,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
           `SELECT tp.id, tp.user_id, u.elo_rating
            FROM tournament_participants tp
            LEFT JOIN users u ON tp.user_id = u.id
-           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'`,
+           WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'`,
           [tournamentId]
         );
         participants = participantsResult.rows;
@@ -1101,7 +1101,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       
       // Get the round type to determine if we're in final phase
       const roundTypeResult = await query(
-        `SELECT round_type FROM tournament_rounds WHERE id = $1`,
+        `SELECT round_type FROM tournament_rounds WHERE id = ?`,
         [round.id]
       );
       const roundType = roundTypeResult.rows[0]?.round_type?.toLowerCase() || 'general';
@@ -1151,7 +1151,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
             `UPDATE tournament_teams 
              SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
                  tournament_points = COALESCE(tournament_points, 0) + 1
-             WHERE tournament_id = $1 AND id = $2`,
+             WHERE tournament_id = ? AND id = ?`,
             [tournamentId, pairing.player1_id]
           );
           console.log(`  → Team ${pairing.player1_id}: +1 win, +1 point`);
@@ -1160,7 +1160,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
             `UPDATE tournament_participants 
              SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
                  tournament_points = COALESCE(tournament_points, 0) + 1
-             WHERE tournament_id = $1 AND user_id = $2`,
+             WHERE tournament_id = ? AND user_id = ?`,
             [tournamentId, pairing.player1_id]
           );
           console.log(`  → Player ${pairing.player1_id}: +1 win, +1 point`);
@@ -1172,7 +1172,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       const tmResult = await query(
         `INSERT INTO tournament_round_matches 
          (tournament_id, round_id, player1_id, player2_id, best_of, wins_required, series_status, matches_scheduled)
-         VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', $7)
+         VALUES (?, ?, ?, ?, ?, $6, 'in_progress', $7)
          RETURNING id`,
         [tournamentId, round.id, pairing.player1_id, pairing.player2_id, bestOf, winsRequired, winsRequired]
       );
@@ -1186,7 +1186,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         await query(
           `INSERT INTO tournament_matches 
            (tournament_id, round_id, player1_id, player2_id, match_status, tournament_round_match_id)
-           VALUES ($1, $2, $3, $4, 'pending', $5)`,
+           VALUES (?, ?, ?, ?, 'pending', ?)`,
           [tournamentId, round.id, pairing.player1_id, pairing.player2_id, roundMatchId]
         );
       }
@@ -1201,7 +1201,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     await query(
       `UPDATE tournament_rounds 
        SET round_status = 'in_progress', round_start_date = NOW()
-       WHERE id = $1`,
+       WHERE id = ?`,
       [round.id]
     );
 
@@ -1232,7 +1232,7 @@ export async function isRoundComplete(roundId: string): Promise<boolean> {
       `SELECT COUNT(*) as total, 
               SUM(CASE WHEN winner_id IS NOT NULL THEN 1 ELSE 0 END) as completed
        FROM tournament_matches 
-       WHERE round_id = $1`,
+       WHERE round_id = ?`,
       [roundId]
     );
 
@@ -1251,7 +1251,7 @@ export async function completeRound(roundId: string, tournamentId: string): Prom
   try {
     // Get current round number
     const roundResult = await query(
-      `SELECT round_number FROM tournament_rounds WHERE id = $1`,
+      `SELECT round_number FROM tournament_rounds WHERE id = ?`,
       [roundId]
     );
 
@@ -1265,21 +1265,21 @@ export async function completeRound(roundId: string, tournamentId: string): Prom
     await query(
       `UPDATE tournament_rounds 
        SET round_status = 'completed', round_end_date = NOW()
-       WHERE id = $1`,
+       WHERE id = ?`,
       [roundId]
     );
 
     // Check if there are more rounds
     const nextRoundResult = await query(
       `SELECT id FROM tournament_rounds 
-       WHERE tournament_id = $1 AND round_number = $2`,
+       WHERE tournament_id = ? AND round_number = ?`,
       [tournamentId, currentRoundNumber + 1]
     );
 
     if (nextRoundResult.rows.length > 0) {
       // Activate next round automatically if auto_advance_round is true
       const tournamentResult = await query(
-        `SELECT auto_advance_round FROM tournaments WHERE id = $1`,
+        `SELECT auto_advance_round FROM tournaments WHERE id = ?`,
         [tournamentId]
       );
 
@@ -1289,14 +1289,14 @@ export async function completeRound(roundId: string, tournamentId: string): Prom
     } else {
       // No more rounds, tournament is finished
       await query(
-        `UPDATE tournaments SET status = 'finished', finished_at = NOW() WHERE id = $1`,
+        `UPDATE tournaments SET status = 'finished', finished_at = NOW() WHERE id = ?`,
         [tournamentId]
       );
 
       // Notify Discord of tournament finish
       try {
         const tournamentResult = await query(
-          `SELECT name, discord_thread_id FROM tournaments WHERE id = $1`,
+          `SELECT name, discord_thread_id FROM tournaments WHERE id = ?`,
           [tournamentId]
         );
 
@@ -1339,7 +1339,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
     // Get all matches in this round
     const roundInfo = await query(
       `SELECT id FROM tournament_rounds 
-       WHERE tournament_id = $1 AND round_number = $2`,
+       WHERE tournament_id = ? AND round_number = ?`,
       [tournamentId, roundNumber]
     );
 
@@ -1364,7 +1364,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
         trm.best_of,
         (SELECT COUNT(*) FROM tournament_matches tm WHERE tm.tournament_round_match_id = trm.id AND tm.match_status != 'completed') as pending_matches
        FROM tournament_round_matches trm
-       WHERE trm.round_id = $1`,
+       WHERE trm.round_id = ?`,
       [roundId]
     );
 
@@ -1390,7 +1390,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
           await query(
             `INSERT INTO tournament_matches 
              (tournament_id, round_id, player1_id, player2_id, match_status, tournament_round_match_id)
-             VALUES ($1, $2, $3, $4, 'pending', $5)`,
+             VALUES (?, ?, ?, ?, 'pending', ?)`,
             [tournamentId, roundId, match.player1_id, match.player2_id, match.id]
           );
         }
@@ -1405,7 +1405,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
         trm.winner_id,
         (SELECT COUNT(*) FROM tournament_matches tm WHERE tm.tournament_round_match_id = trm.id AND tm.match_status != 'completed') as pending_matches
        FROM tournament_round_matches trm
-       WHERE trm.round_id = $1`,
+       WHERE trm.round_id = ?`,
       [roundId]
     );
 
@@ -1426,14 +1426,14 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
       await query(
         `UPDATE tournament_rounds 
          SET round_status = 'completed', round_end_date = NOW()
-         WHERE id = $1`,
+         WHERE id = ?`,
         [roundId]
       );
       console.log(`✅ Round ${roundNumber} marked as completed for tournament ${tournamentId}`);
 
       // Get tournament mode to recalculate rankings appropriately
       const modeResult = await query(
-        `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+        `SELECT tournament_mode FROM tournaments WHERE id = ?`,
         [tournamentId]
       );
       const tournMode = modeResult.rows[0]?.tournament_mode || 'ranked';
@@ -1457,7 +1457,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
         `SELECT tr.round_type, t.tournament_type, t.general_rounds, t.final_rounds
          FROM tournament_rounds tr
          JOIN tournaments t ON tr.tournament_id = t.id
-         WHERE tr.id = $1`,
+         WHERE tr.id = ?`,
         [roundId]
       );
 
@@ -1502,7 +1502,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
 
       // Check if this is the last round
       const totalRoundsResult = await query(
-        `SELECT COUNT(*) as total_rounds FROM tournament_rounds WHERE tournament_id = $1`,
+        `SELECT COUNT(*) as total_rounds FROM tournament_rounds WHERE tournament_id = ?`,
         [tournamentId]
       );
       const totalRounds = parseInt(totalRoundsResult.rows[0].total_rounds);
@@ -1512,7 +1512,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
         
         // Get tournament mode
         const tournamentResult = await query(
-          `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+          `SELECT tournament_mode FROM tournaments WHERE id = ?`,
           [tournamentId]
         );
         const tournMode = tournamentResult.rows[0]?.tournament_mode || 'ranked';
@@ -1523,7 +1523,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
         try {
           const functionName = tournMode === 'team' ? 'update_team_tiebreakers' : 'update_tournament_tiebreakers';
           const tiebreakersResult = await query(
-            `SELECT updated_count, error_message FROM ${functionName}($1)`,
+            `SELECT updated_count, error_message FROM ${functionName}(?)`,
             [tournamentId]
           );
           
@@ -1546,7 +1546,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
         if (winner) {
           // NOW mark as finished
           await query(
-            `UPDATE tournaments SET status = 'finished', finished_at = NOW() WHERE id = $1`,
+            `UPDATE tournaments SET status = 'finished', finished_at = NOW() WHERE id = ?`,
             [tournamentId]
           );
           console.log(`🏆 Tournament ${tournamentId} finished - Winner: ${winner.nickname}`);
@@ -1554,7 +1554,7 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
           // Notify Discord of tournament finish
           try {
             const tournamentResult = await query(
-              `SELECT name, discord_thread_id FROM tournaments WHERE id = $1`,
+              `SELECT name, discord_thread_id FROM tournaments WHERE id = ?`,
               [tournamentId]
             );
 
@@ -1607,7 +1607,7 @@ export async function recalculateTeamRankings(tournamentId: string): Promise<voi
         tt.gwp,
         tt.ogp
        FROM tournament_teams tt
-       WHERE tt.tournament_id = $1 AND tt.status = 'active'
+       WHERE tt.tournament_id = ? AND tt.status = 'active'
        ORDER BY 
          (tt.tournament_wins - tt.tournament_losses) DESC,
          tt.omp DESC,
@@ -1623,7 +1623,7 @@ export async function recalculateTeamRankings(tournamentId: string): Promise<voi
     for (let i = 0; i < teams.length; i++) {
       const ranking = i + 1;
       await query(
-        `UPDATE tournament_teams SET tournament_ranking = $1 WHERE id = $2`,
+        `UPDATE tournament_teams SET tournament_ranking = ? WHERE id = ?`,
         [ranking, teams[i].id]
       );
       console.log(`  Team ${teams[i].team_name}: Rank #${ranking} (${teams[i].tournament_wins}W-${teams[i].tournament_losses}L)`);
@@ -1649,14 +1649,14 @@ export async function updateParticipantCurrentRound(tournamentId: string, roundN
     if (roundNumber === 1) {
       // For round 1, all participants start in round 1
       await query(
-        `UPDATE tournament_participants SET current_round = $1 WHERE tournament_id = $2`,
+        `UPDATE tournament_participants SET current_round = ? WHERE tournament_id = ?`,
         [roundNumber, tournamentId]
       );
       console.log(`✅ All participants set to current_round = ${roundNumber}`);
     } else {
       // Only update active participants (eliminated ones stay at their elimination round)
       await query(
-        `UPDATE tournament_participants SET current_round = $1 WHERE tournament_id = $2 AND status = 'active'`,
+        `UPDATE tournament_participants SET current_round = ? WHERE tournament_id = ? AND status = 'active'`,
         [roundNumber, tournamentId]
       );
       console.log(`✅ Active participants updated to current_round = ${roundNumber}`);
@@ -1679,14 +1679,14 @@ export async function updateTeamCurrentRound(tournamentId: string, roundNumber: 
     // For subsequent rounds, only active teams are updated
     if (roundNumber === 1) {
       await query(
-        `UPDATE tournament_teams SET current_round = $1 WHERE tournament_id = $2`,
+        `UPDATE tournament_teams SET current_round = ? WHERE tournament_id = ?`,
         [roundNumber, tournamentId]
       );
       console.log(`✅ All teams set to current_round = ${roundNumber}`);
     } else {
       // Only update active teams (eliminated teams stay at their elimination round)
       await query(
-        `UPDATE tournament_teams SET current_round = $1 WHERE tournament_id = $2 AND status = 'active'`,
+        `UPDATE tournament_teams SET current_round = ? WHERE tournament_id = ? AND status = 'active'`,
         [roundNumber, tournamentId]
       );
       console.log(`✅ Active teams updated to current_round = ${roundNumber}`);
@@ -1709,7 +1709,7 @@ export async function getWinnerAndRunnerUp(
   try {
     // Step 1: Detect tournament mode and type
     const tournResult = await query(
-      `SELECT tournament_mode, tournament_type FROM tournaments WHERE id = $1`,
+      `SELECT tournament_mode, tournament_type FROM tournaments WHERE id = ?`,
       [tournamentId]
     );
 
@@ -1735,7 +1735,7 @@ export async function getWinnerAndRunnerUp(
         const finalMatchResult = await query(
           `SELECT trm.winner_id, trm.player1_id, trm.player2_id
            FROM tournament_round_matches trm
-           WHERE trm.tournament_id = $1 AND trm.series_status = 'completed'
+           WHERE trm.tournament_id = ? AND trm.series_status = 'completed'
            ORDER BY trm.created_at DESC
            LIMIT 1`,
           [tournamentId]
@@ -1752,11 +1752,11 @@ export async function getWinnerAndRunnerUp(
 
         // Get team details
         const winnerResult = await query(
-          `SELECT id, name as nickname FROM tournament_teams WHERE id = $1`,
+          `SELECT id, name as nickname FROM tournament_teams WHERE id = ?`,
           [winnerId]
         );
         const runnerUpResult = await query(
-          `SELECT id, name as nickname FROM tournament_teams WHERE id = $1`,
+          `SELECT id, name as nickname FROM tournament_teams WHERE id = ?`,
           [runnerUpId]
         );
 
@@ -1770,7 +1770,7 @@ export async function getWinnerAndRunnerUp(
         const finalMatchResult = await query(
           `SELECT trm.winner_id, trm.player1_id, trm.player2_id
            FROM tournament_round_matches trm
-           WHERE trm.tournament_id = $1 AND trm.series_status = 'completed'
+           WHERE trm.tournament_id = ? AND trm.series_status = 'completed'
            ORDER BY trm.created_at DESC
            LIMIT 1`,
           [tournamentId]
@@ -1787,11 +1787,11 @@ export async function getWinnerAndRunnerUp(
 
         // Get player details
         const winnerResult = await query(
-          `SELECT u.id, u.nickname FROM users u WHERE u.id = $1`,
+          `SELECT u.id, u.nickname FROM users_extension u WHERE u.id = ?`,
           [winnerId]
         );
         const runnerUpResult = await query(
-          `SELECT u.id, u.nickname FROM users u WHERE u.id = $1`,
+          `SELECT u.id, u.nickname FROM users_extension u WHERE u.id = ?`,
           [runnerUpId]
         );
 
@@ -1810,7 +1810,7 @@ export async function getWinnerAndRunnerUp(
         const topTeamsResult = await query(
           `SELECT id, name as nickname, tournament_points, tournament_wins, omp, gwp, ogp
            FROM tournament_teams
-           WHERE tournament_id = $1 AND status = 'active'
+           WHERE tournament_id = ? AND status = 'active'
            ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC
            LIMIT 2`,
           [tournamentId]
@@ -1832,7 +1832,7 @@ export async function getWinnerAndRunnerUp(
           `SELECT u.id, u.nickname, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp
            FROM tournament_participants tp
            LEFT JOIN users u ON tp.user_id = u.id
-           WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+           WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
            ORDER BY tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC
            LIMIT 2`,
           [tournamentId]
@@ -1865,7 +1865,7 @@ export async function isInEliminationPhase(tournamentId: string): Promise<boolea
     // Check for active rounds in elimination phase
     const activeElimResult = await query(
       `SELECT COUNT(*) as count FROM tournament_rounds 
-       WHERE tournament_id = $1 AND round_status = 'in_progress' 
+       WHERE tournament_id = ? AND round_status = 'in_progress' 
        AND round_classification IN ('semifinal', 'final')`,
       [tournamentId]
     );
@@ -1877,7 +1877,7 @@ export async function isInEliminationPhase(tournamentId: string): Promise<boolea
     // Check if latest completed round is in elimination phase
     const latestRoundResult = await query(
       `SELECT round_classification FROM tournament_rounds 
-       WHERE tournament_id = $1 AND round_status = 'completed'
+       WHERE tournament_id = ? AND round_status = 'completed'
        ORDER BY round_number DESC LIMIT 1`,
       [tournamentId]
     );
@@ -1924,7 +1924,7 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
           u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
          ORDER BY 
            CASE WHEN tp.status = 'active' THEN 0 ELSE 1 END,
            tp.current_round DESC,
@@ -1951,7 +1951,7 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
           u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.participation_status = 'accepted'
+         WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
          ORDER BY 
            tp.tournament_points DESC,
            tp.omp DESC,
@@ -1970,7 +1970,7 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
     for (let i = 0; i < participants.length; i++) {
       const ranking = i + 1;
       await query(
-        `UPDATE tournament_participants SET tournament_ranking = $1 WHERE id = $2`,
+        `UPDATE tournament_participants SET tournament_ranking = ? WHERE id = ?`,
         [ranking, participants[i].id]
       );
       console.log(`   ${participants[i].nickname}: Rank #${ranking} (${participants[i].status}, Round ${participants[i].current_round}, ${participants[i].tournament_points}pts, ELO: ${participants[i].elo_rating})`);
@@ -2015,7 +2015,7 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
          LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tt.tournament_id = $1
+         WHERE tt.tournament_id = ?
          GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
          ORDER BY 
            CASE WHEN tt.status = 'active' THEN 0 ELSE 1 END,
@@ -2044,7 +2044,7 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
          LEFT JOIN users u ON tp.user_id = u.id
-         WHERE tt.tournament_id = $1
+         WHERE tt.tournament_id = ?
          GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
          ORDER BY 
            tt.tournament_points DESC,
@@ -2064,7 +2064,7 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
     for (let i = 0; i < teams.length; i++) {
       const ranking = i + 1;
       await query(
-        `UPDATE tournament_teams SET tournament_ranking = $1 WHERE id = $2`,
+        `UPDATE tournament_teams SET tournament_ranking = ? WHERE id = ?`,
         [ranking, teams[i].id]
       );
       console.log(`   ${teams[i].name}: Rank #${ranking} (${teams[i].status}, Round ${teams[i].current_round}, ${teams[i].tournament_points}pts, Team ELO sum: ${teams[i].team_total_elo})`);
