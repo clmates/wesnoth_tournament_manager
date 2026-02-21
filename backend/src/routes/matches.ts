@@ -2389,6 +2389,263 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
   }
 });
 
+// ============================================================================
+// Pending Reporting Routes
+// ============================================================================
+
+/**
+ * GET /api/matches/pending-reporting
+ * 
+ * Get all matches pending player confirmation (status = 'pending_report')
+ * Filtered to show only matches where the current user participated
+ * 
+ * Requires: User authentication
+ * Returns: Array of pending matches with participant and replay info
+ */
+router.get('/pending-reporting', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get pending matches where user participated
+    const result = await query(
+      `SELECT 
+        m.id,
+        m.replay_id,
+        m.winner_id,
+        m.loser_id,
+        m.map_name,
+        m.era_name,
+        m.status,
+        m.replay_file_path,
+        m.created_at,
+        m.updated_at,
+        w.username as winner_name,
+        w.rating as winner_rating,
+        l.username as loser_name,
+        l.rating as loser_rating,
+        r.game_name,
+        r.start_time,
+        r.end_time,
+        r.detection_confidence,
+        r.detected_from
+      FROM matches m
+      INNER JOIN users_extension w ON m.winner_id = w.id
+      INNER JOIN users_extension l ON m.loser_id = l.id
+      LEFT JOIN replays r ON m.replay_id = r.id
+      WHERE m.status = 'pending_report'
+        AND (m.winner_id = ? OR m.loser_id = ?)
+      ORDER BY m.created_at DESC`,
+      [userId, userId]
+    );
+
+    const matches = (result as any).rows || [];
+
+    res.json({
+      success: true,
+      count: matches.length,
+      matches: matches.map((m: any) => ({
+        id: m.id,
+        replayId: m.replay_id,
+        winners: {
+          id: m.winner_id,
+          name: m.winner_name,
+          rating: m.winner_rating
+        },
+        loser: {
+          id: m.loser_id,
+          name: m.loser_name,
+          rating: m.loser_rating
+        },
+        game: {
+          name: m.game_name,
+          map: m.map_name,
+          era: m.era_name,
+          startTime: m.start_time,
+          endTime: m.end_time
+        },
+        detection: {
+          confidence: m.detection_confidence,
+          from: m.detected_from
+        },
+        replayUrl: m.replay_file_path,
+        status: m.status,
+        createdAt: m.created_at,
+        updatedAt: m.updated_at,
+        isCurrentUserWinner: m.winner_id === userId,
+        currentUserAction: m.winner_id === userId ? 'confirm_victory' : 'confirm_defeat'
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error fetching pending reporting matches:', error);
+    res.status(500).json({ error: 'Failed to fetch pending matches' });
+  }
+});
+
+/**
+ * POST /api/matches/:matchId/confirm-report
+ * 
+ * Player confirms the auto-reported match results
+ * Changes status from 'pending_report' to 'confirmed'
+ * Applies ELO ratings after confirmation
+ * 
+ * Requires: User authentication + must be a participant in the match
+ */
+router.post('/:matchId/confirm-report', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { matchId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get match details
+    const matchResult = await query(
+      `SELECT id, winner_id, loser_id, status, replay_id 
+       FROM matches WHERE id = ?`,
+      [matchId]
+    );
+
+    if (!matchResult || !(matchResult as any).rows || (matchResult as any).rows.length === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const match = (matchResult as any).rows[0];
+
+    // Verify user is a participant
+    if (match.winner_id !== userId && match.loser_id !== userId) {
+      return res.status(403).json({ error: 'You are not a participant in this match' });
+    }
+
+    // Verify match is in pending_report status
+    if (match.status !== 'pending_report') {
+      return res.status(400).json({ error: 'Match is not pending confirmation' });
+    }
+
+    // Update match status to confirmed
+    await query(
+      `UPDATE matches 
+       SET status = 'confirmed', updated_at = NOW()
+       WHERE id = ?`,
+      [matchId]
+    );
+
+    // Apply ELO ratings
+    const winnerId = match.winner_id;
+    const loserId = match.loser_id;
+
+    // Get current ratings
+    const ratingsResult = await query(
+      `SELECT id, rating FROM users_extension WHERE id IN (?, ?)`,
+      [winnerId, loserId]
+    );
+
+    if (ratingsResult && (ratingsResult as any).rows) {
+      const ratings = (ratingsResult as any).rows;
+      const winnerRating = ratings.find((r: any) => r.id === winnerId)?.rating || 1200;
+      const loserRating = ratings.find((r: any) => r.id === loserId)?.rating || 1200;
+
+      // Calculate new ratings
+      const K = 32;
+      const expectedWinner = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400));
+      const expectedLoser = 1 / (1 + Math.pow(10, (winnerRating - loserRating) / 400));
+
+      const newWinnerRating = Math.round(winnerRating + K * (1 - expectedWinner));
+      const newLoserRating = Math.round(loserRating + K * (0 - expectedLoser));
+
+      // Update ratings
+      await query(
+        `UPDATE users_extension SET rating = ?, total_games = total_games + 1, wins = wins + 1 WHERE id = ?`,
+        [newWinnerRating, winnerId]
+      );
+
+      await query(
+        `UPDATE users_extension SET rating = ?, total_games = total_games + 1, losses = losses + 1 WHERE id = ?`,
+        [newLoserRating, loserId]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Match confirmed. ELO ratings have been applied.',
+      matchId,
+      newStatus: 'confirmed'
+    });
+
+  } catch (error) {
+    console.error('Error confirming match:', error);
+    res.status(500).json({ error: 'Failed to confirm match' });
+  }
+});
+
+/**
+ * POST /api/matches/:matchId/reject-report
+ * 
+ * Player rejects the auto-reported match results
+ * Changes status from 'pending_report' to 'rejected'
+ * Match is not applied to ratings
+ * 
+ * Requires: User authentication + must be a participant in the match
+ */
+router.post('/:matchId/reject-report', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { matchId } = req.params;
+    const userId = req.user?.id;
+    const { reason } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get match details
+    const matchResult = await query(
+      `SELECT id, winner_id, loser_id, status FROM matches WHERE id = ?`,
+      [matchId]
+    );
+
+    if (!matchResult || !(matchResult as any).rows || (matchResult as any).rows.length === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const match = (matchResult as any).rows[0];
+
+    // Verify user is a participant
+    if (match.winner_id !== userId && match.loser_id !== userId) {
+      return res.status(403).json({ error: 'You are not a participant in this match' });
+    }
+
+    // Verify match is in pending_report status
+    if (match.status !== 'pending_report') {
+      return res.status(400).json({ error: 'Match is not pending confirmation' });
+    }
+
+    // Update match status to rejected
+    await query(
+      `UPDATE matches 
+       SET status = 'rejected', updated_at = NOW()
+       WHERE id = ?`,
+      [matchId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Match rejected. Ratings have not been applied.',
+      matchId,
+      newStatus: 'rejected',
+      rejectionReason: reason || 'No reason provided'
+    });
+
+  } catch (error) {
+    console.error('Error rejecting match:', error);
+    res.status(500).json({ error: 'Failed to reject match' });
+  }
+});
+
 // Routes are now properly ordered with specific paths first
 
 export default router;

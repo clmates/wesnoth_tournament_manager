@@ -1,7 +1,8 @@
 import cron from 'node-cron';
 import { query } from '../config/database.js';
 import { calculatePlayerOfMonth } from './playerOfMonthJob.js';
-import ReplayParser from '../services/replayParser.js';
+import { SyncGamesFromForumJob } from './syncGamesFromForum.js';
+import ParseNewReplaysRefactored from './parseNewReplaysRefactored.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -10,6 +11,8 @@ import { v4 as uuidv4 } from 'uuid';
  * - 00:30 UTC: Daily balance snapshot
  * - 01:00 UTC: Check and mark inactive players
  * - 01:30 UTC on 1st: Calculate player of the month
+ * - Every 60s: Sync new games from forum database
+ * - Every 30s: Parse unparsed replays and create matches
  */
 export const initializeScheduledJobs = (): void => {
   try {
@@ -50,208 +53,37 @@ export const initializeScheduledJobs = (): void => {
         console.error('❌ [CRON] Failed to check inactive players:', error);
       }
     });
+
+    // Schedule forum database sync job every 60 seconds
+    // Fetches new games from forum database and inserts them into replays table
+    const forumSyncJob = new SyncGamesFromForumJob();
     
-    // Schedule replay parsing job every minute
-    // Processes pending replays, extracts metadata, and prepares for match integration
-    const replayParser = new ReplayParser();
-    
-    // Get configuration from environment variables
-    const replayParserIntervalSeconds = parseInt(process.env.REPLAY_PARSER_INTERVAL_SECONDS || '60', 10);
-    const replayParserBatchSize = parseInt(process.env.REPLAY_PARSER_BATCH_SIZE || '3', 10);
-    
-    const replayParserIntervalMs = replayParserIntervalSeconds * 1000;
-    
-    // Use setInterval for more flexible scheduling (supports any interval in seconds)
+    const forumSyncIntervalSeconds = 60;
+    const forumSyncIntervalMs = forumSyncIntervalSeconds * 1000;
+
     setInterval(async () => {
       try {
-        console.log(`🎬 [CRON] Starting replay parsing job (interval: ${replayParserIntervalSeconds}s, batch size: ${replayParserBatchSize})...`);
-        
-        // Get pending replays up to batch size
-        const pendingReplaysResult = await query(
-          `SELECT id, replay_filename, replay_path, file_write_closed_at
-           FROM replays
-           WHERE parse_status IN ('new', 'pending')
-             AND parsed = 0
-           ORDER BY detected_at ASC
-           LIMIT ?`,
-          [replayParserBatchSize]
-        );
-        
-        const pendingReplays = (pendingReplaysResult as any).rows || (pendingReplaysResult as unknown as any[]);
-        
-        let parsedCount = 0;
-        
-        if (pendingReplays.length === 0) {
-          console.log('ℹ️  [CRON] No pending replays to parse');
-        } else {
-          console.log(`🎬 [CRON] Found ${pendingReplays.length} replays to parse`);
-          
-          // Process each replay
-          for (const replay of pendingReplays) {
-            try {
-              const replayId = replay.id;
-              const replayPath = replay.replay_path;
-              const replayFilename = replay.replay_filename;
-              
-              // Capture start time for this entire parse/processing
-              const processingStartTime = new Date();
-              
-              console.log(`🎬 [PARSING] Starting: ${replayFilename}`);
-              
-              // Log: parsing started
-              await replayParser.addParsingLog(replayId, 'addon_check', 'started');
-              
-              // Stage 1: Quick addon check
-              const quickCheck = await replayParser.quickAddonCheck(replayPath);
-              
-              // Log: addon check completed
-              await replayParser.addParsingLog(replayId, 'addon_check', 'success', {
-                has_tournament_addon: quickCheck.has_tournament_addon,
-                tournament_addon_id: quickCheck.tournament_addon_id,
-                version: quickCheck.version,
-                era_id: quickCheck.era_id
-              });
-              
-              // If not a tournament match, mark as completed but don't integrate
-              if (!quickCheck.has_tournament_addon) {
-                console.log(`ℹ️  [PARSING] Not a tournament match: ${replayFilename}`);
-                
-                const processingEndTime = new Date();
-                const startTimeStr = processingStartTime.toISOString().slice(0, 19).replace('T', ' ');
-                const endTimeStr = processingEndTime.toISOString().slice(0, 19).replace('T', ' ');
-                
-                await query(
-                  `UPDATE replays 
-                   SET parse_status = 'completed', 
-                       parsed = 1, 
-                       need_integration = 0,
-                       parse_summary = 'Non-tournament replay (no tournament addon detected)',
-                       parsing_started_at = ?,
-                       parsing_completed_at = ?
-                   WHERE id = ?`,
-                  [startTimeStr, endTimeStr, replayId]
-                );
-                
-                await replayParser.addParsingLog(replayId, 'integration_decision', 'success', {
-                  decision: 'skip_no_tournament_addon'
-                });
-                
-                parsedCount++;
-                continue;
-              }
-              
-              // Tournament addon detected, mark as pending full parse
-              await query(
-                `UPDATE replays SET parse_status = 'pending' WHERE id = ?`,
-                [replayId]
-              );
-              
-              // Stage 2: Full parse for tournament matches
-              console.log(`🎬 [PARSING] Full parse: ${replayFilename}`);
-              
-              await replayParser.addParsingLog(replayId, 'full_parse', 'started');
-              
-              const analysis = await replayParser.fullReplayParse(replayPath);
-              const parsingEndTime = new Date();
-              
-              // Log: full parse completed
-              await replayParser.addParsingLog(replayId, 'full_parse', 'success', {
-                players_count: analysis.players.length,
-                map: analysis.metadata.scenario_name,
-                era: analysis.metadata.era_id,
-                winner: analysis.victory.winner_name,
-                duration_ms: parsingEndTime.getTime() - processingStartTime.getTime()
-              });
-              
-              // Update replay record with parsed data and timestamps
-              // Use processingStartTime (beginning of all processing) and parsingEndTime (end of full parse)
-              await replayParser.updateReplayRecord(replayId, analysis, true, processingStartTime, parsingEndTime);
-              
-              // Log: integration marked
-              await replayParser.addParsingLog(replayId, 'mark_for_integration', 'success', {
-                action: `need_integration = 1, confidence = ${analysis.victory.confidence_level} (0=discarded, 1=pending_confirm, 2=auto)`,
-                summary: replayParser.generateSummary(analysis)
-              });
-              
-              // Log final summary with all parsed information
-              const playersInfo = analysis.players
-                .map(p => `${p.name} (${p.faction_name})`)
-                .join(' vs ');
-              
-              const victoryInfo = analysis.victory.confidence_level === 2 
-                ? `${analysis.victory.result_type.toUpperCase()} - ${analysis.victory.winner_name} wins`
-                : `${analysis.victory.result_type.toUpperCase()}`; 
-              
-              const addonsStr = analysis.addons && analysis.addons.length > 0
-                ? analysis.addons.map((a: any) => a.name || a.id).join(', ')
-                : 'None';
-              
-              console.log(`
-✅ [PARSE COMPLETE] ${replayFilename}
-   Map:       ${analysis.metadata.scenario_name}
-   Players:   ${playersInfo}
-   Era:       ${analysis.metadata.era_id || 'unknown'}
-   Add-ons:   ${addonsStr}
-   Result:    ${victoryInfo}
-   Confidence: ${analysis.victory.confidence_level}`);
-              
-              parsedCount++;
-
-              
-            } catch (error) {
-              const errorMsg = (error as any)?.message || String(error);
-              
-              // Check if this is a DISCARD error (replay not a real match)
-              if (errorMsg.startsWith('DISCARD:')) {
-                const discardReason = errorMsg.substring(8).trim(); // Remove 'DISCARD: ' prefix
-                console.log(`ℹ️  [PARSING] Discarded ${replay.replay_filename}: ${discardReason}`);
-                
-                // Mark as discarded (not an error, just a decision)
-                await replayParser.markAsDiscarded(replay.id, discardReason);
-                
-                // Log the discard decision
-                await replayParser.addParsingLog(replay.id, 'discard_validation', 'success', {
-                  reason: discardReason
-                });
-              } else {
-                // Actual parsing error
-                console.error(`❌ [PARSING] Failed for ${replay.replay_filename}:`, errorMsg);
-                
-                // Mark as failed
-                await replayParser.markParsingError(replay.id, errorMsg);
-                
-                // Log the error
-                await replayParser.addParsingLog(replay.id, 'parse_error', 'error', undefined, errorMsg);
-              }
-            }
-          }
-        }
-        
-        // Update last integration timestamp if any replays were processed
-        if (parsedCount > 0) {
-          await query(
-            `UPDATE system_settings 
-             SET setting_value = ?, updated_at = NOW()
-             WHERE setting_key = 'replay_last_integration_timestamp'`,
-            [new Date().toISOString()]
-          );
-          console.log(`✅ Updated integration timestamp after parsing ${parsedCount} replay(s)`);
-        }
-        
-        // Always update last check timestamp (whether or not replays were processed)
-        await query(
-          `UPDATE system_settings 
-           SET setting_value = ?, updated_at = NOW()
-           WHERE setting_key = 'replay_last_check_timestamp'`,
-          [new Date().toISOString()]
-        );
-        
-        console.log('✅ [CRON] Replay parsing job completed');
-        
+        await forumSyncJob.executeSync();
       } catch (error) {
-        console.error('❌ [CRON] Replay parsing job failed:', error);
+        console.error('❌ [FORUM SYNC] Job execution failed:', error);
       }
-    }, replayParserIntervalMs);
+    }, forumSyncIntervalMs);
+
+    // Schedule replay parsing job every 30 seconds
+    // Parses unparsed replays from forum database integration
+    // Extracts victory conditions and creates/updates matches
+    const parseNewReplaysRefactored = new ParseNewReplaysRefactored();
+    
+    const replayParseIntervalSeconds = 30;
+    const replayParseIntervalMs = replayParseIntervalSeconds * 1000;
+
+    setInterval(async () => {
+      try {
+        await parseNewReplaysRefactored.execute();
+      } catch (error) {
+        console.error('❌ [PARSE] Job execution failed:', error);
+      }
+    }, replayParseIntervalMs);
     
     // Schedule player of month calculation at 01:30 UTC on the 1st of every month
     cron.schedule('30 1 1 * *', async () => {
@@ -267,7 +99,8 @@ export const initializeScheduledJobs = (): void => {
     console.log('✅ Scheduled jobs initialized:');
     console.log('   - Balance snapshot: Daily at 00:30 UTC');
     console.log('   - Inactive players check: Daily at 01:00 UTC');
-    console.log('   - Replay parsing: Every minute (max 3 concurrent)');
+    console.log('   - Forum database sync: Every 60 seconds');
+    console.log('   - Replay parsing & match creation: Every 30 seconds');
     console.log('   - Player of month: 1st of month at 01:30 UTC');
   } catch (error) {
     console.error('❌ Failed to initialize scheduler:', error);
