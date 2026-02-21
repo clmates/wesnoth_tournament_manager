@@ -23,7 +23,7 @@ const allowedOrigins = [
   'https://wesnoth-tournament-manager.pages.dev',       // Cloudflare Pages (production)
   'https://main.wesnoth-tournament-manager.pages.dev',  // Cloudflare Pages preview (main branch)
   'https://wesnoth.playranked.org',                     // PlayRanked custom domain
-  'https://chantal.wesnoth.org',                        // Nginx reverse proxy (chantal.wesnoth.org:443 → localhost:8100)
+  'https://tournament.wesnoth.org',                     // Nginx reverse proxy (tournament.wesnoth.org:443 → localhost:8100)
   'http://localhost:3000',                              // Local backend
   'http://localhost:5173'                               // Local frontend (Vite)
 ];
@@ -39,8 +39,8 @@ app.use(cors({
     } else if (origin.endsWith('.wesnoth-tournament-manager.pages.dev') || origin.includes('wesnoth-tournament-manager.pages.dev')) {
       // Allow all subdomains of wesnoth-tournament-manager.pages.dev (main, PR previews, etc.)
       callback(null, true);
-    } else if (origin.includes('chantal.wesnoth.org')) {
-      // Allow requests from chantal.wesnoth.org (for Cloudflare preview deployments)
+    } else if (origin.includes('tournament.wesnoth.org')) {
+      // Allow requests from tournament.wesnoth.org (for Cloudflare preview deployments)
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -71,8 +71,13 @@ app.use('/api/statistics', statisticsRoutes);
 app.use('/api/player-statistics', playerStatisticsRoutes);
 app.use('/api/replays', replaysRoutes);
 
+// Health check endpoints
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Global error handler - MUST be last
