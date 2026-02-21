@@ -1,6 +1,7 @@
 import { query } from '../config/database.js';
 import { Request, Response } from 'express';
 import { AuthRequest } from './auth.js';
+import { generateUUID } from '../utils/uuid.js';
 
 export interface AuditLogEntry {
   event_type: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'REGISTRATION' | 'ADMIN_ACTION' | 'SECURITY_EVENT' | 'PASSWORD_RESET_REQUEST' | 'EMAIL_VERIFIED' | 'ACCOUNT_UNLOCKED' | 'PASSWORD_RESET' | 'MAINTENANCE_MODE_TOGGLE';
@@ -17,10 +18,12 @@ export interface AuditLogEntry {
  */
 export async function logAuditEvent(entry: AuditLogEntry) {
   try {
+    const auditId = generateUUID();
     await query(
-      `INSERT INTO audit_logs (event_type, user_id, username, ip_address, user_agent, details, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      `INSERT INTO audit_logs (id, event_type, user_id, username, ip_address, user_agent, details, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
+        auditId,
         entry.event_type,
         entry.user_id || null,
         entry.username || null,
