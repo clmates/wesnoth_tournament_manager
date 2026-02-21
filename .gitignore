@@ -17,6 +17,7 @@ backend/.env.local
 backend/.env.migration
 frontend/.env
 frontend/.env.local
+frontend/.env.migration
 frontend/.env.development
 frontend/.env.staging
 frontend/.env.main
