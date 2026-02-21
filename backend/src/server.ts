@@ -16,11 +16,11 @@ const startServer = async () => {
     await runMigrations();
     console.log('\n');
 
-    // Listen only on localhost (127.0.0.1)
-    // Nginx reverse proxy on wesnoth.org:4443 will forward to this
-    app.listen(PORT, '127.0.0.1', () => {
-      console.log(`🚀 Backend server running on http://127.0.0.1:${PORT}`);
-      console.log('📡 Nginx will reverse proxy wesnoth.org:4443 → localhost:3000');
+    // Listen on all interfaces for Nginx reverse proxy
+    // Nginx reverse proxy on tournament.wesnoth.org:443 will forward to this
+    app.listen(PORT, () => {
+      console.log(`🚀 Backend server running on http://0.0.0.0:${PORT}`);
+      console.log('📡 Nginx will reverse proxy tournament.wesnoth.org:443 → localhost:8100');
     });
 
     // Initialize all scheduled jobs (crons)
