@@ -627,6 +627,7 @@ router.get('/matches', async (req, res) => {
 router.get('/players/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`🔍 [PLAYERS] Fetching player: ${id}`);
 
     const playerResult = await query(
       `SELECT 
@@ -653,7 +654,10 @@ router.get('/players/:id', async (req, res) => {
       [id]
     );
 
+    console.log(`🔍 [PLAYERS] Query returned: ${playerResult?.rows?.length || 0} rows`);
+
     if (playerResult.rows.length === 0) {
+      console.log(`⚠️  [PLAYERS] Player not found with ID: ${id}`);
       return res.status(404).json({ error: 'Player not found' });
     }
 
@@ -676,8 +680,8 @@ router.get('/players/:id', async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error('Error fetching player:', error);
-    res.status(500).json({ error: 'Failed to fetch player' });
+    console.error('❌ [PLAYERS] Error fetching player:', error);
+    res.status(500).json({ error: 'Failed to fetch player', details: (error as any).message });
   }
 });
 
