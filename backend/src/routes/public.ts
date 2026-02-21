@@ -665,8 +665,8 @@ router.get('/players/:id', async (req, res) => {
 
     // Get last activity from most recent match (any status except cancelled)
     const lastActivityResult = await query(
-      `SELECT created_at FROM matches WHERE (winner_id = $1 OR loser_id = $1) AND status != 'cancelled' ORDER BY created_at DESC LIMIT 1`,
-      [id]
+      `SELECT created_at FROM matches WHERE (winner_id = ? OR loser_id = ?) AND status != 'cancelled' ORDER BY created_at DESC LIMIT 1`,
+      [id, id]
     );
 
     console.log(`[Player ${id}] Last activity query result:`, lastActivityResult.rows);
