@@ -3,18 +3,17 @@ import axios, { AxiosError } from 'axios';
 // Determine API URL based on environment
 let API_URL: string;
 
-// Check hostname first (more specific than environment variables)
-if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-  // Production on Cloudflare Pages
-  API_URL = 'https://wesnoth.org:4443/api';
-} else if (window.location.hostname.includes('wesnoth-tournament-manager.pages.dev')) {
-  // PR preview or other subdomains on Cloudflare Pages
-  API_URL = 'https://wesnoth.org:4443/api';
+// Check environment variables first (from Cloudflare or deployment)
+if (import.meta.env.VITE_API_URL) {
+  // Use VITE_API_URL from environment (set in Cloudflare or deployment)
+  API_URL = import.meta.env.VITE_API_URL.endsWith('/api') 
+    ? import.meta.env.VITE_API_URL 
+    : `${import.meta.env.VITE_API_URL}/api`;
 } else if (import.meta.env.VITE_API_BASE_URL) {
-  // Explicit environment variable as fallback
+  // Fallback to VITE_API_BASE_URL
   API_URL = import.meta.env.VITE_API_BASE_URL;
 } else {
-  // Development/local
+  // Development/local default
   API_URL = 'http://localhost:3000/api';
 }
 
