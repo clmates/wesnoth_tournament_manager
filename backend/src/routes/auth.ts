@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { generateTokenWithUsername, verifyToken } from '../utils/auth.js';
 import { authenticatePhpbbUser, getPhpbbUser } from '../services/phpbbAuth.js';
 import { generateUUID } from '../utils/uuid.js';
-import { queryTournament, query } from '../config/tournamentDatabase.js';
+import { queryTournament } from '../config/tournamentDatabase.js';
+import { query } from '../config/database.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 
 const router = Router();
