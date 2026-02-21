@@ -173,8 +173,30 @@ export const initializeScheduledJobs = (): void => {
                 summary: replayParser.generateSummary(analysis)
               });
               
-              console.log(`✅ [PARSING] Completed: ${replayFilename}`);
+              // Log final summary with all parsed information
+              const playersInfo = analysis.players
+                .map(p => `${p.name} (${p.faction_name})`)
+                .join(' vs ');
+              
+              const victoryInfo = analysis.victory.confidence_level === 2 
+                ? `${analysis.victory.result_type.toUpperCase()} - ${analysis.victory.winner_name} wins`
+                : `${analysis.victory.result_type.toUpperCase()}`; 
+              
+              const addonsStr = analysis.addons && analysis.addons.length > 0
+                ? analysis.addons.map((a: any) => a.name || a.id).join(', ')
+                : 'None';
+              
+              console.log(`
+✅ [PARSE COMPLETE] ${replayFilename}
+   Map:       ${analysis.metadata.scenario_name}
+   Players:   ${playersInfo}
+   Era:       ${analysis.metadata.era_id || 'unknown'}
+   Add-ons:   ${addonsStr}
+   Result:    ${victoryInfo}
+   Confidence: ${analysis.victory.confidence_level}`);
+              
               parsedCount++;
+
               
             } catch (error) {
               const errorMsg = (error as any)?.message || String(error);

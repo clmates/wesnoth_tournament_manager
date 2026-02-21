@@ -196,8 +196,8 @@ export class ReplayParser {
             // Parse WML structure (simplified parser for key sections)
             const wmlRoot = this.parseWML(wmlText);
 
-            // Extract metadata
-            const metadata = this.extractMetadata(wmlRoot);
+            // Extract metadata (pass wmlText for direct WML search)
+            const metadata = this.extractMetadata(wmlRoot, wmlText);
 
             // VALIDATION: Check if this is a real match (not map selection/preview)
             const validationError = this.validateReplayIsRealMatch(wmlRoot, metadata);
@@ -214,38 +214,21 @@ export class ReplayParser {
 
             // Determine victory
             let victory = this.determineVictory(wmlRoot, players, wmlText);
-            
-            // DEBUG LOG: Show what we parsed
-            console.log(`[DEBUG] Replay Parse Results for ${path.basename(replayPath)}:`, {
-                map: metadata.scenario_name,
-                players_count: players.length,
-                players: players.map(p => ({ side: p.side, name: p.name, faction: p.faction_name })),
-                endlevel_detected: !!wmlRoot.endlevel,
-                endlevel_result: wmlRoot.endlevel?.result || 'none',
-                endlevel_side: wmlRoot.endlevel?.side || 'none',
-                victory_result_type: victory.result_type,
-                victory_winner_side: victory.winner_side,
-                victory_winner_name: victory.winner_name
-            });
 
-            // FALLBACK: Comprehensive faction extraction from ALL WML sources
+            // FALLBACK: Extract faction information from WML using proven frontend logic
             const hasUnknownFactions = players.some((p: any) => 
                 p.faction_name === 'Unknown' || p.faction_name === 'Custom'
             );
             
             if (hasUnknownFactions) {
-                console.log(`🔍 [FACTION HUNT] Detected Unknown/Custom factions, searching entire WML...`);
-                const factionInfo = this.extractComprehensiveFactionInfo(wmlText, players);
+                const factionByPlayer = this.extractFactionInfoFromWML(wmlText, players);
                 
-                // Enrich player data with extracted faction info
-                for (let i = 0; i < players.length; i++) {
-                    const playerName = players[i].name;
-                    const factionData = factionInfo.get(playerName);
-                    
-                    if (factionData && (players[i].faction_name === 'Unknown' || players[i].faction_name === 'Custom')) {
-                        console.log(`💫 [ENRICH] ${playerName}: ${players[i].faction_name} (conf=${factionData.confidence}) → ${factionData.faction_name}`);
-                        players[i].faction_name = factionData.faction_name;
-                        players[i].faction_id = factionData.faction_id;
+                // Apply faction enrichment to players
+                for (const player of players) {
+                    if ((player.faction_name === 'Unknown' || player.faction_name === 'Custom') && factionByPlayer.has(player.name)) {
+                        const newFaction = factionByPlayer.get(player.name)!;
+                        player.faction_name = newFaction;
+                        player.faction_id = newFaction.toLowerCase();
                     }
                 }
                 
@@ -353,13 +336,9 @@ export class ReplayParser {
             .sort((a, b) => a[0] - b[0])  // Sort by side number
             .map(([sideNum, entry]) => ({...entry.data, side: sideNum}));
         
-        // Log reload detection if found
+        // Log reload detection if found - process silently
         if (sideCount > result.sides.length) {
-            console.log(`[INFO] Replay reload/pause detected: ${sideCount} [side] blocks found, ${result.sides.length} unique sides`);
-            for (const [sideNum, entry] of sidesByNumber.entries()) {
-                const totalOccurrences = sideCount / result.sides.length;  // Approximate
-                console.log(`  - Side ${sideNum}: occurrence #${entry.fileOrder}, player="${entry.data.current_player}"`);
-            }
+            // Replay has reload/pause detected, but continue processing
         }
 
         // Extract endlevel (victory condition)
@@ -426,15 +405,28 @@ export class ReplayParser {
         return null; // Valid match
     }
 
-    private extractMetadata(wml: WMLNode) {
+    private extractMetadata(wml: WMLNode, wmlText?: string) {
         // Extract map name - PRIORITY ORDER:
-        // 1. scenario field (Wesnoth convention)
-        // 2. mp_scenario_name (multiplayer specific name)
+        // 1. Search raw WML text for mp_scenario_name="..." (most reliable, as used in frontend)
+        // 2. scenario field (Wesnoth convention)
         // 3. name field (default name)
         // 4. Empty if nothing found
         let mapName = '';
         
-        if (wml.scenario) {
+        // === PRIMARY: Direct search in raw WML (frontend-proven method) ===
+        if (wmlText) {
+            const scenarioMatch = wmlText.match(/mp_scenario_name\s*=\s*"([^"]+)"/);
+            if (scenarioMatch) {
+                mapName = scenarioMatch[1].trim();
+                // Remove "2p — " prefix if present (exactly as frontend does)
+                mapName = mapName.replace(/^2p\s*—\s*/, '');
+                // Also handle em-dash variants and "Np — " pattern
+                mapName = mapName.replace(/^\d+p\s*[—-]\s*/i, '');
+            }
+        }
+        
+        // === FALLBACK: Use WML structure if direct search found nothing ===
+        if (!mapName && wml.scenario) {
             // Try scenario field first (primary convention in ladder maps)
             if (wml.scenario.scenario && typeof wml.scenario.scenario === 'string') {
                 mapName = wml.scenario.scenario.trim();
@@ -442,16 +434,16 @@ export class ReplayParser {
             // Try mp_scenario_name next (multiplayer maps)
             else if (wml.scenario.mp_scenario_name && typeof wml.scenario.mp_scenario_name === 'string') {
                 mapName = wml.scenario.mp_scenario_name.trim();
+                mapName = mapName.replace(/^2p\s*—\s*/, '');
+                mapName = mapName.replace(/^\d+p\s*[—-]\s*/i, '');
             }
             // Fall back to name field
             else if (wml.scenario.name && typeof wml.scenario.name === 'string') {
                 mapName = wml.scenario.name.trim();
+                mapName = mapName.replace(/^2p\s*—\s*/, '');
+                mapName = mapName.replace(/^\d+p\s*[—-]\s*/i, '');
             }
         }
-        
-        // Clean up map name - remove common prefixes
-        mapName = mapName.replace(/^2p\s*[—-]\s*/i, '');  // "2p — " or "2p - "
-        mapName = mapName.replace(/^\d+p\s*[—-]\s*/i, ''); // "3p — ", "4p — ", etc.
         
         // If still empty, mark as Unknown
         if (!mapName) {
@@ -519,10 +511,6 @@ export class ReplayParser {
             // Use player name as key (handles reload/pause where same player reappears)
             const mapKey = playerName;
             
-            if (playerMap.has(mapKey)) {
-                console.log(`[DEBUG] extractPlayers: Player "${playerName}" appears multiple times (reload/pause), keeping latest version`);
-            }
-            
             playerMap.set(mapKey, player);
         });
         
@@ -535,10 +523,77 @@ export class ReplayParser {
      * These blocks contain accurate faction and player names
      */
     /**
-     * Comprehensive faction information extraction from multiple WML sources
-     * Searches the ENTIRE WML text for all possible faction references
-     * Returns faction info mapped by player name
+     * Extract faction information using the same proven logic as frontend ReportMatch
+     * Much simpler and more reliable than complex inference
+     * 
+     * Strategy:
+     * 1. Extract all faction_name values from [old_sideN] blocks + their current_player
+     * 2. Build direct mapping: player_name -> faction_name  
+     * 3. Apply to current players array
      */
+    private extractFactionInfoFromWML(wmlText: string, players: Array<any>): Map<string, string> {
+        const factionByPlayer = new Map<string, string>();
+        
+        // === Extract factions from [old_sideN] blocks (most reliable) ===
+        // Pattern: [old_sideN]...current_player="..."...faction_name="..."...[/old_sideN]
+        // We look for blocks that contain both current_player and faction_name
+        
+        const oldSideBlockRegex = /\[old_side[^\]]*\][\s\S]*?(?=\[old_side|\[|$)/g;
+        const matches = wmlText.matchAll ? wmlText.matchAll(oldSideBlockRegex) : Array.from(wmlText.match(oldSideBlockRegex) || []).map(m => ({ 0: m }));
+        
+        for (const blockMatch of matches) {
+            const text = blockMatch[0];
+            
+            // Extract current_player
+            const playerMatch = text.match(/current_player\s*=\s*"([^"]+)"/);
+            if (!playerMatch) continue;
+            
+            const player = playerMatch[1].trim();
+            
+            // Extract faction_name (prefer faction_name over faction)
+            const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+            const factionMatch = text.match(/faction\s*=\s*"([^"]+)"/);
+            
+            const rawFaction = factionNameMatch ? factionNameMatch[1] : (factionMatch ? factionMatch[1] : null);
+            
+            if (rawFaction) {
+                const cleanFaction = rawFaction.replace(/^_/, '').trim();
+                if (cleanFaction && cleanFaction !== 'Custom') {
+                    factionByPlayer.set(player, cleanFaction);
+                }
+            }
+        }
+        
+        // === Fallback: Extract from ALL [side] blocks (in case [old_sideN] missing) ===
+        if (factionByPlayer.size === 0) {
+            const sideRegex = /\[side\s*\]([\s\S]*?)\[\/side\]/g;
+            let sideMatch;
+            
+            while ((sideMatch = sideRegex.exec(wmlText)) !== null) {
+                const text = sideMatch[1];
+                
+                const playerMatch = text.match(/current_player\s*=\s*"([^"]+)"/);
+                if (!playerMatch) continue;
+                
+                const player = playerMatch[1].trim();
+                
+                const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+                const factionMatch = text.match(/faction\s*=\s*"([^"]+)"/);
+                
+                const rawFaction = factionNameMatch ? factionNameMatch[1] : (factionMatch ? factionMatch[1] : null);
+                
+                if (rawFaction) {
+                    const cleanFaction = rawFaction.replace(/^_/, '').trim();
+                    if (cleanFaction && cleanFaction !== 'Custom' && !factionByPlayer.has(player)) {
+                        factionByPlayer.set(player, cleanFaction);
+                    }
+                }
+            }
+        }
+        
+        return factionByPlayer;
+    }
+
     private extractComprehensiveFactionInfo(wmlText: string, players: Array<any>): Map<string, { faction_name: string; faction_id: string; confidence: number }> {
         const factionMap = new Map<string, { faction_name: string; faction_id: string; confidence: number }>();
         
@@ -722,7 +777,6 @@ export class ReplayParser {
                 
                 if (loserSide && players.length === 2) {
                     const winnerSide = loserSide === 1 ? 2 : 1;
-                    console.log(`[DEBUG] Surrender detected: "${surrenderPlayer}" (side ${loserSide}) → Winner: side ${winnerSide}`);
                     return {
                         winner_side: winnerSide,
                         loser_name: surrenderPlayer,
