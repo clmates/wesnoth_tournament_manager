@@ -29,7 +29,7 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
               email_verified, email_verification_expires, 
               (password_reset_token IS NOT NULL AND password_reset_expires > NOW()) as password_reset_pending,
               password_reset_expires
-       FROM users 
+       FROM users_extension 
        WHERE id != '00000000-0000-0000-0000-000000000000'
        ORDER BY created_at DESC`
     );
@@ -69,7 +69,7 @@ router.post('/registration-requests/:id/approve', authMiddleware, async (req: Au
 
     // New players start with elo_rating = 1400 (FIDE standard, unrated status)
     const userResult = await query(
-      `INSERT INTO users (nickname, email, language, discord_id, password_hash, is_active, is_rated, elo_rating, matches_played)
+      `INSERT INTO users_extension (nickname, email, language, discord_id, password_hash, is_active, is_rated, elo_rating, matches_played)
        VALUES ($1, $2, $3, $4, $5, true, false, 1400, 0)
        RETURNING id`,
       [regRequest.nickname, regRequest.email, regRequest.language, regRequest.discord_id, passwordHash]
@@ -106,7 +106,7 @@ router.post('/registration-requests/:id/reject', authMiddleware, async (req: Aut
 router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('UPDATE users SET is_blocked = true WHERE id = $1', [id]);
+    await query('UPDATE users_extension SET is_blocked = true WHERE id = $1', [id]);
     res.json({ message: 'User blocked' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to block user' });
@@ -233,7 +233,7 @@ router.post('/users/:id/resend-verification-email', authMiddleware, async (req: 
 
     // Update user with new token
     await query(
-      'UPDATE users SET email_verification_token = $1, email_verification_expires = $2 WHERE id = $3',
+      'UPDATE users_extension SET email_verification_token = $1, email_verification_expires = $2 WHERE id = $3',
       [verificationToken, verificationExpires, id]
     );
 
@@ -539,7 +539,7 @@ router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) =>
   try {
     const { id } = req.params;
     const result = await query(
-      `UPDATE users SET is_blocked = true WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      `UPDATE users_extension SET is_blocked = true WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
       [id]
     );
 
@@ -558,7 +558,7 @@ router.post('/users/:id/make-admin', authMiddleware, async (req: AuthRequest, re
   try {
     const { id } = req.params;
     const result = await query(
-      `UPDATE users SET is_admin = true WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      `UPDATE users_extension SET is_admin = true WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
       [id]
     );
 
@@ -577,7 +577,7 @@ router.post('/users/:id/remove-admin', authMiddleware, async (req: AuthRequest, 
   try {
     const { id } = req.params;
     const result = await query(
-      `UPDATE users SET is_admin = false WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      `UPDATE users_extension SET is_admin = false WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
       [id]
     );
 
@@ -622,7 +622,7 @@ router.post('/users/:id/force-reset-password', authMiddleware, async (req: AuthR
     );
 
     const result = await query(
-      `UPDATE users SET password_hash = $1, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, nickname, email`,
+      `UPDATE users_extension SET password_hash = $1, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, nickname, email`,
       [passwordHash, id]
     );
 

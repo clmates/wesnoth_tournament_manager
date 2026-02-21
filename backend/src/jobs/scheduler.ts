@@ -32,13 +32,13 @@ export const initializeScheduledJobs = (): void => {
       try {
         console.log('👤 [CRON] Running inactive player check...');
         const result = await query(
-          `UPDATE users 
+          `UPDATE users_extension 
            SET is_active = false, updated_at = CURRENT_TIMESTAMP
            WHERE is_active = true 
              AND is_blocked = false
              AND id NOT IN (
                SELECT DISTINCT u.id
-               FROM users u
+               FROM users_extension u
                INNER JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id)
                WHERE m.status != 'cancelled' 
                  AND m.created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)

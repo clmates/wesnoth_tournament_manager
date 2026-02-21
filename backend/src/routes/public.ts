@@ -103,7 +103,7 @@ router.get('/tournaments', optionalAuthMiddleware, async (req, res) => {
         t.finished_at,
         t.approved_at
       FROM tournaments t
-      LEFT JOIN users u ON t.creator_id = u.id
+      LEFT JOIN users_extension u ON t.creator_id = u.id
       ${whereClause}
       ORDER BY t.updated_at DESC
       LIMIT $${paramCount} OFFSET $${paramCount + 1}
@@ -179,7 +179,7 @@ router.get('/tournaments/:id', async (req, res) => {
         t.finished_at,
         t.approved_at
       FROM tournaments t
-      LEFT JOIN users u ON t.creator_id = u.id
+      LEFT JOIN users_extension u ON t.creator_id = u.id
       WHERE t.id = $1
     `, [id]);
 
@@ -212,7 +212,7 @@ router.get('/tournaments/:id/participants', async (req, res) => {
         tp.tournament_losses,
         tp.tournament_points
       FROM tournament_participants tp
-      LEFT JOIN users u ON tp.user_id = u.id
+      LEFT JOIN users_extension u ON tp.user_id = u.id
       WHERE tp.tournament_id = $1
       ORDER BY tp.tournament_ranking ASC NULLS LAST, u.elo_rating DESC
     `, [id]);
@@ -327,10 +327,10 @@ router.get('/tournaments/:id/matches', async (req, res) => {
       joinClause = `
         FROM tournament_matches tm
         JOIN tournament_rounds tr ON tm.round_id = tr.id
-        LEFT JOIN users u1 ON tm.player1_id = u1.id
-        LEFT JOIN users u2 ON tm.player2_id = u2.id
-        LEFT JOIN users uw ON tm.winner_id = uw.id
-        LEFT JOIN users ul ON tm.loser_id = ul.id
+        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
+        LEFT JOIN users_extension uw ON tm.winner_id = uw.id
+        LEFT JOIN users_extension ul ON tm.loser_id = ul.id
       `;
     } else {
       // Ranked 1v1: get player names from users (matches data already shown, though not included here for public API)
@@ -367,10 +367,10 @@ router.get('/tournaments/:id/matches', async (req, res) => {
       joinClause = `
         FROM tournament_matches tm
         JOIN tournament_rounds tr ON tm.round_id = tr.id
-        LEFT JOIN users u1 ON tm.player1_id = u1.id
-        LEFT JOIN users u2 ON tm.player2_id = u2.id
-        LEFT JOIN users uw ON tm.winner_id = uw.id
-        LEFT JOIN users ul ON tm.loser_id = ul.id
+        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
+        LEFT JOIN users_extension uw ON tm.winner_id = uw.id
+        LEFT JOIN users_extension ul ON tm.loser_id = ul.id
         LEFT JOIN matches m ON tm.match_id = m.id
       `;
     }
@@ -403,7 +403,7 @@ router.get('/news', async (req, res) => {
     const result = await query(
       `SELECT n.id, n.title, n.content, n.translations, n.published_at, n.created_at, u.nickname as author 
        FROM news n
-       LEFT JOIN users u ON n.author_id = u.id
+       LEFT JOIN users_extension u ON n.author_id = u.id
        ORDER BY n.published_at DESC NULLS FIRST, n.created_at DESC`
     );
     console.log('News query result:', result.rows.length, 'rows found');
@@ -422,8 +422,8 @@ router.get('/matches/recent', async (req, res) => {
               w.nickname as winner_nickname,
               l.nickname as loser_nickname
        FROM matches m
-       JOIN users w ON m.winner_id = w.id
-       JOIN users l ON m.loser_id = l.id
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
        ORDER BY m.created_at DESC
        LIMIT 20`
     );
@@ -486,7 +486,7 @@ router.get('/players', async (req, res) => {
     const whereClause = whereConditions.join(' AND ');
 
     // Get total count of filtered players
-    const countQuery = `SELECT COUNT(*) as total FROM users WHERE ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as total FROM users_extension WHERE ${whereClause}`;
     const countResult = await query(countQuery, params);
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
@@ -579,8 +579,8 @@ router.get('/matches', async (req, res) => {
     const countQuery = `
       SELECT COUNT(*) as count
       FROM matches m
-      JOIN users w ON m.winner_id = w.id
-      JOIN users l ON m.loser_id = l.id
+      JOIN users_extension w ON m.winner_id = w.id
+      JOIN users_extension l ON m.loser_id = l.id
       ${whereClause}
     `;
 
@@ -594,8 +594,8 @@ router.get('/matches', async (req, res) => {
               w.nickname as winner_nickname,
               l.nickname as loser_nickname
        FROM matches m
-       JOIN users w ON m.winner_id = w.id
-       JOIN users l ON m.loser_id = l.id
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
        ${whereClause}
        ORDER BY m.created_at DESC
        LIMIT $${paramCount} OFFSET $${paramCount + 1}
@@ -644,7 +644,7 @@ router.get('/players/:id', async (req, res) => {
         u.trend,
         u.is_active,
         pms.avg_elo_change
-      FROM users u
+      FROM users_extension u
       LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
         AND pms.opponent_id IS NULL 
         AND pms.map_id IS NULL 
@@ -868,7 +868,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
       const membersResult = await query(
         `SELECT tp.id as participant_id, u.id, u.nickname, tp.team_position, tp.participation_status
          FROM tournament_participants tp
-         JOIN users u ON tp.user_id = u.id
+         JOIN users_extension u ON tp.user_id = u.id
          WHERE tp.team_id = $1 AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
          ORDER BY tp.team_position`,
         [team.id]

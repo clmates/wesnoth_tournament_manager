@@ -29,7 +29,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
 
     // Check all players
     const allPlayersResult = await query(
-      `SELECT COUNT(*) as player_count FROM users`
+      `SELECT COUNT(*) as player_count FROM users_extension`
     );
     console.log(`📊 Total players: ${allPlayersResult.rows[0]?.player_count || 0}`);
 
@@ -45,7 +45,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
           COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN m.winner_elo_after - m.winner_elo_before 
                            WHEN m.loser_id = u.id THEN m.loser_elo_after - m.loser_elo_before 
                            ELSE 0 END), 0) as elo_gained
-        FROM users u
+        FROM users_extension u
         LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) 
           AND m.status != 'cancelled'
           AND m.created_at >= $1
@@ -71,7 +71,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
             COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN m.winner_elo_after - m.winner_elo_before 
                              WHEN m.loser_id = u.id THEN m.loser_elo_after - m.loser_elo_before 
                              ELSE 0 END), 0) as elo_gained
-          FROM users u
+          FROM users_extension u
           LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) 
             AND m.status != 'cancelled'
             AND m.created_at >= $1
@@ -94,7 +94,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     // Get current ranking position
     const rankingResult = await query(
       `SELECT COUNT(*) + 1 as ranking_position
-       FROM users u2
+       FROM users_extension u2
        WHERE (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
       [player.elo_rating, playerId]
     );
@@ -124,7 +124,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
       // Count ranking at start of month
       const rankAtStartResult = await query(
         `SELECT COUNT(*) + 1 as rank_at_start
-         FROM users u2
+         FROM users_extension u2
          WHERE (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
         [eloAtMonthStart, playerId]
       );

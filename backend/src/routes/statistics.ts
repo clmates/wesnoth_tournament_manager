@@ -338,7 +338,7 @@ router.get('/history/events', async (req, res) => {
       FROM balance_events be
       LEFT JOIN factions f ON be.faction_id = f.id
       LEFT JOIN game_maps gm ON be.map_id = gm.id
-      LEFT JOIN users u ON be.created_by = u.id
+      LEFT JOIN users_extension u ON be.created_by = u.id
       ${whereClause}
       ORDER BY be.event_date DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,

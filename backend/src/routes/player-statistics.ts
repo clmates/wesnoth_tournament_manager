@@ -22,7 +22,7 @@ router.get('/player/:playerId/global', async (req, res) => {
         pms.avg_elo_change,
         pms.last_updated
       FROM player_match_statistics pms
-      JOIN users u ON pms.player_id = u.id
+      JOIN users_extension u ON pms.player_id = u.id
       WHERE pms.player_id = $1
       AND pms.opponent_id IS NULL
       AND pms.map_id IS NULL
@@ -132,8 +132,8 @@ router.get('/player/:playerId/vs-player/:opponentId', async (req, res) => {
         pms.avg_elo_change,
         COUNT(DISTINCT gm.id) as maps_played
       FROM player_match_statistics pms
-      JOIN users u1 ON pms.player_id = u1.id
-      JOIN users u2 ON pms.opponent_id = u2.id
+      JOIN users_extension u1 ON pms.player_id = u1.id
+      JOIN users_extension u2 ON pms.opponent_id = u2.id
       LEFT JOIN game_maps gm ON pms.map_id = gm.id
       WHERE pms.player_id = $1
       AND pms.opponent_id = $2
@@ -277,7 +277,7 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
         CAST(pms.last_match_date AS CHAR) as last_match_date,
         pms.last_elo_against_me
       FROM player_match_statistics pms
-      JOIN users u ON pms.opponent_id = u.id
+      JOIN users_extension u ON pms.opponent_id = u.id
       WHERE pms.player_id = $1
       AND pms.opponent_id IS NOT NULL
       AND pms.map_id IS NULL

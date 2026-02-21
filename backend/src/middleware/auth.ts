@@ -44,7 +44,7 @@ export const adminMiddleware = async (req: AuthRequest, res: Response, next: Nex
   }
 
   const { query } = require('../config/database');
-  const result = await query('SELECT id FROM users WHERE id = $1 AND is_admin = true', [req.userId]);
+  const result = await query('SELECT id FROM users_extension WHERE id = $1 AND is_admin = true', [req.userId]);
 
   if (result.rows.length === 0) {
     return res.status(403).json({ error: 'Not authorized' });

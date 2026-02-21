@@ -29,7 +29,7 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
         u.avatar,
         COALESCE(u.password_must_change, false) as password_must_change,
         pms.avg_elo_change
-      FROM users u
+      FROM users_extension u
       LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
         AND pms.opponent_id IS NULL 
         AND pms.map_id IS NULL 
@@ -78,7 +78,7 @@ router.get('/:id/stats', async (req, res) => {
     const winsResult = await query("SELECT COUNT(*) as wins FROM matches WHERE winner_id = $1 AND status = 'confirmed'", [id]);
     const lossesResult = await query("SELECT COUNT(*) as losses FROM matches WHERE loser_id = $1 AND status = 'confirmed'", [id]);
 
-    const userResult = await query('SELECT elo_rating, level FROM users WHERE id = $1', [id]);
+    const userResult = await query('SELECT elo_rating, level FROM users_extension WHERE id = $1', [id]);
 
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -152,8 +152,8 @@ router.get('/:id/matches', async (req, res) => {
 
     // Get total count of filtered matches
     const countQuery = `SELECT COUNT(*) as total FROM matches m 
-                        JOIN users w ON m.winner_id = w.id 
-                        JOIN users l ON m.loser_id = l.id 
+                        JOIN users_extension w ON m.winner_id = w.id 
+                        JOIN users_extension l ON m.loser_id = l.id 
                         WHERE ${whereClause}`;
     const countResult = await query(countQuery, params);
     const total = parseInt(countResult.rows[0].total);
@@ -168,8 +168,8 @@ router.get('/:id/matches', async (req, res) => {
         w.nickname as winner_nickname,
         l.nickname as loser_nickname
        FROM matches m
-       JOIN users w ON m.winner_id = w.id
-       JOIN users l ON m.loser_id = l.id
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
        WHERE ${whereClause}
        ORDER BY m.created_at DESC
        LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
@@ -200,7 +200,7 @@ router.get('/search/:searchQuery', searchLimiter, async (req, res) => {
     const { searchQuery } = req.params;
 
     const result = await query(
-      `SELECT id, nickname, elo_rating, level FROM users 
+      `SELECT id, nickname, elo_rating, level FROM users_extension 
        WHERE nickname ILIKE $1 AND is_active = true AND is_blocked = false
        LIMIT 20`,
       [`%${searchQuery}%`]
@@ -327,7 +327,7 @@ router.get('/ranking/global', async (req, res) => {
     const whereClause = whereConditions.join(' AND ');
 
     // Get total count of filtered players
-    const countQuery = `SELECT COUNT(*) as total FROM users u WHERE ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as total FROM users_extension u WHERE ${whereClause}`;
     const countResult = await query(countQuery, params);
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
@@ -337,7 +337,7 @@ router.get('/ranking/global', async (req, res) => {
     params.push(offset);
     const result = await query(
       `SELECT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, u.country, u.avatar, COALESCE(u.trend, '-') as trend 
-       FROM users u
+       FROM users_extension u
        WHERE ${whereClause}
        ORDER BY u.elo_rating DESC
        LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
@@ -365,7 +365,7 @@ router.get('/ranking/active', async (req, res) => {
   try {
     const result = await query(
       `SELECT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, u.country, u.avatar, COALESCE(u.trend, '-') as trend
-       FROM users u
+       FROM users_extension u
        WHERE u.is_active = true 
          AND u.is_blocked = false
          AND u.is_rated = true
@@ -386,7 +386,7 @@ router.get('/ranking/active', async (req, res) => {
 router.get('/all', async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, nickname, elo_rating, level, is_rated, country, avatar, created_at FROM users 
+      `SELECT id, nickname, elo_rating, level, is_rated, country, avatar, created_at FROM users_extension 
        WHERE is_blocked = false
        ORDER BY created_at DESC
        LIMIT 500`
@@ -438,7 +438,7 @@ router.get('/:id/stats/month', async (req, res) => {
 
     // Get current ELO
     const currentEloResult = await query(
-      'SELECT elo_rating FROM users WHERE id = $1',
+      'SELECT elo_rating FROM users_extension WHERE id = $1',
       [id]
     );
 
@@ -449,7 +449,7 @@ router.get('/:id/stats/month', async (req, res) => {
     // Get ranking at start of month and current ranking
     const startRankingResult = await query(
       `SELECT COUNT(*) as rank_at_start 
-       FROM users u2 
+       FROM users_extension u2 
        WHERE u2.is_active = true 
          AND u2.is_blocked = false
          AND u2.is_rated = true
@@ -463,7 +463,7 @@ router.get('/:id/stats/month', async (req, res) => {
 
     const currentRankingResult = await query(
       `SELECT COUNT(*) as current_rank 
-       FROM users u2 
+       FROM users_extension u2 
        WHERE u2.is_active = true 
          AND u2.is_blocked = false
          AND u2.is_rated = true
