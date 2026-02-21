@@ -1,50 +1,34 @@
--- Migration: Replay Processing Refactor
+-- Migration: Add Missing Replay Columns
 -- Date: 2026-02-21
--- Purpose: Add forum database integration columns and restructure replay/match linking
+-- Purpose: Add columns that should have been created in the previous migration
 
 -- ============================================================================
--- 1. UPDATE MATCHES TABLE
+-- 1. ADD MISSING COLUMNS TO REPLAYS TABLE
 -- ============================================================================
 
--- Increase replay_file_path to accommodate full URLs
-ALTER TABLE matches MODIFY COLUMN replay_file_path VARCHAR(1000);
-
--- Remove detected_from from matches (detection metadata belongs in replays table)
-ALTER TABLE matches DROP COLUMN IF EXISTS detected_from;
-
--- ============================================================================
--- 2. UPDATE REPLAYS TABLE
--- ============================================================================
-
--- Add forum database source identifiers
+-- Add forum database source identifier
 ALTER TABLE replays ADD COLUMN IF NOT EXISTS instance_uuid CHAR(36);
-ALTER TABLE replays ADD COLUMN IF NOT EXISTS game_id INT UNSIGNED;
 
--- Add game metadata from wesnothd_game_info
-ALTER TABLE replays ADD COLUMN IF NOT EXISTS game_name VARCHAR(255);
-ALTER TABLE replays ADD COLUMN IF NOT EXISTS start_time TIMESTAMP;
-ALTER TABLE replays ADD COLUMN IF NOT EXISTS end_time TIMESTAMP;
-
--- Add game flags
+-- Add game flags that might be missing
 ALTER TABLE replays ADD COLUMN IF NOT EXISTS oos TINYINT(1) DEFAULT 0;
-ALTER TABLE replays ADD COLUMN IF NOT EXISTS is_reload TINYINT(1) DEFAULT 0;
 
--- Add detection/confidence information
--- Note: Integration_confidence already exists, but adding detection_confidence for clarity
+-- Add detection confidence that might be missing
 ALTER TABLE replays ADD COLUMN IF NOT EXISTS detection_confidence TINYINT(1);
-ALTER TABLE replays ADD COLUMN IF NOT EXISTS detected_from VARCHAR(50) DEFAULT 'manual';
 
--- Add replay server URL (built from game metadata)
+-- Add replay server URL (if missing)
 ALTER TABLE replays ADD COLUMN IF NOT EXISTS replay_url VARCHAR(1000);
 
--- Add timestamp for forum sync tracking
+-- Add timestamp for forum sync tracking (if missing)
 ALTER TABLE replays ADD COLUMN IF NOT EXISTS last_checked_at DATETIME;
 
+-- Add game_name if it doesn't exist
+ALTER TABLE replays ADD COLUMN IF NOT EXISTS game_name VARCHAR(255);
+
 -- ============================================================================
--- 3. ADD INDEXES FOR EFFICIENT QUERIES
+-- 2. ADD MISSING INDEXES
 -- ============================================================================
 
--- Index for forum source tracking (used by syncGamesFromForum)
+-- Index for forum source tracking
 ALTER TABLE replays ADD UNIQUE KEY IF NOT EXISTS uq_instance_game (instance_uuid, game_id);
 
 -- Index for match linking
@@ -66,7 +50,7 @@ ALTER TABLE replays ADD KEY IF NOT EXISTS idx_detection_confidence (detection_co
 ALTER TABLE replays ADD KEY IF NOT EXISTS idx_detected_from (detected_from);
 
 -- ============================================================================
--- 4. ENSURE FOREIGN KEY CONSTRAINT
+-- 3. UPDATE FOREIGN KEYS
 -- ============================================================================
 
 -- Drop old foreign key if exists
@@ -77,7 +61,7 @@ ALTER TABLE matches ADD CONSTRAINT fk_matches_replay
   FOREIGN KEY (replay_id) REFERENCES replays(id) ON DELETE SET NULL;
 
 -- ============================================================================
--- 5. MIGRATION COMPLETE
+-- 4. MIGRATION COMPLETE
 -- ============================================================================
 
-INSERT INTO migrations (name, executed_at) VALUES ('20260221_replay_processing_refactor', NOW());
+INSERT INTO migrations (name, executed_at) VALUES ('20260221_add_missing_replay_columns', NOW());

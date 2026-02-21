@@ -2404,7 +2404,7 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
  */
 router.get('/pending-reporting', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
@@ -2498,7 +2498,7 @@ router.get('/pending-reporting', authMiddleware, async (req: AuthRequest, res) =
 router.post('/:matchId/confirm-report', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { matchId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
@@ -2595,7 +2595,7 @@ router.post('/:matchId/confirm-report', authMiddleware, async (req: AuthRequest,
 router.post('/:matchId/reject-report', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { matchId } = req.params;
-    const userId = req.user?.id;
+    const userId = req.userId;
     const { reason } = req.body;
 
     if (!userId) {
