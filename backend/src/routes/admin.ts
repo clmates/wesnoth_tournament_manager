@@ -410,7 +410,7 @@ router.get('/news', authMiddleware, async (req: AuthRequest, res) => {
     const result = await query(
       `SELECT n.id, n.title, n.content, n.published_at, n.language_code, u.nickname as author 
        FROM news n
-       LEFT JOIN users u ON n.author_id = u.id
+       LEFT JOIN users_extension u ON n.author_id = u.id
        ORDER BY n.published_at DESC, n.language_code ASC`
     );
     res.json(result.rows);
@@ -819,7 +819,7 @@ router.get('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
 
     const result = await query(
       `SELECT id, event_type, user_id, username, ip_address, user_agent, details, created_at
-       FROM public.audit_logs
+       FROM audit_logs
        ${whereClause}
        ORDER BY created_at DESC
        LIMIT 1000`,
@@ -851,7 +851,7 @@ router.delete('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
     // Delete logs with proper parameterized query
     const placeholders = logIds.map((_, i) => `$${i + 1}`).join(',');
     await query(
-      `DELETE FROM public.audit_logs WHERE id IN (${placeholders})`,
+      `DELETE FROM audit_logs WHERE id IN (${placeholders})`,
       logIds
     );
 
@@ -888,13 +888,13 @@ router.delete('/audit-logs/old', authMiddleware, async (req: AuthRequest, res) =
 
     // Get count before deletion
     const countBefore = await query(
-      `SELECT COUNT(*) as count FROM public.audit_logs 
+      `SELECT COUNT(*) as count FROM audit_logs 
        WHERE created_at < DATE_SUB(NOW(), INTERVAL ${daysBack} DAY)`
     );
 
     // Delete old logs
     await query(
-      `DELETE FROM public.audit_logs 
+      `DELETE FROM audit_logs 
        WHERE created_at < DATE_SUB(NOW(), INTERVAL ${daysBack} DAY)`
     );
 
@@ -1957,7 +1957,7 @@ router.get('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, re
     const teams = await Promise.all(teamsResult.rows.map(async (team) => {
       const membersResult = await query(
         `SELECT u.id, u.nickname, tm.position FROM team_members tm
-         JOIN users u ON tm.player_id = u.id
+         JOIN users_extension u ON tm.player_id = u.id
          WHERE tm.team_id = ?
          ORDER BY tm.position`,
         [team.id]
@@ -1965,7 +1965,7 @@ router.get('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, re
 
       const substitutesResult = await query(
         `SELECT u.id, u.nickname FROM team_substitutes ts
-         JOIN users u ON ts.player_id = u.id
+         JOIN users_extension u ON ts.player_id = u.id
          WHERE ts.team_id = ?
          ORDER BY ts.substitute_order`,
         [team.id]

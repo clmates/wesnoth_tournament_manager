@@ -210,12 +210,12 @@ async function performGlobalStatsRecalculation() {
       // Update the match record with correct before/after ELO values, FIDE elo_change, and levels
       await query(
         `UPDATE matches 
-         SET winner_elo_before = $1, winner_elo_after = $2, 
-             loser_elo_before = $3, loser_elo_after = $4,
-             winner_level_before = $5, winner_level_after = $6,
+         SET winner_elo_before = ?, winner_elo_after = ?, 
+             loser_elo_before = ?, loser_elo_after = ?,
+             winner_level_before = ?, winner_level_after = $6,
              loser_level_before = $7, loser_level_after = $8,
              elo_change = $9
-         WHERE id = $10`,
+         WHERE id = ?0`,
         [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, winnerLevelBefore, winner.level, loserLevelBefore, loser.level, winnerEloChange, matchRow.id]
       );
 
@@ -237,7 +237,7 @@ async function performGlobalStatsRecalculation() {
     let usersUpdatedCount = 0;
     for (const [userId, stats] of userStates.entries()) {
       // Get current is_rated status from database
-      const userCurrentResult = await query('SELECT is_rated FROM users WHERE id = $1', [userId]);
+      const userCurrentResult = await query('SELECT is_rated FROM users_extension WHERE id = ?', [userId]);
       const isCurrentlyRated = userCurrentResult.rows[0]?.is_rated || false;
       
       let isRated = isCurrentlyRated;
@@ -253,11 +253,11 @@ async function performGlobalStatsRecalculation() {
       
       await query(
         `UPDATE users 
-         SET elo_rating = $1, 
-             matches_played = $2,
-             total_wins = $3,
-             total_losses = $4,
-             trend = $5,
+         SET elo_rating = ?, 
+             matches_played = ?,
+             total_wins = ?,
+             total_losses = ?,
+             trend = ?,
              level = $6,
              is_rated = $7,
              updated_at = CURRENT_TIMESTAMP 
@@ -362,7 +362,7 @@ async function checkAndUpdateRoundCompletion(roundId: string, tournamentId: stri
       `SELECT COUNT(*) as total_matches, 
               COUNT(CASE WHEN winner_id IS NOT NULL THEN 1 END) as completed_matches
        FROM tournament_round_matches 
-       WHERE round_id = $1`,
+       WHERE round_id = ?`,
       [roundId]
     );
 
@@ -375,7 +375,7 @@ async function checkAndUpdateRoundCompletion(roundId: string, tournamentId: stri
       await query(
         `UPDATE tournament_rounds 
          SET round_end_date = CURRENT_TIMESTAMP, round_status = 'completed', updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
+         WHERE id = ?`,
         [roundId]
       );
       console.log(`✅ Round ${roundId} completed - updated round_end_date`);
@@ -404,7 +404,7 @@ async function handleSeriesAndRoundCompletion(seriesUpdate: any, tournamentRound
       // Series is complete, check if round is complete
       try {
         const roundNumberResult = await query(
-          `SELECT round_number FROM tournament_rounds WHERE id = $1`,
+          `SELECT round_number FROM tournament_rounds WHERE id = ?`,
           [roundId]
         );
         const roundNumber = roundNumberResult.rows[0]?.round_number;
@@ -435,7 +435,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
     let tournamentMode = 'ranked'; // default
     if (tournament_id) {
       const tournamentResult = await query(
-        'SELECT tournament_mode FROM tournaments WHERE id = $1',
+        'SELECT tournament_mode FROM tournaments WHERE id = ?',
         [tournament_id]
       );
       if (tournamentResult.rows.length > 0) {
@@ -461,11 +461,11 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
 
     if (tournamentMode === 'ranked') {
       const winnerResult = await query(
-        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
+        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?',
         [req.userId]
       );
       const loserResult = await query(
-        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
+        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?',
         [opponent_id]
       );
 
@@ -494,7 +494,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
     if (tournamentMode === 'ranked') {
       const matchResult = await query(
         `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+         VALUES (?, ?, ?, ?, ?, $6, $7, $8, $9, ?0, ?1, ?2, ?3, ?4, ?5)
          RETURNING id`,
         [
           req.userId,
@@ -539,14 +539,14 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
 
       await query(
         `UPDATE users 
-         SET elo_rating = $1, 
-             is_rated = $2, 
-             matches_played = $3,
+         SET elo_rating = ?, 
+             is_rated = ?, 
+             matches_played = ?,
              total_wins = total_wins + 1,
              trend = $6,
-             level = $5,
+             level = ?,
              updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $4`,
+         WHERE id = ?`,
         [finalWinnerRating, winnerIsNowRated, newWinnerMatches, req.userId, getUserLevel(finalWinnerRating), winnerTrend]
       );
 
@@ -566,26 +566,26 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
 
       await query(
         `UPDATE users 
-         SET elo_rating = $1, 
-             is_rated = $2, 
-             matches_played = $3,
+         SET elo_rating = ?, 
+             is_rated = ?, 
+             matches_played = ?,
              total_losses = total_losses + 1,
              trend = $6,
-             level = $5,
+             level = ?,
              updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $4`,
+         WHERE id = ?`,
         [finalLoserRating, loserIsNowRated, newLoserMatches, opponent_id, getUserLevel(finalLoserRating), loserTrend]
       );
 
       // Update match with after-match ELO and level ratings
       await query(
         `UPDATE matches 
-         SET winner_elo_after = $1,
-             winner_level_after = $2,
-             loser_elo_after = $3,
-             loser_level_after = $4,
+         SET winner_elo_after = ?,
+             winner_level_after = ?,
+             loser_elo_after = ?,
+             loser_level_after = ?,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $5`,
+         WHERE id = ?`,
         [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), matchId]
       );
 
@@ -602,17 +602,17 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
     if (tournament_id && tournament_match_id) {
       const updateResult = await query(
         `UPDATE tournament_matches 
-         SET match_id = $1, 
+         SET match_id = ?, 
              match_status = 'completed',
-             winner_id = $2,
-             loser_id = $3,
-             map = $4,
-             winner_faction = $5,
+             winner_id = ?,
+             loser_id = ?,
+             map = ?,
+             winner_faction = ?,
              loser_faction = $6,
              winner_comments = $8,
              winner_rating = $9,
              replay_file_path = NULL,
-             status = $11,
+             status = ?1,
              played_at = CURRENT_TIMESTAMP, 
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $7`,
@@ -631,7 +631,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
         const winnerTeamResult = await query(
           `SELECT tt.id FROM tournament_teams tt
            JOIN tournament_participants tp ON tp.team_id = tt.id
-           WHERE tt.tournament_id = $1 AND tp.user_id = $2
+           WHERE tt.tournament_id = ? AND tp.user_id = ?
            LIMIT 1`,
           [tournament_id, req.userId]
         );
@@ -639,7 +639,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
         const loserTeamResult = await query(
           `SELECT tt.id FROM tournament_teams tt
            JOIN tournament_participants tp ON tp.team_id = tt.id
-           WHERE tt.tournament_id = $1 AND tp.user_id = $2
+           WHERE tt.tournament_id = ? AND tp.user_id = ?
            LIMIT 1`,
           [tournament_id, opponent_id]
         );
@@ -653,7 +653,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
             `UPDATE tournament_teams 
              SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
                  tournament_points = COALESCE(tournament_points, 0) + 1
-             WHERE id = $1`,
+             WHERE id = ?`,
             [winnerTeamId]
           );
 
@@ -661,7 +661,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
           await query(
             `UPDATE tournament_teams 
              SET tournament_losses = COALESCE(tournament_losses, 0) + 1
-             WHERE id = $1`,
+             WHERE id = ?`,
             [loserTeamId]
           );
 
@@ -676,7 +676,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
           `UPDATE tournament_participants 
            SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
                tournament_points = COALESCE(tournament_points, 0) + 1
-           WHERE tournament_id = $1 AND user_id = $2`,
+           WHERE tournament_id = ? AND user_id = ?`,
           [tournament_id, req.userId]
         );
 
@@ -684,7 +684,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
         await query(
           `UPDATE tournament_participants 
            SET tournament_losses = COALESCE(tournament_losses, 0) + 1
-           WHERE tournament_id = $1 AND user_id = $2`,
+           WHERE tournament_id = ? AND user_id = ?`,
           [tournament_id, opponent_id]
         );
 
@@ -693,7 +693,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
 
       // Get tournament_round_match_id and round_id to update Best Of series
       const tmatchResult = await query(
-        `SELECT tournament_round_match_id, round_id FROM tournament_matches WHERE id = $1`,
+        `SELECT tournament_round_match_id, round_id FROM tournament_matches WHERE id = ?`,
         [tournament_match_id]
       );
 
@@ -726,7 +726,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
             // Series is complete, check if round is complete
             try {
               const roundNumberResult = await query(
-                `SELECT round_number FROM tournament_rounds WHERE id = $1`,
+                `SELECT round_number FROM tournament_rounds WHERE id = ?`,
                 [roundId]
               );
               const roundNumber = roundNumberResult.rows[0]?.round_number;
@@ -790,7 +790,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     let isTournamentTeamMode = false;
     if (tournament_id) {
       const tournamentResult = await query(
-        'SELECT tournament_mode FROM tournaments WHERE id = $1',
+        'SELECT tournament_mode FROM tournaments WHERE id = ?',
         [tournament_id]
       );
       if (tournamentResult.rows.length > 0) {
@@ -814,7 +814,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     let tournamentMode = 'ranked'; // default
     if (tournament_id) {
       const tournamentModeResult = await query(
-        `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+        `SELECT tournament_mode FROM tournaments WHERE id = ?`,
         [tournament_id]
       );
       if (tournamentModeResult.rows.length > 0) {
@@ -830,11 +830,11 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
 
     if (tournamentMode === 'ranked') {
       const winnerResult = await query(
-        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
+        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?',
         [req.userId]
       );
       const loserResult = await query(
-        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users WHERE id = $1',
+        'SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?',
         [opponent_id]
       );
 
@@ -853,7 +853,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         const factionCheck = await query(
           `SELECT tuf.id FROM tournament_unranked_factions tuf
            JOIN factions f ON tuf.faction_id = f.id
-           WHERE tuf.tournament_id = $1 AND (LOWER(f.name) = LOWER($2) OR LOWER(f.name) = LOWER($3))`,
+           WHERE tuf.tournament_id = ? AND (LOWER(f.name) = LOWER(?) OR LOWER(f.name) = LOWER(?))`,
           [tournament_id, winner_faction, loser_faction]
         );
         
@@ -864,7 +864,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         const mapCheck = await query(
           `SELECT tum.id FROM tournament_unranked_maps tum
            JOIN game_maps gm ON tum.map_id = gm.id
-           WHERE tum.tournament_id = $1 AND LOWER(gm.name) = LOWER($2)`,
+           WHERE tum.tournament_id = ? AND LOWER(gm.name) = LOWER(?)`,
           [tournament_id, map]
         );
         
@@ -878,7 +878,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         const mapCheck = await query(
           `SELECT tum.id FROM tournament_unranked_maps tum
            JOIN game_maps gm ON tum.map_id = gm.id
-           WHERE tum.tournament_id = $1 AND LOWER(gm.name) = LOWER($2)`,
+           WHERE tum.tournament_id = ? AND LOWER(gm.name) = LOWER(?)`,
           [tournament_id, map]
         );
         
@@ -891,7 +891,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       if (tournamentMode === 'ranked') {
         const factionCheck = await query(
           `SELECT id FROM factions 
-           WHERE (LOWER(name) = LOWER($1) OR LOWER(name) = LOWER($2))`,
+           WHERE (LOWER(name) = LOWER(?) OR LOWER(name) = LOWER(?))`,
           [winner_faction, loser_faction]
         );
         
@@ -901,7 +901,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
 
         const mapCheck = await query(
           `SELECT id FROM game_maps 
-           WHERE LOWER(name) = LOWER($1)`,
+           WHERE LOWER(name) = LOWER(?)`,
           [map]
         );
         
@@ -922,23 +922,23 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     if (tournamentMode === 'ranked' && !isTournamentTeamMode) {
       const winnerRankResult = await query(
         `SELECT COUNT(*) as rank 
-         FROM users u2 
+         FROM users_extension u2 
          WHERE u2.is_active = true 
            AND u2.is_blocked = false
            AND u2.is_rated = true
            AND u2.elo_rating >= 1400
-           AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+           AND (u2.elo_rating > ? OR (u2.elo_rating = ? AND u2.id < ?))`,
         [winner!.elo_rating, req.userId]
       );
 
       const loserRankResult = await query(
         `SELECT COUNT(*) as rank 
-         FROM users u2 
+         FROM users_extension u2 
          WHERE u2.is_active = true 
            AND u2.is_blocked = false
            AND u2.is_rated = true
            AND u2.elo_rating >= 1400
-           AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+           AND (u2.elo_rating > ? OR (u2.elo_rating = ? AND u2.id < ?))`,
         [loser!.elo_rating, opponent_id]
       );
 
@@ -988,7 +988,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       // Insert match with ranking positions and tournament_mode (only for ranked/unranked)
       const matchResult = await query(
         `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, loser_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, winner_ranking_pos, loser_ranking_pos)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+         VALUES (?, ?, ?, ?, ?, $6, $7, $8, $9, ?0, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          RETURNING id`,
         [
           req.userId,
@@ -1041,24 +1041,24 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
 
         await query(
           `UPDATE users 
-           SET elo_rating = $1, 
-               is_rated = $2, 
-               matches_played = $3,
+           SET elo_rating = ?, 
+               is_rated = ?, 
+               matches_played = ?,
                total_wins = total_wins + 1,
                trend = $6,
-               level = $5,
+               level = ?,
                updated_at = CURRENT_TIMESTAMP 
-           WHERE id = $4`,
+           WHERE id = ?`,
           [finalWinnerRating, winnerIsNowRated, newWinnerMatches, req.userId, getUserLevel(finalWinnerRating), winnerTrend]
         );
       } else {
         // For unranked tournaments, only update trend and wins (no ELO change)
         await query(
           `UPDATE users 
-           SET trend = $2,
+           SET trend = ?,
                total_wins = total_wins + 1,
                updated_at = CURRENT_TIMESTAMP 
-           WHERE id = $1`,
+           WHERE id = ?`,
           [req.userId, winnerTrend]
         );
       }
@@ -1080,24 +1080,24 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
 
         await query(
           `UPDATE users 
-           SET elo_rating = $1, 
-               is_rated = $2, 
-               matches_played = $3,
+           SET elo_rating = ?, 
+               is_rated = ?, 
+               matches_played = ?,
                total_losses = total_losses + 1,
                trend = $6,
-               level = $5,
+               level = ?,
                updated_at = CURRENT_TIMESTAMP 
-           WHERE id = $4`,
+           WHERE id = ?`,
           [finalLoserRating, loserIsNowRated, newLoserMatches, opponent_id, getUserLevel(finalLoserRating), loserTrend]
         );
       } else {
         // For unranked tournaments, only update trend and losses (no ELO change)
         await query(
           `UPDATE users 
-           SET trend = $2,
+           SET trend = ?,
                total_losses = total_losses + 1,
                updated_at = CURRENT_TIMESTAMP 
-           WHERE id = $1`,
+           WHERE id = ?`,
           [opponent_id, loserTrend]
         );
       }
@@ -1111,23 +1111,23 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       if (tournamentMode === 'ranked') {
         const winnerNewRankResult = await query(
           `SELECT COUNT(*) as rank 
-           FROM users u2 
+           FROM users_extension u2 
            WHERE u2.is_active = true 
              AND u2.is_blocked = false
              AND u2.is_rated = true
              AND u2.elo_rating >= 1400
-             AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+             AND (u2.elo_rating > ? OR (u2.elo_rating = ? AND u2.id < ?))`,
           [finalWinnerRating, req.userId]
         );
 
         const loserNewRankResult = await query(
           `SELECT COUNT(*) as rank 
-           FROM users u2 
+           FROM users_extension u2 
            WHERE u2.is_active = true 
              AND u2.is_blocked = false
              AND u2.is_rated = true
              AND u2.elo_rating >= 1400
-             AND (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+             AND (u2.elo_rating > ? OR (u2.elo_rating = ? AND u2.id < ?))`,
           [finalLoserRating, opponent_id]
         );
 
@@ -1140,11 +1140,11 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       // Update match with after-match ELO, level ratings, and ranking changes
       await query(
         `UPDATE matches 
-         SET winner_elo_after = $1,
-             winner_level_after = $2,
-             loser_elo_after = $3,
-             loser_level_after = $4,
-             winner_ranking_change = $5,
+         SET winner_elo_after = ?,
+             winner_level_after = ?,
+             loser_elo_after = ?,
+             loser_level_after = ?,
+             winner_ranking_change = ?,
              loser_ranking_change = $6,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $7`,
@@ -1175,14 +1175,14 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         const winnerTeamResult = await query(
           `SELECT tt.id FROM tournament_teams tt
            JOIN tournament_participants tp ON tp.team_id = tt.id
-           WHERE tt.tournament_id = $1 AND tp.user_id = $2
+           WHERE tt.tournament_id = ? AND tp.user_id = ?
            LIMIT 1`,
           [tournament_id, req.userId]
         );
 
         const loserTeamResult = await query(
           `SELECT tt.id FROM tournament_teams tt
-           WHERE tt.tournament_id = $1 AND tt.id = $2
+           WHERE tt.tournament_id = ? AND tt.id = ?
            LIMIT 1`,
           [tournament_id, opponent_id]
         );
@@ -1207,19 +1207,19 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
       // Now update tournament_matches with correct winner_id and loser_id (team_id for team mode, user_id for 1v1 mode)
       const updateResult = await query(
         `UPDATE tournament_matches 
-         SET match_id = $1, 
+         SET match_id = ?, 
              match_status = 'completed', 
-             winner_id = $2,
-             loser_id = $3,
-             map = $4,
-             winner_faction = $5,
+             winner_id = ?,
+             loser_id = ?,
+             map = ?,
+             winner_faction = ?,
              loser_faction = $6,
              winner_comments = $7,
              winner_rating = $8,
              replay_file_path = $9,
              played_at = CURRENT_TIMESTAMP, 
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $10`,
+         WHERE id = ?0`,
         [matchId || null, finalWinnerId, finalLoserId, map, winner_faction || null, loser_faction || null, comments || null, rating ? parseInt(rating) : null, replayPath || null, tournament_match_id]
       );
       console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
@@ -1236,7 +1236,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
             `UPDATE tournament_teams 
              SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
                  tournament_points = COALESCE(tournament_points, 0) + 1
-             WHERE id = $1`,
+             WHERE id = ?`,
             [winnerTeamId]
           );
 
@@ -1244,7 +1244,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
           await query(
             `UPDATE tournament_teams 
              SET tournament_losses = COALESCE(tournament_losses, 0) + 1
-             WHERE id = $1`,
+             WHERE id = ?`,
             [loserTeamId]
           );
 
@@ -1259,7 +1259,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
           `UPDATE tournament_participants 
            SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
                tournament_points = COALESCE(tournament_points, 0) + 1
-           WHERE tournament_id = $1 AND user_id = $2`,
+           WHERE tournament_id = ? AND user_id = ?`,
           [tournament_id, req.userId]
         );
 
@@ -1268,7 +1268,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         await query(
           `UPDATE tournament_participants 
            SET tournament_losses = COALESCE(tournament_losses, 0) + 1
-           WHERE tournament_id = $1 AND user_id = $2`,
+           WHERE tournament_id = ? AND user_id = ?`,
           [tournament_id, opponent_id]
         );
 
@@ -1277,7 +1277,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
 
       // Get tournament_round_match_id and round_id to update Best Of series
       const tmatchResult = await query(
-        `SELECT tournament_round_match_id, round_id FROM tournament_matches WHERE id = $1`,
+        `SELECT tournament_round_match_id, round_id FROM tournament_matches WHERE id = ?`,
         [tournament_match_id]
       );
 
@@ -1310,7 +1310,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
             // Series is complete, check if round is complete
             try {
               const roundNumberResult = await query(
-                `SELECT round_number FROM tournament_rounds WHERE id = $1`,
+                `SELECT round_number FROM tournament_rounds WHERE id = ?`,
                 [roundId]
               );
               const roundNumber = roundNumberResult.rows[0]?.round_number;
@@ -1672,7 +1672,7 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
 
     // First check if this is a tournament_match to detect if ranked or unranked
     const tournamentMatchResult = await query(
-      'SELECT * FROM tournament_matches WHERE id = $1',
+      'SELECT * FROM tournament_matches WHERE id = ?',
       [id]
     );
 
@@ -1694,7 +1694,7 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
         // This is a RANKED tournament match (match_id IS NOT NULL)
         // Get the actual match data from matches table
         const rankedMatchResult = await query(
-          'SELECT * FROM matches WHERE id = $1',
+          'SELECT * FROM matches WHERE id = ?',
           [tm.match_id]
         );
         
@@ -1710,7 +1710,7 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
     } else {
       // Not a tournament match, try to find in matches table (RANKED only)
       const rankedMatchResult = await query(
-        'SELECT * FROM matches WHERE id = $1',
+        'SELECT * FROM matches WHERE id = ?',
         [id]
       );
 
@@ -1743,11 +1743,11 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
         // UNRANKED: update only tournament_matches
         await query(
           `UPDATE tournament_matches 
-           SET loser_comments = $1, 
-               loser_rating = $2,
+           SET loser_comments = ?, 
+               loser_rating = ?,
                match_status = 'completed',
                updated_at = CURRENT_TIMESTAMP 
-           WHERE id = $3`,
+           WHERE id = ?`,
           [comments || null, rating || null, id]
         );
       } else {
@@ -1755,10 +1755,10 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
         await query(
           `UPDATE matches 
            SET status = 'confirmed', 
-               loser_comments = $1, 
-               loser_rating = $2,
+               loser_comments = ?, 
+               loser_rating = ?,
                updated_at = CURRENT_TIMESTAMP 
-           WHERE id = $3`,
+           WHERE id = ?`,
           [comments || null, rating || null, id]
         );
 
@@ -1766,11 +1766,11 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
         if (tournamentMatchId) {
           await query(
             `UPDATE tournament_matches 
-             SET loser_comments = $1, 
-                 loser_rating = $2,
+             SET loser_comments = ?, 
+                 loser_rating = ?,
                  match_status = 'completed',
                  updated_at = CURRENT_TIMESTAMP 
-             WHERE id = $3`,
+             WHERE id = ?`,
             [comments || null, rating || null, tournamentMatchId]
           );
         }
@@ -1789,7 +1789,7 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
         
         // Mark unranked tournament match as disputed (use 'status' field, not 'match_status')
         await query(
-          'UPDATE tournament_matches SET match_status = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+          'UPDATE tournament_matches SET match_status = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
           ['completed', 'disputed', id]
         );
 
@@ -1798,14 +1798,14 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
       } else {
         // RANKED: Mark match as disputed (pending admin review)
         await query(
-          'UPDATE matches SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+          'UPDATE matches SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
           ['disputed', id]
         );
 
         // Also update tournament_matches if this is a tournament ranked match
         if (tournamentMatchId) {
           await query(
-            'UPDATE tournament_matches SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            'UPDATE tournament_matches SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
             ['disputed', id]
           );
         }
@@ -1830,7 +1830,7 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/disputed/all', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Verify admin status
-    const adminResult = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -1842,8 +1842,8 @@ router.get('/disputed/all', authMiddleware, async (req: AuthRequest, res) => {
               l.nickname as loser_nickname,
               l.email as loser_email
        FROM matches m
-       JOIN users w ON m.winner_id = w.id
-       JOIN users l ON m.loser_id = l.id
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
        WHERE m.status = 'disputed'
        ORDER BY m.updated_at DESC`
     );
@@ -1858,7 +1858,7 @@ router.get('/disputed/all', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/pending/all', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Verify admin status
-    const adminResult = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -1870,8 +1870,8 @@ router.get('/pending/all', authMiddleware, async (req: AuthRequest, res) => {
               l.nickname as loser_nickname,
               l.email as loser_email
        FROM matches m
-       JOIN users w ON m.winner_id = w.id
-       JOIN users l ON m.loser_id = l.id
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
        WHERE m.status IN ('unconfirmed', 'pending')
        ORDER BY m.created_at DESC`
     );
@@ -1890,18 +1890,18 @@ router.get('/pending/user', authMiddleware, async (req: AuthRequest, res) => {
               w.nickname as winner_nickname,
               l.nickname as loser_nickname,
               CASE 
-                WHEN m.winner_id = $1 THEN 'winner'
-                WHEN m.loser_id = $1 THEN 'loser'
+                WHEN m.winner_id = ? THEN 'winner'
+                WHEN m.loser_id = ? THEN 'loser'
               END as user_role,
               CASE 
-                WHEN m.winner_id = $1 AND m.status = 'confirmed' THEN true
-                WHEN m.loser_id = $1 AND m.status IN ('unconfirmed', 'pending') THEN true
+                WHEN m.winner_id = ? AND m.status = 'confirmed' THEN true
+                WHEN m.loser_id = ? AND m.status IN ('unconfirmed', 'pending') THEN true
                 ELSE false
               END as is_awaiting_action
        FROM matches m
-       JOIN users w ON m.winner_id = w.id
-       JOIN users l ON m.loser_id = l.id
-       WHERE (m.winner_id = $1 OR m.loser_id = $1)
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
+       WHERE (m.winner_id = ? OR m.loser_id = ?)
          AND m.status IN ('unconfirmed', 'pending')
        ORDER BY m.created_at DESC`,
       [req.userId]
@@ -1920,12 +1920,12 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
     const { action } = req.body; // 'validate' or 'reject'
 
     // Verify admin status
-    const adminResult = await query('SELECT is_admin FROM users WHERE id = $1', [req.userId]);
+    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    const matchResult = await query('SELECT * FROM matches WHERE id = $1', [id]);
+    const matchResult = await query('SELECT * FROM matches WHERE id = ?', [id]);
     if (matchResult.rows.length === 0) {
       return res.status(404).json({ error: 'Match not found' });
     }
@@ -1944,7 +1944,7 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
 
       // STEP 1: Mark the match as cancelled
       await query(
-        'UPDATE matches SET status = $1, admin_reviewed = true, admin_reviewed_at = CURRENT_TIMESTAMP, admin_reviewed_by = $2 WHERE id = $3',
+        'UPDATE matches SET status = ?, admin_reviewed = true, admin_reviewed_at = CURRENT_TIMESTAMP, admin_reviewed_by = ? WHERE id = ?',
         ['cancelled', req.userId, id]
       );
 
@@ -2025,9 +2025,9 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
         // Update the match record with correct before/after ELO values
         await query(
           `UPDATE matches 
-           SET winner_elo_before = $1, winner_elo_after = $2, 
-               loser_elo_before = $3, loser_elo_after = $4
-           WHERE id = $5`,
+           SET winner_elo_before = ?, winner_elo_after = ?, 
+               loser_elo_before = ?, loser_elo_after = ?
+           WHERE id = ?`,
           [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, matchRow.id]
         );
       }
@@ -2036,7 +2036,7 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
       for (const [userId, stats] of userStates.entries()) {
         // Determine is_rated status
         // Get current is_rated status from database
-        const userCurrentResult = await query('SELECT is_rated FROM users WHERE id = $1', [userId]);
+        const userCurrentResult = await query('SELECT is_rated FROM users_extension WHERE id = ?', [userId]);
         const isCurrentlyRated = userCurrentResult.rows[0]?.is_rated || false;
         
         let isRated = isCurrentlyRated;
@@ -2052,11 +2052,11 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
         
         await query(
           `UPDATE users 
-           SET elo_rating = $1, 
-               matches_played = $2,
-               total_wins = $3,
-               total_losses = $4,
-               trend = $5,
+           SET elo_rating = ?, 
+               matches_played = ?,
+               total_wins = ?,
+               total_losses = ?,
+               trend = ?,
                is_rated = $6,
                updated_at = CURRENT_TIMESTAMP 
            WHERE id = $7`,
@@ -2117,7 +2117,7 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
       // Reopen the associated tournament match for re-reporting
       const tournamentMatchResult = await query(
         `SELECT tm.id as tm_id FROM tournament_matches tm
-         WHERE tm.match_id = $1`,
+         WHERE tm.match_id = ?`,
         [id]
       );
 
@@ -2128,7 +2128,7 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
         await query(
           `UPDATE tournament_matches 
            SET match_status = 'pending', winner_id = NULL, match_id = NULL, played_at = NULL
-           WHERE id = $1`,
+           WHERE id = ?`,
           [tournamentMatch.tm_id]
         );
         console.log(`Match ${id} reopened in tournament_matches ${tournamentMatch.tm_id} for re-reporting`);
@@ -2145,11 +2145,11 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
       // Simply mark as confirmed, NO stat changes, NO ELO recalculation
       await query(
         `UPDATE matches 
-         SET status = $1, 
+         SET status = ?, 
              admin_reviewed = true, 
              admin_reviewed_at = CURRENT_TIMESTAMP, 
-             admin_reviewed_by = $2 
-         WHERE id = $3`,
+             admin_reviewed_by = ? 
+         WHERE id = ?`,
         ['confirmed', req.userId, id]
       );
 
@@ -2173,7 +2173,7 @@ router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
 
     // Get match and replay file path from database
     const result = await query(
-      'SELECT replay_file_path FROM matches WHERE id = $1',
+      'SELECT replay_file_path FROM matches WHERE id = ?',
       [matchId]
     );
 
@@ -2209,7 +2209,7 @@ router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => 
 
     // Increment the download count
     const result = await query(
-      'UPDATE matches SET replay_downloads = COALESCE(replay_downloads, 0) + 1 WHERE id = $1 RETURNING replay_downloads',
+      'UPDATE matches SET replay_downloads = COALESCE(replay_downloads, 0) + 1 WHERE id = ? RETURNING replay_downloads',
       [matchId]
     );
 
@@ -2284,8 +2284,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 
     // Get total count of filtered matches
     const countQuery = `SELECT COUNT(*) as total FROM matches m 
-                        JOIN users w ON m.winner_id = w.id 
-                        JOIN users l ON m.loser_id = l.id 
+                        JOIN users_extension w ON m.winner_id = w.id 
+                        JOIN users_extension l ON m.loser_id = l.id 
                         ${whereClause}`;
     const countResult = await query(countQuery, params);
     const total = parseInt(countResult.rows[0].total);
@@ -2303,8 +2303,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
               w.nickname as winner_nickname,
               l.nickname as loser_nickname
        FROM matches m
-       JOIN users w ON m.winner_id = w.id
-       JOIN users l ON m.loser_id = l.id
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
        ${whereClause}
        ORDER BY m.created_at DESC
        LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
@@ -2336,7 +2336,7 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
     
     // Fetch the match
     const matchResult = await query(
-      'SELECT * FROM matches WHERE id = $1',
+      'SELECT * FROM matches WHERE id = ?',
       [id]
     );
     
@@ -2360,7 +2360,7 @@ router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => 
     
     // STEP 1: Mark the match as cancelled
     await query(
-      'UPDATE matches SET status = $1, admin_reviewed = true, admin_reviewed_at = CURRENT_TIMESTAMP, admin_reviewed_by = $2 WHERE id = $3',
+      'UPDATE matches SET status = ?, admin_reviewed = true, admin_reviewed_at = CURRENT_TIMESTAMP, admin_reviewed_by = ? WHERE id = ?',
       ['cancelled', userId, id]
     );
     
