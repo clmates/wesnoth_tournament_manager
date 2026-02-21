@@ -51,8 +51,8 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
 
     // Get last activity from most recent match (any status except cancelled)
     const lastActivityResult = await query(
-      `SELECT created_at FROM matches WHERE (winner_id = $1 OR loser_id = $1) AND status != 'cancelled' ORDER BY created_at DESC LIMIT 1`,
-      [req.userId]
+      `SELECT created_at FROM matches WHERE (winner_id = ? OR loser_id = ?) AND status != 'cancelled' ORDER BY created_at DESC LIMIT 1`,
+      [req.userId, req.userId]
     );
 
     console.log(`[User ${req.userId}] Last activity query result:`, lastActivityResult.rows);
@@ -76,8 +76,8 @@ router.get('/:id/stats', async (req, res) => {
     const { id } = req.params;
 
     const matchesResult = await query(
-      `SELECT COUNT(*) as total FROM matches WHERE (winner_id = $1 OR loser_id = $1) AND status = 'confirmed'`,
-      [id]
+      `SELECT COUNT(*) as total FROM matches WHERE (winner_id = ? OR loser_id = ?) AND status = 'confirmed'`,
+      [id, id]
     );
 
     const winsResult = await query("SELECT COUNT(*) as wins FROM matches WHERE winner_id = $1 AND status = 'confirmed'", [id]);
@@ -120,9 +120,9 @@ router.get('/:id/matches', async (req, res) => {
     console.log('🔍 GET /users/:id/matches - Filters received:', { playerFilter, mapFilter, statusFilter, factionFilter });
 
     // Build WHERE clause dynamically
-    let whereConditions: string[] = ['(m.winner_id = $1 OR m.loser_id = $1)'];
-    let params: any[] = [id];
-    let paramCount = 2;
+    let whereConditions: string[] = ['(m.winner_id = ? OR m.loser_id = ?)'];
+    let params: any[] = [id, id];  // id appears twice in WHERE clause
+    let paramCount = 3;  // Next param index (params[0] and [1] are taken by id)
 
     if (playerFilter) {
       whereConditions.push(`(w.nickname ILIKE $${paramCount} OR l.nickname ILIKE $${paramCount})`);
@@ -414,12 +414,12 @@ router.get('/:id/stats/month', async (req, res) => {
     // Get ELO change this month
     const eloChangeResult = await query(
       `SELECT 
-        COALESCE(SUM(CASE WHEN winner_id = $1 THEN elo_change ELSE -elo_change END), 0) as elo_gained
+        COALESCE(SUM(CASE WHEN winner_id = ? THEN elo_change ELSE -elo_change END), 0) as elo_gained
        FROM matches 
-       WHERE (winner_id = $1 OR loser_id = $1) 
+       WHERE (winner_id = ? OR loser_id = ?) 
          AND status = 'confirmed'
-         AND created_at >= $2`,
-      [id, monthAgo]
+         AND created_at >= ?`,
+      [id, id, id, monthAgo]
     );
 
     // Get previous month ELO to calculate ranking positions change
@@ -427,18 +427,18 @@ router.get('/:id/stats/month', async (req, res) => {
       `SELECT COALESCE(MIN(elo_rating), 0) as min_elo_month
        FROM (
          SELECT CASE 
-           WHEN winner_id = $1 THEN winner_elo_before
+           WHEN winner_id = ? THEN winner_elo_before
            ELSE loser_elo_before
          END as elo_rating
          FROM matches 
-         WHERE (winner_id = $1 OR loser_id = $1)
+         WHERE (winner_id = ? OR loser_id = ?)
            AND status = 'confirmed'
-           AND created_at >= $2
+           AND created_at >= ?
          ORDER BY created_at ASC
          LIMIT 1
        ) as first_month
       `,
-      [id, monthAgo]
+      [id, id, id, monthAgo]
     );
 
     // Get current ELO
