@@ -37,29 +37,32 @@ router.post('/login', async (req, res) => {
       [normalizedUsername]
     ) as any[];
 
+    let tournamentUserId: string;
+
     if (!existingUsers || existingUsers.length === 0) {
       // Create new user in users_extension table
       console.log(`🔐 [LOGIN] Creating new user in users_extension: ${normalizedUsername}`);
-      const newUserId = generateUUID();
+      tournamentUserId = generateUUID();
       
       await queryTournament(
         `INSERT INTO users_extension (id, nickname, email, is_active, is_blocked, locked_until)
          VALUES (?, ?, ?, 1, 0, NULL)`,
-        [newUserId, normalizedUsername, authResult.email]
+        [tournamentUserId, normalizedUsername, authResult.email]
       );
       
-      console.log(`✅ [LOGIN] User created in users_extension: ${newUserId}`);
+      console.log(`✅ [LOGIN] User created in users_extension: ${tournamentUserId}`);
     } else {
-      console.log(`✅ [LOGIN] User already exists in users_extension`);
+      tournamentUserId = existingUsers[0].id;
+      console.log(`✅ [LOGIN] User already exists in users_extension: ${tournamentUserId}`);
     }
 
-    // Generate JWT token with user info from phpBB
-    const token = generateTokenWithUsername(normalizedUsername, authResult.user_id);
+    // Generate JWT token with tournament database user ID
+    const token = generateTokenWithUsername(normalizedUsername, tournamentUserId);
 
     res.json({ 
       token, 
       username: normalizedUsername,
-      userId: authResult.user_id,
+      userId: tournamentUserId,
       email: authResult.email
     });
 

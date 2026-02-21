@@ -8,6 +8,8 @@ const router = Router();
 // Get user profile
 router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
   try {
+    console.log(`[PROFILE] Fetching profile for userId: ${req.userId}`);
+    
     const userResult = await query(
       `SELECT 
         u.id, 
@@ -38,7 +40,10 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
       [req.userId]
     );
 
+    console.log(`[PROFILE] Query returned ${userResult.rows.length} rows for userId: ${req.userId}`);
+    
     if (userResult.rows.length === 0) {
+      console.log(`[PROFILE] User not found in users_extension with ID: ${req.userId}`);
       return res.status(404).json({ error: 'User not found' });
     }
 
