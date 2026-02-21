@@ -19,7 +19,7 @@ const router = Router();
 router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -35,7 +35,8 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
     );
     res.json(result.rows);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch users' });
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users', details: (error as any).message });
   }
 });
 
@@ -59,7 +60,7 @@ router.post('/registration-requests/:id/approve', authMiddleware, async (req: Au
     const { id } = req.params;
     const { password } = req.body;
 
-    const regResult = await query('SELECT * FROM registration_requests WHERE id = $1', [id]);
+    const regResult = await query('SELECT * FROM registration_requests WHERE id = ?', [id]);
     if (regResult.rows.length === 0) {
       return res.status(404).json({ error: 'Registration request not found' });
     }
@@ -70,13 +71,13 @@ router.post('/registration-requests/:id/approve', authMiddleware, async (req: Au
     // New players start with elo_rating = 1400 (FIDE standard, unrated status)
     const userResult = await query(
       `INSERT INTO users_extension (nickname, email, language, discord_id, password_hash, is_active, is_rated, elo_rating, matches_played)
-       VALUES ($1, $2, $3, $4, $5, true, false, 1400, 0)
+       VALUES (?, ?, ?, $4, $5, true, false, 1400, 0)
        RETURNING id`,
       [regRequest.nickname, regRequest.email, regRequest.language, regRequest.discord_id, passwordHash]
     );
 
     await query(
-      `UPDATE registration_requests SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = $1 WHERE id = $2`,
+      `UPDATE registration_requests SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE id = ?`,
       [req.userId, id]
     );
 
@@ -93,7 +94,7 @@ router.post('/registration-requests/:id/reject', authMiddleware, async (req: Aut
   try {
     const { id } = req.params;
     await query(
-      `UPDATE registration_requests SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = $1 WHERE id = $2`,
+      `UPDATE registration_requests SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE id = ?`,
       [req.userId, id]
     );
     res.json({ message: 'Registration rejected' });
@@ -106,7 +107,7 @@ router.post('/registration-requests/:id/reject', authMiddleware, async (req: Aut
 router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('UPDATE users_extension SET is_blocked = true WHERE id = $1', [id]);
+    await query('UPDATE users_extension SET is_blocked = true WHERE id = ?', [id]);
     res.json({ message: 'User blocked' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to block user' });
@@ -124,13 +125,13 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
     }
 
     // Verify user is admin
-    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can perform this action' });
     }
 
     // Get user info for logging, email, and Discord notifications
-    const userInfo = await query('SELECT nickname, email, language, discord_id FROM public.users WHERE id = $1', [id]);
+    const userInfo = await query('SELECT nickname, email, language, discord_id FROM users_extension WHERE id = ?', [id]);
     if (userInfo.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -140,7 +141,7 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
     // Unlock account - reset failed attempts and unblock
     await unlockAccount(id);
     await query(
-      'UPDATE public.users SET is_blocked = false WHERE id = $1',
+      'UPDATE users_extension SET is_blocked = false WHERE id = ?',
       [id]
     );
     if (process.env.BACKEND_DEBUG_LOGS === 'true') {
@@ -214,13 +215,13 @@ router.post('/users/:id/resend-verification-email', authMiddleware, async (req: 
     const ip = getUserIP(req);
 
     // Verify user is admin
-    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can perform this action' });
     }
 
     // Get user info
-    const userInfo = await query('SELECT id, nickname, email, language FROM public.users WHERE id = $1', [id]);
+    const userInfo = await query('SELECT id, nickname, email, language FROM users_extension WHERE id = ?', [id]);
     if (userInfo.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -233,7 +234,7 @@ router.post('/users/:id/resend-verification-email', authMiddleware, async (req: 
 
     // Update user with new token
     await query(
-      'UPDATE users_extension SET email_verification_token = $1, email_verification_expires = $2 WHERE id = $3',
+      'UPDATE users_extension SET email_verification_token = ?, email_verification_expires = ? WHERE id = ?',
       [verificationToken, verificationExpires, id]
     );
 
@@ -283,7 +284,7 @@ router.put('/password-policy', authMiddleware, async (req: AuthRequest, res) => 
 
     await query(
       `UPDATE password_policy 
-       SET min_length = $1, require_uppercase = $2, require_lowercase = $3, 
+       SET min_length = ?, require_uppercase = ?, require_lowercase = ?, 
            require_numbers = $4, require_symbols = $5, previous_passwords_count = $6
        WHERE id = (SELECT id FROM password_policy LIMIT 1)`,
       [min_length, require_uppercase, require_lowercase, require_numbers, require_symbols, previous_passwords_count]
@@ -319,7 +320,7 @@ router.post('/news', authMiddleware, async (req: AuthRequest, res) => {
 
         const result = await query(
           `INSERT INTO public.news (title, content, language_code, author_id, published_at)
-           VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+           VALUES (?, ?, ?, $4, CURRENT_TIMESTAMP)
            RETURNING id`,
           [langData.title, langData.content, lang, req.userId]
         );
@@ -362,7 +363,7 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
 
       // Check if record exists for this language
       const existsResult = await query(
-        `SELECT id FROM public.news WHERE id = $1 AND language_code = $2`,
+        `SELECT id FROM public.news WHERE id = ? AND language_code = ?`,
         [id, lang]
       );
 
@@ -370,15 +371,15 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
         // Update existing record, only updating title, content, and updated_at
         await query(
           `UPDATE public.news 
-           SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $3 AND language_code = $4`,
+           SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP
+           WHERE id = ? AND language_code = $4`,
           [langData.title, langData.content, id, lang]
         );
       } else {
         // Insert new language version (if it doesn't exist)
         await query(
           `INSERT INTO public.news (id, title, content, language_code, author_id, published_at, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+           VALUES (?, ?, ?, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
           [id, langData.title, langData.content, lang, req.userId]
         );
       }
@@ -395,7 +396,7 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('DELETE FROM public.news WHERE id = $1', [id]);
+    await query('DELETE FROM public.news WHERE id = ?', [id]);
     res.json({ message: 'News deleted' });
   } catch (error) {
     console.error('News delete error:', error);
@@ -456,12 +457,12 @@ router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
       if (lang.data && lang.data.question && lang.data.answer) {
         if (lang.code === 'en') {
           await query(
-            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
+            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES (?, ?, ?, $4, $5)`,
             [faqId, lang.data.question, lang.data.answer, lang.code, lang.data.order ? Number(lang.data.order) : 0]
           );
         } else {
           await query(
-            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
+            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES (?, ?, ?, $4, $5)`,
             [faqId, lang.data.question, lang.data.answer, lang.code, en.order ? Number(en.order) : 0]
           );
         }
@@ -488,7 +489,7 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Delete all existing records for this FAQ ID
-    await query(`DELETE FROM public.faq WHERE id = $1`, [id]);
+    await query(`DELETE FROM public.faq WHERE id = ?`, [id]);
 
     const languages = [
       { code: 'en', data: en },
@@ -503,12 +504,12 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
       if (lang.data && lang.data.question && lang.data.answer) {
         if (lang.code === 'en') {
           await query(
-            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
+            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES (?, ?, ?, $4, $5)`,
             [id, lang.data.question, lang.data.answer, lang.code, lang.data.order ? Number(lang.data.order) : 0]
           );
         } else {
           await query(
-            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES ($1, $2, $3, $4, $5)`,
+            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES (?, ?, ?, $4, $5)`,
             [id, lang.data.question, lang.data.answer, lang.code, en.order ? Number(en.order) : 0]
           );
         }
@@ -526,7 +527,7 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('DELETE FROM public.faq WHERE id = $1', [id]);
+    await query('DELETE FROM public.faq WHERE id = ?', [id]);
     res.json({ message: 'FAQ entry deleted' });
   } catch (error) {
     console.error('FAQ delete error:', error);
@@ -539,7 +540,7 @@ router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) =>
   try {
     const { id } = req.params;
     const result = await query(
-      `UPDATE users_extension SET is_blocked = true WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      `UPDATE users_extension SET is_blocked = true WHERE id = ? RETURNING id, nickname, email, is_blocked, is_admin`,
       [id]
     );
 
@@ -558,7 +559,7 @@ router.post('/users/:id/make-admin', authMiddleware, async (req: AuthRequest, re
   try {
     const { id } = req.params;
     const result = await query(
-      `UPDATE users_extension SET is_admin = true WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      `UPDATE users_extension SET is_admin = true WHERE id = ? RETURNING id, nickname, email, is_blocked, is_admin`,
       [id]
     );
 
@@ -577,7 +578,7 @@ router.post('/users/:id/remove-admin', authMiddleware, async (req: AuthRequest, 
   try {
     const { id } = req.params;
     const result = await query(
-      `UPDATE users_extension SET is_admin = false WHERE id = $1 RETURNING id, nickname, email, is_blocked, is_admin`,
+      `UPDATE users_extension SET is_admin = false WHERE id = ? RETURNING id, nickname, email, is_blocked, is_admin`,
       [id]
     );
 
@@ -595,7 +596,7 @@ router.post('/users/:id/remove-admin', authMiddleware, async (req: AuthRequest, 
 router.delete('/users/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('DELETE FROM public.users WHERE id = $1', [id]);
+    await query('DELETE FROM users_extension WHERE id = ?', [id]);
     res.json({ message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete user' });
@@ -610,19 +611,19 @@ router.post('/users/:id/force-reset-password', authMiddleware, async (req: AuthR
     const passwordHash = await hashPassword(tempPassword);
 
     // Get current password for history
-    const currentUserResult = await query('SELECT password_hash FROM public.users WHERE id = $1', [id]);
+    const currentUserResult = await query('SELECT password_hash FROM users_extension WHERE id = ?', [id]);
     if (currentUserResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     // Save current password to history before updating
     await query(
-      'INSERT INTO password_history (user_id, password_hash) VALUES ($1, $2)',
+      'INSERT INTO password_history (user_id, password_hash) VALUES (?, ?)',
       [id, currentUserResult.rows[0].password_hash]
     );
 
     const result = await query(
-      `UPDATE users_extension SET password_hash = $1, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, nickname, email`,
+      `UPDATE users_extension SET password_hash = ?, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING id, nickname, email`,
       [passwordHash, id]
     );
 
@@ -729,7 +730,7 @@ router.get('/debug/faction-map-stats', authMiddleware, async (req: AuthRequest, 
 router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Verify admin status
-    const adminResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -781,7 +782,7 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
 router.get('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can access audit logs' });
     }
@@ -836,7 +837,7 @@ router.get('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can delete audit logs' });
     }
@@ -874,7 +875,7 @@ router.delete('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/audit-logs/old', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const adminCheck = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const adminCheck = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (!adminCheck.rows[0]?.is_admin) {
       return res.status(403).json({ error: 'Only admins can delete audit logs' });
     }
@@ -923,7 +924,7 @@ router.delete('/audit-logs/old', authMiddleware, async (req: AuthRequest, res) =
 router.get('/maps', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -949,7 +950,7 @@ router.get('/maps', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/maps/:mapId/translations', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -957,7 +958,7 @@ router.get('/maps/:mapId/translations', authMiddleware, async (req: AuthRequest,
     const { mapId } = req.params;
     const result = await query(`
       SELECT * FROM map_translations
-      WHERE map_id = $1
+      WHERE map_id = ?
       ORDER BY language_code
     `, [mapId]);
     res.json(result.rows);
@@ -971,7 +972,7 @@ router.get('/maps/:mapId/translations', authMiddleware, async (req: AuthRequest,
 router.post('/maps', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -985,7 +986,7 @@ router.post('/maps', authMiddleware, async (req: AuthRequest, res) => {
     // Create map
     const mapResult = await query(`
       INSERT INTO game_maps (name, is_active, is_ranked)
-      VALUES ($1, $2, $3)
+      VALUES (?, ?, ?)
       RETURNING id, name, is_active, is_ranked, created_at
     `, [name, is_active === undefined ? true : is_active, is_ranked === undefined ? true : is_ranked]);
 
@@ -994,7 +995,7 @@ router.post('/maps', authMiddleware, async (req: AuthRequest, res) => {
     // Create translation
     await query(`
       INSERT INTO map_translations (map_id, language_code, name, description)
-      VALUES ($1, $2, $3, $4)
+      VALUES (?, ?, ?, $4)
     `, [mapId, language_code, name, description || null]);
 
     res.json(mapResult.rows[0]);
@@ -1008,7 +1009,7 @@ router.post('/maps', authMiddleware, async (req: AuthRequest, res) => {
 router.patch('/maps/:mapId', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1019,9 +1020,9 @@ router.patch('/maps/:mapId', authMiddleware, async (req: AuthRequest, res) => {
     const result = await query(`
       UPDATE game_maps
       SET 
-        is_active = COALESCE($1, is_active),
-        is_ranked = COALESCE($2, is_ranked)
-      WHERE id = $3
+        is_active = COALESCE(?, is_active),
+        is_ranked = COALESCE(?, is_ranked)
+      WHERE id = ?
       RETURNING id, name, is_active, is_ranked, created_at
     `, [
       is_active !== undefined ? is_active : null,
@@ -1044,7 +1045,7 @@ router.patch('/maps/:mapId', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/maps/:mapId/translations', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1058,9 +1059,9 @@ router.post('/maps/:mapId/translations', authMiddleware, async (req: AuthRequest
 
     const result = await query(`
       INSERT INTO map_translations (map_id, language_code, name, description)
-      VALUES ($1, $2, $3, $4)
+      VALUES (?, ?, ?, $4)
       ON CONFLICT (map_id, language_code) DO UPDATE SET
-        name = $3,
+        name = ?,
         description = $4,
         updated_at = CURRENT_TIMESTAMP
       RETURNING id, map_id, language_code, name, description
@@ -1077,7 +1078,7 @@ router.post('/maps/:mapId/translations', authMiddleware, async (req: AuthRequest
 router.delete('/maps/:mapId', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1086,14 +1087,14 @@ router.delete('/maps/:mapId', authMiddleware, async (req: AuthRequest, res) => {
 
     // Check if map is being used
     const usageResult = await query(`
-      SELECT COUNT(*) as count FROM matches WHERE map = (SELECT name FROM game_maps WHERE id = $1)
+      SELECT COUNT(*) as count FROM matches WHERE map = (SELECT name FROM game_maps WHERE id = ?)
     `, [mapId]);
 
     if (parseInt(usageResult.rows[0].count) > 0) {
       return res.status(400).json({ error: 'Cannot delete map that has been used in matches' });
     }
 
-    await query('DELETE FROM game_maps WHERE id = $1', [mapId]);
+    await query('DELETE FROM game_maps WHERE id = ?', [mapId]);
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting map:', error);
@@ -1109,7 +1110,7 @@ router.delete('/maps/:mapId', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/factions', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1135,7 +1136,7 @@ router.get('/factions', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/factions/:factionId/translations', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1143,7 +1144,7 @@ router.get('/factions/:factionId/translations', authMiddleware, async (req: Auth
     const { factionId } = req.params;
     const result = await query(`
       SELECT * FROM faction_translations
-      WHERE faction_id = $1
+      WHERE faction_id = ?
       ORDER BY language_code
     `, [factionId]);
     res.json(result.rows);
@@ -1157,7 +1158,7 @@ router.get('/factions/:factionId/translations', authMiddleware, async (req: Auth
 router.post('/factions', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1171,7 +1172,7 @@ router.post('/factions', authMiddleware, async (req: AuthRequest, res) => {
     // Create faction
     const factionResult = await query(`
       INSERT INTO factions (name, is_active, is_ranked)
-      VALUES ($1, $2, $3)
+      VALUES (?, ?, ?)
       RETURNING id, name, is_active, is_ranked, created_at
     `, [name, is_active === undefined ? true : is_active, is_ranked === undefined ? true : is_ranked]);
 
@@ -1180,7 +1181,7 @@ router.post('/factions', authMiddleware, async (req: AuthRequest, res) => {
     // Create translation
     await query(`
       INSERT INTO faction_translations (faction_id, language_code, name, description)
-      VALUES ($1, $2, $3, $4)
+      VALUES (?, ?, ?, $4)
     `, [factionId, language_code, name, description || null]);
 
     res.json(factionResult.rows[0]);
@@ -1194,7 +1195,7 @@ router.post('/factions', authMiddleware, async (req: AuthRequest, res) => {
 router.patch('/factions/:factionId', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1205,9 +1206,9 @@ router.patch('/factions/:factionId', authMiddleware, async (req: AuthRequest, re
     const result = await query(`
       UPDATE factions
       SET 
-        is_active = COALESCE($1, is_active),
-        is_ranked = COALESCE($2, is_ranked)
-      WHERE id = $3
+        is_active = COALESCE(?, is_active),
+        is_ranked = COALESCE(?, is_ranked)
+      WHERE id = ?
       RETURNING id, name, is_active, is_ranked, created_at
     `, [
       is_active !== undefined ? is_active : null,
@@ -1230,7 +1231,7 @@ router.patch('/factions/:factionId', authMiddleware, async (req: AuthRequest, re
 router.post('/factions/:factionId/translations', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1244,9 +1245,9 @@ router.post('/factions/:factionId/translations', authMiddleware, async (req: Aut
 
     const result = await query(`
       INSERT INTO faction_translations (faction_id, language_code, name, description)
-      VALUES ($1, $2, $3, $4)
+      VALUES (?, ?, ?, $4)
       ON CONFLICT (faction_id, language_code) DO UPDATE SET
-        name = $3,
+        name = ?,
         description = $4,
         updated_at = CURRENT_TIMESTAMP
       RETURNING id, faction_id, language_code, name, description
@@ -1263,7 +1264,7 @@ router.post('/factions/:factionId/translations', authMiddleware, async (req: Aut
 router.delete('/factions/:factionId', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1273,15 +1274,15 @@ router.delete('/factions/:factionId', authMiddleware, async (req: AuthRequest, r
     // Check if faction is being used
     const usageResult = await query(`
       SELECT COUNT(*) as count FROM matches 
-      WHERE winner_faction = (SELECT name FROM factions WHERE id = $1)
-      OR loser_faction = (SELECT name FROM factions WHERE id = $1)
+      WHERE winner_faction = (SELECT name FROM factions WHERE id = ?)
+      OR loser_faction = (SELECT name FROM factions WHERE id = ?)
     `, [factionId]);
 
     if (parseInt(usageResult.rows[0].count) > 0) {
       return res.status(400).json({ error: 'Cannot delete faction that has been used in matches' });
     }
 
-    await query('DELETE FROM factions WHERE id = $1', [factionId]);
+    await query('DELETE FROM factions WHERE id = ?', [factionId]);
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting faction:', error);
@@ -1293,7 +1294,7 @@ router.delete('/factions/:factionId', authMiddleware, async (req: AuthRequest, r
 router.post('/recalculate-snapshots', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access this resource' });
     }
@@ -1305,7 +1306,7 @@ router.post('/recalculate-snapshots', authMiddleware, async (req: AuthRequest, r
 
     // Call SQL function to recalculate snapshots
     const winnerResult = await query(
-      'SELECT * FROM recalculate_balance_event_snapshots($1, $2)',
+      'SELECT * FROM recalculate_balance_event_snapshots(?, ?)',
       [eventId || null, recreateAll || false]
     );
 
@@ -1314,7 +1315,7 @@ router.post('/recalculate-snapshots', authMiddleware, async (req: AuthRequest, r
 
     // Also calculate loser faction snapshots
     await query(
-      'SELECT * FROM recalculate_balance_event_snapshots_loser($1, $2)',
+      'SELECT * FROM recalculate_balance_event_snapshots_loser(?, ?)',
       [eventId || null, recreateAll || false]
     );
 
@@ -1353,7 +1354,7 @@ router.get('/player-of-month', async (req, res) => {
     const result = await query(
       `SELECT player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year, calculated_at
        FROM player_of_month
-       WHERE month_year = $1`,
+       WHERE month_year = ?`,
       [monthYearStr]
     );
 
@@ -1381,7 +1382,7 @@ router.get('/player-of-month', async (req, res) => {
 router.post('/calculate-player-of-month', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Verify admin status
-    const adminResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -1422,7 +1423,7 @@ router.get('/unranked-factions', authMiddleware, async (req: AuthRequest, res) =
 
     const params = [];
     if (search) {
-      query_str += ` WHERE f.name ILIKE $1`;
+      query_str += ` WHERE f.name ILIKE ?`;
       params.push(`%${search}%`);
     }
 
@@ -1450,7 +1451,7 @@ router.post('/unranked-factions', authMiddleware, async (req: AuthRequest, res) 
 
     // Check if faction name already exists
     const existing = await query(
-      'SELECT id FROM factions WHERE LOWER(name) = LOWER($1)',
+      'SELECT id FROM factions WHERE LOWER(name) = LOWER(?)',
       [name]
     );
     if (existing.rows.length > 0) {
@@ -1462,7 +1463,7 @@ router.post('/unranked-factions', authMiddleware, async (req: AuthRequest, res) 
 
     const result = await query(
       `INSERT INTO factions (name, is_active, is_ranked)
-       VALUES ($1, true, false)
+       VALUES (?, true, false)
        RETURNING id, name, is_ranked, created_at`,
       [name]
     );
@@ -1481,7 +1482,7 @@ router.post('/unranked-factions', authMiddleware, async (req: AuthRequest, res) 
 router.get('/unranked-factions/:id/usage', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userResult = await query(
-      'SELECT is_admin FROM public.users WHERE id = $1',
+      'SELECT is_admin FROM users_extension WHERE id = ?',
       [req.userId]
     );
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
@@ -1492,7 +1493,7 @@ router.get('/unranked-factions/:id/usage', authMiddleware, async (req: AuthReque
 
     // Get faction info
     const factionResult = await query(
-      'SELECT id, name FROM factions WHERE id = $1 AND is_ranked = false',
+      'SELECT id, name FROM factions WHERE id = ? AND is_ranked = false',
       [id]
     );
     if (factionResult.rows.length === 0) {
@@ -1506,7 +1507,7 @@ router.get('/unranked-factions/:id/usage', authMiddleware, async (req: AuthReque
       `SELECT DISTINCT t.id, t.name, t.status
        FROM tournaments t
        JOIN tournament_unranked_factions tuf ON t.id = tuf.tournament_id
-       WHERE tuf.faction_id = $1
+       WHERE tuf.faction_id = ?
        AND t.status IN ('CREATED', 'REGISTRATION_OPEN', 'STARTED', 'MATCHES_ONGOING')
        ORDER BY t.created_at DESC`,
       [id]
@@ -1517,7 +1518,7 @@ router.get('/unranked-factions/:id/usage', authMiddleware, async (req: AuthReque
       `SELECT DISTINCT t.id, t.name, t.status
        FROM tournaments t
        JOIN tournament_unranked_factions tuf ON t.id = tuf.tournament_id
-       WHERE tuf.faction_id = $1
+       WHERE tuf.faction_id = ?
        AND t.status IN ('COMPLETED', 'CANCELLED', 'CANCELLED_IN_PROGRESS')
        ORDER BY t.created_at DESC`,
       [id]
@@ -1550,7 +1551,7 @@ router.get('/unranked-factions/:id/usage', authMiddleware, async (req: AuthReque
 router.delete('/unranked-factions/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userResult = await query(
-      'SELECT is_admin FROM public.users WHERE id = $1',
+      'SELECT is_admin FROM users_extension WHERE id = ?',
       [req.userId]
     );
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
@@ -1561,7 +1562,7 @@ router.delete('/unranked-factions/:id', authMiddleware, async (req: AuthRequest,
 
     // Check if faction exists
     const factionResult = await query(
-      'SELECT id, name FROM factions WHERE id = $1',
+      'SELECT id, name FROM factions WHERE id = ?',
       [id]
     );
     if (factionResult.rows.length === 0) {
@@ -1573,7 +1574,7 @@ router.delete('/unranked-factions/:id', authMiddleware, async (req: AuthRequest,
       `SELECT t.id, t.name, t.status
        FROM tournaments t
        JOIN tournament_unranked_factions tuf ON t.id = tuf.tournament_id
-       WHERE tuf.faction_id = $1
+       WHERE tuf.faction_id = ?
        AND t.status IN ('CREATED', 'REGISTRATION_OPEN', 'STARTED', 'MATCHES_ONGOING')`,
       [id]
     );
@@ -1588,7 +1589,7 @@ router.delete('/unranked-factions/:id', authMiddleware, async (req: AuthRequest,
     }
 
     // Delete faction (cascade will remove associations)
-    await query('DELETE FROM factions WHERE id = $1', [id]);
+    await query('DELETE FROM factions WHERE id = ?', [id]);
 
     res.json({ success: true, message: 'Faction deleted successfully' });
   } catch (error) {
@@ -1616,7 +1617,7 @@ router.get('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
 
     const params = [];
     if (search) {
-      query_str += ` WHERE m.name ILIKE $1`;
+      query_str += ` WHERE m.name ILIKE ?`;
       params.push(`%${search}%`);
     }
 
@@ -1645,7 +1646,7 @@ router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
 
     // Check if map name already exists
     const existing = await query(
-      'SELECT id FROM game_maps WHERE LOWER(name) = LOWER($1)',
+      'SELECT id FROM game_maps WHERE LOWER(name) = LOWER(?)',
       [name]
     );
     if (existing.rows.length > 0) {
@@ -1657,7 +1658,7 @@ router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
 
     const result = await query(
       `INSERT INTO game_maps (name, is_active, is_ranked)
-       VALUES ($1, true, false)
+       VALUES (?, true, false)
        RETURNING id, name, is_ranked, is_active, created_at`,
       [name]
     );
@@ -1676,7 +1677,7 @@ router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/unranked-maps/:id/usage', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userResult = await query(
-      'SELECT is_admin FROM public.users WHERE id = $1',
+      'SELECT is_admin FROM users_extension WHERE id = ?',
       [req.userId]
     );
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
@@ -1687,7 +1688,7 @@ router.get('/unranked-maps/:id/usage', authMiddleware, async (req: AuthRequest, 
 
     // Get map info
     const mapResult = await query(
-      'SELECT id, name FROM game_maps WHERE id = $1 AND is_ranked = false',
+      'SELECT id, name FROM game_maps WHERE id = ? AND is_ranked = false',
       [id]
     );
     if (mapResult.rows.length === 0) {
@@ -1701,7 +1702,7 @@ router.get('/unranked-maps/:id/usage', authMiddleware, async (req: AuthRequest, 
       `SELECT DISTINCT t.id, t.name, t.status
        FROM tournaments t
        JOIN tournament_unranked_maps tum ON t.id = tum.tournament_id
-       WHERE tum.map_id = $1
+       WHERE tum.map_id = ?
        AND t.status IN ('CREATED', 'REGISTRATION_OPEN', 'STARTED', 'MATCHES_ONGOING')
        ORDER BY t.created_at DESC`,
       [id]
@@ -1712,7 +1713,7 @@ router.get('/unranked-maps/:id/usage', authMiddleware, async (req: AuthRequest, 
       `SELECT DISTINCT t.id, t.name, t.status
        FROM tournaments t
        JOIN tournament_unranked_maps tum ON t.id = tum.tournament_id
-       WHERE tum.map_id = $1
+       WHERE tum.map_id = ?
        AND t.status IN ('COMPLETED', 'CANCELLED', 'CANCELLED_IN_PROGRESS')
        ORDER BY t.created_at DESC`,
       [id]
@@ -1745,7 +1746,7 @@ router.get('/unranked-maps/:id/usage', authMiddleware, async (req: AuthRequest, 
 router.delete('/unranked-maps/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const userResult = await query(
-      'SELECT is_admin FROM public.users WHERE id = $1',
+      'SELECT is_admin FROM users_extension WHERE id = ?',
       [req.userId]
     );
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
@@ -1756,7 +1757,7 @@ router.delete('/unranked-maps/:id', authMiddleware, async (req: AuthRequest, res
 
     // Check if map exists
     const mapResult = await query(
-      'SELECT id, name FROM game_maps WHERE id = $1',
+      'SELECT id, name FROM game_maps WHERE id = ?',
       [id]
     );
     if (mapResult.rows.length === 0) {
@@ -1768,7 +1769,7 @@ router.delete('/unranked-maps/:id', authMiddleware, async (req: AuthRequest, res
       `SELECT t.id, t.name, t.status
        FROM tournaments t
        JOIN tournament_unranked_maps tum ON t.id = tum.tournament_id
-       WHERE tum.map_id = $1
+       WHERE tum.map_id = ?
        AND t.status IN ('CREATED', 'REGISTRATION_OPEN', 'STARTED', 'MATCHES_ONGOING')`,
       [id]
     );
@@ -1783,7 +1784,7 @@ router.delete('/unranked-maps/:id', authMiddleware, async (req: AuthRequest, res
     }
 
     // Delete map (cascade will remove associations)
-    await query('DELETE FROM game_maps WHERE id = $1', [id]);
+    await query('DELETE FROM game_maps WHERE id = ?', [id]);
 
     res.json({ success: true, message: 'Map deleted successfully' });
   } catch (error) {
@@ -1801,7 +1802,7 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
     // Get tournament
     const tournamentResult = await query(
       `SELECT id, organizer_id, tournament_mode, status
-       FROM tournaments WHERE id = $1`,
+       FROM tournaments WHERE id = ?`,
       [id]
     );
 
@@ -1814,7 +1815,7 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
     // Check authorization (must be organizer)
     if (tournament.organizer_id !== req.userId) {
       const userResult = await query(
-        'SELECT is_admin FROM public.users WHERE id = $1',
+        'SELECT is_admin FROM users_extension WHERE id = ?',
         [req.userId]
       );
       if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
@@ -1849,7 +1850,7 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
     // Verify all factions exist (can be ranked or unranked)
     for (const factionId of faction_ids) {
       const faction = await query(
-        'SELECT id FROM factions WHERE id = $1',
+        'SELECT id FROM factions WHERE id = ?',
         [factionId]
       );
       if (faction.rows.length === 0) {
@@ -1863,7 +1864,7 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
     // Verify all maps exist and are unranked
     for (const mapId of map_ids) {
       const map = await query(
-        'SELECT id FROM game_maps WHERE id = $1',
+        'SELECT id FROM game_maps WHERE id = ?',
         [mapId]
       );
       if (map.rows.length === 0) {
@@ -1875,14 +1876,14 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
     }
 
     // Delete existing associations
-    await query('DELETE FROM tournament_unranked_factions WHERE tournament_id = $1', [id]);
-    await query('DELETE FROM tournament_unranked_maps WHERE tournament_id = $1', [id]);
+    await query('DELETE FROM tournament_unranked_factions WHERE tournament_id = ?', [id]);
+    await query('DELETE FROM tournament_unranked_maps WHERE tournament_id = ?', [id]);
 
     // Insert new associations
     for (const factionId of faction_ids) {
       await query(
         `INSERT INTO tournament_unranked_factions (tournament_id, faction_id)
-         VALUES ($1, $2)
+         VALUES (?, ?)
          ON CONFLICT DO NOTHING`,
         [id, factionId]
       );
@@ -1891,7 +1892,7 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
     for (const mapId of map_ids) {
       await query(
         `INSERT INTO tournament_unranked_maps (tournament_id, map_id)
-         VALUES ($1, $2)
+         VALUES (?, ?)
          ON CONFLICT DO NOTHING`,
         [id, mapId]
       );
@@ -1918,7 +1919,7 @@ router.get('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, re
 
     // Get tournament and verify organizer
     const tournResult = await query(
-      'SELECT id, tournament_type, organizer_id FROM tournaments WHERE id = $1',
+      'SELECT id, tournament_type, organizer_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -1946,7 +1947,7 @@ router.get('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, re
       FROM tournament_teams t
       LEFT JOIN team_members tm ON t.id = tm.team_id
       LEFT JOIN team_substitutes ts ON t.id = ts.team_id
-      WHERE t.tournament_id = $1
+      WHERE t.tournament_id = ?
       GROUP BY t.id
       ORDER BY t.name`,
       [id]
@@ -1957,7 +1958,7 @@ router.get('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, re
       const membersResult = await query(
         `SELECT u.id, u.nickname, tm.position FROM team_members tm
          JOIN users u ON tm.player_id = u.id
-         WHERE tm.team_id = $1
+         WHERE tm.team_id = ?
          ORDER BY tm.position`,
         [team.id]
       );
@@ -1965,7 +1966,7 @@ router.get('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, re
       const substitutesResult = await query(
         `SELECT u.id, u.nickname FROM team_substitutes ts
          JOIN users u ON ts.player_id = u.id
-         WHERE ts.team_id = $1
+         WHERE ts.team_id = ?
          ORDER BY ts.substitute_order`,
         [team.id]
       );
@@ -1996,7 +1997,7 @@ router.post('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, r
 
     // Get tournament and verify organizer
     const tournResult = await query(
-      'SELECT id, tournament_type, organizer_id FROM tournaments WHERE id = $1',
+      'SELECT id, tournament_type, organizer_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -2017,7 +2018,7 @@ router.post('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, r
     // Create team
     const teamResult = await query(
       `INSERT INTO tournament_teams (tournament_id, name, created_by)
-       VALUES ($1, $2, $3)
+       VALUES (?, ?, ?)
        RETURNING id, name, created_at`,
       [id, name.trim(), req.userId]
     );
@@ -2044,7 +2045,7 @@ router.post('/tournaments/:id/teams/:teamId/members', authMiddleware, async (req
 
     // Verify organizer
     const tournResult = await query(
-      'SELECT organizer_id FROM tournaments WHERE id = $1',
+      'SELECT organizer_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -2058,7 +2059,7 @@ router.post('/tournaments/:id/teams/:teamId/members', authMiddleware, async (req
 
     // Check if team exists and belongs to tournament
     const teamResult = await query(
-      'SELECT id FROM tournament_teams WHERE id = $1 AND tournament_id = $2',
+      'SELECT id FROM tournament_teams WHERE id = ? AND tournament_id = ?',
       [teamId, id]
     );
 
@@ -2069,7 +2070,7 @@ router.post('/tournaments/:id/teams/:teamId/members', authMiddleware, async (req
     // Add member
     const memberResult = await query(
       `INSERT INTO team_members (team_id, player_id, position)
-       VALUES ($1, $2, $3)
+       VALUES (?, ?, ?)
        RETURNING id`,
       [teamId, player_id, position]
     );
@@ -2091,7 +2092,7 @@ router.delete('/tournaments/:id/teams/:teamId/members/:playerId', authMiddleware
 
     // Verify organizer
     const tournResult = await query(
-      'SELECT organizer_id FROM tournaments WHERE id = $1',
+      'SELECT organizer_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -2105,7 +2106,7 @@ router.delete('/tournaments/:id/teams/:teamId/members/:playerId', authMiddleware
 
     // Remove member
     const result = await query(
-      'DELETE FROM team_members WHERE team_id = $1 AND player_id = $2',
+      'DELETE FROM team_members WHERE team_id = ? AND player_id = ?',
       [teamId, playerId]
     );
 
@@ -2132,7 +2133,7 @@ router.post('/tournaments/:id/teams/:teamId/substitutes', authMiddleware, async 
 
     // Verify organizer
     const tournResult = await query(
-      'SELECT organizer_id FROM tournaments WHERE id = $1',
+      'SELECT organizer_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -2147,7 +2148,7 @@ router.post('/tournaments/:id/teams/:teamId/substitutes', authMiddleware, async 
     // Add substitute
     await query(
       `INSERT INTO team_substitutes (team_id, player_id, substitute_order)
-       VALUES ($1, $2, (SELECT COALESCE(MAX(substitute_order), 0) + 1 FROM team_substitutes WHERE team_id = $1))
+       VALUES (?, ?, (SELECT COALESCE(MAX(substitute_order), 0) + 1 FROM team_substitutes WHERE team_id = ?))
        ON CONFLICT DO NOTHING`,
       [teamId, player_id]
     );
@@ -2166,7 +2167,7 @@ router.delete('/tournaments/:id/teams/:teamId', authMiddleware, async (req: Auth
 
     // Verify organizer
     const tournResult = await query(
-      'SELECT organizer_id FROM tournaments WHERE id = $1',
+      'SELECT organizer_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -2180,7 +2181,7 @@ router.delete('/tournaments/:id/teams/:teamId', authMiddleware, async (req: Auth
 
     // Check if team has matches
     const matchResult = await query(
-      'SELECT COUNT(*) as count FROM team_tournament_matches WHERE team_a_id = $1 OR team_b_id = $1',
+      'SELECT COUNT(*) as count FROM team_tournament_matches WHERE team_a_id = ? OR team_b_id = ?',
       [teamId]
     );
 
@@ -2190,7 +2191,7 @@ router.delete('/tournaments/:id/teams/:teamId', authMiddleware, async (req: Auth
 
     // Delete team
     const result = await query(
-      'DELETE FROM tournament_teams WHERE id = $1 AND tournament_id = $2',
+      'DELETE FROM tournament_teams WHERE id = ? AND tournament_id = ?',
       [teamId, id]
     );
 
@@ -2214,7 +2215,7 @@ router.post('/tournaments/:id/calculate-tiebreakers', authMiddleware, async (req
 
     // Check if user is tournament organizer
     const tournamentResult = await query(
-      'SELECT id, creator_id, tournament_mode FROM tournaments WHERE id = $1',
+      'SELECT id, creator_id, tournament_mode FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -2232,13 +2233,13 @@ router.post('/tournaments/:id/calculate-tiebreakers', authMiddleware, async (req
     if (tournament.tournament_mode === 'team') {
       // For team tournaments, update team tiebreakers
       tiebreakersResult = await query(
-        'SELECT updated_count, error_message FROM update_team_tiebreakers($1)',
+        'SELECT updated_count, error_message FROM update_team_tiebreakers(?)',
         [id]
       );
     } else {
       // For individual tournaments, update participant tiebreakers
       tiebreakersResult = await query(
-        'SELECT updated_count, error_message FROM update_tournament_tiebreakers($1)',
+        'SELECT updated_count, error_message FROM update_tournament_tiebreakers(?)',
         [id]
       );
     }
@@ -2278,7 +2279,7 @@ router.post('/tournaments/:id/calculate-tiebreakers', authMiddleware, async (req
 router.get('/maintenance-status', async (req, res) => {
   try {
     const result = await query(
-      'SELECT setting_value FROM system_settings WHERE setting_key = $1',
+      'SELECT setting_value FROM system_settings WHERE setting_key = ?',
       ['maintenance_mode']
     );
 
@@ -2297,7 +2298,7 @@ router.get('/maintenance-status', async (req, res) => {
 router.post('/toggle-maintenance', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can toggle maintenance mode' });
     }
@@ -2311,13 +2312,13 @@ router.post('/toggle-maintenance', authMiddleware, async (req: AuthRequest, res)
 
     // Update maintenance mode setting
     await query(
-      `UPDATE system_settings SET setting_value = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 
-       WHERE setting_key = $3`,
+      `UPDATE system_settings SET setting_value = ?, updated_at = CURRENT_TIMESTAMP, updated_by = ? 
+       WHERE setting_key = ?`,
       [enable ? 'true' : 'false', req.userId, 'maintenance_mode']
     );
 
     // Get admin nickname for logging
-    const adminUser = await query('SELECT nickname FROM public.users WHERE id = $1', [req.userId]);
+    const adminUser = await query('SELECT nickname FROM users_extension WHERE id = ?', [req.userId]);
     const adminNickname = adminUser.rows[0]?.nickname || 'Unknown Admin';
 
     const action = enable ? 'ENABLED' : 'DISABLED';
@@ -2352,7 +2353,7 @@ router.post('/toggle-maintenance', authMiddleware, async (req: AuthRequest, res)
 router.get('/maintenance-logs', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Check if user is admin
-    const userResult = await query('SELECT is_admin FROM public.users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0 || !userResult.rows[0].is_admin) {
       return res.status(403).json({ error: 'Only admins can access maintenance logs' });
     }
@@ -2369,9 +2370,9 @@ router.get('/maintenance-logs', authMiddleware, async (req: AuthRequest, res) =>
         details,
         created_at
        FROM audit_logs
-       WHERE event_type = $1
+       WHERE event_type = ?
        ORDER BY created_at DESC
-       LIMIT $2`,
+       LIMIT ?`,
       ['MAINTENANCE_MODE_TOGGLE', limit]
     );
 
