@@ -283,7 +283,7 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
       AND pms.map_id IS NULL
       AND pms.faction_id IS NULL
       AND pms.opponent_faction_id IS NULL
-      ORDER BY pms.last_match_date DESC NULLS LAST
+      ORDER BY IF(pms.last_match_date IS NULL, 1, 0), pms.last_match_date DESC
       LIMIT $2`,
       [playerId, limit]
     );

@@ -214,7 +214,7 @@ router.get('/tournaments/:id/participants', async (req, res) => {
       FROM tournament_participants tp
       LEFT JOIN users_extension u ON tp.user_id = u.id
       WHERE tp.tournament_id = $1
-      ORDER BY tp.tournament_ranking ASC NULLS LAST, u.elo_rating DESC
+      ORDER BY tp.tournament_ranking IS NULL, tp.tournament_ranking ASC, u.elo_rating DESC
     `, [id]);
 
     res.json(result.rows);
@@ -404,7 +404,7 @@ router.get('/news', async (req, res) => {
       `SELECT n.id, n.title, n.content, n.translations, n.published_at, n.created_at, u.nickname as author 
        FROM news n
        LEFT JOIN users_extension u ON n.author_id = u.id
-       ORDER BY n.published_at DESC NULLS FIRST, n.created_at DESC`
+       ORDER BY COALESCE(n.published_at, n.created_at) DESC`
     );
     console.log('News query result:', result.rows.length, 'rows found');
     res.json(result.rows);
@@ -496,7 +496,7 @@ router.get('/players', async (req, res) => {
     params.push(offset);
     const result = await query(
       `SELECT id, nickname, elo_rating, is_rated, matches_played, total_wins, total_losses, country, avatar
-       FROM users
+       FROM users_extension
        WHERE ${whereClause}
        ORDER BY nickname ASC
        LIMIT $${paramCount} OFFSET $${paramCount + 1}`,

@@ -9,9 +9,11 @@ const getApiBaseUrl = (): string => {
   } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
     return 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
   } else if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1') {
-    return import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
   } else {
-    return import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
   }
 };
 

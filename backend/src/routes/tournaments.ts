@@ -211,7 +211,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     // Get organizer nickname
     let organizerNickname = 'Unknown';
     try {
-      const userResult = await query('SELECT nickname FROM users WHERE id = $1', [req.userId]);
+      const userResult = await query('SELECT nickname FROM users_extension WHERE id = $1', [req.userId]);
       if (userResult.rows.length > 0) {
         organizerNickname = userResult.rows[0].nickname;
       }
@@ -554,7 +554,7 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res) => {
     const { id } = req.params;
 
     // Check if user exists
-    const userResult = await query('SELECT id FROM users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT id FROM users_extension WHERE id = $1', [req.userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -611,7 +611,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
       }
 
       // Get current user's info
-      const currentUserResult = await query('SELECT nickname FROM users WHERE id = $1', [req.userId]);
+      const currentUserResult = await query('SELECT nickname FROM users_extension WHERE id = $1', [req.userId]);
       if (currentUserResult.rows.length === 0) {
         return res.status(404).json({ error: 'User not found' });
       }
@@ -642,7 +642,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
       // If teammate provided, validate and get their ID
       if (teammate_name) {
         const teammateResult = await query(
-          'SELECT id FROM users WHERE LOWER(nickname) = LOWER($1)',
+          'SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER($1)',
           [teammate_name]
         );
         if (teammateResult.rows.length === 0) {
@@ -742,7 +742,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     }
 
     // Get user's ELO rating and nickname
-    const userResult = await query('SELECT elo_rating, nickname FROM users WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT elo_rating, nickname FROM users_extension WHERE id = $1', [req.userId]);
     if (userResult.rows.length === 0) {
       console.log('User not found:', req.userId);
       return res.status(404).json({ error: 'User not found' });
@@ -828,7 +828,7 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
     // Get participant info
     const participantResult = await query(
       `SELECT tp.*, u.nickname FROM tournament_participants tp
-       JOIN users u ON tp.user_id = u.id
+       JOIN users_extension u ON tp.user_id = u.id
        WHERE tp.id = $1 AND tp.tournament_id = $2`,
       [participantId, tournamentId]
     );
@@ -901,7 +901,7 @@ router.post('/:tournamentId/participants/:participantId/confirm', authMiddleware
     // Get participant info
     const participantResult = await query(
       `SELECT tp.*, u.nickname FROM tournament_participants tp
-       JOIN users u ON tp.user_id = u.id
+       JOIN users_extension u ON tp.user_id = u.id
        WHERE tp.id = $1 AND tp.tournament_id = $2`,
       [participantId, tournamentId]
     );
@@ -967,7 +967,7 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     // Get participant info including nickname
     const participantResult = await query(
       `SELECT tp.*, u.nickname FROM tournament_participants tp
-       JOIN users u ON tp.user_id = u.id
+       JOIN users_extension u ON tp.user_id = u.id
        WHERE tp.id = $1 AND tp.tournament_id = $2`,
       [participantId, tournamentId]
     );
@@ -1101,7 +1101,7 @@ router.get('/:id/ranking', async (req, res) => {
     const result = await query(
       `SELECT tp.*, u.nickname, u.elo_rating 
        FROM tournament_participants tp
-       JOIN users u ON tp.user_id = u.id
+       JOIN users_extension u ON tp.user_id = u.id
        WHERE tp.tournament_id = $1
        ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, u.elo_rating DESC`,
       [id]
@@ -1832,8 +1832,8 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
           const matchupsResult = await query(
             `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
              FROM tournament_round_matches trm
-             LEFT JOIN users u1 ON trm.player1_id = u1.id
-             LEFT JOIN users u2 ON trm.player2_id = u2.id
+             LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
+             LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
              WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = $1 AND round_number = 1)`,
             [id]
           );
@@ -1947,9 +1947,9 @@ router.get('/:tournamentId/rounds/:roundId/matches', async (req, res) => {
       `;
       joinClause = `
         FROM tournament_matches tm
-        LEFT JOIN users u1 ON tm.player1_id = u1.id
-        LEFT JOIN users u2 ON tm.player2_id = u2.id
-        LEFT JOIN users uw ON tm.winner_id = uw.id
+        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
+        LEFT JOIN users_extension uw ON tm.winner_id = uw.id
         LEFT JOIN matches m ON tm.match_id = m.id
       `;
     } else {
@@ -1977,11 +1977,11 @@ router.get('/:tournamentId/rounds/:roundId/matches', async (req, res) => {
       `;
       joinClause = `
         FROM tournament_matches tm
-        LEFT JOIN users u1 ON tm.player1_id = u1.id
-        LEFT JOIN users u2 ON tm.player2_id = u2.id
-        LEFT JOIN users uw ON tm.winner_id = uw.id
+        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
+        LEFT JOIN users_extension uw ON tm.winner_id = uw.id
         LEFT JOIN matches m ON tm.match_id = m.id
-        LEFT JOIN users ul ON m.loser_id = ul.id
+        LEFT JOIN users_extension ul ON m.loser_id = ul.id
       `;
     }
 
@@ -2070,9 +2070,9 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
       joinClause = `
         FROM tournament_round_matches trm
         JOIN tournament_rounds tr ON trm.round_id = tr.id
-        LEFT JOIN users u1 ON trm.player1_id = u1.id
-        LEFT JOIN users u2 ON trm.player2_id = u2.id
-        LEFT JOIN users uw ON trm.winner_id = uw.id
+        LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
+        LEFT JOIN users_extension uw ON trm.winner_id = uw.id
       `;
     }
 
@@ -2179,9 +2179,9 @@ router.get('/:tournamentId/matches', async (req, res) => {
       joinClause = `
         FROM tournament_matches tm
         JOIN tournament_rounds tr ON tm.round_id = tr.id
-        LEFT JOIN users u1 ON tm.player1_id = u1.id
-        LEFT JOIN users u2 ON tm.player2_id = u2.id
-        LEFT JOIN users uw ON tm.winner_id = uw.id
+        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
+        LEFT JOIN users_extension uw ON tm.winner_id = uw.id
       `;
     } else {
       // Ranked 1v1: get player names from users, match details from matches table (via match_id link)
@@ -2215,11 +2215,11 @@ router.get('/:tournamentId/matches', async (req, res) => {
       joinClause = `
         FROM tournament_matches tm
         JOIN tournament_rounds tr ON tm.round_id = tr.id
-        LEFT JOIN users u1 ON tm.player1_id = u1.id
-        LEFT JOIN users u2 ON tm.player2_id = u2.id
+        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
         LEFT JOIN matches m ON tm.match_id = m.id
-        LEFT JOIN users uw ON m.winner_id = uw.id
-        LEFT JOIN users ul ON m.loser_id = ul.id
+        LEFT JOIN users_extension uw ON m.winner_id = uw.id
+        LEFT JOIN users_extension ul ON m.loser_id = ul.id
       `;
     }
 
@@ -2658,8 +2658,8 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
         const matchupsResult = await query(
           `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
            FROM tournament_round_matches trm
-           LEFT JOIN users u1 ON trm.player1_id = u1.id
-           LEFT JOIN users u2 ON trm.player2_id = u2.id
+           LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
+           LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
            WHERE trm.round_id = $1`,
           [nextRoundId]
         );
@@ -2887,7 +2887,7 @@ router.get('/:id/standings', async (req, res) => {
           ) as members_with_elo
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
-         LEFT JOIN users u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tt.tournament_id = $1
          GROUP BY tt.id
          ORDER BY 
@@ -2927,7 +2927,7 @@ router.get('/:id/standings', async (req, res) => {
       const playerStandings = await query(
         `SELECT tp.*, u.nickname, u.elo_rating
          FROM tournament_participants tp
-         LEFT JOIN users u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tp.tournament_id = $1 AND tp.team_id != $2
          ORDER BY ${orderBy1v1}`,
         [id, REJECTED_TEAM_ID]
@@ -2988,7 +2988,7 @@ router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthReques
     
     const tournament = tournamentQuery.rows[0];
     const userQuery = await query(
-      'SELECT is_admin FROM users WHERE user_id = $1',
+      'SELECT is_admin FROM users_extension WHERE user_id = $1',
       [req.userId]
     );
     
@@ -3058,7 +3058,7 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
     
     const tournament = tournamentQuery.rows[0];
     const userQuery = await query(
-      'SELECT is_admin FROM users WHERE user_id = $1',
+      'SELECT is_admin FROM users_extension WHERE user_id = $1',
       [req.userId]
     );
     
