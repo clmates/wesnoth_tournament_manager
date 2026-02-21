@@ -72,13 +72,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       if (response.data && response.data.valid) {
         // Token is valid, update user info if needed
+        const isAdmin = response.data.isAdmin || false;
+        
         if (response.data.nickname && !state.user) {
           set({ 
             user: { 
               id: response.data.userId,
               nickname: response.data.nickname,
               email: response.data.email,
-            } as User 
+            } as User,
+            isAdmin: isAdmin,
+            userId: response.data.userId
+          });
+        } else {
+          // Update isAdmin and userId even if user already exists
+          set({ 
+            isAdmin: isAdmin,
+            userId: response.data.userId
           });
         }
         set({ isValidating: false });

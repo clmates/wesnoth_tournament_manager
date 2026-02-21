@@ -18,8 +18,8 @@ export interface AuditLogEntry {
 export async function logAuditEvent(entry: AuditLogEntry) {
   try {
     await query(
-      `INSERT INTO public.audit_logs (event_type, user_id, username, ip_address, user_agent, details, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+      `INSERT INTO audit_logs (event_type, user_id, username, ip_address, user_agent, details, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
       [
         entry.event_type,
         entry.user_id || null,

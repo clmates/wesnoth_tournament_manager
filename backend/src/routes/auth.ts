@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { generateTokenWithUsername, verifyToken } from '../utils/auth.js';
 import { authenticatePhpbbUser, getPhpbbUser } from '../services/phpbbAuth.js';
 import { generateUUID } from '../utils/uuid.js';
-import { queryTournament } from '../config/tournamentDatabase.js';
+import { queryTournament, query } from '../config/tournamentDatabase.js';
+import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 
 const router = Router();
 
@@ -26,6 +27,14 @@ router.post('/login', async (req, res) => {
     
     if (!authResult.valid) {
       console.log(`❌ [LOGIN] Failed login for ${normalizedUsername}: ${authResult.error}`);
+      // Log failed login attempt
+      await logAuditEvent({
+        event_type: 'LOGIN_FAILED',
+        username: normalizedUsername,
+        ip_address: getUserIP(req),
+        user_agent: getUserAgent(req),
+        details: { reason: authResult.error }
+      });
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -58,6 +67,16 @@ router.post('/login', async (req, res) => {
 
     // Generate JWT token with tournament database user ID
     const token = generateTokenWithUsername(normalizedUsername, tournamentUserId);
+
+    // Log successful login
+    await logAuditEvent({
+      event_type: 'LOGIN_SUCCESS',
+      user_id: tournamentUserId,
+      username: normalizedUsername,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: { isNewUser: !existingUsers || existingUsers.length === 0 }
+    });
 
     res.json({ 
       token, 
@@ -94,13 +113,22 @@ router.get('/validate-token', async (req, res) => {
       return res.status(401).json({ error: 'User not found' });
     }
 
+    // Get tournament user info to check if admin
+    const tournamentUserResult = await query(
+      'SELECT is_admin FROM users_extension WHERE id = ?',
+      [decoded.userId]
+    );
+
+    const isAdmin = tournamentUserResult.rows[0]?.is_admin || false;
+
     // Return user info
     res.json({
       valid: true,
-      userId: phpbbUser.user_id,
+      userId: decoded.userId,
       username: phpbbUser.username,
       email: phpbbUser.user_email,
-      isAdmin: false // TODO: Check if user is admin/organizer
+      nickname: tournamentUserResult.rows[0]?.nickname || phpbbUser.username,
+      isAdmin: isAdmin
     });
 
   } catch (error) {
