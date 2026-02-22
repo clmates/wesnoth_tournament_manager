@@ -142,7 +142,7 @@ const Matches: React.FC = () => {
   };
 
   const handleDownloadReplay = async (matchId: string | null, replayFilePath: string, tournamentMatchId?: string): Promise<void> => {
-    if (!matchId) return;
+    if (!matchId || !replayFilePath) return;
     try {
       console.log('🔽 Starting download for match:', matchId);
       // Extract filename from path
@@ -152,28 +152,21 @@ const Matches: React.FC = () => {
       console.log('🔽 Incrementing download count...');
       await matchService.incrementReplayDownloads(matchId);
       
-      // Get signed URL from backend
-      console.log('🔽 Requesting signed URL from backend...');
-      const token = localStorage.getItem('token');
-      const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
-      console.log('🔽 Signed URL endpoint:', downloadUrl);
-      const response = await fetch(downloadUrl, {
-        method: 'GET',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
-
-      console.log('🔽 Response status:', response.status);
-      if (!response.ok) {
-        throw new Error(`Failed to get signed URL: ${response.status}`);
-      }
-
-      const { signedUrl, filename: serverFilename, expiresIn } = await response.json();
-      console.log('🔽 Got signed URL (expires in', expiresIn, 'seconds)');
+      // Use the replay_file_path HTTPS URL directly
+      console.log('🔽 Downloading from:', replayFilePath);
       
-      // Redirect to signed URL for download
-      console.log('🔽 Redirecting to Supabase signed URL...');
-      window.location.href = signedUrl;
-      console.log('✅ Download completed:', serverFilename);
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement('a');
+      link.href = replayFilePath;
+      link.download = filename;
+      link.target = '_blank';
+      
+      // Append to body, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      console.log('✅ Download started:', filename);
     } catch (err) {
       console.error('❌ Error downloading replay:', err);
       alert('Failed to download replay. Check console for details.');

@@ -22,12 +22,13 @@
  *   ↓ (this job)
  * Parse victory conditions from replay URL
  *   ↓
- * matches table (status='confirmed' or 'pending_report')
+ * matches table (status='reported' for confidence=2, 'pending_report' for confidence=1)
  *   ↓ (if confidence=2)
- * Apply ELO ratings
+ * Apply ELO ratings immediately
  */
 
 import { query } from '../config/database.js';
+import { getGameScenarioName } from '../config/forumDatabase.js';
 import ReplayParser from '../services/replayParser.js';
 import { createOrUpdateMatch, ParsedReplay, ParsedVictory } from '../utils/createOrUpdateMatch.js';
 import { parseRankedReplay, ParsedRankedReplay } from '../utils/replayRankedParser.js';
@@ -38,6 +39,8 @@ import * as path from 'path';
 
 interface UnparsedReplay {
   id: string;
+  instance_uuid: string;
+  game_id: number;
   replay_filename: string;
   replay_url: string;
   wesnoth_version: string;
@@ -135,6 +138,22 @@ export class ParseNewReplaysRefactored {
           // Check if addon was found in WML or confirmed at forum DB level
           const addonConfirmed = parsed.addon.ranked_mode || parsed.addon.addon_found_at_forum;
 
+          // ============================================================================
+          // EARLY: Fetch scenario map name from forum database for asset validation
+          // ============================================================================
+          let scenarioName = replay.game_name;
+          try {
+            const forumScenarioName = await getGameScenarioName(replay.instance_uuid, replay.game_id);
+            if (forumScenarioName) {
+              scenarioName = forumScenarioName;
+              console.log(`   Map: ${scenarioName} (from forum DB)`);
+            } else {
+              console.log(`   Map: ${scenarioName} (fallback to game_name)`);
+            }
+          } catch (err) {
+            console.warn(`   ⚠️  Could not fetch scenario name from forum DB, using game_name`);
+          }
+
           // Validate assets if addon claims ranked_mode="yes"
           // (addon_found_at_forum without ranked_mode in WML shouldn't require asset validation)
           let assetsValidated = false;
@@ -143,7 +162,7 @@ export class ParseNewReplaysRefactored {
             const assetValidation = await validateRankedAssets(
               parsed.victory.winner_faction,
               parsed.victory.loser_faction,
-              replay.game_name // Using game_name as map name
+              scenarioName // Use forum-sourced scenario name for validation
             );
             assetsValidated = assetValidation.isValid;
 
@@ -198,15 +217,25 @@ export class ParseNewReplaysRefactored {
               matchType = 'rejected';
             }
           }
-          // Case 3: No tournament, no ranked addon in WML
+          // Case 3: No ranked addon details in WML, but forum DB confirms addon is installed
+          // If forum confirms ranked addon is installed, trust that
+          else if (parsed.addon.addon_found_at_forum && tournament?.tournamentMode === 'ranked') {
+            // Addon exists at forum and is ranked tournament mode
+            // Don't mark as unranked just because WML parsing couldn't extract scenario_data
+            // The addon IS there according to forum DB
+            console.log(`✅ [PARSE] Addon confirmed at forum DB (ranked mode) - treating as ranked pending validation`);
+            matchType = 'tournament_ranked';
+            confidenceLevel = 1; // Pending asset validation
+          }
+          // Case 4: No tournament, addon found in forum but not confirmed as ranked
           else if (parsed.addon.addon_found_at_forum) {
-            // Addon was found in forum DB even though WML doesn't have details
+            // Addon was found in forum DB but we can't confirm it's ranked
             // Treat as unranked for now since we can't validate
-            console.log(`⚠️  [PARSE] Addon found at forum but not in WML → Report as unranked`);
+            console.log(`⚠️  [PARSE] Addon found at forum but cannot confirm ranked status → Report as unranked`);
             matchType = 'tournament_unranked';
             confidenceLevel = 1;
           }
-          // Case 4: No addon anywhere
+          // Case 5: No addon anywhere
           else {
             console.log(`❌ [PARSE] No ranked addon and no tournament → REJECT`);
             matchType = 'rejected';
@@ -328,7 +357,6 @@ export class ParseNewReplaysRefactored {
                 `UPDATE replays SET parse_status = 'rejected', parsed = 1 WHERE id = ?`,
                 [replay.id]
               );
-              
               errorCount++;
               continue;
             }
@@ -337,9 +365,12 @@ export class ParseNewReplaysRefactored {
           // Convert parsed replay to ReplayData format for createOrUpdateMatch
           const replayData: ParsedReplay = {
             id: replay.id,
-            scenario_name: replay.game_name,
+            scenario_name: scenarioName,
+            map_name: scenarioName,
             version: replay.wesnoth_version,
             era_id: 'unknown',
+            winner_faction: parsed.victory.winner_faction || 'unknown',
+            loser_faction: parsed.victory.loser_faction || 'unknown',
             victory: {
               confidence_level: confidenceLevel,
               result_type: teamInfo?.isTeamMatch ? 'team' : 'one_versus_one',
@@ -446,7 +477,7 @@ export class ParseNewReplaysRefactored {
       const maxConcurrentParses = parseInt(process.env.REPLAY_MAX_CONCURRENT_PARSES || '3', 10);
 
       const result = await query(
-        `SELECT id, replay_filename, replay_url, wesnoth_version, game_name, start_time, end_time
+        `SELECT id, instance_uuid, game_id, replay_filename, replay_url, wesnoth_version, game_name, start_time, end_time
          FROM replays
          WHERE parse_status = 'new' 
            AND parsed = 0
@@ -476,7 +507,8 @@ export class ParseNewReplaysRefactored {
       const replayPath = await this.downloadReplayFile(replay.replay_url, replay.wesnoth_version);
 
       // Parse using Ranked addon parser
-      const parsed = await parseRankedReplay(replayPath);
+      // Pass instance_uuid and game_id for forum database lookups
+      const parsed = await parseRankedReplay(replayPath, replay.instance_uuid, replay.game_id);
 
       // Cleanup downloaded file
       try {

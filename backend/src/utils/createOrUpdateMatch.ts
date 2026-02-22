@@ -16,6 +16,7 @@
  */
 
 import { query } from '../config/database.js';
+import { getUserLevel } from './auth.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ParsedVictory {
@@ -32,9 +33,12 @@ export interface ParsedReplay {
   files_checksum?: string;
   version?: string;
   scenario_name?: string;
+  map_name?: string; // Map name for the match
   era_id?: string;
   starting_map?: string;
   starting_era?: string;
+  winner_faction?: string; // Winner's faction
+  loser_faction?: string; // Loser's faction
   victory: ParsedVictory;
   players?: Array<{
     name: string;
@@ -53,10 +57,104 @@ export interface ParsedReplay {
 }
 
 /**
- * Main function: Create or update match from parsed replay
- * @param parsedReplay - Parsed replay data from ReplayParser
- * @returns Match ID (newly created or existing)
+ * Get player's current ranking position
  */
+async function getPlayerRankingPosition(userId: string): Promise<number | null> {
+  try {
+    const result = await query(
+      `SELECT COUNT(*) as position FROM users_extension 
+       WHERE is_rated = 1 AND elo_rating > (
+         SELECT elo_rating FROM users_extension WHERE id = ?
+       )`,
+      [userId]
+    );
+    
+    if (result && (result as any).rows && (result as any).rows.length > 0) {
+      return (result as any).rows[0].position + 1; // Add 1 because position is 0-indexed
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn(`⚠️  Could not get ranking position for player ${userId}:`, (error as any)?.message);
+    return null;
+  }
+}
+
+/**
+ * Find exact faction name in database (with variant matching)
+ */
+async function getExactFactionName(factionName: string | undefined): Promise<string | undefined> {
+  if (!factionName) return undefined;
+  
+  try {
+    // Try exact match first
+    let result = await query(
+      `SELECT name FROM factions WHERE name = ? LIMIT 1`,
+      [factionName]
+    );
+    
+    if (result && (result as any).rows && (result as any).rows.length > 0) {
+      return (result as any).rows[0].name;
+    }
+    
+    // Try without common prefixes: "Ladder ", "Campaign ", etc.
+    const cleaned = factionName.replace(/^(Ladder|Campaign|Ranked|Custom)\s+/i, '');
+    if (cleaned !== factionName) {
+      result = await query(
+        `SELECT name FROM factions WHERE name = ? LIMIT 1`,
+        [cleaned]
+      );
+      
+      if (result && (result as any).rows && (result as any).rows.length > 0) {
+        return (result as any).rows[0].name;
+      }
+    }
+    
+    // Not found, return original
+    return factionName;
+  } catch (error) {
+    console.warn(`⚠️  Could not lookup faction: ${factionName}`, (error as any)?.message);
+    return factionName;
+  }
+}
+
+/**
+ * Find exact map name in database (with variant matching)
+ */
+async function getExactMapName(mapName: string | undefined): Promise<string | undefined> {
+  if (!mapName) return undefined;
+  
+  try {
+    // Try exact match first
+    let result = await query(
+      `SELECT name FROM game_maps WHERE name = ? LIMIT 1`,
+      [mapName]
+    );
+    
+    if (result && (result as any).rows && (result as any).rows.length > 0) {
+      return (result as any).rows[0].name;
+    }
+    
+    // Try without player count prefix: "2p — ", "4p - ", etc.
+    const cleaned = mapName.replace(/^\d+p[\s—\-]+/i, '');
+    if (cleaned !== mapName) {
+      result = await query(
+        `SELECT name FROM game_maps WHERE name = ? LIMIT 1`,
+        [cleaned]
+      );
+      
+      if (result && (result as any).rows && (result as any).rows.length > 0) {
+        return (result as any).rows[0].name;
+      }
+    }
+    
+    // Not found, return original
+    return mapName;
+  } catch (error) {
+    console.warn(`⚠️  Could not lookup map: ${mapName}`, (error as any)?.message);
+    return mapName;
+  }
+}
 export async function createOrUpdateMatch(
   parsedReplay: ParsedReplay
 ): Promise<{ matchId: string; isNew: boolean; status: string }> {
@@ -103,8 +201,10 @@ export async function createOrUpdateMatch(
       matchId = uuidv4();
       
       // Determine status based on confidence level
+      // confidence_level 2: match is auto-reported (winner needs to add comments/rating) → 'reported'
+      // confidence_level 1: match needs manual report from winner or loser → 'pending_report'
       if (confidence_level === 2) {
-        matchStatus = 'confirmed';
+        matchStatus = 'reported';
       } else {
         matchStatus = 'pending_report';
       }
@@ -121,7 +221,7 @@ export async function createOrUpdateMatch(
     }
 
     // Step 3: Apply ELO immediately if confidence=2
-    if (confidence_level === 2 && matchStatus === 'confirmed') {
+    if (confidence_level === 2 && matchStatus === 'reported') {
       console.log(`🏆 [MATCH] Applying ELO for confident match: ${matchId}`);
       await applyEloRating(matchId, winnerId, loserId);
     }
@@ -216,6 +316,41 @@ async function createNewMatch(
   try {
     const createdAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
+    // Get current ELO ratings for before-match
+    const winnerResult = await query(
+      `SELECT elo_rating FROM users_extension WHERE id = ?`,
+      [winnerId]
+    );
+    const loserResult = await query(
+      `SELECT elo_rating FROM users_extension WHERE id = ?`,
+      [loserId]
+    );
+
+    const winnerEloBefore = (winnerResult as any).rows?.[0]?.elo_rating || 1400;
+    const loserEloBefore = (loserResult as any).rows?.[0]?.elo_rating || 1400;
+
+    // Calculate levels before match
+    const winnerLevelBefore = getUserLevel(winnerEloBefore);
+    const loserLevelBefore = getUserLevel(loserEloBefore);
+
+    // Get ranking positions before match
+    const winnerRankingBefore = await getPlayerRankingPosition(winnerId);
+    const loserRankingBefore = await getPlayerRankingPosition(loserId);
+
+    console.log(`   ELO Before: Winner=${winnerEloBefore} (${winnerLevelBefore}), Loser=${loserEloBefore} (${loserLevelBefore})`);
+    console.log(`   Ranking Before: Winner=${winnerRankingBefore}, Loser=${loserRankingBefore}`);
+
+    // Get exact faction names from database
+    const exactWinnerFaction = await getExactFactionName(parsedReplay.victory.winner_faction);
+    const exactLoserFaction = await getExactFactionName(parsedReplay.victory.loser_faction);
+    
+    console.log(`   Factions: Winner=${exactWinnerFaction}, Loser=${exactLoserFaction}`);
+
+    // Get exact map name from database
+    const exactMap = await getExactMapName(parsedReplay.scenario_name);
+    
+    console.log(`   Map: ${exactMap}`);
+
     // Prepare replay URL
     let replayUrl = '';
     const replayResult = await query(
@@ -233,26 +368,46 @@ async function createNewMatch(
         replay_id,
         winner_id,
         loser_id,
-        map_name,
-        era_name,
+        map,
+        winner_faction,
+        loser_faction,
         status,
         replay_file_path,
         auto_reported,
-        detected_from,
+        winner_elo_before,
+        loser_elo_before,
+        winner_elo_after,
+        loser_elo_after,
+        winner_level_before,
+        loser_level_before,
+        winner_level_after,
+        loser_level_after,
+        winner_ranking_pos,
+        loser_ranking_pos,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         matchId,
         parsedReplay.id,
         winnerId,
         loserId,
-        parsedReplay.scenario_name || 'Unknown',
-        parsedReplay.era_id || 'Unknown',
+        exactMap || 'Unknown',
+        exactWinnerFaction || 'Unknown',
+        exactLoserFaction || 'Unknown',
         status,
         replayUrl,
         1, // auto_reported
-        'forum', // detected_from
+        winnerEloBefore,
+        loserEloBefore,
+        winnerEloBefore, // Will be updated by applyEloRating
+        loserEloBefore,  // Will be updated by applyEloRating
+        winnerLevelBefore,
+        loserLevelBefore,
+        winnerLevelBefore, // Will be updated by applyEloRating
+        loserLevelBefore,  // Will be updated by applyEloRating
+        winnerRankingBefore,
+        loserRankingBefore,
         createdAt,
         createdAt
       ]
@@ -281,12 +436,21 @@ async function updateExistingMatch(
     const updatedAt = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
     // Determine new status if confidence changed
+    // confidence_level 2: match is auto-reported (winner needs to add comments/rating) → 'reported'
+    // confidence_level 1: match needs manual report from winner or loser → 'pending_report'
     let newStatus = 'pending';
     if (confidenceLevel === 2) {
-      newStatus = 'confirmed';
+      newStatus = 'reported';
     } else if (confidenceLevel === 1) {
       newStatus = 'pending_report';
     }
+
+    // Get exact faction names from database
+    const exactWinnerFaction = await getExactFactionName(parsedReplay.victory.winner_faction);
+    const exactLoserFaction = await getExactFactionName(parsedReplay.victory.loser_faction);
+    
+    // Get exact map name from database
+    const exactMap = await getExactMapName(parsedReplay.scenario_name);
 
     // Get replay URL
     let replayUrl = '';
@@ -303,8 +467,9 @@ async function updateExistingMatch(
       `UPDATE matches 
        SET winner_id = ?,
            loser_id = ?,
-           map_name = ?,
-           era_name = ?,
+           map = ?,
+           winner_faction = ?,
+           loser_faction = ?,
            status = ?,
            replay_file_path = ?,
            updated_at = ?
@@ -312,8 +477,9 @@ async function updateExistingMatch(
       [
         winnerId,
         loserId,
-        parsedReplay.scenario_name || 'Unknown',
-        parsedReplay.era_id || 'Unknown',
+        exactMap || 'Unknown',
+        exactWinnerFaction || 'Unknown',
+        exactLoserFaction || 'Unknown',
         newStatus,
         replayUrl,
         updatedAt,
@@ -332,7 +498,7 @@ async function updateExistingMatch(
 
 /**
  * Apply ELO rating change for confirmed match
- * This triggers the ELO calculation if configured
+ * Updates both matches table and users_extension with new ratings
  */
 async function applyEloRating(
   matchId: string,
@@ -340,25 +506,22 @@ async function applyEloRating(
   loserId: string
 ): Promise<void> {
   try {
-    // Get current ratings
-    const winnersResult = await query(
-      `SELECT rating FROM users_extension WHERE id = ?`,
-      [winnerId]
+    // Get current ratings and match info
+    const matchResult = await query(
+      `SELECT winner_elo_before, loser_elo_before, winner_ranking_pos, loser_ranking_pos FROM matches WHERE id = ?`,
+      [matchId]
     );
 
-    const losersResult = await query(
-      `SELECT rating FROM users_extension WHERE id = ?`,
-      [loserId]
-    );
-
-    if (!winnersResult || !(winnersResult as any).rows || (winnersResult as any).rows.length === 0 ||
-        !losersResult || !(losersResult as any).rows || (losersResult as any).rows.length === 0) {
-      console.warn('⚠️  [ELO] Could not find player ratings');
+    if (!matchResult || !(matchResult as any).rows || (matchResult as any).rows.length === 0) {
+      console.warn('⚠️  [ELO] Could not find match');
       return;
     }
 
-    const winnerRating = (winnersResult as any).rows[0].rating || 1200;
-    const loserRating = (losersResult as any).rows[0].rating || 1200;
+    const match = (matchResult as any).rows[0];
+    const winnerRating = match.winner_elo_before || 1400;
+    const loserRating = match.loser_elo_before || 1400;
+    const winnerRankingBefore = match.winner_ranking_pos;
+    const loserRankingBefore = match.loser_ranking_pos;
 
     // Simple Elo calculation (K=32)
     const K = 32;
@@ -370,21 +533,65 @@ async function applyEloRating(
 
     const ratingChange = newWinnerRating - winnerRating;
 
-    console.log(`🏆 [ELO] Winner: ${winnerRating} → ${newWinnerRating} (+${ratingChange})`);
-    console.log(`🏆 [ELO] Loser: ${loserRating} → ${newLoserRating} (${newLoserRating - loserRating})`);
+    // Calculate new levels
+    const newWinnerLevel = getUserLevel(newWinnerRating);
+    const newLoserLevel = getUserLevel(newLoserRating);
 
-    // Update both players' ratings
+    console.log(`🏆 [ELO] Winner: ${winnerRating} (${getUserLevel(winnerRating)}) → ${newWinnerRating} (${newWinnerLevel}) (+${ratingChange})`);
+    console.log(`🏆 [ELO] Loser: ${loserRating} (${getUserLevel(loserRating)}) → ${newLoserRating} (${newLoserLevel}) (${newLoserRating - loserRating})`);
+
+    // Update winner: increment matches_played and set new ELO
     await query(
-      `UPDATE users_extension SET rating = ?, total_games = total_games + 1, wins = wins + 1 WHERE id = ?`,
+      `UPDATE users_extension 
+       SET elo_rating = ?, 
+           total_wins = total_wins + 1,
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
       [newWinnerRating, winnerId]
     );
 
+    // Update loser: increment matches_played and set new ELO
     await query(
-      `UPDATE users_extension SET rating = ?, total_games = total_games + 1, losses = losses + 1 WHERE id = ?`,
+      `UPDATE users_extension 
+       SET elo_rating = ?, 
+           total_losses = total_losses + 1,
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
       [newLoserRating, loserId]
     );
 
-    console.log(`✅ [ELO] Ratings updated for match: ${matchId}`);
+    // Get new ranking positions after ELO update
+    const winnerRankingAfter = await getPlayerRankingPosition(winnerId);
+    const loserRankingAfter = await getPlayerRankingPosition(loserId);
+
+    // Calculate ranking changes (negative = improved ranking, positive = worsened)
+    const winnerRankingChange = winnerRankingAfter !== null && winnerRankingBefore !== null 
+      ? winnerRankingAfter - winnerRankingBefore 
+      : null;
+    const loserRankingChange = loserRankingAfter !== null && loserRankingBefore !== null 
+      ? loserRankingAfter - loserRankingBefore 
+      : null;
+
+    console.log(`📊 [RANKING] Winner: ${winnerRankingBefore} → ${winnerRankingAfter} (${winnerRankingChange === null ? 'N/A' : (winnerRankingChange > 0 ? '+' : '')+winnerRankingChange})`);
+    console.log(`📊 [RANKING] Loser: ${loserRankingBefore} → ${loserRankingAfter} (${loserRankingChange === null ? 'N/A' : (loserRankingChange > 0 ? '+' : '')+loserRankingChange})`);
+
+    // Update match with after-match ELO ratings, levels, and ranking changes
+    await query(
+      `UPDATE matches 
+       SET winner_elo_after = ?,
+           loser_elo_after = ?,
+           winner_level_after = ?,
+           loser_level_after = ?,
+           winner_ranking_pos = ?,
+           loser_ranking_pos = ?,
+           winner_ranking_change = ?,
+           loser_ranking_change = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [newWinnerRating, newLoserRating, newWinnerLevel, newLoserLevel, winnerRankingAfter, loserRankingAfter, winnerRankingChange, loserRankingChange, matchId]
+    );
+
+    console.log(`✅ [ELO] Ratings and rankings updated for match: ${matchId}`);
 
   } catch (error) {
     const errorMsg = (error as any)?.message || String(error);

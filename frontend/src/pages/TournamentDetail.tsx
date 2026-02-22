@@ -401,40 +401,16 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     const filename = replayFilePath.split('/').pop() || `replay_${matchId || 'tournament'}`;
     const API_URL = getApiUrl();
     
-    let signedUrl: string;
-    let response: Response;
-    let data: any;
-    
+    // Increment download counts
     if (matchId) {
-      // For ranked tournaments (with match_id), get signed URL from matches endpoint
-      response = await fetch(`${API_URL}/matches/${matchId}/replay/download`);
-      if (!response.ok) {
-        console.error(`Ranked replay error: ${response.status} ${response.statusText}`);
-        throw new Error('Failed to get download link');
-      }
-      data = await response.json();
-      signedUrl = data.signedUrl;
-      
-      // Increment download count for ranked
+      // For ranked tournaments (with match_id), increment from matches endpoint
       try {
         await fetch(`${API_URL}/matches/${matchId}/replay/download-count`, { method: 'POST' });
       } catch (e) {
         console.error('Failed to increment download count:', e);
       }
     } else {
-      // For unranked/team tournaments (no match_id), generate signed URL for direct path
-      console.log('Requesting signed URL for unranked replay:', replayFilePath);
-      response = await fetch(`${API_URL}/public/replay/download-url?path=${encodeURIComponent(replayFilePath)}`);
-      if (!response.ok) {
-        console.error(`Unranked replay error: ${response.status} ${response.statusText}`);
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        throw new Error('Failed to get download link');
-      }
-      data = await response.json();
-      signedUrl = data.signedUrl;
-      
-      // Increment download count for unranked/team
+      // For unranked/team tournaments (no match_id), increment from tournament endpoint
       if (tournamentMatchId) {
         try {
           await fetch(`${API_URL}/public/tournament-matches/${tournamentMatchId}/replay/download-count`, { method: 'POST' });
@@ -444,10 +420,11 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       }
     }
     
-    // Download using the signed URL
+    // Use the replay_file_path HTTPS URL directly
     const link = document.createElement('a');
-    link.href = signedUrl;
+    link.href = replayFilePath;
     link.download = filename;
+    link.target = '_blank';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

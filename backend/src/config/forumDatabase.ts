@@ -224,6 +224,32 @@ export async function getTournamentAddonVersion(
 }
 
 /**
+ * Get map/scenario name for a game
+ * Queries wesnothd_game_content_info for type='scenario'
+ * 
+ * @param instanceUuid - Game instance UUID
+ * @param gameId - Game ID
+ * @returns Scenario name or null if not found
+ */
+export async function getGameScenarioName(
+  instanceUuid: string,
+  gameId: number
+): Promise<string | null> {
+  try {
+    const results = await queryForum(
+      `SELECT NAME FROM wesnothd_game_content_info
+       WHERE INSTANCE_UUID = ? AND GAME_ID = ? AND TYPE = 'scenario'`,
+      [instanceUuid, gameId]
+    );
+
+    return results.length > 0 ? results[0].NAME : null;
+  } catch (error) {
+    console.error('Error getting game scenario name:', error);
+    return null;
+  }
+}
+
+/**
  * Close forum database connection pool
  * Should be called on application shutdown
  */

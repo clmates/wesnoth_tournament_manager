@@ -318,27 +318,23 @@ const User: React.FC = () => {
                       onOpenConfirmation={openConfirmation}
                       onDownloadReplay={async (matchId, replayFilePath) => {
                         try {
-                          let API_URL: string;
-                          if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-                            API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-                          } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-                            API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
-                          } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-                            API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
-                          } else {
-                            API_URL = '/api';
-                          }
+                          if (!replayFilePath) return;
                           
-                          const response = await fetch(`${API_URL}/matches/${matchId}/replay/download`, {
-                            method: 'GET'
-                          });
+                          // Extract filename from path
+                          const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
                           
-                          if (!response.ok) {
-                            throw new Error(`Download failed with status ${response.status}`);
-                          }
+                          // Increment download count
+                          await matchService.incrementReplayDownloads(matchId);
                           
-                          const { signedUrl } = await response.json();
-                          window.location.href = signedUrl;
+                          // Use the replay_file_path HTTPS URL directly
+                          const link = document.createElement('a');
+                          link.href = replayFilePath;
+                          link.download = filename;
+                          link.target = '_blank';
+                          
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
                         } catch (err) {
                           console.error('Error downloading replay:', err);
                         }
@@ -429,27 +425,23 @@ const User: React.FC = () => {
                       onOpenConfirmation={openConfirmation}
                       onDownloadReplay={async (matchId, replayFilePath) => {
                         try {
-                          let API_URL: string;
-                          if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-                            API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-                          } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-                            API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
-                          } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-                            API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
-                          } else {
-                            API_URL = '/api';
-                          }
+                          if (!replayFilePath) return;
                           
-                          const response = await fetch(`${API_URL}/matches/${matchId}/replay/download`, {
-                            method: 'GET'
-                          });
+                          // Extract filename from path
+                          const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
                           
-                          if (!response.ok) {
-                            throw new Error(`Download failed with status ${response.status}`);
-                          }
+                          // Increment download count
+                          await matchService.incrementReplayDownloads(matchId);
                           
-                          const { signedUrl } = await response.json();
-                          window.location.href = signedUrl;
+                          // Use the replay_file_path HTTPS URL directly
+                          const link = document.createElement('a');
+                          link.href = replayFilePath;
+                          link.download = filename;
+                          link.target = '_blank';
+                          
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
                         } catch (err) {
                           console.error('Error downloading replay:', err);
                         }

@@ -95,31 +95,34 @@ const Home: React.FC = () => {
 
   const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
     try {
+      if (!replayFilePath) {
+        throw new Error('No replay file available');
+      }
+      
       // Extract filename from path
+      const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
+      
       // Increment download count in the database
       await matchService.incrementReplayDownloads(matchId);
       
       // Refresh the matches to update the download count
       await refetchMatches();
       
-      // Fetch signed URL from the backend
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Fetching signed URL from backend...');
-      const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Download URL:', downloadUrl);
-      const response = await fetch(downloadUrl, {
-        method: 'GET'
-      });
-
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Response status:', response.status);
-      if (!response.ok) {
-        throw new Error(`Download failed with status ${response.status}`);
-      }
-
-      // Get signed URL from response and redirect
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Getting signed URL...');
-      const { signedUrl, filename } = await response.json();
-      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Redirecting to signed URL:', signedUrl);
-      window.location.href = signedUrl;
+      // Use the replay_file_path HTTPS URL directly
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('🔽 Downloading from:', replayFilePath);
+      
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement('a');
+      link.href = replayFilePath;
+      link.download = filename;
+      link.target = '_blank';
+      
+      // Append to body, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.log('✅ Download started:', filename);
     } catch (err) {
       console.error('Error downloading replay:', err);
     }

@@ -21,6 +21,83 @@ export interface AssetValidationResult {
 }
 
 /**
+ * Generate map name variants for flexible matching
+ * e.g., "2p — Tombs of Kesorak" → ["2p — Tombs of Kesorak", "Tombs of Kesorak"]
+ * e.g., "4p - The Great Chasm" → ["4p - The Great Chasm", "The Great Chasm"]
+ */
+function getMapNameVariants(mapName: string): string[] {
+  const variants: Set<string> = new Set([mapName]);
+  
+  // Try removing common player count prefixes: "Np —", "Np -", "Np " (where N is 1-6 digits)
+  // Match patterns like: "2p —", "4p -", "1p ", etc.
+  const cleaned = mapName.replace(/^\d+p[\s—\-]+/i, '');
+  if (cleaned !== mapName) {
+    variants.add(cleaned);
+  }
+  
+  return Array.from(variants);
+}
+
+/**
+ * Find a map in database trying multiple name variants
+ */
+async function findMapInDatabase(mapName: string): Promise<any> {
+  const variants = getMapNameVariants(mapName);
+  
+  for (const variant of variants) {
+    const result = await query(
+      `SELECT is_ranked FROM game_maps WHERE name = ? LIMIT 1`,
+      [variant]
+    );
+    
+    if (result && (result as any).rows && (result as any).rows.length > 0) {
+      console.log(`   📍 Map found: "${variant}" (from: "${mapName}")`);
+      return (result as any).rows[0];
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Generate faction name variants for flexible matching
+ * e.g., "Ladder Rebels" → ["Ladder Rebels", "Rebels"]
+ * Removes common addon prefixes to find base faction names
+ */
+function getFactionNameVariants(factionName: string): string[] {
+  const variants: Set<string> = new Set([factionName]);
+  
+  // Remove common addon prefixes: "Ladder ", "Campaign ", etc.
+  const cleaned = factionName.replace(/^(Ladder|Campaign|Ranked|Custom)\s+/i, '');
+  if (cleaned !== factionName) {
+    variants.add(cleaned);
+  }
+  
+  return Array.from(variants);
+}
+
+/**
+ * Find a faction in database trying multiple name variants
+ */
+async function findFactionInDatabase(factionName: string): Promise<any> {
+  const variants = getFactionNameVariants(factionName);
+  
+  for (const variant of variants) {
+    const result = await query(
+      `SELECT is_ranked FROM factions WHERE name = ? LIMIT 1`,
+      [variant]
+    );
+    
+    if (result && (result as any).rows && (result as any).rows.length > 0) {
+      console.log(`   🏛️  Faction found: "${variant}" (from: "${factionName}")`);
+      return (result as any).rows[0];
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Validate that assets (factions and map) meet ranked requirements
  * Returns validation result and reason if invalid
  */
@@ -56,18 +133,16 @@ export async function validateRankedAssets(
       return result;
     }
 
-    // Check winner faction
-    const winnerFactionResult = await query(
-      `SELECT is_ranked FROM factions WHERE name = ? LIMIT 1`,
-      [winnerFactionName]
-    );
+    // Check winner faction with variant matching
+    const winnerFactionRecord = await findFactionInDatabase(winnerFactionName);
 
-    if (!winnerFactionResult || !(winnerFactionResult as any).rows || (winnerFactionResult as any).rows.length === 0) {
+    if (!winnerFactionRecord) {
       result.winnerFactionValid = false;
       result.isValid = false;
-      result.invalidReasons.push(`Winner faction not found in database: ${winnerFactionName}`);
+      const variants = getFactionNameVariants(winnerFactionName);
+      result.invalidReasons.push(`Winner faction not found in database: ${winnerFactionName}${variants.length > 1 ? ` (tried: ${variants.join(', ')})` : ''}`);
     } else {
-      const isRanked = (winnerFactionResult as any).rows[0].is_ranked;
+      const isRanked = winnerFactionRecord.is_ranked;
       if (!isRanked) {
         result.winnerFactionValid = false;
         result.isValid = false;
@@ -75,18 +150,16 @@ export async function validateRankedAssets(
       }
     }
 
-    // Check loser faction
-    const loserFactionResult = await query(
-      `SELECT is_ranked FROM factions WHERE name = ? LIMIT 1`,
-      [loserFactionName]
-    );
+    // Check loser faction with variant matching
+    const loserFactionRecord = await findFactionInDatabase(loserFactionName);
 
-    if (!loserFactionResult || !(loserFactionResult as any).rows || (loserFactionResult as any).rows.length === 0) {
+    if (!loserFactionRecord) {
       result.loserFactionValid = false;
       result.isValid = false;
-      result.invalidReasons.push(`Loser faction not found in database: ${loserFactionName}`);
+      const variants = getFactionNameVariants(loserFactionName);
+      result.invalidReasons.push(`Loser faction not found in database: ${loserFactionName}${variants.length > 1 ? ` (tried: ${variants.join(', ')})` : ''}`);
     } else {
-      const isRanked = (loserFactionResult as any).rows[0].is_ranked;
+      const isRanked = loserFactionRecord.is_ranked;
       if (!isRanked) {
         result.loserFactionValid = false;
         result.isValid = false;
@@ -94,18 +167,16 @@ export async function validateRankedAssets(
       }
     }
 
-    // Check map
-    const mapResult = await query(
-      `SELECT is_ranked FROM maps WHERE name = ? LIMIT 1`,
-      [mapName]
-    );
+    // Check map with variant matching
+    const mapRecord = await findMapInDatabase(mapName);
 
-    if (!mapResult || !(mapResult as any).rows || (mapResult as any).rows.length === 0) {
+    if (!mapRecord) {
       result.mapValid = false;
       result.isValid = false;
-      result.invalidReasons.push(`Map not found in database: ${mapName}`);
+      const variants = getMapNameVariants(mapName);
+      result.invalidReasons.push(`Map not found in database: ${mapName}${variants.length > 1 ? ` (tried: ${variants.join(', ')})` : ''}`);
     } else {
-      const isRanked = (mapResult as any).rows[0].is_ranked;
+      const isRanked = mapRecord.is_ranked;
       if (!isRanked) {
         result.mapValid = false;
         result.isValid = false;
@@ -130,20 +201,17 @@ export async function validateRankedAssets(
 }
 
 /**
- * Check if a specific faction is ranked
+ * Check if a specific faction is ranked (tries multiple name variants)
  */
 export async function isFactionRanked(factionName: string): Promise<boolean> {
   try {
-    const result = await query(
-      `SELECT is_ranked FROM factions WHERE name = ? LIMIT 1`,
-      [factionName]
-    );
+    const factionRecord = await findFactionInDatabase(factionName);
 
-    if (!result || !(result as any).rows || (result as any).rows.length === 0) {
+    if (!factionRecord) {
       return false;
     }
 
-    return (result as any).rows[0].is_ranked === true || (result as any).rows[0].is_ranked === 1;
+    return factionRecord.is_ranked === true || factionRecord.is_ranked === 1;
   } catch (error) {
     console.error(`[VALIDATE] Error checking faction: ${factionName}`, error);
     return false;
@@ -151,20 +219,17 @@ export async function isFactionRanked(factionName: string): Promise<boolean> {
 }
 
 /**
- * Check if a specific map is ranked
+ * Check if a specific map is ranked (tries multiple name variants)
  */
 export async function isMapRanked(mapName: string): Promise<boolean> {
   try {
-    const result = await query(
-      `SELECT is_ranked FROM maps WHERE name = ? LIMIT 1`,
-      [mapName]
-    );
+    const mapRecord = await findMapInDatabase(mapName);
 
-    if (!result || !(result as any).rows || (result as any).rows.length === 0) {
+    if (!mapRecord) {
       return false;
     }
 
-    return (result as any).rows[0].is_ranked === true || (result as any).rows[0].is_ranked === 1;
+    return mapRecord.is_ranked === true || mapRecord.is_ranked === 1;
   } catch (error) {
     console.error(`[VALIDATE] Error checking map: ${mapName}`, error);
     return false;

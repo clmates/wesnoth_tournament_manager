@@ -57,16 +57,28 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
 
   const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
     try {
+      if (!replayFilePath) return;
+      
       if (onDownloadReplay) {
         await onDownloadReplay(matchId, replayFilePath);
         return;
       }
+      
+      // Extract filename from path
+      const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
+      
+      // Increment download count in the database
       await matchService.incrementReplayDownloads(matchId);
-      const downloadUrl = `${API_URL}/matches/${matchId}/replay/download`;
-      const response = await fetch(downloadUrl, { method: 'GET' });
-      if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
-      const { signedUrl } = await response.json();
-      window.location.href = signedUrl;
+      
+      // Use the replay_file_path HTTPS URL directly
+      const link = document.createElement('a');
+      link.href = replayFilePath;
+      link.download = filename;
+      link.target = '_blank';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error('Error downloading replay:', err);
     }
