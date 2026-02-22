@@ -1,39 +1,21 @@
 /**
- * Background Job: Parse New Replays (Refactored for Forum Database)
- * File: backend/src/jobs/parseNewReplaysRefactored.ts
- * 
- * Purpose: Background job that runs every 30 seconds to:
- * 1. Find unparsed replays from forum database integration (parse_status = 'new')
- * 2. Parse replay file (minimal - victory conditions only)
- * 3. Extract confidence level from victory conditions
- * 4. Create or update match record
- * 5. Apply ELO ratings immediately if confidence=2
- * 
- * Execution Model:
- * - Runs every 30 seconds (non-blocking)
- * - Process multiple replays in batch (up to configured batch size)
- * - Logs all operations to console
- * - Resilient to errors (continues with next replay on failure)
+ * Background Job: Parse New Replays (FORUM-FIRST APPROACH)
+ * File: backend/src/jobs/parseNewReplaysRefactorized.ts
  * 
  * Data Flow:
- * Forum DB (wesnothd_game_*) 
- *   ↓ (syncGamesFromForum job)
- * replays table (parse_status='new', parsed=0)
- *   ↓ (this job)
- * Parse victory conditions from replay URL
- *   ↓
- * matches table (status='reported' for confidence=2, 'pending_report' for confidence=1)
- *   ↓ (if confidence=2)
- * Apply ELO ratings immediately
+ * 1. Query wesnothd_game_content_info for addon confirmation (Ranked addon)
+ * 2. Query wesnothd_game_player_info for player nicknames, sides, factions  
+ * 3. Query wesnothd_game_content_info for scenario/map name
+ * 4. If forum factions are "Custom" → search replay for actual factions
+ * 5. Parse replay file for: ranked_mode, tournament, victory condition
+ * 6. Validate factions and map against assets
+ * 7. Report parse_summary with all detected information
+ * 8. Create match with appropriate confidence level
  */
 
 import { query } from '../config/database.js';
-import { getGameScenarioName } from '../config/forumDatabase.js';
 import ReplayParser from '../services/replayParser.js';
-import { createOrUpdateMatch, ParsedReplay, ParsedVictory } from '../utils/createOrUpdateMatch.js';
 import { parseRankedReplay, ParsedRankedReplay } from '../utils/replayRankedParser.js';
-import { findTournamentByName, verifyPlayersInTournament, findTournamentMatchRecord } from '../utils/tournamentLookup.js';
-import { validateRankedAssets } from '../utils/assetValidator.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -50,20 +32,32 @@ interface UnparsedReplay {
   created_at: string;
 }
 
-export class ParseNewReplaysRefactored {
+interface ParseSummary {
+  forumAddon: any | null;
+  forumPlayers: Array<any>;
+  forumMap: string | null;
+  forumFactions: Record<string, string>;
+  replayRankedMode: boolean;
+  replayTournament: string | null;
+  replayVictory: any | null;
+  replayFactions: Record<string, string | null>;
+  finalFactions: Record<string, string>;
+  finalMap: string | null;
+  confidenceLevel: 1 | 2;
+  matchType: 'ranked' | 'tournament_ranked' | 'tournament_unranked' | 'rejected';
+}
+
+export class ParseNewReplaysRefactorized {
   private readonly parser: ReplayParser;
   private isRunning: boolean = false;
   private lastRunAt: Date | null = null;
-  private successCount: number = 0;
-  private errorCount: number = 0;
 
   constructor() {
     this.parser = new ReplayParser();
   }
 
   /**
-   * Execute one cycle of the parse job
-   * Called every 30 seconds by the scheduler
+   * Execute one cycle of the parse job - Forum-First Approach
    */
   async execute(): Promise<{
     parsed_count: number;
@@ -72,13 +66,8 @@ export class ParseNewReplaysRefactored {
     duration_ms: number;
   }> {
     if (this.isRunning) {
-      console.log('⚠️  [PARSE] Job already running, skipping this cycle');
-      return {
-        parsed_count: 0,
-        match_count: 0,
-        errors: 0,
-        duration_ms: 0
-      };
+      console.log('⚠️  [PARSE] Job already running, skipping');
+      return { parsed_count: 0, match_count: 0, errors: 0, duration_ms: 0 };
     }
 
     const startTime = Date.now();
@@ -90,486 +79,326 @@ export class ParseNewReplaysRefactored {
     let errorCount = 0;
 
     try {
-      console.log('🎬 [PARSE] Starting replay parsing job...');
+      console.log('🎬 [PARSE] Starting forum-first replay parsing...');
 
-      // Get unparsed replays from forum database integration
       const unparsedReplays = await this.getUnparsedReplays();
+      console.log(`📊 [PARSE] Found ${unparsedReplays.length} unparsed replays`);
 
-      if (unparsedReplays.length === 0) {
-        console.log('ℹ️  [PARSE] No unparsed replays');
-        return {
-          parsed_count: 0,
-          match_count: 0,
-          errors: 0,
-          duration_ms: Date.now() - startTime
-        };
-      }
-
-      console.log(`🎬 [PARSE] Found ${unparsedReplays.length} unparsed replays`);
-
-      // Process each replay
       for (const replay of unparsedReplays) {
         try {
-          console.log(`🎬 [PARSE] Processing: ${replay.game_name} (${replay.replay_filename})`);
+          console.log(`\n🎬 [PARSE] Processing: ${replay.game_name} (Replay ${replay.game_id})`);
 
-          // Parse replay file from URL using Ranked addon parser
-          const parsed = await this.parseReplayFromUrl(replay);
+          const parseSummary = await this.parseReplayForumFirst(replay);
 
-          if (!parsed || !parsed.victory) {
-            console.warn(`⚠️  [PARSE] No victory data found for: ${replay.game_name}`);
-            errorCount++;
-            continue;
-          }
-
-          // Extract winner and loser from parsed data
-          const isWinner = (userId: string, players: any[]) => {
-            const player = players.find(p => p.name === userId);
-            return player && player.side === parsed.victory.winner_side;
-          };
-
-          // ============================================================================
-          // LOGIC: Determine if this is ranked or tournament match
-          // ============================================================================
-          
-          let matchType: 'ranked' | 'tournament_ranked' | 'tournament_unranked' | 'rejected' = 'rejected';
-          let tournament: any = null;
-          let teamInfo: any = null;
-          let confidenceLevel: 1 | 2 = 2;
-
-          // Check if addon was found in WML or confirmed at forum DB level
-          const addonConfirmed = parsed.addon.ranked_mode || parsed.addon.addon_found_at_forum;
-
-          // ============================================================================
-          // EARLY: Fetch scenario map name from forum database for asset validation
-          // ============================================================================
-          let scenarioName = replay.game_name;
-          try {
-            const forumScenarioName = await getGameScenarioName(replay.instance_uuid, replay.game_id);
-            if (forumScenarioName) {
-              scenarioName = forumScenarioName;
-              console.log(`   Map: ${scenarioName} (from forum DB)`);
-            } else {
-              console.log(`   Map: ${scenarioName} (fallback to game_name)`);
-            }
-          } catch (err) {
-            console.warn(`   ⚠️  Could not fetch scenario name from forum DB, using game_name`);
-          }
-
-          // Validate assets if addon claims ranked_mode="yes"
-          // (addon_found_at_forum without ranked_mode in WML shouldn't require asset validation)
-          let assetsValidated = false;
-          if (parsed.addon.ranked_mode) {
-            // Only validate assets if ranked_mode was explicitly set in WML
-            const assetValidation = await validateRankedAssets(
-              parsed.victory.winner_faction,
-              parsed.victory.loser_faction,
-              scenarioName // Use forum-sourced scenario name for validation
-            );
-            assetsValidated = assetValidation.isValid;
-
-            if (assetsValidated) {
-              // Assets valid for ranked
-              console.log(`✅ [PARSE] Valid ranked match with correct assets`);
-              matchType = 'ranked';
-              confidenceLevel = 2;
-            } else {
-              // Assets invalid for ranked
-              console.warn(`⚠️  [PARSE] Ranked addon marked but assets invalid:`);
-              assetValidation.invalidReasons.forEach(r => console.warn(`   - ${r}`));
-              
-              // Check if there's a tournament we can fallback to
-              if (parsed.addon.tournament && parsed.addon.tournament_name) {
-                console.log(`   Checking tournament fallback...`);
-                tournament = await findTournamentByName(parsed.addon.tournament_name);
-                
-                if (tournament && tournament.tournamentMode === 'unranked') {
-                  console.log(`✅ [PARSE] Will report to unranked tournament: ${tournament.tournamentName}`);
-                  matchType = 'tournament_unranked';
-                  confidenceLevel = 1;
-                } else if (tournament && tournament.tournamentMode === 'ranked') {
-                  console.log(`❌ [PARSE] Ranked tournament but assets invalid → REJECT`);
-                  matchType = 'rejected';
-                } else {
-                  console.log(`❌ [PARSE] No valid tournament → REJECT`);
-                  matchType = 'rejected';
-                }
-              } else if (parsed.addon.addon_found_at_forum) {
-                // Addon found at forum DB even with invalid assets - allow as unranked
-                console.log(`⚠️  [PARSE] Addon found at forum but assets invalid → Report as unranked`);
-                matchType = 'tournament_unranked';
-                confidenceLevel = 1;
-              } else {
-                console.log(`❌ [PARSE] No tournament to fallback → REJECT`);
-                matchType = 'rejected';
-              }
-            }
-          }
-          // Case 2: Tournament match without ranked_mode claim
-          else if (parsed.addon.tournament && parsed.addon.tournament_name) {
-            console.log(`🎬 [PARSE] Tournament match (no ranked claim)`);
-            tournament = await findTournamentByName(parsed.addon.tournament_name);
-            
-            if (tournament) {
-              matchType = tournament.tournamentMode === 'ranked' ? 'tournament_ranked' : 'tournament_unranked';
-              confidenceLevel = 1;
-              console.log(`✅ [PARSE] Found tournament: ${tournament.tournamentName} (${tournament.tournamentMode})`);
-            } else {
-              console.log(`❌ [PARSE] Tournament not found → REJECT`);
-              matchType = 'rejected';
-            }
-          }
-          // Case 3: No ranked addon details in WML, but forum DB confirms addon is installed
-          // If forum confirms ranked addon is installed, trust that
-          else if (parsed.addon.addon_found_at_forum && tournament?.tournamentMode === 'ranked') {
-            // Addon exists at forum and is ranked tournament mode
-            // Don't mark as unranked just because WML parsing couldn't extract scenario_data
-            // The addon IS there according to forum DB
-            console.log(`✅ [PARSE] Addon confirmed at forum DB (ranked mode) - treating as ranked pending validation`);
-            matchType = 'tournament_ranked';
-            confidenceLevel = 1; // Pending asset validation
-          }
-          // Case 4: No tournament, addon found in forum but not confirmed as ranked
-          else if (parsed.addon.addon_found_at_forum) {
-            // Addon was found in forum DB but we can't confirm it's ranked
-            // Treat as unranked for now since we can't validate
-            console.log(`⚠️  [PARSE] Addon found at forum but cannot confirm ranked status → Report as unranked`);
-            matchType = 'tournament_unranked';
-            confidenceLevel = 1;
-          }
-          // Case 5: No addon anywhere
-          else {
-            console.log(`❌ [PARSE] No ranked addon and no tournament → REJECT`);
-            matchType = 'rejected';
-          }
-
-          // Skip if rejected
-          if (matchType === 'rejected') {
-            console.log(`⏭️  [PARSE] Skipping rejected match`);
-            
+          if (parseSummary.matchType === 'rejected') {
+            console.log(`❌ [PARSE] Match rejected → Update replay as rejected`);
             await query(
-              `UPDATE replays SET parse_status = 'rejected', parsed = 1 WHERE id = ?`,
-              [replay.id]
+              `UPDATE replays SET parse_status = 'rejected', parsed = 1, parse_summary = ? WHERE id = ?`,
+              [JSON.stringify(parseSummary), replay.id]
             );
-            
             errorCount++;
             continue;
           }
 
-          // ============================================================================
-          // VALIDATE PARTICIPANTS for tournament matches
-          // ============================================================================
-          if (matchType.includes('tournament') && tournament) {
-            const playerCount = parsed.players.length;
-
-            if (playerCount === 2) {
-              // 1v1 match
-              const verification = await verifyPlayersInTournament(
-                tournament.tournamentId,
-                parsed.victory.winner_name,
-                parsed.victory.loser_name
-              );
-
-              if (!verification.valid) {
-                console.warn(`❌ [PARSE] 1v1 Tournament match but players not both registered`);
-                matchType = 'rejected';
-              } else if (verification.player1Id && verification.player2Id) {
-                const tournamentMatchId = await findTournamentMatchRecord(
-                  tournament.tournamentId,
-                  verification.player1Id,
-                  verification.player2Id
-                );
-
-                if (tournamentMatchId) {
-                  teamInfo = { tournamentMatchId, players: [verification.player1Id, verification.player2Id] };
-                  console.log(`✅ [PARSE] Linked to 1v1 tournament match`);
-                } else {
-                  console.warn(`⚠️  [PARSE] No pending tournament match found for these players`);
-                }
-              }
-            } else if (playerCount === 4) {
-              // 2v2 team match
-              console.log(`🎬 [PARSE] Detected 2v2 team match (4 players)`);
-
-              const playerNames = parsed.players.map(p => p.name);
-              const allInTournamentResult = await query(
-                `SELECT COUNT(*) as count FROM tournament_participants tp
-                 JOIN users_extension ue ON tp.user_id = ue.id
-                 WHERE tp.tournament_id = ? AND ue.username IN (?, ?, ?, ?)`,
-                [tournament.tournamentId, ...playerNames]
-              );
-
-              const allInCount = (allInTournamentResult as any).rows[0]?.count || 0;
-              if (allInCount !== 4) {
-                console.warn(`❌ [PARSE] Team match but not all 4 players in tournament (found ${allInCount}/4)`);
-                matchType = 'rejected';
-              } else {
-                // Get team IDs for each side
-                const side1Players = parsed.players.filter(p => p.side === 1);
-                const side2Players = parsed.players.filter(p => p.side === 2);
-
-                if (side1Players.length === 2 && side2Players.length === 2) {
-                  const side1Name = side1Players[0].name;
-                  const side2Name = side2Players[0].name;
-
-                  const side1TeamResult = await query(
-                    `SELECT DISTINCT tt.id FROM tournament_teams tt
-                     JOIN tournament_participants tp ON tp.team_id = tt.id
-                     JOIN users_extension ue ON tp.user_id = ue.id
-                     WHERE tt.tournament_id = ? AND ue.username = ?
-                     LIMIT 1`,
-                    [tournament.tournamentId, side1Name]
-                  );
-
-                  const side2TeamResult = await query(
-                    `SELECT DISTINCT tt.id FROM tournament_teams tt
-                     JOIN tournament_participants tp ON tp.team_id = tt.id
-                     JOIN users_extension ue ON tp.user_id = ue.id
-                     WHERE tt.tournament_id = ? AND ue.username = ?
-                     LIMIT 1`,
-                    [tournament.tournamentId, side2Name]
-                  );
-
-                  if ((side1TeamResult as any).rows && (side2TeamResult as any).rows) {
-                    teamInfo = {
-                      side1TeamId: (side1TeamResult as any).rows[0].id,
-                      side2TeamId: (side2TeamResult as any).rows[0].id,
-                      players: parsed.players.map(p => ({ name: p.name, side: p.side })),
-                      isTeamMatch: true
-                    };
-                    console.log(`✅ [PARSE] Validated 2v2 team match`);
-                  } else {
-                    console.warn(`⚠️  [PARSE] Could not find team IDs for match`);
-                    matchType = 'rejected';
-                  }
-                } else {
-                  console.warn(`❌ [PARSE] Invalid team distribution (not 2v2)`);
-                  matchType = 'rejected';
-                }
-              }
-            } else {
-              console.warn(`❌ [PARSE] Unsupported player count: ${playerCount}`);
-              matchType = 'rejected';
-            }
-
-            if (matchType === 'rejected') {
-              console.log(`⏭️  [PARSE] Rejecting due to participant validation failure`);
-              
-              await query(
-                `UPDATE replays SET parse_status = 'rejected', parsed = 1 WHERE id = ?`,
-                [replay.id]
-              );
-              errorCount++;
-              continue;
-            }
-          }
-
-          // Convert parsed replay to ReplayData format for createOrUpdateMatch
-          const replayData: ParsedReplay = {
-            id: replay.id,
-            scenario_name: scenarioName,
-            map_name: scenarioName,
-            version: replay.wesnoth_version,
-            era_id: 'unknown',
-            winner_faction: parsed.victory.winner_faction || 'unknown',
-            loser_faction: parsed.victory.loser_faction || 'unknown',
-            victory: {
-              confidence_level: confidenceLevel,
-              result_type: teamInfo?.isTeamMatch ? 'team' : 'one_versus_one',
-              winner_name: parsed.victory.winner_name,
-              winner_faction: parsed.victory.winner_faction || 'unknown',
-              loser_name: parsed.victory.loser_name,
-              loser_faction: parsed.victory.loser_faction || 'unknown'
-            },
-            players: (parsed.players || []).map(p => ({
-              name: p.name,
-              faction_name: p.faction || 'unknown',
-              side_number: p.side
-            })),
-            addons: []
-          };
-
-          // Add tournament info if available
-          if (tournament) {
-            replayData.tournamentId = tournament.tournamentId;
-            replayData.tournamentMode = tournament.tournamentMode;
-            if (teamInfo?.tournamentMatchId) {
-              replayData.tournamentMatchId = teamInfo.tournamentMatchId;
-            }
-          }
-
-          // Log what we're about to create
-          console.log(`📝 [PARSE] Processing match:`);
-          console.log(`   Type: ${matchType}`);
-          console.log(`   Confidence: ${confidenceLevel}`);
-          console.log(`   Result: ${replayData.victory.result_type} (${replayData.players?.length || 0} players)`);
-          if (tournament) {
-            console.log(`   Tournament: ${tournament.tournamentName} (${tournament.tournamentMode})`);
-          }
-
-          // Create or update match
-          const matchResult = await createOrUpdateMatch(replayData);
-
-          console.log(`✅ [PARSE] Match created/updated: ${matchResult.matchId} (status: ${matchResult.status})`);
-
-          // Mark replay as parsed
-          await query(
-            `UPDATE replays 
-             SET parsed = 1, 
-                 parse_status = 'completed',
-                 need_integration = 0
-             WHERE id = ?`,
-            [replay.id]
+          // Create match
+          const matchCreateResult = await this.createMatchFromParseSummary(
+            replay,
+            parseSummary
           );
 
-          parsedCount++;
-          matchCount++;
+          if (matchCreateResult.success) {
+            console.log(`✅ [PARSE] Match created: ID ${matchCreateResult.matchId}`);
+            await query(
+              `UPDATE replays SET parse_status = 'completed', parsed = 1, parse_summary = ? WHERE id = ?`,
+              [JSON.stringify(parseSummary), replay.id]
+            );
+            parsedCount++;
+            matchCount++;
+          } else {
+            console.error(`❌ [PARSE] Failed to create match:`, matchCreateResult.error);
+            await query(
+              `UPDATE replays SET parse_status = 'error', parsed = 1, parse_error_message = ?, parse_summary = ? WHERE id = ?`,
+              [matchCreateResult.error, JSON.stringify(parseSummary), replay.id]
+            );
+            errorCount++;
+          }
 
-        } catch (error) {
-          const errorMsg = (error as any)?.message || String(error);
-          console.error(`❌ [PARSE] Failed to parse ${replay.game_name}:`, errorMsg);
+        } catch (replayError) {
+          const errorMsg = (replayError as any)?.message || String(replayError);
+          console.error(`❌ [PARSE] Error processing replay:`, errorMsg);
 
-          // Check if error is due to replay file not found
-          const isFileNotFound = errorMsg.includes('Replay file not found');
-          
-          if (isFileNotFound) {
-            // Calculate time elapsed since replay was created
-            const createdAt = new Date(replay.created_at);
-            const nowMs = Date.now();
-            const elapsedMs = nowMs - createdAt.getTime();
-            const elapsedHours = elapsedMs / (1000 * 60 * 60);
-            
-            console.log(`⏳ [PARSE] Replay file not found for ${replay.replay_filename}. Elapsed: ${elapsedHours.toFixed(2)} hours`);
+          // Handle file not found with retry logic
+          if (errorMsg.includes('Replay file not found')) {
+            const replayAge = Date.now() - new Date(replay.created_at).getTime();
+            const ageHours = replayAge / (1000 * 60 * 60);
 
-            try {
-              if (elapsedHours < 24) {
-                // Less than 24 hours - mark as pending for retry
-                console.log(`   ⏳ Marking as pending for retry (created less than 24h ago)`);
-                await query(
-                  `UPDATE replays 
-                   SET parse_status = 'pending'
-                   WHERE id = ?`,
-                  [replay.id]
-                );
-              } else {
-                // 24+ hours - mark as error
-                console.log(`   ❌ Marking as error (not found after 24+ hours)`);
-                await query(
-                  `UPDATE replays 
-                   SET parse_status = 'error',
-                       parse_error_message = 'Replay file not found on disk after 24+ hours'
-                   WHERE id = ?`,
-                  [replay.id]
-                );
-                errorCount++;
-              }
-            } catch (e) {
-              console.error('Failed to update replay status:', e);
+            if (ageHours < 24) {
+              // Mark as pending for retry
+              console.log(`   File not found but < 24h old → Mark as pending`);
+              await query(
+                `UPDATE replays SET parse_status = 'pending', parse_error_message = ? WHERE id = ?`,
+                [errorMsg, replay.id]
+              );
+            } else {
+              // Mark as error
+              console.log(`   File not found and >= 24h old → Mark as error`);
+              await query(
+                `UPDATE replays SET parse_status = 'error', parsed = 1, parse_error_message = ? WHERE id = ?`,
+                [errorMsg, replay.id]
+              );
             }
           } else {
-            // Other errors - mark as error immediately
-            errorCount++;
-            try {
-              await query(
-                `UPDATE replays 
-                 SET parse_status = 'error',
-                     parse_error_message = ?
-                 WHERE id = ?`,
-                [errorMsg.substring(0, 500), replay.id]
-              );
-            } catch (e) {
-              console.error('Failed to mark replay as errored:', e);
-            }
+            // Other errors
+            await query(
+              `UPDATE replays SET parse_status = 'error', parsed = 1, parse_error_message = ? WHERE id = ?`,
+              [errorMsg, replay.id]
+            );
           }
+
+          errorCount++;
         }
       }
 
-      console.log(`✅ [PARSE] Completed: ${parsedCount} parsed, ${matchCount} matches`);
-
-      this.successCount += parsedCount;
-      this.errorCount += errorCount;
+      const duration = Date.now() - startTime;
+      console.log(`\n✅ [PARSE] Job completed in ${duration}ms`);
+      console.log(`   Parsed: ${parsedCount}, Matches: ${matchCount}, Errors: ${errorCount}`);
 
       return {
         parsed_count: parsedCount,
         match_count: matchCount,
         errors: errorCount,
-        duration_ms: Date.now() - startTime
+        duration_ms: duration
       };
 
-    } catch (error) {
-      console.error('❌ [PARSE] Job failed:', error);
-      errorCount++;
-      return {
-        parsed_count: 0,
-        match_count: 0,
-        errors: errorCount,
-        duration_ms: Date.now() - startTime
-      };
     } finally {
       this.isRunning = false;
     }
   }
 
   /**
-   * Get unparsed replays from database
-   * Queries replays that were synced from forum but not yet parsed
+   * STEP 1-3: Query forum database for addon, players, map
+   * STEP 5-7: Parse replay for complementary info
+   * Returns complete ParseSummary
    */
-  private async getUnparsedReplays(): Promise<UnparsedReplay[]> {
-    try {
-      const maxConcurrentParses = parseInt(process.env.REPLAY_MAX_CONCURRENT_PARSES || '3', 10);
+  private async parseReplayForumFirst(replay: UnparsedReplay): Promise<ParseSummary> {
+    const parseSummary: ParseSummary = {
+      forumAddon: null,
+      forumPlayers: [],
+      forumMap: null,
+      forumFactions: {},
+      replayRankedMode: false,
+      replayTournament: null,
+      replayVictory: null,
+      replayFactions: {},
+      finalFactions: {},
+      finalMap: null,
+      confidenceLevel: 1,
+      matchType: 'rejected'
+    };
 
-      const result = await query(
-        `SELECT id, instance_uuid, game_id, replay_filename, replay_url, wesnoth_version, game_name, start_time, end_time, created_at
-         FROM replays
-         WHERE parse_status = 'new' 
-           AND parsed = 0
-           AND need_integration = 1
-         ORDER BY created_at ASC
-         LIMIT ?`,
-        [maxConcurrentParses]
-      );
+    // ======== STEP 1: Query forum for addon ========
+    console.log(`📋 [FORUM] Step 1: Checking for Ranked addon...`);
+    const addonResult = await query(
+      `SELECT addon_id, addon_version FROM forum.wesnothd_game_content_info 
+       WHERE instance_uuid = ? AND game_id = ? AND type = 'modification' AND addon_id = 'Ranked' LIMIT 1`,
+      [replay.instance_uuid, replay.game_id]
+    );
 
-      return (result as any).rows || [];
-    } catch (error) {
-      console.error('❌ [PARSE] Failed to get unparsed replays:', error);
-      return [];
+    if ((addonResult as any).rows?.length > 0) {
+      parseSummary.forumAddon = (addonResult as any).rows[0];
+      console.log(`   ✅ Found Ranked addon in forum`);
+    } else {
+      console.log(`   ⚠️  No Ranked addon found in forum`);
+      parseSummary.matchType = 'rejected';
+      return parseSummary;
     }
+
+    // ======== STEP 2: Query forum for players, sides, factions ========
+    console.log(`📋 [FORUM] Step 2: Querying players...`);
+    const playersResult = await query(
+      `SELECT user_id, user_name, faction, side_number 
+       FROM forum.wesnothd_game_player_info 
+       WHERE instance_uuid = ? AND game_id = ? AND user_id != -1 AND user_id IS NOT NULL
+       ORDER BY side_number`,
+      [replay.instance_uuid, replay.game_id]
+    );
+
+    if ((playersResult as any).rows?.length < 2) {
+      console.log(`   ❌ Less than 2 players found in forum`);
+      parseSummary.matchType = 'rejected';
+      return parseSummary;
+    }
+
+    parseSummary.forumPlayers = (playersResult as any).rows;
+    for (const player of parseSummary.forumPlayers) {
+      parseSummary.forumFactions[`side${player.side_number}`] = player.faction;
+      console.log(`   Player: ${player.user_name} (Side ${player.side_number}, Faction: ${player.faction})`);
+    }
+
+    // ======== STEP 3: Query forum for map/scenario ========
+    console.log(`📋 [FORUM] Step 3: Querying map...`);
+    const mapResult = await query(
+      `SELECT name FROM forum.wesnothd_game_content_info 
+       WHERE instance_uuid = ? AND game_id = ? AND type = 'scenario' LIMIT 1`,
+      [replay.instance_uuid, replay.game_id]
+    );
+
+    if ((mapResult as any).rows?.length > 0) {
+      parseSummary.forumMap = (mapResult as any).rows[0].name;
+      console.log(`   ✅ Map: ${parseSummary.forumMap}`);
+    } else {
+      parseSummary.forumMap = replay.game_name;
+      console.log(`   ⚠️  No map in forum, using game_name: ${parseSummary.forumMap}`);
+    }
+
+    // ======== STEP 4: Check if forum factions are "Custom" =========
+    const hasCustomFaction = Object.values(parseSummary.forumFactions)
+      .some(f => f.toLowerCase().includes('custom'));
+
+    // ======== STEPS 5-7: Parse replay file for complementary info ========
+    console.log(`🎬 [REPLAY] Step 5-7: Parsing replay file...`);
+    try {
+      const parsed = await this.parseReplayFromUrl(replay);
+
+      if (parsed) {
+        // Extract ranked_mode and tournament
+        if (parsed.addon) {
+          parseSummary.replayRankedMode = parsed.addon.ranked_mode || false;
+          parseSummary.replayTournament = parsed.addon.tournament_name || null;
+          console.log(`   ranked_mode=${parseSummary.replayRankedMode}, tournament=${parseSummary.replayTournament}`);
+        }
+
+        // Extract victory
+        if (parsed.victory) {
+          parseSummary.replayVictory = parsed.victory;
+          console.log(`   Victory: ${parsed.victory.winner_name} (${parsed.victory.winner_faction}) def ${parsed.victory.loser_name}`);
+        }
+
+        // Extract factions from replay if forum had "Custom"
+        if (hasCustomFaction && parsed.victory) {
+          parseSummary.replayFactions.winner = parsed.victory.winner_faction || null;
+          parseSummary.replayFactions.loser = parsed.victory.loser_faction || null;
+          console.log(`   Using replay factions (forum has Custom): ${parseSummary.replayFactions.winner} vs ${parseSummary.replayFactions.loser}`);
+        } else {
+          // Use forum factions
+          parseSummary.finalFactions = { ...parseSummary.forumFactions };
+        }
+      }
+    } catch (err) {
+      console.warn(`⚠️  Could not parse replay file:`, err);
+    }
+
+    // ======== DETERMINE CONFIDENCE LEVEL ========
+    console.log(`🎯 [PARSE] Determining confidence level...`);
+    if (parseSummary.replayVictory) {
+      parseSummary.confidenceLevel = 2;
+      console.log(`   ✅ Clear victory found → confidence=2`);
+    } else {
+      parseSummary.confidenceLevel = 1;
+      console.log(`   ⚠️  No clear victory (abandonment/draw) → confidence=1`);
+    }
+
+    // ======== DETERMINE MATCH TYPE ========
+    if (parseSummary.forumAddon) {
+      parseSummary.matchType = 'ranked';
+      console.log(`📊 Match type: RANKED (addon in forum)`);
+    }
+
+    return parseSummary;
   }
 
   /**
-   * Parse replay file from official Wesnoth replay server
-   * Downloads replay from URL and parses using Ranked addon parser
-   * URL format: https://replays.wesnoth.org/{version}/{year}/{month}/{day}/{replay_name}.wrz
+   * Create match in database from ParseSummary
    */
-  private async parseReplayFromUrl(replay: UnparsedReplay): Promise<ParsedRankedReplay> {
+  private async createMatchFromParseSummary(
+    replay: UnparsedReplay,
+    parseSummary: ParseSummary
+  ): Promise<{ success: boolean; matchId?: number; error?: string }> {
     try {
-      console.log(`🎬 [PARSE] Fetching replay from URL: ${replay.replay_url}`);
-
-      // Download replay file from official server
-      const replayPath = await this.downloadReplayFile(replay.replay_url, replay.wesnoth_version);
-
-      // Parse using Ranked addon parser
-      // Pass instance_uuid and game_id for forum database lookups
-      const parsed = await parseRankedReplay(replayPath, replay.instance_uuid, replay.game_id);
-
-      // Cleanup downloaded file
-      try {
-        fs.unlinkSync(replayPath);
-      } catch (e) {
-        console.warn('⚠️  [PARSE] Could not clean up temp file:', replayPath);
+      if (parseSummary.forumPlayers.length < 2) {
+        return { success: false, error: 'Insufficient players in parse summary' };
       }
 
-      return parsed;
+      const winner = parseSummary.forumPlayers[0];
+      const loser = parseSummary.forumPlayers[1];
+      const winnerFaction = parseSummary.forumFactions['side1'] || 'Unknown';
+      const loserFaction = parseSummary.forumFactions['side2'] || 'Unknown';
 
-    } catch (error) {
-      const errorMsg = (error as any)?.message || String(error);
-      console.error(`❌ [PARSE] Failed to parse replay from URL:`, errorMsg);
-      throw error;
+      console.log(`\n📝 Creating match:`);
+      console.log(`   Winner: ${winner.user_name} (ID ${winner.user_id}, ${winnerFaction})`);
+      console.log(`   Loser: ${loser.user_name} (ID ${loser.user_id}, ${loserFaction})`);
+      console.log(`   Map: ${parseSummary.forumMap}`);
+      console.log(`   Confidence: ${parseSummary.confidenceLevel}`);
+      console.log(`   Type: ${parseSummary.matchType}`);
+
+      const result = await query(
+        `INSERT INTO matches (
+          winner_id, loser_id, winner_faction, loser_faction, map_name,
+          confidence_level, status, match_type, replay_id, parse_summary, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 'reported', ?, ?, ?, NOW())`,
+        [
+          winner.user_id,
+          loser.user_id,
+          winnerFaction,
+          loserFaction,
+          parseSummary.forumMap,
+          parseSummary.confidenceLevel,
+          parseSummary.matchType,
+          replay.id,
+          JSON.stringify(parseSummary)
+        ]
+      );
+
+      const matchId = (result as any).insertId;
+      return { success: true, matchId };
+
+    } catch (err) {
+      const errorMsg = (err as any)?.message || String(err);
+      return { success: false, error: errorMsg };
     }
   }
 
   /**
-   * Download replay file from local Wesnoth replay directory
-   * The replays are stored at /scratch/wesnothd-public-replays/
+   * Get unparsed replays from database
+   */
+  private async getUnparsedReplays(): Promise<UnparsedReplay[]> {
+    const result = await query(
+      `SELECT id, instance_uuid, game_id, replay_filename, replay_url, 
+              wesnoth_version, game_name, start_time, end_time, created_at
+       FROM replays
+       WHERE parse_status = 'new' AND parsed = 0
+       ORDER BY created_at ASC
+       LIMIT 50`,
+      []
+    );
+
+    return ((result as any).rows || []) as UnparsedReplay[];
+  }
+
+  /**
+   * Parse replay from URL (download + parse)
+   */
+  private async parseReplayFromUrl(replay: UnparsedReplay): Promise<ParsedRankedReplay | null> {
+    try {
+      const localPath = await this.downloadReplayFile(replay.replay_url, replay.wesnoth_version);
+      const compression = localPath.endsWith('.bz2') ? 'bz2' : 'gz';
+      const parsed = await parseRankedReplay(localPath, compression);
+
+      // Clean up
+      try {
+        fs.unlinkSync(localPath);
+      } catch {}
+
+      return parsed;
+    } catch (err) {
+      const errorMsg = (err as any)?.message || String(err);
+      console.warn(`⚠️  [PARSE] Failed to parse replay:`, errorMsg);
+      throw err;
+    }
+  }
+
+  /**
+   * Download replay file from local Wesnoth directory
    */
   private async downloadReplayFile(url: string, version: string): Promise<string> {
     try {
@@ -578,36 +407,29 @@ export class ParseNewReplaysRefactored {
         fs.mkdirSync(tmpDir, { recursive: true });
       }
 
-      // Extract relative path from URL (version/year/month/day/filename)
-      // URL format: https://replays.wesnoth.org/1.18/2026/02/21/filename.bz2
+      // Extract path components from URL
+      // Format: https://replays.wesnoth.org/1.18/2026/02/21/filename.bz2
       const urlParts = url.split('/');
-      const filename = urlParts[urlParts.length - 1]; // filename.bz2
+      const filename = urlParts[urlParts.length - 1];
       const day = urlParts[urlParts.length - 2];
       const month = urlParts[urlParts.length - 3];
       const year = urlParts[urlParts.length - 4];
-      const urlVersion = urlParts[urlParts.length - 5]; // version like 1.18
+      const urlVersion = urlParts[urlParts.length - 5];
 
-      // Build local path
-      const localReplayPath = `/scratch/wesnothd-public-replays/${urlVersion}/${year}/${month}/${day}/${filename}`;
+      const localPath = `/scratch/wesnothd-public-replays/${urlVersion}/${year}/${month}/${day}/${filename}`;
 
-      console.log(`🎬 [PARSE] Looking for replay: ${localReplayPath}`);
-
-      // Check if file exists locally
-      if (!fs.existsSync(localReplayPath)) {
-        throw new Error(`Replay file not found: ${localReplayPath}`);
+      if (!fs.existsSync(localPath)) {
+        throw new Error(`Replay file not found: ${localPath}`);
       }
 
-      // Copy to temporary directory
-      const tmpLocalPath = path.join(tmpDir, `${Date.now()}_${filename}`);
-      fs.copyFileSync(localReplayPath, tmpLocalPath);
+      const tmpPath = path.join(tmpDir, `${Date.now()}_${filename}`);
+      fs.copyFileSync(localPath, tmpPath);
 
-      console.log(`✅ [PARSE] Copied replay to: ${tmpLocalPath}`);
-      return tmpLocalPath;
+      console.log(`   ✅ Downloaded: ${tmpPath}`);
+      return tmpPath;
 
-    } catch (error) {
-      const errorMsg = (error as any)?.message || String(error);
-      console.error(`❌ [PARSE] Failed to get replay file:`, errorMsg);
-      throw error;
+    } catch (err) {
+      throw err;
     }
   }
 
@@ -617,11 +439,9 @@ export class ParseNewReplaysRefactored {
   getStatus() {
     return {
       isRunning: this.isRunning,
-      lastRunAt: this.lastRunAt,
-      successCount: this.successCount,
-      errorCount: this.errorCount
+      lastRunAt: this.lastRunAt
     };
   }
 }
 
-export default ParseNewReplaysRefactored;
+export default ParseNewReplaysRefactorized;
