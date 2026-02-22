@@ -137,7 +137,7 @@ export class SyncGamesFromForumJob {
 
           // Create replay record
           const replayId = uuidv4();
-          const replayUrl = `https://replays.wesnoth.org/${game.wesnoth_version}/${this.formatDate(new Date(game.end_time))}/${game.replay_filename}.wrz`;
+          const replayUrl = `https://replays.wesnoth.org/${game.wesnoth_version}/${this.formatDate(new Date(game.end_time))}/${game.replay_filename}`;
 
           console.log(`✅ [FORUM SYNC] Creating replay record: ${replayId}`);
 

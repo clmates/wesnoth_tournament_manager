@@ -477,8 +477,8 @@ export class ParseNewReplaysRefactored {
   }
 
   /**
-   * Download replay file from official Wesnoth replay server
-   * Returns local path where file is stored temporarily
+   * Download replay file from local Wesnoth replay directory
+   * The replays are stored at /scratch/wesnothd-public-replays/
    */
   private async downloadReplayFile(url: string, version: string): Promise<string> {
     try {
@@ -487,24 +487,35 @@ export class ParseNewReplaysRefactored {
         fs.mkdirSync(tmpDir, { recursive: true });
       }
 
-      const filename = path.basename(url);
-      const localPath = path.join(tmpDir, `${Date.now()}_${filename}`);
+      // Extract relative path from URL (version/year/month/day/filename)
+      // URL format: https://replays.wesnoth.org/1.18/2026/02/21/filename.bz2
+      const urlParts = url.split('/');
+      const filename = urlParts[urlParts.length - 1]; // filename.bz2
+      const day = urlParts[urlParts.length - 2];
+      const month = urlParts[urlParts.length - 3];
+      const year = urlParts[urlParts.length - 4];
+      const urlVersion = urlParts[urlParts.length - 5]; // version like 1.18
 
-      // For now, return a placeholder path
-      // In production, would need to fetch from https://replays.wesnoth.org/...
-      console.log(`🎬 [PARSE] Would download: ${url} → ${localPath}`);
+      // Build local path
+      const localReplayPath = `/scratch/wesnothd-public-replays/${urlVersion}/${year}/${month}/${day}/${filename}`;
 
-      // Temporary: assume file exists locally (during testing)
-      // In production, implement actual HTTP download
-      if (!fs.existsSync(localPath)) {
-        throw new Error(`Replay file not found: ${url}`);
+      console.log(`🎬 [PARSE] Looking for replay: ${localReplayPath}`);
+
+      // Check if file exists locally
+      if (!fs.existsSync(localReplayPath)) {
+        throw new Error(`Replay file not found: ${localReplayPath}`);
       }
 
-      return localPath;
+      // Copy to temporary directory
+      const tmpLocalPath = path.join(tmpDir, `${Date.now()}_${filename}`);
+      fs.copyFileSync(localReplayPath, tmpLocalPath);
+
+      console.log(`✅ [PARSE] Copied replay to: ${tmpLocalPath}`);
+      return tmpLocalPath;
 
     } catch (error) {
       const errorMsg = (error as any)?.message || String(error);
-      console.error(`❌ [PARSE] Failed to download replay:`, errorMsg);
+      console.error(`❌ [PARSE] Failed to get replay file:`, errorMsg);
       throw error;
     }
   }
