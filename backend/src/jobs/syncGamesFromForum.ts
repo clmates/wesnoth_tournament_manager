@@ -82,15 +82,16 @@ export class SyncGamesFromForumJob {
       }
 
       console.log(`🌐 [FORUM SYNC] Last check timestamp: ${lastCheckTimestamp.toISOString()}`);
+      console.log(`🌐 [FORUM SYNC] Starting to process games from: ${lastCheckTimestamp.toISOString()}`);
 
       // Get wesnoth version from environment
       const wesnothVersion = process.env.WESNOTH_VERSION || '1.18';
       const syncBatchSize = parseInt(process.env.REPLAY_SYNC_BATCH_SIZE || '1000', 10);
 
-      console.log(`🌐 [FORUM SYNC] Querying forum for games since ${lastCheckTimestamp.toISOString()} (version: ${wesnothVersion})`);
+      console.log(`🌐 [FORUM SYNC] Fetching games since ${lastCheckTimestamp.toISOString()} (version: ${wesnothVersion})`);
 
-      // Fetch new games from forum database
-      const gamesResult = await getNewGamesFromForum(lastCheckTimestamp, syncBatchSize);
+      // Fetch new games from forum database, filtered by wesnoth version
+      const gamesResult = await getNewGamesFromForum(lastCheckTimestamp, syncBatchSize, wesnothVersion);
       
       if (!gamesResult || gamesResult.length === 0) {
         console.log('ℹ️  [FORUM SYNC] No new games found');
@@ -104,13 +105,15 @@ export class SyncGamesFromForumJob {
       // This includes both ranked global matches and tournament-specific matches
       const rankedAddonName = 'Ranked';
 
+      let processedWithAddon = 0;
+      let skippedWithoutAddon = 0;
+      let skippedDuplicateNicknames = 0;
+
       // Process each game
       for (const game of gamesResult) {
         try {
           const instanceUuid = game.INSTANCE_UUID;
           const gameId = game.GAME_ID;
-
-          console.log(`🌐 [FORUM SYNC] Processing game: ${game.game_name} (${instanceUuid}:${gameId})`);
 
           // Check if game already exists in replays table
           const existsResult = await query(
@@ -120,15 +123,45 @@ export class SyncGamesFromForumJob {
           );
 
           if (existsResult && (existsResult as any).rows && (existsResult as any).rows.length > 0) {
-            console.log(`ℹ️  [FORUM SYNC] Game already in database: ${game.game_name}`);
-            continue;
+            continue; // Skip silently if already processed
           }
 
           // Check if tournament addon is present in this game
           const hasRankedAddon = await hasGameTournamentAddon(instanceUuid, gameId, rankedAddonName);
 
           if (!hasRankedAddon) {
-            console.log(`ℹ️  [FORUM SYNC] Ranked addon not found for: ${game.game_name}`);
+            skippedWithoutAddon++;
+            continue; // Skip silently if no addon (don't log to reduce noise)
+          }
+
+          // Detect temporary replays (Turn 1 scenario selection rounds)
+          // These have "Turn_1_" in the filename and are followed by another game with game_id+1
+          if (game.replay_filename.includes('Turn_1_')) {
+            // Check if the next game_id already exists in tournament replays table
+            const nextGameResult = await query(
+              `SELECT id FROM replays 
+               WHERE instance_uuid = ? AND game_id = ?`,
+              [instanceUuid, gameId + 1]
+            );
+            
+            if (nextGameResult && (nextGameResult as any).rows && (nextGameResult as any).rows.length > 0) {
+              console.log(`⚠️  [FORUM SYNC] Skipped (temporary Turn_1 replay): ${game.game_name} - This is a scenario selection round`);
+              continue;
+            }
+          }
+
+          // Log only games that have the addon
+          console.log(`🌐 [FORUM SYNC] Processing: ${game.game_name} (${instanceUuid}:${gameId})`);
+
+          // Get game players and check for duplicate nicknames
+          const playersResult = await getGamePlayers(instanceUuid, gameId);
+          const playerNicknames = playersResult.map((p: any) => p.username || p.name);
+          const uniqueNicknames = new Set(playerNicknames);
+
+          // If duplicate nicknames detected, skip this game
+          if (uniqueNicknames.size !== playerNicknames.length) {
+            console.log(`⚠️  [FORUM SYNC] Skipped (duplicate nicknames): ${game.game_name} - Same player appears multiple times`);
+            skippedDuplicateNicknames++;
             continue;
           }
 
@@ -138,8 +171,6 @@ export class SyncGamesFromForumJob {
           // Create replay record
           const replayId = uuidv4();
           const replayUrl = `https://replays.wesnoth.org/${game.wesnoth_version}/${this.formatDate(new Date(game.end_time))}/${game.replay_filename}`;
-
-          console.log(`✅ [FORUM SYNC] Creating replay record: ${replayId}`);
 
           await query(
             `INSERT INTO replays (
@@ -154,7 +185,7 @@ export class SyncGamesFromForumJob {
               end_time,
               oos,
               is_reload,
-              detection_confidence,
+              integration_confidence,
               detected_from,
               replay_url,
               parse_status,
@@ -176,7 +207,7 @@ export class SyncGamesFromForumJob {
               game.end_time,
               (game.oos ? 1 : 0), // Ensure boolean/0 or 1
               (game.is_reload ? 1 : 0), // Ensure boolean/0 or 1
-              2, // Default confidence from forum
+              0, // integration_confidence: 0 = unconfirmed, needs parsing and verification
               'forum',
               replayUrl,
               'new', // pending initial parse
@@ -185,8 +216,8 @@ export class SyncGamesFromForumJob {
             ]
           );
 
-          this.successCount++;
-          console.log(`✅ [FORUM SYNC] Replay created: ${game.game_name}`);
+          processedWithAddon++;
+          console.log(`✅ [FORUM SYNC] Created replay: ${game.game_name}`);
 
         } catch (error) {
           this.errorCount++;
@@ -197,7 +228,8 @@ export class SyncGamesFromForumJob {
         }
       }
 
-      console.log(`✅ [FORUM SYNC] Processed ${this.successCount} games successfully (${this.errorCount} errors)`);
+      console.log(`✅ [FORUM SYNC] Processed ${processedWithAddon} games with addon, ${skippedWithoutAddon} without addon, ${skippedDuplicateNicknames} with duplicate nicknames`);
+      console.log(`❌ [FORUM SYNC] ${this.errorCount} errors during processing`);
 
       // Update last check timestamp
       await this.updateLastCheckTimestamp();

@@ -29,6 +29,7 @@ export interface RankedAddonConfig {
   ranked_mode: boolean;
   tournament: boolean;
   tournament_name?: string;
+  addon_found_at_forum?: boolean; // Set to true if addon was confirmed in forum DB but not found in WML
 }
 
 export interface SurrenderEvent {
@@ -87,8 +88,18 @@ export async function parseRankedReplay(
       throw new Error('Failed to decompress replay file');
     }
 
+    console.log(`📄 [RANKED PARSE] Decompressed ${wmlContent.length} bytes`);
+
     // Parse WML content
     const parsed = parseWml(wmlContent);
+    
+    console.log(`📊 [RANKED PARSE] Parsed WML structure keys:`, Object.keys(parsed).join(', '));
+    
+    // Debug: Check if carryover_sides_start exists
+    if ((parsed as any).carryover_sides_start) {
+      const carryoverKeys = Object.keys((parsed as any).carryover_sides_start).filter((k: string) => !k.startsWith('_'));
+      console.log(`   carryover_sides_start contains: ${carryoverKeys.slice(0, 10).join(', ')}${carryoverKeys.length > 10 ? '...' : ''}`);
+    }
 
     // Extract addon configuration
     const addon = extractAddonConfig(parsed);
@@ -135,11 +146,14 @@ async function decompressReplay(replayPath: string): Promise<string> {
   try {
     const filename = path.basename(replayPath);
     const fileBuffer = fs.readFileSync(replayPath);
+    console.log(`📥 [DECOMPRESS] File: ${filename}, Size: ${fileBuffer.length} bytes`);
+    
     let wmlText: string;
 
     // Detect format by file extension
     if (filename.endsWith('.bz2')) {
       // BZ2 decompression using bz2 module
+      console.log(`🔍 [DECOMPRESS] Detected BZ2 format, attempting decompression...`);
       const bz2Module = await import('bz2');
       let decompress = bz2Module.decompress || bz2Module.default?.decompress;
       
@@ -153,17 +167,22 @@ async function decompressReplay(replayPath: string): Promise<string> {
 
       const decompressedData = decompress(fileBuffer);
       wmlText = Buffer.from(decompressedData).toString('utf-8');
+      console.log(`✅ [DECOMPRESS] BZ2 decompressed successfully: ${wmlText.length} bytes`);
     } else if (filename.endsWith('.gz') || filename.endsWith('.rpy.gz')) {
       // GZIP decompression
+      console.log(`🔍 [DECOMPRESS] Detected GZIP format`);
       wmlText = zlib.gunzipSync(fileBuffer).toString('utf-8');
+      console.log(`✅ [DECOMPRESS] GZIP decompressed successfully: ${wmlText.length} bytes`);
     } else {
       // Try direct read (uncompressed or unknown format)
+      console.log(`⚠️  [DECOMPRESS] Unknown format, attempting direct read`);
       wmlText = fileBuffer.toString('utf-8');
     }
 
     return wmlText;
   } catch (error) {
     const errorMsg = (error as any)?.message || String(error);
+    console.error(`❌ [DECOMPRESS] Failed:`, errorMsg);
     throw new Error(`Failed to decompress replay: ${errorMsg}`);
   }
 }
@@ -187,6 +206,10 @@ function parseWml(content: string): WmlNode {
   const root: WmlNode = {};
   const stack: Array<{ key: string; node: WmlNode }> = [{ key: 'root', node: root }];
 
+  let carryoverSidesStartFound = false;
+  let variablesFound = false;
+  let oldSideFound = false;
+
   for (const line of lines) {
     const trimmed = line.trim();
     
@@ -197,6 +220,12 @@ function parseWml(content: string): WmlNode {
     // Opening section: [name]
     if (trimmed.startsWith('[') && !trimmed.startsWith('[/')) {
       const sectionName = trimmed.slice(1, -1);
+      
+      // Debug tracking
+      if (sectionName === 'carryover_sides_start') carryoverSidesStartFound = true;
+      if (sectionName === 'variables') variablesFound = true;
+      if (sectionName.startsWith('old_side')) oldSideFound = true;
+      
       const newNode: WmlNode = {};
       const current = stack[stack.length - 1].node;
 
@@ -226,6 +255,10 @@ function parseWml(content: string): WmlNode {
     }
   }
 
+  if (carryoverSidesStartFound) console.log(`   [parseWml] Found [carryover_sides_start]`);
+  if (variablesFound) console.log(`   [parseWml] Found [variables]`);
+  if (oldSideFound) console.log(`   [parseWml] Found [old_side*]`);
+
   return root;
 }
 
@@ -235,15 +268,28 @@ function parseWml(content: string): WmlNode {
  */
 function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
   try {
-    // Navigate to scenario-data section
+    // First try: Navigate to scenario.scenario_data
+    let scenarioData: WmlNode | undefined;
+    
     const scenario = wml.scenario as WmlNode | undefined;
-    if (!scenario) {
-      throw new Error('No [scenario] section found');
+    if (scenario) {
+      scenarioData = scenario['scenario_data'] as WmlNode | undefined;
     }
 
-    const scenarioData = scenario['scenario_data'] as WmlNode | undefined;
+    // Second try: Look for scenario_data at root level
     if (!scenarioData) {
-      throw new Error('No scenario_data with addon config found');
+      scenarioData = wml['scenario_data'] as WmlNode | undefined;
+    }
+
+    // If scenario_data not found, return minimal config
+    // The addon presence was already confirmed at forum DB level
+    if (!scenarioData) {
+      console.warn('⚠️  [RANKED PARSE] No scenario_data found in WML (but addon exists at forum DB)');
+      return {
+        ranked_mode: false,
+        tournament: false,
+        addon_found_at_forum: true // Flag to indicate it was found in forum database
+      };
     }
 
     const rankedMode = scenarioData.ranked_mode === 'yes';
@@ -256,7 +302,7 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
       tournament_name: tournament ? tournamentName : undefined
     };
   } catch (error) {
-    console.warn('⚠️  [RANKED PARSE] Could not extract addon config:', error);
+    console.warn('⚠️  [RANKED PARSE] Error extracting addon config:', (error as any)?.message);
     return {
       ranked_mode: false,
       tournament: false
@@ -266,22 +312,160 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
 
 /**
  * Extract player names and factions from WML
+ * Looks for [old_side1], [old_side2], [old_side3], [old_side4], etc. at ROOT level (not inside [scenario])
+ * Falls back to [side] sections inside [scenario] if old_side not found
  */
 function extractPlayers(wml: WmlNode): Array<{ side: number; name: string; faction?: string }> {
   try {
     const players: Array<{ side: number; name: string; faction?: string }> = [];
-    const scenario = wml.scenario as WmlNode | undefined;
 
+    // Debug: Log WML structure at top level
+    const topLevelKeys = Object.keys(wml).filter(key => !key.startsWith('_'));
+    console.log(`🔍 [EXTRACT PLAYERS] WML top-level keys: ${topLevelKeys.join(', ')}`);
+
+    // First attempt: Look for [old_side1], [old_side2], [old_side3], [old_side4], etc. at ROOT level
+    // These are OUTSIDE [scenario], directly in the WML root
+    let foundOldSides = false;
+    console.log(`🔍 [EXTRACT PLAYERS] Searching for old_side at ROOT level...`);
+    for (let sideNum = 1; sideNum <= 10; sideNum++) {
+      const oldSideKey = `old_side${sideNum}`;
+      const oldSide = wml[oldSideKey] as WmlNode | undefined; // Search at ROOT level, not in scenario
+
+      if (!oldSide) {
+        // Stop when we don't find the next side
+        if (sideNum > 1) {
+          break;
+        }
+        continue;
+      }
+
+      foundOldSides = true;
+      const playerName = (oldSide['current_player'] as string) || `Player${sideNum}`;
+      const faction = (oldSide['faction'] as string) || (oldSide['faction_name'] as string) || 'Unknown';
+
+      players.push({
+        side: sideNum,
+        name: playerName,
+        faction
+      });
+
+      console.log(`   [old_side${sideNum}] ${playerName} (${faction})`);
+    }
+
+    if (foundOldSides) {
+      console.log(`✅ [EXTRACT PLAYERS] Found ${players.length} players from old_side format (root level)`);
+      return players;
+    }
+
+    // Fallback attempt 2: Look for [old_side*] inside [carryover_sides_start] > [variables]
+    // This is where they are stored after turn 1 carryover
+    console.log(`🔍 [EXTRACT PLAYERS] Searching in carryover_sides_start > variables...`);
+    const carryoverSidesStart = wml.carryover_sides_start as WmlNode | WmlNode[] | undefined;
+    
+    // Handle if carryover_sides_start is an array (multiple [carryover_sides_start] sections)
+    const carryoverArray = Array.isArray(carryoverSidesStart) ? carryoverSidesStart : [carryoverSidesStart];
+    
+    for (const carryoverNode of carryoverArray) {
+      if (!carryoverNode) continue;
+      
+      console.log(`   Found [carryover_sides_start], keys: ${Object.keys(carryoverNode).filter(k => !k.startsWith('_')).slice(0, 10).join(', ')}...`);
+      
+      // Handle if variables is an array
+      const variablesNode = carryoverNode.variables as WmlNode | WmlNode[] | undefined;
+      const variablesArray = Array.isArray(variablesNode) ? variablesNode : [variablesNode];
+      
+      for (const variables of variablesArray) {
+        if (!variables) continue;
+        
+        console.log(`   Found [variables] in carryover, checking for old_side...`);
+        for (let sideNum = 1; sideNum <= 10; sideNum++) {
+          const oldSideKey = `old_side${sideNum}`;
+          const oldSide = variables[oldSideKey] as WmlNode | undefined;
+
+          if (!oldSide) {
+            if (sideNum > 1) {
+              break;
+            }
+            continue;
+          }
+
+          foundOldSides = true;
+          const playerName = (oldSide['current_player'] as string) || `Player${sideNum}`;
+          const faction = (oldSide['faction'] as string) || (oldSide['faction_name'] as string) || 'Unknown';
+
+          players.push({
+            side: sideNum,
+            name: playerName,
+            faction
+          });
+
+          console.log(`   [carryover_sides_start][variables][old_side${sideNum}] ${playerName} (${faction})`);
+        }
+
+        if (foundOldSides) {
+          console.log(`✅ [EXTRACT PLAYERS] Found ${players.length} players from old_side format (carryover_sides_start > variables)`);
+          return players;
+        }
+      }
+    }
+    
+    if (!carryoverSidesStart) {
+      console.log(`   No [carryover_sides_start] found in root`);
+    }
+
+    // Fallback attempt 3: Look for [old_side*] inside [scenario] (alternative structure)
+    console.log(`🔍 [EXTRACT PLAYERS] Searching in scenario...`);
+    const scenario = wml.scenario as WmlNode | undefined;
+    if (scenario) {
+      console.log(`   Found [scenario], searching for old_side...`);
+      for (let sideNum = 1; sideNum <= 10; sideNum++) {
+        const oldSideKey = `old_side${sideNum}`;
+        const oldSide = scenario[oldSideKey] as WmlNode | undefined;
+
+        if (!oldSide) {
+          if (sideNum > 1) {
+            break;
+          }
+          continue;
+        }
+
+        foundOldSides = true;
+        const playerName = (oldSide['current_player'] as string) || `Player${sideNum}`;
+        const faction = (oldSide['faction'] as string) || (oldSide['faction_name'] as string) || 'Unknown';
+
+        players.push({
+          side: sideNum,
+          name: playerName,
+          faction
+        });
+
+        console.log(`   [scenario][old_side${sideNum}] ${playerName} (${faction})`);
+      }
+
+      if (foundOldSides) {
+        console.log(`✅ [EXTRACT PLAYERS] Found ${players.length} players from old_side format (inside scenario)`);
+        return players;
+      }
+    } else {
+      console.log(`   No [scenario] found in root`);
+    }
+
+    // Fallback: Look for [side] sections inside [scenario]
+    console.log(`📋 [EXTRACT PLAYERS] old_side not found, trying [side] sections...`);
+    
     if (!scenario) {
+      console.warn('⚠️  [EXTRACT PLAYERS] No scenario found in WML');
       return [];
     }
 
-    // Look for [side] sections
     const sides = scenario.side as WmlNode | WmlNode[] | undefined;
 
     if (!sides) {
+      console.warn('⚠️  [EXTRACT PLAYERS] No sides found in scenario');
       return [];
     }
+
+    console.log(`📋 [EXTRACT PLAYERS] Found sides structure, type: ${Array.isArray(sides) ? 'array' : 'object'}`);
 
     const sideArray = Array.isArray(sides) ? sides : [sides];
 
@@ -315,38 +499,64 @@ function extractPlayers(wml: WmlNode): Array<{ side: number; name: string; facti
 function extractSurrenders(wml: WmlNode): SurrenderEvent[] {
   try {
     const surrenders: SurrenderEvent[] = [];
-    const replay = wml.replay as WmlNode | undefined;
+    
+    // Handle if replay is an array (multiple [replay] sections) or single object
+    const replayNode = wml.replay as WmlNode | WmlNode[] | undefined;
+    if (!replayNode) {
+      console.log(`ℹ️  [EXTRACT SURRENDERS] No [replay] section found`);
+      return [];
+    }
+
+    // Get the last replay if it's an array (the actual game replay is usually at the end)
+    const replay = Array.isArray(replayNode) ? replayNode[replayNode.length - 1] : replayNode;
 
     if (!replay) {
+      console.log(`ℹ️  [EXTRACT SURRENDERS] No [replay] section found`);
       return [];
     }
 
     const commands = replay.command as WmlNode | WmlNode[] | undefined;
     if (!commands) {
+      console.log(`ℹ️  [EXTRACT SURRENDERS] No [command] sections found in replay`);
       return [];
     }
 
     const commandArray = Array.isArray(commands) ? commands : [commands];
+    console.log(`ℹ️  [EXTRACT SURRENDERS] Checking ${commandArray.length} commands for surrenders...`);
 
     for (let i = 0; i < commandArray.length; i++) {
       const command = commandArray[i];
       const fireEvent = command.fire_event as WmlNode | undefined;
 
+      if (fireEvent) {
+        console.log(`   [Command ${i}] Has fire_event, raise="${fireEvent.raise}"`);
+      }
+
       if (fireEvent && fireEvent.raise === 'menu item surrender') {
         const fromSide = parseInt(command.from_side as string) || 0;
+        console.log(`   >>> SURRENDER DETECTED: from_side=${fromSide}`);
 
         // Look for next command with input value=2 (confirmed) or value=1 (rejected)
         const nextCommand = commandArray[i + 1];
         if (nextCommand && nextCommand.input) {
           const inputValue = parseInt((nextCommand.input as any).value as string);
           const confirmed = inputValue === 2;
+          console.log(`   >>> Input found: value=${inputValue}, confirmed=${confirmed}`);
 
           surrenders.push({
             side: fromSide,
             confirmed
           });
+        } else {
+          console.log(`   >>> No input confirmation found in next command`);
         }
       }
+    }
+
+    if (surrenders.length > 0) {
+      console.log(`✅ [EXTRACT SURRENDERS] Found ${surrenders.length} surrender(s)`);
+    } else {
+      console.log(`ℹ️  [EXTRACT SURRENDERS] No surrenders found`);
     }
 
     return surrenders;

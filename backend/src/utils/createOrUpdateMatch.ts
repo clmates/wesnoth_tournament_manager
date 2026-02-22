@@ -150,7 +150,7 @@ async function ensurePlayerExists(playerName: string): Promise<string> {
     // Check if player exists
     const existingResult = await query(
       `SELECT id FROM users_extension 
-       WHERE username = ?`,
+       WHERE nickname = ?`,
       [playerName]
     );
 
@@ -166,28 +166,26 @@ async function ensurePlayerExists(playerName: string): Promise<string> {
     await query(
       `INSERT INTO users_extension (
         id,
-        username,
+        nickname,
         email,
-        phpbb_user_id,
         is_admin,
         is_active,
         is_blocked,
-        rating,
+        elo_rating,
         total_games,
-        wins,
-        losses,
+        total_wins,
+        total_losses,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         userId,
         playerName,
         `${playerName.toLowerCase()}@forum.wesnoth.org`,
-        null, // No phpBB ID for auto-created users
         false,
         true,
         false,
-        1200, // Default starting rating
+        1400, // Default starting elo_rating
         0,
         0,
         0

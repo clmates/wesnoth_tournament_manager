@@ -132,9 +132,14 @@ export class ParseNewReplaysRefactored {
           let teamInfo: any = null;
           let confidenceLevel: 1 | 2 = 2;
 
+          // Check if addon was found in WML or confirmed at forum DB level
+          const addonConfirmed = parsed.addon.ranked_mode || parsed.addon.addon_found_at_forum;
+
           // Validate assets if addon claims ranked_mode="yes"
+          // (addon_found_at_forum without ranked_mode in WML shouldn't require asset validation)
           let assetsValidated = false;
           if (parsed.addon.ranked_mode) {
+            // Only validate assets if ranked_mode was explicitly set in WML
             const assetValidation = await validateRankedAssets(
               parsed.victory.winner_faction,
               parsed.victory.loser_faction,
@@ -168,6 +173,11 @@ export class ParseNewReplaysRefactored {
                   console.log(`❌ [PARSE] No valid tournament → REJECT`);
                   matchType = 'rejected';
                 }
+              } else if (parsed.addon.addon_found_at_forum) {
+                // Addon found at forum DB even with invalid assets - allow as unranked
+                console.log(`⚠️  [PARSE] Addon found at forum but assets invalid → Report as unranked`);
+                matchType = 'tournament_unranked';
+                confidenceLevel = 1;
               } else {
                 console.log(`❌ [PARSE] No tournament to fallback → REJECT`);
                 matchType = 'rejected';
@@ -188,7 +198,15 @@ export class ParseNewReplaysRefactored {
               matchType = 'rejected';
             }
           }
-          // Case 3: No tournament, no ranked addon
+          // Case 3: No tournament, no ranked addon in WML
+          else if (parsed.addon.addon_found_at_forum) {
+            // Addon was found in forum DB even though WML doesn't have details
+            // Treat as unranked for now since we can't validate
+            console.log(`⚠️  [PARSE] Addon found at forum but not in WML → Report as unranked`);
+            matchType = 'tournament_unranked';
+            confidenceLevel = 1;
+          }
+          // Case 4: No addon anywhere
           else {
             console.log(`❌ [PARSE] No ranked addon and no tournament → REJECT`);
             matchType = 'rejected';

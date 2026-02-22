@@ -61,28 +61,37 @@ export async function queryForum(sql: string, values?: any[]): Promise<any[]> {
  */
 export async function getNewGamesFromForum(
   lastCheckTimestamp: Date,
-  limit: number = 1000
+  limit: number = 1000,
+  wesnothVersion?: string
 ): Promise<any[]> {
   try {
-    const results = await queryForum(
-      `SELECT 
-        INSTANCE_UUID,
-        GAME_ID,
-        INSTANCE_VERSION as wesnoth_version,
-        GAME_NAME as game_name,
-        START_TIME as start_time,
-        END_TIME as end_time,
-        REPLAY_NAME as replay_filename,
-        OOS as oos,
-        RELOAD as is_reload,
-        PASSWORD,
-        PUBLIC
-      FROM wesnothd_game_info
-      WHERE END_TIME > ?
-      ORDER BY END_TIME DESC
-      LIMIT ?`,
-      [lastCheckTimestamp, limit]
-    );
+    let query_str = `SELECT 
+      INSTANCE_UUID,
+      GAME_ID,
+      INSTANCE_VERSION as wesnoth_version,
+      GAME_NAME as game_name,
+      START_TIME as start_time,
+      END_TIME as end_time,
+      REPLAY_NAME as replay_filename,
+      OOS as oos,
+      RELOAD as is_reload,
+      PASSWORD,
+      PUBLIC
+    FROM wesnothd_game_info
+    WHERE END_TIME > ?`;
+
+    const params: any[] = [lastCheckTimestamp];
+
+    // Filter by version if provided
+    if (wesnothVersion) {
+      query_str += ` AND INSTANCE_VERSION = ?`;
+      params.push(wesnothVersion);
+    }
+
+    query_str += ` ORDER BY END_TIME DESC LIMIT ?`;
+    params.push(limit);
+
+    const results = await queryForum(query_str, params);
 
     return results;
   } catch (error) {
