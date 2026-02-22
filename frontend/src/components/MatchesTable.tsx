@@ -257,13 +257,13 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     </span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    {isAuthenticated && (currentPlayerId === match.loser_id || currentPlayerId === match.winner_id) && (match.status === 'unconfirmed' || !match.status || match.status === 'reported') && (
+                    {isAuthenticated && (match.status === 'reported' ? (currentPlayerId === match.loser_id || currentPlayerId === match.winner_id) : (currentPlayerId === match.loser_id)) && (match.status === 'unconfirmed' || !match.status || match.status === 'reported') && (
                       <button
                         className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition"
                         onClick={() => onOpenConfirmation && onOpenConfirmation(match)}
-                        title={t('report_match_link')}
+                        title={currentPlayerId === match.winner_id && match.status === 'reported' ? 'Inform Match' : t('report_match_link')}
                       >
-                        {t('report_match_link')}
+                        {currentPlayerId === match.winner_id && match.status === 'reported' ? '📋 Inform Match' : t('report_match_link')}
                       </button>
                     )}
                     <button

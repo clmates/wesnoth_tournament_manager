@@ -17,7 +17,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
   onSubmit,
 }) => {
   const [formData, setFormData] = useState({
-    rating: '',
+    rating: '3',
     comments: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +43,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
       
       await api.post(`/matches/${matchId}/confirm`, {
         action: 'confirm',
-        opponent_rating: formData.rating,
+        rating: formData.rating,
         comments: formData.comments,
       });
 
@@ -66,7 +66,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
       
       await api.post(`/matches/${matchId}/confirm`, {
         action: 'dispute',
-        opponent_rating: formData.rating,
+        rating: formData.rating,
         comments: formData.comments,
       });
 
@@ -111,11 +111,11 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
                 <span className="text-gray-700 font-bold">vs</span>
               </div>
 
-              <div className="flex-1 bg-gray-50 rounded-lg p-4 text-center border border-gray-200 border-l-4 border-l-red-500 bg-gradient-to-br from-red-50 to-gray-50">
-                <h3 className="text-gray-800 m-0 mb-2 text-xs font-semibold uppercase tracking-wide">You (Loser)</h3>
-                <p className="text-gray-900 font-semibold text-base m-0 mb-1">{match.loser_nickname}</p>
-                <p className="text-yellow-600 font-semibold text-sm m-0 mb-1">ELO: {loserElo}</p>
-                <p className="text-gray-600 m-0 text-xs">Faction: {match.loser_faction || 'N/A'}</p>
+              <div className={`flex-1 bg-gray-50 rounded-lg p-4 text-center border border-gray-200 border-l-4 ${isWinner ? 'border-l-green-500 bg-gradient-to-br from-green-50 to-gray-50' : 'border-l-red-500 bg-gradient-to-br from-red-50 to-gray-50'}`}>
+                <h3 className="text-gray-800 m-0 mb-2 text-xs font-semibold uppercase tracking-wide">You {isWinner ? '(Winner)' : '(Loser)'}</h3>
+                <p className="text-gray-900 font-semibold text-base m-0 mb-1">{isWinner ? match.winner_nickname : match.loser_nickname}</p>
+                <p className="text-yellow-600 font-semibold text-sm m-0 mb-1">ELO: {isWinner ? winnerElo : loserElo}</p>
+                <p className="text-gray-600 m-0 text-xs">Faction: {isWinner ? match.winner_faction : match.loser_faction || 'N/A'}</p>
               </div>
             </div>
 
@@ -175,10 +175,19 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
               </button>
             </>
           )}
-          {isWinner && isAuthenticated && isReported && (
+          {isWinner && isAuthenticated && !isReported && (
             <div className="flex-1 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm text-center font-semibold">
               Waiting for opponent's response...
             </div>
+          )}
+          {isWinner && isAuthenticated && isReported && (
+            <button
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleConfirm}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Processing...' : 'Inform Match'}
+            </button>
           )}
           {!isAuthenticated && (
             <div className="flex-1 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm text-center">

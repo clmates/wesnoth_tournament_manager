@@ -1725,12 +1725,16 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     console.log('Match loser_id:', match.loser_id, 'Current user:', req.userId);
+    console.log('Match winner_id:', match.winner_id);
     console.log('Is unranked:', isUnranked);
 
-    // Verify that the user confirming is the loser
-    if (match.loser_id !== req.userId) {
-      console.log('❌ User is not the loser');
-      return res.status(403).json({ error: 'Only the loser can confirm this match' });
+    // Verify that the user confirming is either the loser or winner
+    const isWinner = match.winner_id === req.userId;
+    const isLoser = match.loser_id === req.userId;
+    
+    if (!isWinner && !isLoser) {
+      console.log('❌ User is neither winner nor loser');
+      return res.status(403).json({ error: 'Only match participants can confirm this match' });
     }
 
     if (action === 'confirm') {
@@ -1751,33 +1755,72 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
           [comments || null, rating || null, id]
         );
       } else {
-        // RANKED: update matches table
-        await query(
-          `UPDATE matches 
-           SET status = 'confirmed', 
-               loser_comments = ?, 
-               loser_rating = ?,
-               updated_at = CURRENT_TIMESTAMP 
-           WHERE id = ?`,
-          [comments || null, rating || null, id]
+        // RANKED: update matches table with appropriate columns based on winner/loser
+        if (isWinner) {
+          // Winner confirming - update winner columns
+          await query(
+            `UPDATE matches 
+             SET winner_comments = ?, 
+                 winner_rating = ?,
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+            [comments || null, rating || null, id]
+          );
+        } else {
+          // Loser confirming - update loser columns
+          await query(
+            `UPDATE matches 
+             SET loser_comments = ?, 
+                 loser_rating = ?,
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+            [comments || null, rating || null, id]
+          );
+        }
+
+        // Check if both have now confirmed - update status to 'confirmed' if both ratings are present
+        const updatedMatch = await query(
+          'SELECT loser_rating, winner_rating FROM matches WHERE id = ?',
+          [id]
         );
+        
+        if (updatedMatch.rows.length > 0 && updatedMatch.rows[0].loser_rating && updatedMatch.rows[0].winner_rating) {
+          // Both have confirmed - update status to confirmed
+          await query(
+            'UPDATE matches SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['confirmed', id]
+          );
+          console.log(`✅ Match ${id} fully confirmed by both players`);
+        } else {
+          console.log(`⏳ Match ${id} partially confirmed - waiting for other player`);
+        }
 
         // Also update tournament_matches if this is a tournament ranked match
         if (tournamentMatchId) {
-          await query(
-            `UPDATE tournament_matches 
-             SET loser_comments = ?, 
-                 loser_rating = ?,
-                 match_status = 'completed',
-                 updated_at = CURRENT_TIMESTAMP 
-             WHERE id = ?`,
-            [comments || null, rating || null, tournamentMatchId]
-          );
+          if (isWinner) {
+            await query(
+              `UPDATE tournament_matches 
+               SET winner_comments = ?, 
+                   winner_rating = ?,
+                   updated_at = CURRENT_TIMESTAMP 
+               WHERE id = ?`,
+              [comments || null, rating || null, tournamentMatchId]
+            );
+          } else {
+            await query(
+              `UPDATE tournament_matches 
+               SET loser_comments = ?, 
+                   loser_rating = ?,
+                   updated_at = CURRENT_TIMESTAMP 
+               WHERE id = ?`,
+              [comments || null, rating || null, tournamentMatchId]
+            );
+          }
         }
       }
 
       console.log(
-        `Match ${id} confirmed: Loser ${req.userId} confirmed the match result`
+        `Match ${id} confirmed: ${isWinner ? 'Winner' : 'Loser'} ${req.userId} confirmed the match result`
       );
 
       console.log('✅ Respondiendo con éxito - confirm');
