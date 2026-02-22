@@ -47,6 +47,7 @@ interface UnparsedReplay {
   game_name: string;
   start_time: string;
   end_time: string;
+  created_at: string;
 }
 
 export class ParseNewReplaysRefactored {
@@ -424,20 +425,60 @@ export class ParseNewReplaysRefactored {
           matchCount++;
 
         } catch (error) {
-          errorCount++;
           const errorMsg = (error as any)?.message || String(error);
           console.error(`❌ [PARSE] Failed to parse ${replay.game_name}:`, errorMsg);
 
-          // Mark as errored
-          try {
-            await query(
-              `UPDATE replays 
-               SET parse_status = 'error'
-               WHERE id = ?`,
-              [replay.id]
-            );
-          } catch (e) {
-            console.error('Failed to mark replay as errored:', e);
+          // Check if error is due to replay file not found
+          const isFileNotFound = errorMsg.includes('Replay file not found');
+          
+          if (isFileNotFound) {
+            // Calculate time elapsed since replay was created
+            const createdAt = new Date(replay.created_at);
+            const nowMs = Date.now();
+            const elapsedMs = nowMs - createdAt.getTime();
+            const elapsedHours = elapsedMs / (1000 * 60 * 60);
+            
+            console.log(`⏳ [PARSE] Replay file not found for ${replay.replay_filename}. Elapsed: ${elapsedHours.toFixed(2)} hours`);
+
+            try {
+              if (elapsedHours < 24) {
+                // Less than 24 hours - mark as pending for retry
+                console.log(`   ⏳ Marking as pending for retry (created less than 24h ago)`);
+                await query(
+                  `UPDATE replays 
+                   SET parse_status = 'pending'
+                   WHERE id = ?`,
+                  [replay.id]
+                );
+              } else {
+                // 24+ hours - mark as error
+                console.log(`   ❌ Marking as error (not found after 24+ hours)`);
+                await query(
+                  `UPDATE replays 
+                   SET parse_status = 'error',
+                       parse_error_message = 'Replay file not found on disk after 24+ hours'
+                   WHERE id = ?`,
+                  [replay.id]
+                );
+                errorCount++;
+              }
+            } catch (e) {
+              console.error('Failed to update replay status:', e);
+            }
+          } else {
+            // Other errors - mark as error immediately
+            errorCount++;
+            try {
+              await query(
+                `UPDATE replays 
+                 SET parse_status = 'error',
+                     parse_error_message = ?
+                 WHERE id = ?`,
+                [errorMsg.substring(0, 500), replay.id]
+              );
+            } catch (e) {
+              console.error('Failed to mark replay as errored:', e);
+            }
           }
         }
       }
@@ -477,7 +518,7 @@ export class ParseNewReplaysRefactored {
       const maxConcurrentParses = parseInt(process.env.REPLAY_MAX_CONCURRENT_PARSES || '3', 10);
 
       const result = await query(
-        `SELECT id, instance_uuid, game_id, replay_filename, replay_url, wesnoth_version, game_name, start_time, end_time
+        `SELECT id, instance_uuid, game_id, replay_filename, replay_url, wesnoth_version, game_name, start_time, end_time, created_at
          FROM replays
          WHERE parse_status = 'new' 
            AND parsed = 0
