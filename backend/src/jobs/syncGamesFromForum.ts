@@ -174,8 +174,8 @@ export class SyncGamesFromForumJob {
               game.game_name,
               game.start_time,
               game.end_time,
-              game.oos || 0,
-              game.is_reload || 0,
+              (game.oos ? 1 : 0), // Ensure boolean/0 or 1
+              (game.is_reload ? 1 : 0), // Ensure boolean/0 or 1
               2, // Default confidence from forum
               'forum',
               replayUrl,
