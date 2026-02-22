@@ -80,6 +80,9 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
 
   const winnerElo = match.winner_elo_before || 'N/A';
   const loserElo = match.loser_elo_before || 'N/A';
+  const isWinner = currentPlayerId === match.winner_id;
+  const isLoser = currentPlayerId === match.loser_id;
+  const isReported = match.status === 'reported';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fadeIn" onClick={onClose}>
@@ -154,7 +157,7 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
           >
             Cancel
           </button>
-          {isAuthenticated && (
+          {isLoser && isAuthenticated && (
             <>
               <button
                 className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -171,6 +174,11 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
                 {isSubmitting ? 'Processing...' : 'Confirm'}
               </button>
             </>
+          )}
+          {isWinner && isAuthenticated && isReported && (
+            <div className="flex-1 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm text-center font-semibold">
+              Waiting for opponent's response...
+            </div>
           )}
           {!isAuthenticated && (
             <div className="flex-1 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm text-center">

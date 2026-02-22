@@ -243,11 +243,13 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                   <div>
                     <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
                       match.status === 'confirmed' ? 'bg-green-100 text-green-700' :
-                      match.status === 'disputed' ? 'bg-yellow-100 text-yellow-700' :
+                      match.status === 'reported' ? 'bg-orange-100 text-orange-700' :
+                      match.status === 'disputed' ? 'bg-red-100 text-red-700' :
                       match.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
                       'bg-blue-100 text-blue-700'
                     }`}>
                       {match.status === 'confirmed' && t('match_status_confirmed')}
+                      {match.status === 'reported' && '📋 Reported'}
                       {match.status === 'unconfirmed' && t('match_status_unconfirmed')}
                       {match.status === 'disputed' && t('match_status_disputed')}
                       {match.status === 'cancelled' && t('match_status_cancelled')}
@@ -255,7 +257,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     </span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    {isAuthenticated && currentPlayerId === match.loser_id && (match.status === 'unconfirmed' || !match.status) && (
+                    {isAuthenticated && (currentPlayerId === match.loser_id || currentPlayerId === match.winner_id) && (match.status === 'unconfirmed' || !match.status || match.status === 'reported') && (
                       <button
                         className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition"
                         onClick={() => onOpenConfirmation && onOpenConfirmation(match)}

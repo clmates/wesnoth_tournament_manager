@@ -75,8 +75,9 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
                 <label className="text-gray-600 text-sm font-semibold">Status:</label>
                 <div className="text-sm">
                   {match.status === 'confirmed' && <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">✓ Confirmed</span>}
+                  {match.status === 'reported' && <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">📋 Reported</span>}
                   {match.status === 'unconfirmed' && <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">⏳ Unconfirmed</span>}
-                  {match.status === 'disputed' && <span className="inline-block px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-semibold">⚠ Disputed</span>}
+                  {match.status === 'disputed' && <span className="inline-block px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">⚠ Disputed</span>}
                   {match.status === 'cancelled' && <span className="inline-block px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">✗ Cancelled</span>}
                   {!match.status && <span className="inline-block px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">⏳ Unconfirmed</span>}
                 </div>

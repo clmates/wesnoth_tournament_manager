@@ -1254,10 +1254,16 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                     <td className="px-4 py-3 text-gray-700">{playBeforeDate}</td>
                                     <td className="px-4 py-3 text-gray-700">
                                       <div className="flex gap-2 items-center flex-wrap">
-                                        <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: '#FFC107' }}>
+                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold text-white ${
+                                          match.match_status_from_matches === 'confirmed' ? 'bg-green-500' :
+                                          match.match_status_from_matches === 'reported' ? 'bg-orange-500' :
+                                          match.match_status_from_matches === 'disputed' ? 'bg-red-500' :
+                                          match.match_status_from_matches === 'cancelled' ? 'bg-gray-500' :
+                                          'bg-yellow-500'
+                                        }`}>
                                           {match.match_status_from_matches === 'confirmed' ? t('match_status_confirmed') :
+                                           match.match_status_from_matches === 'reported' ? '📋 Reported' :
                                            match.match_status_from_matches === 'disputed' ? t('match_status_disputed') :
-                                           match.match_status_from_matches === 'unconfirmed' ? t('match_status_unconfirmed') :
                                            match.match_status_from_matches === 'cancelled' ? t('match_status_cancelled') :
                                            t('option_pending')}
                                         </span>
