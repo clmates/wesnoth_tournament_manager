@@ -705,7 +705,7 @@ router.get('/matches', async (req, res) => {
               loser_rating: null,
               winner_comments: null,
               loser_comments: null,
-              replay_file_path: r.replay_url || `https://replays.wesnoth.org/${r.wesnoth_version}/${r.replay_filename}`,
+              replay_url: r.replay_url,
               replay_downloads: 0,
               created_at: r.created_at,
               updated_at: r.created_at,

@@ -293,7 +293,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                       </div>
                       <div className="mt-2 pt-2 border-t border-yellow-200">
                         <a
-                          href={match.replay_file_path || '#'}
+                          href={match.replay_url || '#'}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-block px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 transition"
