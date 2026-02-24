@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { getUserLevel } from '../utils/auth.js';
@@ -2351,24 +2352,43 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     // Get the other player's user ID (from parse_summary, if available, or get from users_extension by nickname)
     const otherPlayerNickname = currentUserNickname === player1Nickname ? player2Nickname : player1Nickname;
     
+    // Verify other player exists in forumPlayers (validate from replay data)
+    const otherPlayerData = currentUserNickname === player1Nickname ? player2 : player1;
+    if (!otherPlayerData || !otherPlayerData.user_name) {
+      return res.status(400).json({ error: 'Could not identify second player from replay data' });
+    }
+    
     const otherPlayerResult = await query(
       `SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)`,
       [otherPlayerNickname]
     );
 
+    let otherPlayerId: string;
+
     if (otherPlayerResult.rows.length === 0) {
-      // Try to register forum player or return error
-      console.warn(`⚠️ Could not find user with nickname: ${otherPlayerNickname}`);
-      return res.status(400).json({ error: `Could not find opponent with nickname: ${otherPlayerNickname}` });
+      // Create the player with default elo=1400 only if they exist in forumPlayers
+      console.log(`⚠️ Player ${otherPlayerNickname} not found in users_extension, creating with default elo=1400 (from replay)`);
+      
+      const newUserId = uuidv4();
+      const createUserResult = await query(
+        `INSERT INTO users_extension (id, nickname, is_active, is_rated, elo_rating, matches_played)
+         VALUES (?, ?, true, false, 1400, 0)`,
+        [newUserId, otherPlayerNickname]
+      );
+      
+      otherPlayerId = newUserId;
+      console.log(`✅ Created new player ${otherPlayerNickname} with ID ${otherPlayerId} (verified from forum replay)`);
+    } else {
+      otherPlayerId = otherPlayerResult.rows[0].id;
     }
 
     if (winner_choice === 'I lost') {
       // User lost, so the other player won
       loserId = userId;
-      winnerId = otherPlayerResult.rows[0].id;
+      winnerId = otherPlayerId;
     } else {
       // User won (default case)
-      loserId = otherPlayerResult.rows[0].id;
+      loserId = otherPlayerId;
       winnerId = userId;
     }
 

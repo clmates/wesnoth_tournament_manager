@@ -640,6 +640,7 @@ router.get('/matches', async (req, res) => {
           `SELECT 
             r.id, 
             r.replay_filename,
+            r.replay_url,
             r.parse_summary,
             r.created_at,
             r.wesnoth_version
