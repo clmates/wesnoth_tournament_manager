@@ -163,8 +163,13 @@ export const matchService = {
   validateDispute: (id: string) => api.post(`/matches/admin/${id}/dispute`, { action: 'validate' }),
   rejectDispute: (id: string) => api.post(`/matches/admin/${id}/dispute`, { action: 'reject' }),
   incrementReplayDownloads: (matchId: string) => api.post(`/matches/${matchId}/replay/download-count`),
-  reportConfidence1Replay: (replayId: string, winner_choice: 'I won' | 'I lost') => 
-    api.post('/matches/report-confidence-1-replay', { replayId, winner_choice }),
+  reportConfidence1Replay: (
+    replayId: string, 
+    winner_choice: 'I won' | 'I lost',
+    comments?: string,
+    rating?: number
+  ) => 
+    api.post('/matches/report-confidence-1-replay', { replayId, winner_choice, comments, rating }),
 };
 
 export const tournamentService = {
@@ -298,6 +303,13 @@ export const publicService = {
   getDebug: () => api.get('/public/debug'),
   getPlayerOfMonth: () => api.get('/public/player-of-month'),
 };
+
+export const reportConfidence1Replay = (
+  replayId: string,
+  winner_choice: 'I won' | 'I lost',
+  comments?: string,
+  rating?: number
+) => matchService.reportConfidence1Replay(replayId, winner_choice, comments, rating);
 
 export { api };
 export default api;

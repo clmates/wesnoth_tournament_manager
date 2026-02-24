@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { matchService } from '../services/api';
 import PlayerLink from './PlayerLink';
 import StarDisplay from './StarDisplay';
+import ReplayConfirmationModal from './ReplayConfirmationModal';
 import { useAuthStore } from '../store/authStore';
 
 // Get API URL for direct backend calls
@@ -45,6 +46,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   const [sortColumn, setSortColumn] = React.useState<SortColumn>('');
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
   const [reportingReplayId, setReportingReplayId] = React.useState<string | null>(null);
+  const [showConfirmationModal, setShowConfirmationModal] = React.useState(false);
+  const [selectedReplay, setSelectedReplay] = React.useState<any>(null);
+  const [modalChoice, setModalChoice] = React.useState<'I won' | 'I lost'>('I won');
 
   React.useEffect(() => {
     console.log(`🔍 [MatchesTable] Received ${matches.length} matches`);
@@ -105,23 +109,21 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
     }
   };
 
-  const handleReportConfidence1Replay = async (replayId: string, winner_choice: 'I won' | 'I lost') => {
-    try {
-      setReportingReplayId(replayId);
-      console.log(`📋 Reporting confidence=1 replay ${replayId}: "${winner_choice}"`);
-      
-      const result = await matchService.reportConfidence1Replay(replayId, winner_choice);
-      console.log('✅ Replay reported successfully:', result);
-      
-      // Refresh the matches list
-      if (onReplayReported) {
-        onReplayReported(replayId);
-      }
-    } catch (err: any) {
-      console.error('❌ Error reporting confidence-1 replay:', err);
-      alert(`Error reporting replay: ${err?.response?.data?.error || err.message}`);
-    } finally {
-      setReportingReplayId(null);
+  const handleReportConfidence1Replay = (match: any, winner_choice: 'I won' | 'I lost') => {
+    // Open the modal with replay details
+    setSelectedReplay(match);
+    setModalChoice(winner_choice);
+    setShowConfirmationModal(true);
+    console.log(`🎯 Opening confirmation modal for replay ${match.id}: "${winner_choice}"`);
+  };
+
+  const handleReplayReportSuccess = () => {
+    // Close modal and refresh list
+    setShowConfirmationModal(false);
+    setSelectedReplay(null);
+    
+    if (onReplayReported && selectedReplay) {
+      onReplayReported(selectedReplay.id);
     }
   };
 
@@ -268,27 +270,27 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                       <div className="flex gap-2 flex-wrap">
                         <button
                           className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                            reportingReplayId === match.id
+                            showConfirmationModal
                               ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                               : 'bg-green-500 text-white hover:bg-green-600'
                           }`}
-                          onClick={() => handleReportConfidence1Replay(match.id, 'I won')}
-                          disabled={reportingReplayId === match.id}
+                          onClick={() => handleReportConfidence1Replay(match, 'I won')}
+                          disabled={showConfirmationModal}
                           title={`I won: ${player1Name} beats ${player2Name}`}
                         >
-                          {reportingReplayId === match.id ? '⏳...' : '✓ I won'}
+                          ✓ I won
                         </button>
                         <button
                           className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                            reportingReplayId === match.id
+                            showConfirmationModal
                               ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                               : 'bg-red-500 text-white hover:bg-red-600'
                           }`}
-                          onClick={() => handleReportConfidence1Replay(match.id, 'I lost')}
-                          disabled={reportingReplayId === match.id}
+                          onClick={() => handleReportConfidence1Replay(match, 'I lost')}
+                          disabled={showConfirmationModal}
                           title={`I lost: ${player2Name} beats ${player1Name}`}
                         >
-                          {reportingReplayId === match.id ? '⏳...' : '✗ I lost'}
+                          ✗ I lost
                         </button>
                       </div>
                       <div className="mt-2 pt-2 border-t border-yellow-200">
@@ -443,6 +445,25 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
           })}
         </tbody>
       </table>
+
+      {/* Replay Confirmation Modal */}
+      {selectedReplay && (
+        <ReplayConfirmationModal
+          isOpen={showConfirmationModal}
+          replayId={selectedReplay.id}
+          winner_nickname={selectedReplay.winner_nickname}
+          loser_nickname={selectedReplay.loser_nickname}
+          your_choice={modalChoice}
+          map={selectedReplay.map}
+          winner_faction={selectedReplay.winner_faction}
+          loser_faction={selectedReplay.loser_faction}
+          onClose={() => {
+            setShowConfirmationModal(false);
+            setSelectedReplay(null);
+          }}
+          onSuccess={handleReplayReportSuccess}
+        />
+      )}
     </div>
   );
 };

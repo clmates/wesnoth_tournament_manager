@@ -2468,10 +2468,8 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         tournament_mode,
         status,
         replay_file_path,
-        auto_reported,
-        created_at,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        auto_reported
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         matchId,
         replayId,
