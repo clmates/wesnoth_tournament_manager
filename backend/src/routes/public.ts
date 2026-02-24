@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import jwt from 'jsonwebtoken';
 import { query } from '../config/database.js';
 import { getWinnerAndRunnerUp } from '../utils/tournament.js';
 import { optionalAuthMiddleware } from '../middleware/auth.js';
@@ -608,13 +609,148 @@ router.get('/matches', async (req, res) => {
 
     console.log('All matches query result:', result.rows.length, 'rows found');
 
+    // Get current user info from token if authenticated
+    let currentUserNickname = '';
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        if (decoded.userId) {
+          // Get user's nickname
+          const userResult = await query(
+            `SELECT nickname FROM users_extension WHERE id = ?`,
+            [decoded.userId]
+          );
+          if (userResult.rows.length > 0) {
+            currentUserNickname = userResult.rows[0].nickname?.toLowerCase() || '';
+            console.log(`✅ [PUBLIC/MATCHES] Authenticated user: ${userResult.rows[0].nickname}`);
+          }
+        }
+      } catch (tokenError) {
+        console.log(`⚠️ [PUBLIC/MATCHES] Token parsing failed (non-authenticated request)`);
+      }
+    }
+
+    // Get replays with confidence=1 if user is authenticated
+    let formattedReplays = [];
+    if (currentUserNickname) {
+      try {
+        const replayResult = await query(
+          `SELECT 
+            r.id, 
+            r.replay_filename,
+            r.parse_summary,
+            r.created_at,
+            r.wesnoth_version
+           FROM replays r
+           WHERE r.integration_confidence = 1 
+             AND r.parsed = 1
+             AND r.match_id IS NULL
+           ORDER BY r.created_at DESC
+           LIMIT $1 OFFSET $2`,
+          [pageSize, offset]
+        );
+
+        console.log(`📋 [PUBLIC/MATCHES] Found ${replayResult.rows?.length || 0} confidence=1 replays for user ${currentUserNickname}`);
+
+        // Format replays as match-like objects - only for involved players
+        for (const r of replayResult.rows) {
+          try {
+            const parseSummary = typeof r.parse_summary === 'string' 
+              ? JSON.parse(r.parse_summary) 
+              : r.parse_summary;
+
+            const players = parseSummary.forumPlayers || [];
+            if (players.length < 2) continue;
+
+            const player1Name = players[0]?.user_name?.toLowerCase() || '';
+            const player2Name = players[1]?.user_name?.toLowerCase() || '';
+
+            // SECURITY: only show to involved players
+            if (currentUserNickname !== player1Name && currentUserNickname !== player2Name) {
+              continue;
+            }
+
+            // Extract map - USE resolvedMap from parse_summary
+            const map = parseSummary.resolvedMap 
+              || parseSummary.parsedMap 
+              || parseSummary.map 
+              || parseSummary.forumMap 
+              || parseSummary.scenario
+              || 'Unknown Map';
+
+            // Extract factions - USE resolvedFactions from parse_summary (side1/side2 structure)
+            const resolvedFactions = parseSummary.resolvedFactions || {};
+
+            // side1 = player 1, side2 = player 2
+            let winner_faction = resolvedFactions.side1 || 'Unknown';
+            let loser_faction = resolvedFactions.side2 || 'Unknown';
+
+            const replayData = {
+              id: r.id,
+              winner_id: null,
+              loser_id: null,
+              winner_nickname: parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown',
+              loser_nickname: parseSummary.replayVictory?.loser_name || players[1]?.user_name || 'Unknown',
+              winner_faction: winner_faction,
+              loser_faction: loser_faction,
+              map: map,
+              status: 'pending_report',
+              winner_elo_before: null,
+              winner_elo_after: null,
+              loser_elo_before: null,
+              loser_elo_after: null,
+              winner_rating: null,
+              loser_rating: null,
+              winner_comments: null,
+              loser_comments: null,
+              replay_file_path: `https://replays.wesnoth.org/${r.wesnoth_version}/${r.replay_filename}`,
+              replay_downloads: 0,
+              created_at: r.created_at,
+              updated_at: r.created_at,
+              played_at: null,
+              admin_reviewed: false,
+              tournament_id: null,
+              source_type: 'replay_confidence_1',
+              replay_id: r.id,
+              confidence_level: 1,
+              parse_summary: parseSummary
+            };
+
+            console.log(`📋 [REPLAY] ${replayData.winner_nickname} (${winner_faction}) vs ${replayData.loser_nickname} (${loser_faction}) on ${map}`);
+            formattedReplays.push(replayData);
+          } catch (formatError) {
+            console.error('Error formatting replay:', formatError);
+          }
+        }
+      } catch (replayQueryError) {
+        console.error('❌ [PUBLIC/MATCHES] Error fetching replays:', replayQueryError);
+      }
+    }
+
+    // Combine matches and replays
+    const allResults = [...result.rows, ...formattedReplays];
+    
+    // Sort by created_at DESC
+    allResults.sort((a: any, b: any) => {
+      const aTime = new Date(a.created_at).getTime();
+      const bTime = new Date(b.created_at).getTime();
+      return bTime - aTime;
+    });
+
+    // Paginate combined results
+    const paginatedResults = allResults.slice(0, pageSize);
+    const combinedTotal = total + (formattedReplays.length > 0 ? formattedReplays.length : 0);
+    const combinedTotalPages = Math.ceil(combinedTotal / pageSize);
+
     res.json({
-      data: result.rows,
+      data: paginatedResults,
       pagination: {
         page,
         pageSize,
-        total,
-        totalPages,
+        total: combinedTotal,
+        totalPages: combinedTotalPages,
       },
     });
   } catch (error) {

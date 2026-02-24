@@ -319,20 +319,12 @@ export class ParseNewReplaysRefactorized {
           parseSummary.replayFactions.winner = parsed.victory.winner_faction || null;
           parseSummary.replayFactions.loser = parsed.victory.loser_faction || null;
           console.log(`   ✅ 5.3 Resolved Custom factions from replay: ${parseSummary.replayFactions.winner} vs ${parseSummary.replayFactions.loser}`);
-          
-          // Use resolved replay factions
-          parseSummary.finalFactions['side1'] = parseSummary.replayFactions.winner || 'Unknown';
-          parseSummary.finalFactions['side2'] = parseSummary.replayFactions.loser || 'Unknown';
         } else {
-          // Use forum factions (not Custom)
-          parseSummary.finalFactions = { ...parseSummary.forumFactions };
           console.log(`   ✅ Using forum factions (not Custom): ${Object.values(parseSummary.forumFactions).join(' vs ')}`);
         }
       }
     } catch (err) {
       console.warn(`⚠️  Could not parse replay file:`, err);
-      // Fallback to forum factions
-      parseSummary.finalFactions = { ...parseSummary.forumFactions };
     }
 
     // ======== VALIDATE AND RESOLVE FACTIONS ========
@@ -341,11 +333,16 @@ export class ParseNewReplaysRefactorized {
     const loser = parseSummary.forumPlayers[1];
     
     if (winner && loser) {
-      const winnerFactionRaw = parseSummary.finalFactions['side1'] || 'Unknown';
-      const loserFactionRaw = parseSummary.finalFactions['side2'] || 'Unknown';
+      // Determine which factions to use: replay factions (Custom) or forum factions (not Custom)
+      const winnerFactionRaw = (hasCustomFaction && parseSummary.replayFactions.winner) || parseSummary.forumFactions['side1'] || 'Unknown';
+      const loserFactionRaw = (hasCustomFaction && parseSummary.replayFactions.loser) || parseSummary.forumFactions['side2'] || 'Unknown';
       
       const winnerResolved = await this.resolveFaction(winnerFactionRaw);
       const loserResolved = await this.resolveFaction(loserFactionRaw);
+      
+      // Set finalFactions to the RESOLVED values (clean, without prefixes)
+      parseSummary.finalFactions['side1'] = winnerResolved.name || 'Unknown';
+      parseSummary.finalFactions['side2'] = loserResolved.name || 'Unknown';
       
       parseSummary.resolvedFactions['side1'] = winnerResolved.name;
       parseSummary.resolvedFactions['side2'] = loserResolved.name;
@@ -368,6 +365,7 @@ export class ParseNewReplaysRefactorized {
     console.log(`🔍 [PARSE] Validating map against game_maps table...`);
     const mapRaw = parseSummary.forumMap || 'Unknown';
     const mapResolved = await this.resolveMap(mapRaw);
+    parseSummary.finalMap = mapResolved.name;
     parseSummary.resolvedMap = mapResolved.name;
     parseSummary.mapIsRanked = mapResolved.isRanked;
     

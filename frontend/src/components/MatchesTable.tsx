@@ -50,7 +50,16 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
     console.log(`🔍 [MatchesTable] Received ${matches.length} matches`);
     matches.forEach((m, i) => {
       if (m.source_type === 'replay_confidence_1') {
-        console.log(`  [${i}] REPLAY confidence=1: ${m.id}`, m);
+        console.log(
+          `  [${i}] REPLAY confidence=1: ${m.id}`,
+          { 
+            winner: m.winner_nickname, 
+            loser: m.loser_nickname, 
+            map: m.map, 
+            winner_faction: m.winner_faction,
+            loser_faction: m.loser_faction
+          }
+        );
       }
     });
   }, [matches]);
@@ -201,32 +210,28 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
           {sortedMatches.map((match) => {
             // Special rendering for confidence=1 replays
             if (match.source_type === 'replay_confidence_1') {
-              const parseSummary = typeof match.parse_summary === 'string' 
-                ? JSON.parse(match.parse_summary) 
-                : match.parse_summary;
-              
-              const players = parseSummary?.forumPlayers || [];
-              const player1 = players[0];
-              const player2 = players[1];
-              const map = parseSummary?.parsedMap || 'Unknown Map';
-              const factions = parseSummary?.resolvedFactions || {};
-              const faction1 = factions[player1?.user_name] || 'Unknown';
-              const faction2 = factions[player2?.user_name] || 'Unknown';
+              // Use the data already extracted by backend (more reliable)
+              const map = match.map || 'Unknown Map';
+              const faction1 = match.winner_faction || 'Unknown';
+              const faction2 = match.loser_faction || 'Unknown';
+              const player1Name = match.winner_nickname || 'Player 1';
+              const player2Name = match.loser_nickname || 'Player 2';
+              const date = new Date(match.created_at).toLocaleDateString();
 
               return (
                 <tr key={match.id} className="border-b border-yellow-200 hover:bg-yellow-50 bg-yellow-50">
-                  <td className="px-4 py-3 text-sm text-gray-700">{new Date(match.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{date}</td>
 
                   <td className="px-4 py-3 text-sm">
                     <div className="space-y-2">
                       <div className="flex gap-2 items-center">
                         <div className="flex-1 min-w-0">
-                          <span className="font-semibold text-yellow-800">{player1?.user_name || 'Player 1'}</span>
+                          <span className="font-semibold text-yellow-800">{player1Name}</span>
                         </div>
                         <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction1}</span>
                       </div>
                       <div className="text-xs text-yellow-600 italic">
-                        ⚠️ Auto-detected player
+                        ⚠️ Auto-detected (confidence=1)
                       </div>
                     </div>
                   </td>
@@ -235,27 +240,30 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     <div className="space-y-2">
                       <div className="flex gap-2 items-center">
                         <div className="flex-1 min-w-0">
-                          <span className="font-semibold text-yellow-800">{player2?.user_name || 'Player 2'}</span>
+                          <span className="font-semibold text-yellow-800">{player2Name}</span>
                         </div>
                         <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction2}</span>
                       </div>
                       <div className="text-xs text-yellow-600 italic">
-                        ⚠️ Auto-detected player
+                        ⚠️ Auto-detected (confidence=1)
                       </div>
                     </div>
                   </td>
 
-                  <td className="px-4 py-3 text-sm text-gray-700">{map}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <div className="font-semibold text-yellow-900">{map}</div>
+                    <div className="text-xs text-yellow-600 mt-1">🎮 Unparsed Replay</div>
+                  </td>
 
                   <td className="px-4 py-3 text-sm">
                     <div className="space-y-2">
                       <div>
                         <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                          🔍 Unconfirmed Result
+                          🔍 Need Confirmation
                         </span>
                       </div>
                       <div className="text-xs text-yellow-700 mb-2 font-semibold">
-                        Who won?
+                        Who won this match?
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         <button
@@ -266,7 +274,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           }`}
                           onClick={() => handleReportConfidence1Replay(match.id, 'I won')}
                           disabled={reportingReplayId === match.id}
-                          title="Confirm that you won this match"
+                          title={`I won: ${player1Name} beats ${player2Name}`}
                         >
                           {reportingReplayId === match.id ? '⏳...' : '✓ I won'}
                         </button>
@@ -278,7 +286,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           }`}
                           onClick={() => handleReportConfidence1Replay(match.id, 'I lost')}
                           disabled={reportingReplayId === match.id}
-                          title="Confirm that you lost this match"
+                          title={`I lost: ${player2Name} beats ${player1Name}`}
                         >
                           {reportingReplayId === match.id ? '⏳...' : '✗ I lost'}
                         </button>
