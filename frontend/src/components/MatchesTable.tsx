@@ -25,6 +25,7 @@ interface MatchesTableProps {
   onDownloadReplay?: (matchId: string, replayFilePath: string) => void;
   onViewDetails?: (match: any) => void;
   onOpenConfirmation?: (match: any) => void;
+  onReplayReported?: (replayId: string) => void;
 }
 
 type SortColumn = 'date' | 'winner' | 'loser' | 'map' | 'status' | '';
@@ -36,12 +37,14 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   onDownloadReplay,
   onViewDetails,
   onOpenConfirmation,
+  onReplayReported,
 }) => {
   const { t } = useTranslation();
   const { isAuthenticated, userId } = useAuthStore();
 
   const [sortColumn, setSortColumn] = React.useState<SortColumn>('');
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
+  const [reportingReplayId, setReportingReplayId] = React.useState<string | null>(null);
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -81,6 +84,26 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
       document.body.removeChild(link);
     } catch (err) {
       console.error('Error downloading replay:', err);
+    }
+  };
+
+  const handleReportConfidence1Replay = async (replayId: string, winner_choice: 'I won' | 'I lost') => {
+    try {
+      setReportingReplayId(replayId);
+      console.log(`📋 Reporting confidence=1 replay ${replayId}: "${winner_choice}"`);
+      
+      const result = await matchService.reportConfidence1Replay(replayId, winner_choice);
+      console.log('✅ Replay reported successfully:', result);
+      
+      // Refresh the matches list
+      if (onReplayReported) {
+        onReplayReported(replayId);
+      }
+    } catch (err: any) {
+      console.error('❌ Error reporting confidence-1 replay:', err);
+      alert(`Error reporting replay: ${err?.response?.data?.error || err.message}`);
+    } finally {
+      setReportingReplayId(null);
     }
   };
 
@@ -166,8 +189,100 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {sortedMatches.map((match) => (
-            <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50">
+          {sortedMatches.map((match) => {
+            // Special rendering for confidence=1 replays
+            if (match.source_type === 'replay_confidence_1') {
+              const parseSummary = typeof match.parse_summary === 'string' 
+                ? JSON.parse(match.parse_summary) 
+                : match.parse_summary;
+              
+              const players = parseSummary?.forumPlayers || [];
+              const player1 = players[0];
+              const player2 = players[1];
+              const map = parseSummary?.parsedMap || 'Unknown Map';
+              const factions = parseSummary?.resolvedFactions || {};
+              const faction1 = factions[player1?.user_name] || 'Unknown';
+              const faction2 = factions[player2?.user_name] || 'Unknown';
+
+              return (
+                <tr key={match.id} className="border-b border-yellow-200 hover:bg-yellow-50 bg-yellow-50">
+                  <td className="px-4 py-3 text-sm text-gray-700">{new Date(match.created_at).toLocaleDateString()}</td>
+
+                  <td className="px-4 py-3 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-1 min-w-0">
+                          <span className="font-semibold text-yellow-800">{player1?.user_name || 'Player 1'}</span>
+                        </div>
+                        <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction1}</span>
+                      </div>
+                      <div className="text-xs text-yellow-600 italic">
+                        ⚠️ Auto-detected player
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-3 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-1 min-w-0">
+                          <span className="font-semibold text-yellow-800">{player2?.user_name || 'Player 2'}</span>
+                        </div>
+                        <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction2}</span>
+                      </div>
+                      <div className="text-xs text-yellow-600 italic">
+                        ⚠️ Auto-detected player
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-3 text-sm text-gray-700">{map}</td>
+
+                  <td className="px-4 py-3 text-sm">
+                    <div className="space-y-2">
+                      <div>
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+                          🔍 Unconfirmed Result
+                        </span>
+                      </div>
+                      <div className="text-xs text-yellow-700 mb-2 font-semibold">
+                        Who won?
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                            reportingReplayId === match.id
+                              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                              : 'bg-green-500 text-white hover:bg-green-600'
+                          }`}
+                          onClick={() => handleReportConfidence1Replay(match.id, 'I won')}
+                          disabled={reportingReplayId === match.id}
+                          title="Confirm that you won this match"
+                        >
+                          {reportingReplayId === match.id ? '⏳...' : '✓ I won'}
+                        </button>
+                        <button
+                          className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                            reportingReplayId === match.id
+                              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                              : 'bg-red-500 text-white hover:bg-red-600'
+                          }`}
+                          onClick={() => handleReportConfidence1Replay(match.id, 'I lost')}
+                          disabled={reportingReplayId === match.id}
+                          title="Confirm that you lost this match"
+                        >
+                          {reportingReplayId === match.id ? '⏳...' : '✗ I lost'}
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              );
+            }
+
+            // Regular match rendering
+            return (
+              <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50">
               <td className="px-4 py-3 text-sm text-gray-700">{new Date(match.created_at).toLocaleDateString()}</td>
 
               <td className="px-4 py-3 text-sm">
@@ -296,7 +411,8 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                 </div>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

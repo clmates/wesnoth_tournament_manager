@@ -16,6 +16,9 @@
 import { query } from '../config/database.js';
 import ReplayParser from '../services/replayParser.js';
 import { parseRankedReplay, ParsedRankedReplay } from '../utils/replayRankedParser.js';
+import { calculateNewRating, calculateTrend } from '../utils/elo.js';
+import { getUserLevel } from '../utils/auth.js';
+import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -41,6 +44,16 @@ interface ParseSummary {
   replayTournament: string | null;
   replayVictory: any | null;
   replayFactions: Record<string, string | null>;
+  
+  // Resolved (validated against assets)
+  resolvedFactions: Record<string, string | null>; // Canonical names from factions table
+  resolvedMap: string | null; // Canonical name from game_maps table
+  
+  // Asset validation
+  factionsAreRanked: boolean;
+  mapIsRanked: boolean;
+  
+  // Final factions (for UI/reporting)
   finalFactions: Record<string, string>;
   finalMap: string | null;
   confidenceLevel: 1 | 2;
@@ -93,14 +106,25 @@ export class ParseNewReplaysRefactorized {
           if (parseSummary.matchType === 'rejected') {
             console.log(`❌ [PARSE] Match rejected → Update replay as rejected`);
             await query(
-              `UPDATE replays SET parse_status = 'rejected', parsed = 1, parse_summary = ? WHERE id = ?`,
-              [JSON.stringify(parseSummary), replay.id]
+              `UPDATE replays SET parse_status = 'rejected', parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
+              [parseSummary.confidenceLevel, JSON.stringify(parseSummary), replay.id]
             );
             errorCount++;
             continue;
           }
 
-          // Create match
+          // Check confidence level - only create match if confidence=2
+          if (parseSummary.confidenceLevel === 1) {
+            console.log(`⏳ [PARSE] Confidence=1 → Parsed but no match created (awaiting player confirmation)`);
+            await query(
+              `UPDATE replays SET parse_status = 'parsed', parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
+              [parseSummary.confidenceLevel, JSON.stringify(parseSummary), replay.id]
+            );
+            parsedCount++;
+            continue;
+          }
+
+          // Create match (only if confidence=2)
           const matchCreateResult = await this.createMatchFromParseSummary(
             replay,
             parseSummary
@@ -109,9 +133,17 @@ export class ParseNewReplaysRefactorized {
           if (matchCreateResult.success) {
             console.log(`✅ [PARSE] Match created: ID ${matchCreateResult.matchId}`);
             await query(
-              `UPDATE replays SET parse_status = 'completed', parsed = 1, parse_summary = ? WHERE id = ?`,
-              [JSON.stringify(parseSummary), replay.id]
+              `UPDATE replays SET parse_status = 'completed', parsed = 1, integration_confidence = ?, match_id = ?, parse_summary = ? WHERE id = ?`,
+              [parseSummary.confidenceLevel, matchCreateResult.matchId, JSON.stringify(parseSummary), replay.id]
             );
+            
+            // Update last integration timestamp
+            await query(
+              `UPDATE system_settings SET setting_value = ?, updated_at = NOW() 
+               WHERE setting_key = 'replay_last_integration_timestamp'`,
+              [new Date().toISOString()]
+            );
+            
             parsedCount++;
             matchCount++;
           } else {
@@ -190,6 +222,10 @@ export class ParseNewReplaysRefactorized {
       replayTournament: null,
       replayVictory: null,
       replayFactions: {},
+      resolvedFactions: {},
+      resolvedMap: null,
+      factionsAreRanked: false,
+      mapIsRanked: false,
       finalFactions: {},
       finalMap: null,
       confidenceLevel: 1,
@@ -255,56 +291,151 @@ export class ParseNewReplaysRefactorized {
     const hasCustomFaction = Object.values(parseSummary.forumFactions)
       .some(f => f.toLowerCase().includes('custom'));
 
-    // ======== STEPS 5-7: Parse replay file for complementary info ========
-    console.log(`🎬 [REPLAY] Step 5-7: Parsing replay file...`);
+    // ======== STEPS 5-7: ALWAYS parse replay (selectively) ========
+    console.log(`🎬 [REPLAY] Step 5-7: Parsing replay file (selective)...`);
     try {
-      const parsed = await this.parseReplayFromUrl(replay);
+      const parsed = await this.parseReplayFromUrl(replay, parseSummary.forumPlayers, hasCustomFaction);
 
       if (parsed) {
-        // Extract ranked_mode and tournament
+        // 5.1 Extract ranked_mode and tournament
         if (parsed.addon) {
           parseSummary.replayRankedMode = parsed.addon.ranked_mode || false;
           parseSummary.replayTournament = parsed.addon.tournament_name || null;
-          console.log(`   ranked_mode=${parseSummary.replayRankedMode}, tournament=${parseSummary.replayTournament}`);
+          console.log(`   ✅ 5.1 ranked_mode=${parseSummary.replayRankedMode}, tournament=${parseSummary.replayTournament}`);
         }
 
-        // Extract victory
+        // 5.2 Victory (from parsed replay)
         if (parsed.victory) {
           parseSummary.replayVictory = parsed.victory;
-          console.log(`   Victory: ${parsed.victory.winner_name} (${parsed.victory.winner_faction}) def ${parsed.victory.loser_name}`);
+          if (parsed.victory.reason === 'surrender') {
+            console.log(`   ✅ 5.2 Victory: ${parsed.victory.winner_name} def ${parsed.victory.loser_name} (surrender, confidence: 2)`);
+          } else {
+            console.log(`   ⚠️  5.2 No clear victory: ${parsed.victory.reason} (confidence: 1)`);
+          }
         }
 
-        // Extract factions from replay if forum had "Custom"
+        // 5.3 (Optional) Extract factions from replay ONLY if forum had "Custom"
         if (hasCustomFaction && parsed.victory) {
           parseSummary.replayFactions.winner = parsed.victory.winner_faction || null;
           parseSummary.replayFactions.loser = parsed.victory.loser_faction || null;
-          console.log(`   Using replay factions (forum has Custom): ${parseSummary.replayFactions.winner} vs ${parseSummary.replayFactions.loser}`);
+          console.log(`   ✅ 5.3 Resolved Custom factions from replay: ${parseSummary.replayFactions.winner} vs ${parseSummary.replayFactions.loser}`);
+          
+          // Use resolved replay factions
+          parseSummary.finalFactions['side1'] = parseSummary.replayFactions.winner || 'Unknown';
+          parseSummary.finalFactions['side2'] = parseSummary.replayFactions.loser || 'Unknown';
         } else {
-          // Use forum factions
+          // Use forum factions (not Custom)
           parseSummary.finalFactions = { ...parseSummary.forumFactions };
+          console.log(`   ✅ Using forum factions (not Custom): ${Object.values(parseSummary.forumFactions).join(' vs ')}`);
         }
       }
     } catch (err) {
       console.warn(`⚠️  Could not parse replay file:`, err);
+      // Fallback to forum factions
+      parseSummary.finalFactions = { ...parseSummary.forumFactions };
     }
 
-    // ======== DETERMINE CONFIDENCE LEVEL ========
-    console.log(`🎯 [PARSE] Determining confidence level...`);
-    if (parseSummary.replayVictory) {
-      parseSummary.confidenceLevel = 2;
-      console.log(`   ✅ Clear victory found → confidence=2`);
+    // ======== VALIDATE AND RESOLVE FACTIONS ========
+    console.log(`🔍 [PARSE] Validating factions against factions table...`);
+    const winner = parseSummary.forumPlayers[0];
+    const loser = parseSummary.forumPlayers[1];
+    
+    if (winner && loser) {
+      const winnerFactionRaw = parseSummary.finalFactions['side1'] || 'Unknown';
+      const loserFactionRaw = parseSummary.finalFactions['side2'] || 'Unknown';
+      
+      const winnerResolved = await this.resolveFaction(winnerFactionRaw);
+      const loserResolved = await this.resolveFaction(loserFactionRaw);
+      
+      parseSummary.resolvedFactions['side1'] = winnerResolved.name;
+      parseSummary.resolvedFactions['side2'] = loserResolved.name;
+      parseSummary.factionsAreRanked = winnerResolved.isRanked && loserResolved.isRanked;
+      
+      if (winnerResolved.name !== winnerFactionRaw) {
+        console.log(`   ✅ Side 1: "${winnerFactionRaw}" → "${winnerResolved.name}" (ranked: ${winnerResolved.isRanked})`);
+      } else {
+        console.log(`   ✅ Side 1: "${winnerResolved.name}" (ranked: ${winnerResolved.isRanked})`);
+      }
+      
+      if (loserResolved.name !== loserFactionRaw) {
+        console.log(`   ✅ Side 2: "${loserFactionRaw}" → "${loserResolved.name}" (ranked: ${loserResolved.isRanked})`);
+      } else {
+        console.log(`   ✅ Side 2: "${loserResolved.name}" (ranked: ${loserResolved.isRanked})`);
+      }
+    }
+
+    // ======== VALIDATE AND RESOLVE MAP ========
+    console.log(`🔍 [PARSE] Validating map against game_maps table...`);
+    const mapRaw = parseSummary.forumMap || 'Unknown';
+    const mapResolved = await this.resolveMap(mapRaw);
+    parseSummary.resolvedMap = mapResolved.name;
+    parseSummary.mapIsRanked = mapResolved.isRanked;
+    
+    if (mapResolved.name !== mapRaw) {
+      console.log(`   ✅ Map: "${mapRaw}" → "${mapResolved.name}" (ranked: ${mapResolved.isRanked})`);
     } else {
-      parseSummary.confidenceLevel = 1;
-      console.log(`   ⚠️  No clear victory (abandonment/draw) → confidence=1`);
+      console.log(`   ✅ Map: "${mapResolved.name}" (ranked: ${mapResolved.isRanked})`);
+    }
+
+    // ======== CONFIDENCE LEVEL (from replayVictory) ========
+    console.log(`🎯 [PARSE] Determining confidence level...`);
+    // Use the confidence_level from parsed victory
+    parseSummary.confidenceLevel = parseSummary.replayVictory?.confidence_level || 1;
+    
+    if (parseSummary.confidenceLevel === 2) {
+      console.log(`   ✅ Clear victory (${parseSummary.replayVictory?.reason}) → confidence=2`);
+    } else {
+      console.log(`   ⚠️  No clear victory (${parseSummary.replayVictory?.reason}) → confidence=1`);
     }
 
     // ======== DETERMINE MATCH TYPE ========
-    if (parseSummary.forumAddon) {
+    console.log(`📊 [PARSE] Determining match type...`);
+    if (!parseSummary.forumAddon) {
+      parseSummary.matchType = 'rejected';
+      console.log(`   ❌ No Ranked addon in forum → REJECTED`);
+    } else if (parseSummary.replayRankedMode && parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
+      // Ranked assets
       parseSummary.matchType = 'ranked';
-      console.log(`📊 Match type: RANKED (addon in forum)`);
+      console.log(`   ✅ ranked_mode=true, factions ranked, map ranked → RANKED`);
+    } else if (parseSummary.replayRankedMode && !parseSummary.factionsAreRanked && !parseSummary.mapIsRanked) {
+      // Non-ranked assets with ranked addon
+      parseSummary.matchType = 'rejected';
+      console.log(`   ❌ Assets not ranked (factions or map) → REJECTED`);
+    } else if (parseSummary.replayTournament) {
+      // Tournament match
+      if (parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
+        parseSummary.matchType = 'tournament_ranked';
+        console.log(`   ✅ Tournament with ranked assets → TOURNAMENT_RANKED`);
+      } else {
+        parseSummary.matchType = 'tournament_unranked';
+        console.log(`   ⚠️  Tournament with non-ranked assets → TOURNAMENT_UNRANKED`);
+      }
+    } else {
+      parseSummary.matchType = 'rejected';
+      console.log(`   ❌ Cannot determine match type → REJECTED`);
     }
 
     return parseSummary;
+  }
+
+  /**
+   * Fetch user data from users_extension by nickname (case-insensitive)
+   */
+  private async getUserDataByNickname(nickname: string): Promise<any | null> {
+    if (!nickname) return null;
+    
+    try {
+      const result = await query(
+        `SELECT id, elo_rating, level FROM users_extension 
+         WHERE LOWER(nickname) = LOWER(?)`,
+        [nickname]
+      );
+      
+      return (result as any).rows?.[0] || null;
+    } catch (err) {
+      console.warn(`⚠️  Failed to lookup user ${nickname}:`, (err as any)?.message);
+      return null;
+    }
   }
 
   /**
@@ -313,43 +444,174 @@ export class ParseNewReplaysRefactorized {
   private async createMatchFromParseSummary(
     replay: UnparsedReplay,
     parseSummary: ParseSummary
-  ): Promise<{ success: boolean; matchId?: number; error?: string }> {
+  ): Promise<{ success: boolean; matchId?: string; error?: string }> {
     try {
-      if (parseSummary.forumPlayers.length < 2) {
-        return { success: false, error: 'Insufficient players in parse summary' };
+      if (parseSummary.forumPlayers.length < 2 || !parseSummary.replayVictory) {
+        return { success: false, error: 'Insufficient data: missing forum players or replay victory' };
       }
 
-      const winner = parseSummary.forumPlayers[0];
-      const loser = parseSummary.forumPlayers[1];
-      const winnerFaction = parseSummary.forumFactions['side1'] || 'Unknown';
-      const loserFaction = parseSummary.forumFactions['side2'] || 'Unknown';
+      // Use replay victory to find winner/loser names
+      const winnerName = parseSummary.replayVictory.winner_name;
+      const loserName = parseSummary.replayVictory.loser_name;
+
+      // Find winner and loser in forumPlayers (forum is source of truth for side ↔ nickname mapping)
+      const winnerForumData = parseSummary.forumPlayers.find(p => p.user_name === winnerName);
+      const loserForumData = parseSummary.forumPlayers.find(p => p.user_name === loserName);
+
+      if (!winnerForumData || !loserForumData) {
+        return { 
+          success: false, 
+          error: `Players not found in forum data: winner=${winnerName} (found=${!!winnerForumData}), loser=${loserName} (found=${!!loserForumData})`
+        };
+      }
+
+      // Get factions based on forum side mapping
+      const winnerSide = `side${winnerForumData.side_number}`;
+      const loserSide = `side${loserForumData.side_number}`;
+      const winnerFaction = parseSummary.resolvedFactions[winnerSide] || 'Unknown';
+      const loserFaction = parseSummary.resolvedFactions[loserSide] || 'Unknown';
+      const map = parseSummary.resolvedMap || 'Unknown';
+
+      // Fetch user data by nickname (case-insensitive)
+      const winnerUserData = await this.getUserDataByNickname(winnerName);
+      const loserUserData = await this.getUserDataByNickname(loserName);
+
+      if (!winnerUserData || !loserUserData) {
+        return { 
+          success: false, 
+          error: `User not found in users_extension: winner=${winnerName} (found=${!!winnerUserData}), loser=${loserName} (found=${!!loserUserData})`
+        };
+      }
 
       console.log(`\n📝 Creating match:`);
-      console.log(`   Winner: ${winner.user_name} (ID ${winner.user_id}, ${winnerFaction})`);
-      console.log(`   Loser: ${loser.user_name} (ID ${loser.user_id}, ${loserFaction})`);
-      console.log(`   Map: ${parseSummary.forumMap}`);
+      console.log(`   Winner: ${winnerName} (Side ${winnerForumData.side_number}, ID ${winnerUserData.id}, ELO ${winnerUserData.elo_rating}, ${winnerFaction})`);
+      console.log(`   Loser: ${loserName} (Side ${loserForumData.side_number}, ID ${loserUserData.id}, ELO ${loserUserData.elo_rating}, ${loserFaction})`);
+      console.log(`   Map: ${map}`);
       console.log(`   Confidence: ${parseSummary.confidenceLevel}`);
       console.log(`   Type: ${parseSummary.matchType}`);
 
-      const result = await query(
+      // Fetch full user data including matches_played, is_rated, trend
+      const winnerFullData = await query(
+        `SELECT id, elo_rating, level, matches_played, is_rated, trend FROM users_extension WHERE id = ?`,
+        [winnerUserData.id]
+      );
+      const loserFullData = await query(
+        `SELECT id, elo_rating, level, matches_played, is_rated, trend FROM users_extension WHERE id = ?`,
+        [loserUserData.id]
+      );
+
+      if ((winnerFullData as any).rows?.length === 0 || (loserFullData as any).rows?.length === 0) {
+        return { success: false, error: 'Failed to fetch full user data' };
+      }
+
+      const winner = (winnerFullData as any).rows[0];
+      const loser = (loserFullData as any).rows[0];
+
+      // Calculate new ELO ratings using FIDE formula
+      const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
+      const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+
+      // Calculate trends
+      const currentWinnerTrend = winner.trend || '-';
+      const currentLoserTrend = loser.trend || '-';
+      const winnerTrend = calculateTrend(currentWinnerTrend, true);
+      const loserTrend = calculateTrend(currentLoserTrend, false);
+
+      // Build replay file path: https://replays.wesnoth.org/{version}/{yyyy}/{mm}/{dd}/{filename}
+      const gameDate = new Date(replay.end_time);
+      const yyyy = gameDate.getFullYear();
+      const mm = String(gameDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(gameDate.getDate()).padStart(2, '0');
+      // Remove .bz2 extension if present, then add it back
+      const replayFilenameCleaned = replay.replay_filename.replace(/\.bz2$/, '');
+      const replayFilePath = `https://replays.wesnoth.org/${replay.wesnoth_version}/${yyyy}/${mm}/${dd}/${replayFilenameCleaned}.bz2`;
+
+      console.log(`\n🎮 Match Details:`);
+      console.log(`   Winner: ${winnerName} (${winner.elo_rating} → ${winnerNewRating}, L${winner.level})`);
+      console.log(`   Loser: ${loserName} (${loser.elo_rating} → ${loserNewRating}, L${loser.level})`);
+      console.log(`   Replay: ${replayFilePath}`);
+
+      const matchId = uuidv4();
+      
+      // Insert match with before and after ELO/level values
+      await query(
         `INSERT INTO matches (
-          winner_id, loser_id, winner_faction, loser_faction, map_name,
-          confidence_level, status, match_type, replay_id, parse_summary, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'reported', ?, ?, ?, NOW())`,
+          id, winner_id, loser_id, winner_faction, loser_faction, map,
+          replay_id, replay_file_path, auto_reported, status, tournament_type, tournament_mode, 
+          winner_elo_before, loser_elo_before, winner_level_before, loser_level_before,
+          winner_elo_after, loser_elo_after, winner_level_after, loser_level_after,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'reported', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
         [
-          winner.user_id,
-          loser.user_id,
+          matchId,
+          winner.id,
+          loser.id,
           winnerFaction,
           loserFaction,
-          parseSummary.forumMap,
-          parseSummary.confidenceLevel,
-          parseSummary.matchType,
+          map,
           replay.id,
-          JSON.stringify(parseSummary)
+          replayFilePath,
+          this.getTournamentType(parseSummary.matchType),
+          this.getTournamentMode(parseSummary.matchType),
+          winner.elo_rating,        // winner_elo_before
+          loser.elo_rating,         // loser_elo_before
+          winner.level || 'novato', // winner_level_before
+          loser.level || 'novato',  // loser_level_before
+          winnerNewRating,          // winner_elo_after
+          loserNewRating,           // loser_elo_after
+          getUserLevel(winnerNewRating), // winner_level_after
+          getUserLevel(loserNewRating)   // loser_level_after
         ]
       );
 
-      const matchId = (result as any).insertId;
+      // Update winner in users_extension
+      const newWinnerMatches = winner.matches_played + 1;
+      let winnerIsNowRated = winner.is_rated;
+      
+      if (winner.is_rated && winnerNewRating < 1400) {
+        winnerIsNowRated = false;
+      } else if (!winner.is_rated && newWinnerMatches >= 10 && winnerNewRating >= 1400) {
+        winnerIsNowRated = true;
+      }
+
+      await query(
+        `UPDATE users_extension 
+         SET elo_rating = ?, 
+             is_rated = ?, 
+             matches_played = ?,
+             total_wins = total_wins + 1,
+             trend = ?,
+             level = ?,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [winnerNewRating, winnerIsNowRated, newWinnerMatches, winnerTrend, getUserLevel(winnerNewRating), winner.id]
+      );
+
+      // Update loser in users_extension
+      const newLoserMatches = loser.matches_played + 1;
+      let loserIsNowRated = loser.is_rated;
+      
+      if (loser.is_rated && loserNewRating < 1400) {
+        loserIsNowRated = false;
+      } else if (!loser.is_rated && newLoserMatches >= 10 && loserNewRating >= 1400) {
+        loserIsNowRated = true;
+      }
+
+      await query(
+        `UPDATE users_extension 
+         SET elo_rating = ?, 
+             is_rated = ?, 
+             matches_played = ?,
+             total_losses = total_losses + 1,
+             trend = ?,
+             level = ?,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [loserNewRating, loserIsNowRated, newLoserMatches, loserTrend, getUserLevel(loserNewRating), loser.id]
+      );
+
+      console.log(`✅ [PARSE] Match created: ID ${matchId}`);
+      console.log(`   ELO Change - Winner: +${winnerNewRating - winner.elo_rating}, Loser: ${loserNewRating - loser.elo_rating}`);
       return { success: true, matchId };
 
     } catch (err) {
@@ -378,11 +640,44 @@ export class ParseNewReplaysRefactorized {
   /**
    * Parse replay from URL (download + parse)
    */
-  private async parseReplayFromUrl(replay: UnparsedReplay): Promise<ParsedRankedReplay | null> {
+  private getTournamentType(matchType: string): string | null {
+    // Map matchType to tournament_type field
+    // 'ranked' -> null (no tournament)
+    // 'tournament_ranked' -> 'ranked'
+    // 'tournament_unranked' -> 'unranked'
+    // 'rejected' -> null
+    if (matchType === 'tournament_ranked') return 'ranked';
+    if (matchType === 'tournament_unranked') return 'unranked';
+    return null;
+  }
+
+  private getTournamentMode(matchType: string): string | null {
+    // Map matchType to tournament_mode field
+    // 'ranked' -> 'ladder'
+    // 'tournament_ranked' -> 'ranked'
+    // 'tournament_unranked' -> 'unranked'
+    // 'rejected' -> null
+    if (matchType === 'ranked') return 'ladder';
+    if (matchType === 'tournament_ranked') return 'ranked';
+    if (matchType === 'tournament_unranked') return 'unranked';
+    return null;
+  }
+
+  private async parseReplayFromUrl(
+    replay: UnparsedReplay,
+    forumPlayers?: any[],
+    hasCustomFaction?: boolean
+  ): Promise<ParsedRankedReplay | null> {
     try {
       const localPath = await this.downloadReplayFile(replay.replay_url, replay.wesnoth_version);
-      const compression = localPath.endsWith('.bz2') ? 'bz2' : 'gz';
-      const parsed = await parseRankedReplay(localPath, compression);
+      // If forum has Custom factions, MUST extract from replay (don't skip)
+      // Otherwise, can skip if we have valid forum players
+      const skipPlayers = !hasCustomFaction && !!forumPlayers;
+      
+      const parsed = await parseRankedReplay(localPath, {
+        skipExtractPlayers: skipPlayers,
+        forumPlayers: forumPlayers || []
+      });
 
       // Clean up
       try {
@@ -430,6 +725,114 @@ export class ParseNewReplaysRefactorized {
 
     } catch (err) {
       throw err;
+    }
+  }
+
+  /**
+   * Resolve faction name against factions table
+   * Searches with: exact match → without prefix → canonical match
+   */
+  private async resolveFaction(factionName: string | null): Promise<{ name: string | null; isRanked: boolean }> {
+    if (!factionName) {
+      return { name: null, isRanked: false };
+    }
+
+    try {
+      // Try exact match first
+      let result = await query(
+        `SELECT name, is_ranked FROM factions WHERE LOWER(name) = LOWER(?) LIMIT 1`,
+        [factionName]
+      );
+
+      if ((result as any).rows?.length > 0) {
+        const faction = (result as any).rows[0];
+        return { name: faction.name, isRanked: faction.is_ranked === 1 };
+      }
+
+      // Try without prefix (e.g., "Ladder Rebels" -> "Rebels")
+      const parts = factionName.split(' ').slice(1);
+      if (parts.length > 0) {
+        const searchName = parts.join(' ');
+        result = await query(
+          `SELECT name, is_ranked FROM factions WHERE LOWER(name) = LOWER(?) LIMIT 1`,
+          [searchName]
+        );
+
+        if ((result as any).rows?.length > 0) {
+          const faction = (result as any).rows[0];
+          return { name: faction.name, isRanked: faction.is_ranked === 1 };
+        }
+      }
+
+      // Try LIKE match (partial)
+      result = await query(
+        `SELECT name, is_ranked FROM factions WHERE LOWER(name) LIKE LOWER(?) LIMIT 1`,
+        [`%${factionName}%`]
+      );
+
+      if ((result as any).rows?.length > 0) {
+        const faction = (result as any).rows[0];
+        return { name: faction.name, isRanked: faction.is_ranked === 1 };
+      }
+
+      return { name: factionName, isRanked: false };
+    } catch (err) {
+      console.warn(`⚠️  Could not resolve faction "${factionName}":`, err);
+      return { name: factionName, isRanked: false };
+    }
+  }
+
+  /**
+   * Resolve map name against game_maps table
+   * Searches with: exact match → without prefix → canonical match
+   */
+  private async resolveMap(mapName: string | null): Promise<{ name: string | null; isRanked: boolean }> {
+    if (!mapName) {
+      return { name: null, isRanked: false };
+    }
+
+    try {
+      // Try exact match first
+      let result = await query(
+        `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) LIMIT 1`,
+        [mapName]
+      );
+
+      if ((result as any).rows?.length > 0) {
+        const map = (result as any).rows[0];
+        return { name: map.name, isRanked: map.is_ranked === 1 };
+      }
+
+      // Try without prefix (e.g., "2p — Tombs of Kesorak" -> "Tombs of Kesorak")
+      // Strip patterns like "2p —", "3p —", "4p —", etc. and whitespace
+      const cleaned = mapName.replace(/^\d+[a-z]?\s*[—\-–]\s*/i, '').trim();
+      if (cleaned !== mapName) {
+        result = await query(
+          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) LIMIT 1`,
+          [cleaned]
+        );
+
+        if ((result as any).rows?.length > 0) {
+          const map = (result as any).rows[0];
+          return { name: map.name, isRanked: map.is_ranked === 1 };
+        }
+      }
+
+      // Try LIKE match (partial)
+      result = await query(
+        `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) LIMIT 1`,
+        [`%${mapName}%`]
+      );
+
+      if ((result as any).rows?.length > 0) {
+        const map = (result as any).rows[0];
+        return { name: map.name, isRanked: map.is_ranked === 1 };
+      }
+
+      return { name: mapName, isRanked: false };
+    } catch (err) {
+      console.warn(`⚠️  Could not resolve map "${mapName}":`, err);
+      return { name: mapName, isRanked: false };
     }
   }
 

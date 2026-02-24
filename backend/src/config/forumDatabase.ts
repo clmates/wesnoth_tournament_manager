@@ -88,7 +88,7 @@ export async function getNewGamesFromForum(
       params.push(wesnothVersion);
     }
 
-    query_str += ` ORDER BY END_TIME DESC LIMIT ?`;
+    query_str += ` ORDER BY END_TIME ASC LIMIT ?`;
     params.push(limit);
 
     const results = await queryForum(query_str, params);

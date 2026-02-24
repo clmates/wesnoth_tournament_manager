@@ -108,12 +108,31 @@ export class SyncGamesFromForumJob {
       let processedWithAddon = 0;
       let skippedWithoutAddon = 0;
       let skippedDuplicateNicknames = 0;
+      let skippedTurn1Replays = 0;
+      let latestGameTimestamp = lastCheckTimestamp; // Track the newest game processed
+
+      // Build a set of game IDs in this batch for Turn_1 detection
+      const gameIdsByInstance = new Map<string, Set<number>>();
+      for (const game of gamesResult) {
+        const key = game.INSTANCE_UUID;
+        if (!gameIdsByInstance.has(key)) {
+          gameIdsByInstance.set(key, new Set());
+        }
+        gameIdsByInstance.get(key)!.add(game.GAME_ID);
+      }
 
       // Process each game
       for (const game of gamesResult) {
         try {
           const instanceUuid = game.INSTANCE_UUID;
           const gameId = game.GAME_ID;
+
+          // Track the latest game timestamp for updating sync checkpoint
+          // Do this for EVERY game, regardless of whether it has addon or is processed
+          const gameEndTime = new Date(game.end_time);
+          if (gameEndTime > latestGameTimestamp) {
+            latestGameTimestamp = gameEndTime;
+          }
 
           // Check if game already exists in replays table
           const existsResult = await query(
@@ -137,15 +156,11 @@ export class SyncGamesFromForumJob {
           // Detect temporary replays (Turn 1 scenario selection rounds)
           // These have "Turn_1_" in the filename and are followed by another game with game_id+1
           if (game.replay_filename.includes('Turn_1_')) {
-            // Check if the next game_id already exists in tournament replays table
-            const nextGameResult = await query(
-              `SELECT id FROM replays 
-               WHERE instance_uuid = ? AND game_id = ?`,
-              [instanceUuid, gameId + 1]
-            );
-            
-            if (nextGameResult && (nextGameResult as any).rows && (nextGameResult as any).rows.length > 0) {
+            // Check if the next game_id exists in THIS batch of games
+            const nextGameIds = gameIdsByInstance.get(instanceUuid);
+            if (nextGameIds && nextGameIds.has(gameId + 1)) {
               console.log(`⚠️  [FORUM SYNC] Skipped (temporary Turn_1 replay): ${game.game_name} - This is a scenario selection round`);
+              skippedTurn1Replays++;
               continue;
             }
           }
@@ -228,11 +243,11 @@ export class SyncGamesFromForumJob {
         }
       }
 
-      console.log(`✅ [FORUM SYNC] Processed ${processedWithAddon} games with addon, ${skippedWithoutAddon} without addon, ${skippedDuplicateNicknames} with duplicate nicknames`);
+      console.log(`✅ [FORUM SYNC] Processed ${processedWithAddon} games with addon, ${skippedWithoutAddon} without addon, ${skippedDuplicateNicknames} with duplicate nicknames, ${skippedTurn1Replays} Turn_1 replays`);
       console.log(`❌ [FORUM SYNC] ${this.errorCount} errors during processing`);
 
-      // Update last check timestamp
-      await this.updateLastCheckTimestamp();
+      // Update last check timestamp with the latest game timestamp
+      await this.updateLastCheckTimestamp(latestGameTimestamp);
 
     } catch (error) {
       this.errorCount++;
@@ -245,17 +260,18 @@ export class SyncGamesFromForumJob {
 
   /**
    * Update last_check_timestamp in system_settings
+   * @param latestGameTimestamp - Use the latest game's end_time instead of current time
    */
-  private async updateLastCheckTimestamp(): Promise<void> {
+  private async updateLastCheckTimestamp(latestGameTimestamp: Date = new Date()): Promise<void> {
     try {
-      const now = new Date().toISOString();
+      const timestamp = latestGameTimestamp.toISOString();
       await query(
         `UPDATE system_settings 
          SET setting_value = ?, updated_at = NOW()
          WHERE setting_key = 'replay_last_check_timestamp'`,
-        [now]
+        [timestamp]
       );
-      console.log(`✅ [FORUM SYNC] Updated last check timestamp: ${now}`);
+      console.log(`✅ [FORUM SYNC] Updated last check timestamp: ${timestamp} (from latest game)`);
     } catch (error) {
       console.error('❌ [FORUM SYNC] Failed to update timestamp:', error);
     }

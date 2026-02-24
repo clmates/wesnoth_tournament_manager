@@ -96,7 +96,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
       `SELECT COUNT(*) + 1 as ranking_position
        FROM users_extension u2
        WHERE (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
-      [player.elo_rating, playerId]
+      [player.elo_rating, player.elo_rating, playerId]
     );
 
     const rankingPosition = rankingResult.rows[0]?.ranking_position || 1;
@@ -114,7 +114,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
          AND m.created_at < $3
        ORDER BY m.created_at ASC
        LIMIT 1`,
-      [playerId, prevMonthStart, prevMonthEnd]
+      [playerId, playerId, playerId, prevMonthStart, prevMonthEnd]
     );
 
     let positionsGained = 0;
@@ -126,7 +126,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
         `SELECT COUNT(*) + 1 as rank_at_start
          FROM users_extension u2
          WHERE (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
-        [eloAtMonthStart, playerId]
+        [eloAtMonthStart, eloAtMonthStart, playerId]
       );
 
       const rankAtStart = rankAtStartResult.rows[0]?.rank_at_start || 1;

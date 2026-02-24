@@ -141,6 +141,12 @@ const Matches: React.FC = () => {
     }
   };
 
+  const handleReplayReported = (replayId: string) => {
+    console.log(`✅ Replay ${replayId} reported successfully. Refreshing matches list...`);
+    // Refresh the current page
+    setCurrentPage(1); // Reset to first page to see the newly created match
+  };
+
   const handleDownloadReplay = async (matchId: string | null, replayFilePath: string, tournamentMatchId?: string): Promise<void> => {
     if (!matchId || !replayFilePath) return;
     try {
@@ -369,6 +375,7 @@ const Matches: React.FC = () => {
           onViewDetails={openMatchDetails}
           onOpenConfirmation={openConfirmation}
           onDownloadReplay={handleDownloadReplay}
+          onReplayReported={handleReplayReported}
         />
       </div>
 

@@ -163,6 +163,8 @@ export const matchService = {
   validateDispute: (id: string) => api.post(`/matches/admin/${id}/dispute`, { action: 'validate' }),
   rejectDispute: (id: string) => api.post(`/matches/admin/${id}/dispute`, { action: 'reject' }),
   incrementReplayDownloads: (matchId: string) => api.post(`/matches/${matchId}/replay/download-count`),
+  reportConfidence1Replay: (replayId: string, winner_choice: 'I won' | 'I lost') => 
+    api.post('/matches/report-confidence-1-replay', { replayId, winner_choice }),
 };
 
 export const tournamentService = {

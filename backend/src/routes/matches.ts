@@ -89,8 +89,8 @@ async function performGlobalStatsRecalculation() {
 
     // STEP 1: Disable both triggers to prevent automatic stats updates during this process
     try {
-      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches CASCADE');
-      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches CASCADE');
+      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats');
+      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats');
       const msg = 'Disabled triggers for stats recalculation';
       if (isDebugEnabled) {
         logs.push(msg);
@@ -120,7 +120,7 @@ async function performGlobalStatsRecalculation() {
       level: string;
     }>();
 
-    const allUsersResult = await query('SELECT id FROM users');
+    const allUsersResult = await query('SELECT id FROM users_extension');
     for (const userRow of allUsersResult.rows) {
       userStates.set(userRow.id, {
         elo_rating: defaultElo,
@@ -210,12 +210,12 @@ async function performGlobalStatsRecalculation() {
       // Update the match record with correct before/after ELO values, FIDE elo_change, and levels
       await query(
         `UPDATE matches 
-         SET winner_elo_before = ?, winner_elo_after = ?, 
-             loser_elo_before = ?, loser_elo_after = ?,
-             winner_level_before = ?, winner_level_after = $6,
+         SET winner_elo_before = $1, winner_elo_after = $2, 
+             loser_elo_before = $3, loser_elo_after = $4,
+             winner_level_before = $5, winner_level_after = $6,
              loser_level_before = $7, loser_level_after = $8,
              elo_change = $9
-         WHERE id = ?0`,
+         WHERE id = $10`,
         [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, winnerLevelBefore, winner.level, loserLevelBefore, loser.level, winnerEloChange, matchRow.id]
       );
 
@@ -252,12 +252,12 @@ async function performGlobalStatsRecalculation() {
       }
       
       await query(
-        `UPDATE users 
-         SET elo_rating = ?, 
-             matches_played = ?,
-             total_wins = ?,
-             total_losses = ?,
-             trend = ?,
+        `UPDATE users_extension 
+         SET elo_rating = $1, 
+             matches_played = $2,
+             total_wins = $3,
+             total_losses = $4,
+             trend = $5,
              level = $6,
              is_rated = $7,
              updated_at = CURRENT_TIMESTAMP 
@@ -269,13 +269,13 @@ async function performGlobalStatsRecalculation() {
 
     // STEP 6: Re-enable both triggers
     try {
-      await query(`
-        DROP TRIGGER IF EXISTS trg_update_player_match_stats ON matches CASCADE;
-        CREATE TRIGGER trg_update_player_match_stats
+      // Drop old trigger
+      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats');
+      // Create new trigger
+      await query(`CREATE TRIGGER trg_update_player_match_stats
         AFTER INSERT OR UPDATE ON matches
         FOR EACH ROW
-        EXECUTE FUNCTION update_player_match_statistics();
-      `);
+        EXECUTE FUNCTION update_player_match_statistics()`);
       const msg = 'Re-enabled trigger: trg_update_player_match_stats';
       if (isDebugEnabled) {
         logs.push(msg);
@@ -286,13 +286,13 @@ async function performGlobalStatsRecalculation() {
     }
 
     try {
-      await query(`
-        DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches CASCADE;
-        CREATE TRIGGER trg_update_faction_map_stats
+      // Drop old trigger
+      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats');
+      // Create new trigger
+      await query(`CREATE TRIGGER trg_update_faction_map_stats
         AFTER INSERT OR UPDATE ON matches
         FOR EACH ROW
-        EXECUTE FUNCTION update_faction_map_statistics();
-      `);
+        EXECUTE FUNCTION update_faction_map_statistics()`);
       const msg = 'Re-enabled trigger: trg_update_faction_map_stats';
       if (isDebugEnabled) {
         logs.push(msg);
@@ -2020,7 +2020,7 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
         trend: string;
       }>();
 
-      const allUsersResult = await query('SELECT id FROM users');
+      const allUsersResult = await query('SELECT id FROM users_extension');
       for (const userRow of allUsersResult.rows) {
         userStates.set(userRow.id, {
           elo_rating: defaultElo,
@@ -2269,6 +2269,251 @@ router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => 
   }
 });
 
+// ============================================================================
+// POST endpoint to report a confidence=1 replay (unparsed match)
+// User says "I won" or "I lost" to help determine the winner
+// ============================================================================
+router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { replayId, winner_choice } = req.body;
+    const userId = req.userId;
+
+    // Validate user is authenticated
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Validate inputs
+    if (!replayId) {
+      return res.status(400).json({ error: 'Missing replayId in request body' });
+    }
+
+    if (!winner_choice || !['I won', 'I lost'].includes(winner_choice)) {
+      return res.status(400).json({ error: 'winner_choice must be "I won" or "I lost"' });
+    }
+
+    console.log(`📋 [CONFIDENCE-1] Processing replay ${replayId}: user ${userId} says "${winner_choice}"`);
+
+    // Get the replay from database
+    const replayResult = await query(
+      `SELECT id, parse_summary, integration_confidence, parsed FROM replays WHERE id = ? AND integration_confidence = 1 AND parsed = 1`,
+      [replayId]
+    );
+
+    if (replayResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Replay not found or not a confidence=1 replay' });
+    }
+
+    const replay = replayResult.rows[0];
+    let parseSummary: any;
+
+    try {
+      parseSummary = typeof replay.parse_summary === 'string' 
+        ? JSON.parse(replay.parse_summary) 
+        : replay.parse_summary;
+    } catch (parseError) {
+      console.error('❌ Failed to parse parse_summary JSON:', parseError);
+      return res.status(500).json({ error: 'Invalid parse_summary data in replay' });
+    }
+
+    // Extract player information from parse_summary
+    const forumPlayers = parseSummary?.forumPlayers || [];
+    if (forumPlayers.length < 2) {
+      return res.status(400).json({ error: 'Replay does not have 2 players' });
+    }
+
+    const player1 = forumPlayers[0];
+    const player2 = forumPlayers[1];
+
+    // Get current user's nickname
+    const currentUserResult = await query(
+      `SELECT nickname FROM users_extension WHERE id = ?`,
+      [userId]
+    );
+    
+    if (currentUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const currentUserNickname = currentUserResult.rows[0].nickname?.toLowerCase() || '';
+    const player1Nickname = player1?.user_name?.toLowerCase() || '';
+    const player2Nickname = player2?.user_name?.toLowerCase() || '';
+
+    // Security check: user must be one of the 2 players
+    if (currentUserNickname !== player1Nickname && currentUserNickname !== player2Nickname) {
+      return res.status(403).json({ error: 'You are not a participant in this replay' });
+    }
+
+    // Determine who won based on user's choice
+    let winnerId: string = userId;
+    let loserId: string = '';
+
+    // Get the other player's user ID (from parse_summary, if available, or get from users_extension by nickname)
+    const otherPlayerNickname = currentUserNickname === player1Nickname ? player2Nickname : player1Nickname;
+    
+    const otherPlayerResult = await query(
+      `SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)`,
+      [otherPlayerNickname]
+    );
+
+    if (otherPlayerResult.rows.length === 0) {
+      // Try to register forum player or return error
+      console.warn(`⚠️ Could not find user with nickname: ${otherPlayerNickname}`);
+      return res.status(400).json({ error: `Could not find opponent with nickname: ${otherPlayerNickname}` });
+    }
+
+    if (winner_choice === 'I lost') {
+      // User lost, so the other player won
+      loserId = userId;
+      winnerId = otherPlayerResult.rows[0].id;
+    } else {
+      // User won (default case)
+      loserId = otherPlayerResult.rows[0].id;
+      winnerId = userId;
+    }
+
+    console.log(`✅ [CONFIDENCE-1] Players identified: winner=${winnerId}, loser=${loserId}`);
+
+    // Get winner and loser data for ELO calculation
+    const winnerResult = await query(
+      `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
+      [winnerId]
+    );
+    
+    const loserResult = await query(
+      `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
+      [loserId]
+    );
+
+    if (winnerResult.rows.length === 0 || loserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'One or more players not found' });
+    }
+
+    const winner = winnerResult.rows[0];
+    const loser = loserResult.rows[0];
+
+    // Get map and factions from parse_summary
+    const map = parseSummary?.parsedMap || 'Unknown Map';
+    const factions = parseSummary?.resolvedFactions || {};
+    const winner_faction = factions[player1?.user_name] || factions[winnerId] || 'Unknown';
+    const loser_faction = factions[player2?.user_name] || factions[loserId] || 'Unknown';
+
+    console.log(`📋 [CONFIDENCE-1] Map: ${map}, Factions: ${winner_faction} vs ${loser_faction}`);
+
+    // Calculate FIDE ELO ratings
+    const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
+    const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+    const eloChange = winnerNewRating - winner.elo_rating;
+
+    // Create match record
+    const matchResult = await query(
+      `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING id`,
+      [
+        winnerId,
+        loserId,
+        map,
+        winner_faction,
+        loser_faction,
+        'ranked',
+        eloChange,
+        winner.elo_rating,
+        loser.elo_rating,
+        winner.level || 'Novato',
+        loser.level || 'Novato',
+        'unconfirmed'
+      ]
+    );
+
+    const matchId = matchResult.rows[0].id;
+    console.log(`✅ [CONFIDENCE-1] Match created: ${matchId}`);
+
+    // Calculate new trends
+    const winnerTrend = calculateTrend(winner.trend || '-', true);
+    const loserTrend = calculateTrend(loser.trend || '-', false);
+
+    // Update winner stats
+    const newWinnerMatches = winner.matches_played + 1;
+    let winnerIsNowRated = winner.is_rated;
+    let finalWinnerRating = winnerNewRating;
+
+    if (winner.is_rated && finalWinnerRating < 1400) {
+      winnerIsNowRated = false;
+    } else if (!winner.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
+      winnerIsNowRated = true;
+    }
+
+    await query(
+      `UPDATE users_extension 
+       SET elo_rating = ?, 
+           is_rated = ?, 
+           matches_played = ?,
+           total_wins = total_wins + 1,
+           trend = ?,
+           level = ?,
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [finalWinnerRating, winnerIsNowRated, newWinnerMatches, winnerTrend, getUserLevel(finalWinnerRating), winnerId]
+    );
+
+    // Update loser stats
+    const newLoserMatches = loser.matches_played + 1;
+    let loserIsNowRated = loser.is_rated;
+    let finalLoserRating = loserNewRating;
+
+    if (loser.is_rated && finalLoserRating < 1400) {
+      loserIsNowRated = false;
+    } else if (!loser.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
+      loserIsNowRated = true;
+    }
+
+    await query(
+      `UPDATE users_extension 
+       SET elo_rating = ?, 
+           is_rated = ?, 
+           matches_played = ?,
+           total_losses = total_losses + 1,
+           trend = ?,
+           level = ?,
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [finalLoserRating, loserIsNowRated, newLoserMatches, loserTrend, getUserLevel(finalLoserRating), loserId]
+    );
+
+    // Update match with after-match ELO and levels
+    await query(
+      `UPDATE matches 
+       SET winner_elo_after = ?,
+           winner_level_after = ?,
+           loser_elo_after = ?,
+           loser_level_after = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), matchId]
+    );
+
+    // Update replay to link it to the new match
+    await query(
+      `UPDATE replays SET match_id = ? WHERE id = ?`,
+      [matchId, replayId]
+    );
+
+    console.log(`✅ [CONFIDENCE-1] Match reported successfully: ${winnerId} (+${eloChange} ELO) vs ${loserId}`);
+
+    res.status(201).json({ 
+      success: true,
+      matchId,
+      message: 'Replay reported successfully. Match created and ELO calculated.',
+      winner_rating_change: eloChange
+    });
+
+  } catch (error) {
+    console.error('❌ Error reporting confidence-1 replay:', error);
+    res.status(500).json({ error: 'Failed to report replay', details: error instanceof Error ? error.message : String(error) });
+  }
+});
+
 // Get all matches (both confirmed and unconfirmed) - Requires authentication
 router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -2344,7 +2589,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
               m.replay_file_path, m.replay_downloads, m.created_at, m.updated_at, m.played_at,
               m.admin_reviewed, m.tournament_id,
               w.nickname as winner_nickname,
-              l.nickname as loser_nickname
+              l.nickname as loser_nickname,
+              'match' as source_type
        FROM matches m
        JOIN users_extension w ON m.winner_id = w.id
        JOIN users_extension l ON m.loser_id = l.id
@@ -2354,14 +2600,115 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       params
     );
 
+    // Get replays with confidence=1 to show as pending reports (ONLY for involved players)
+    const replayResult = await query(
+      `SELECT 
+        r.id, 
+        r.replay_filename,
+        r.parse_summary,
+        r.created_at,
+        r.wesnoth_version
+       FROM replays r
+       WHERE r.integration_confidence = 1 
+         AND r.parsed = 1
+         AND r.match_id IS NULL
+       ORDER BY r.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+
+    // Get current user's nickname once (for security check)
+    const currentUserResult = await query(
+      `SELECT nickname FROM users_extension WHERE id = ?`,
+      [req.userId]
+    );
+    const currentUserNickname = currentUserResult.rows?.[0]?.nickname?.toLowerCase() || '';
+
+    // Format confidence=1 replays as match-like objects - BUT ONLY IF USER IS INVOLVED
+    const formattedReplays = [];
+    
+    for (const r of replayResult.rows) {
+      try {
+        const parseSummary = typeof r.parse_summary === 'string' 
+          ? JSON.parse(r.parse_summary) 
+          : r.parse_summary;
+
+        // Extract players from parse_summary
+        const players = parseSummary.forumPlayers || [];
+        if (players.length < 2) continue;
+
+        const player1Name = players[0]?.user_name?.toLowerCase() || '';
+        const player2Name = players[1]?.user_name?.toLowerCase() || '';
+
+        // SECURITY: Only show this replay to involved players
+        if (currentUserNickname !== player1Name && currentUserNickname !== player2Name) {
+          continue; // User not involved in this replay
+        }
+
+        // Get victory condition info
+        const victory = parseSummary.replayVictory || {};
+        const winnerName = victory.winner_name || players[0]?.user_name || 'Unknown';
+        const loserName = victory.loser_name || players[1]?.user_name || 'Unknown';
+
+        formattedReplays.push({
+          id: r.id,
+          winner_id: null,  // Unknown until reported
+          loser_id: null,   // Unknown until reported
+          winner_nickname: winnerName,
+          loser_nickname: loserName,
+          winner_faction: victory.winner_faction || parseSummary.finalFactions?.side1 || 'Unknown',
+          loser_faction: victory.loser_faction || parseSummary.finalFactions?.side2 || 'Unknown',
+          map: parseSummary.resolvedMap || parseSummary.forumMap || 'Unknown',
+          status: 'pending_report',
+          winner_elo_before: null,
+          winner_elo_after: null,
+          loser_elo_before: null,
+          loser_elo_after: null,
+          winner_rating: null,
+          loser_rating: null,
+          winner_comments: null,
+          loser_comments: null,
+          replay_file_path: `https://replays.wesnoth.org/${r.wesnoth_version}/${r.replay_filename}`,
+          replay_downloads: 0,
+          created_at: r.created_at,
+          updated_at: r.created_at,
+          played_at: null,
+          admin_reviewed: false,
+          tournament_id: null,
+          source_type: 'replay_confidence_1',
+          replay_id: r.id,
+          confidence_level: 1,
+          parse_summary: parseSummary
+        });
+      } catch (error) {
+        console.error('Error formatting replay:', error);
+        continue;
+      }
+    }
+
+    // Combine matches and replays
+    const allResults = [...result.rows, ...formattedReplays];
+    
+    // Sort by created_at DESC
+    allResults.sort((a: any, b: any) => {
+      const aTime = new Date(a.created_at).getTime();
+      const bTime = new Date(b.created_at).getTime();
+      return bTime - aTime;
+    });
+
+    // Apply pagination to combined results
+    const paginatedResults = allResults.slice(0, limit);
+    const combinedTotal = total + (replayResult.rows?.length || 0);
+    const combinedTotalPages = Math.ceil(combinedTotal / limit);
+
     res.json({
-      data: result.rows,
+      data: paginatedResults,
       pagination: {
         page,
         limit,
-        total,
-        totalPages,
-        showing: result.rows.length
+        total: combinedTotal,
+        totalPages: combinedTotalPages,
+        showing: paginatedResults.length
       }
     });
   } catch (error) {

@@ -72,22 +72,25 @@ export interface ParsedRankedReplay {
   rawWml?: string;
 }
 
+export interface ParseReplayOptions {
+  skipExtractPlayers?: boolean;
+  forumPlayers?: Array<{
+    side_number: number;
+    user_name: string;
+    faction: string;
+  }>;
+}
+
 /**
  * Main function: Parse ranked replay from .wrz file or URL
  * Returns structured data ready for match creation
  */
 export async function parseRankedReplay(
   replayPath: string,
-  instanceUuid?: string,
-  gameId?: number
+  options?: ParseReplayOptions
 ): Promise<ParsedRankedReplay> {
   try {
     console.log(`🎬 [RANKED PARSE] Starting: ${path.basename(replayPath)}`);
-    
-    // If we have forum info, log it
-    if (instanceUuid && gameId) {
-      console.log(`   Forum ID: ${gameId} (${instanceUuid})`);
-    }
 
     // Decompress .wrz file
     const wmlContent = await decompressReplay(replayPath);
@@ -112,15 +115,32 @@ export async function parseRankedReplay(
     // Extract addon configuration
     const addon = extractAddonConfig(parsed);
 
-    // Extract players and factions
-    const players = extractPlayers(parsed);
+    // Extract players and factions (skip if forum already validated)
+    let players: Array<{ side: number; name: string; faction?: string }>;
+    if (options?.skipExtractPlayers && options.forumPlayers) {
+      console.log(`📋 [EXTRACT PLAYERS] Skipped (using forum players)`);
+      // Convert forum players format to internal format
+      players = options.forumPlayers.map(p => ({
+        side: p.side_number,
+        name: p.user_name,
+        faction: p.faction
+      }));
+    } else {
+      players = extractPlayers(parsed);
+    }
 
     // Extract surrenders if any
     const surrenders = extractSurrenders(parsed);
 
     // Determine victory
-    // Pass forum info so we can use the correct side mapping
-    const victory = await determineVictory(parsed, players, surrenders, addon, instanceUuid, gameId);
+    // Pass forumPlayers as source of truth for side mapping
+    const victory = await determineVictory(
+      parsed, 
+      players, 
+      surrenders, 
+      addon,
+      options?.forumPlayers
+    );
 
     const result: ParsedRankedReplay = {
       addon,
@@ -134,8 +154,11 @@ export async function parseRankedReplay(
     console.log(`✅ [RANKED PARSE] Success`);
     console.log(`   Mode: ${addon.ranked_mode ? 'Ranked' : 'Unknown'}`);
     console.log(`   Tournament: ${addon.tournament ? addon.tournament_name : 'None'}`);
-    console.log(`   Winner: ${victory.winner_name} vs Loser: ${victory.loser_name}`);
-    console.log(`   Victory: ${victory.reason} (confidence: ${victory.confidence_level})`);
+    if (victory.reason === 'surrender') {
+      console.log(`   Victory: ${victory.winner_name} def ${victory.loser_name} by ${victory.reason} (confidence: 2)`);
+    } else {
+      console.log(`   Victory: No clear winner (${victory.reason}, confidence: 1)`);
+    }
 
     return result;
 
@@ -621,52 +644,42 @@ async function determineVictory(
   players: Array<{ side: number; name: string; faction?: string }>,
   surrenders: SurrenderEvent[],
   addon: RankedAddonConfig,
-  instanceUuid?: string,
-  gameId?: number
+  forumPlayers?: Array<{
+    side_number: number;
+    user_name: string;
+    faction: string;
+  }>
 ): Promise<ParsedRankedReplay['victory']> {
   try {
-    // Get forum player data for accurate side mapping if available
-    let forumPlayers: any[] = [];
-    if (instanceUuid && gameId) {
-      try {
-        forumPlayers = await getGamePlayers(instanceUuid, gameId);
-        if (forumPlayers.length > 0) {
-          console.log(`   Using forum data for side mapping (${forumPlayers.length} players)`);
-        }
-      } catch (error) {
-        console.warn(`   Could not fetch forum data: ${(error as any).message}`);
-      }
-    }
-
-    // Check for confirmed surrenders first
+    // Check for confirmed surrenders first (forum is source of truth for side ↔ nickname mapping)
     for (const surrender of surrenders) {
       if (surrender.confirmed) {
         const loserSide = surrender.side;
         
-        // Get information from forum if available, otherwise from parsed replay
+        // Get information from forum if available (forum is ALWAYS source of truth)
         let loserName: string | undefined;
         let winnerName: string | undefined;
         let loserFaction: string | undefined;
         let winnerFaction: string | undefined;
         
-        if (forumPlayers.length > 0) {
-          // Use forum as source of truth
+        if (forumPlayers && forumPlayers.length > 0) {
+          // Use forum as source of truth for side mapping
           const loserData = forumPlayers.find(p => p.side_number === loserSide);
           const winnerData = forumPlayers.find(p => p.side_number !== loserSide);
           
           if (loserData && winnerData) {
-            loserName = loserData.username;
-            winnerName = winnerData.username;
+            loserName = loserData.user_name;
+            winnerName = winnerData.user_name;
             
             // Use faction from forum first, fallback to WML if "Custom"
             const loserWml = players.find(p => p.side === loserSide);
             const winnerWml = players.find(p => p.side !== loserSide);
             
-            loserFaction = (loserData.FACTION !== 'Custom' && loserData.FACTION) ? loserData.FACTION : loserWml?.faction;
-            winnerFaction = (winnerData.FACTION !== 'Custom' && winnerData.FACTION) ? winnerData.FACTION : winnerWml?.faction;
+            loserFaction = (loserData.faction !== 'Custom' && loserData.faction) ? loserData.faction : loserWml?.faction;
+            winnerFaction = (winnerData.faction !== 'Custom' && winnerData.faction) ? winnerData.faction : winnerWml?.faction;
             
             // Show which source we're using
-            if (loserData.FACTION === 'Custom') {
+            if (loserData.faction === 'Custom') {
               console.log(`   [SURRENDER] Side ${loserSide} (${loserName}): forum='Custom' → using WML: ${loserFaction}`);
             } else {
               console.log(`   [SURRENDER] Side ${loserSide} (${loserName}): ${loserFaction} (from forum)`);
@@ -680,7 +693,7 @@ async function determineVictory(
               winner_faction: winnerFaction,
               loser_faction: loserFaction,
               reason: 'surrender',
-              confidence_level: addon.tournament ? 1 : 2
+              confidence_level: 2  // Clear victory by surrender
             };
           }
         }
@@ -698,51 +711,32 @@ async function determineVictory(
             winner_faction: winner.faction,
             loser_faction: loser.faction,
             reason: 'surrender',
-            confidence_level: addon.tournament ? 1 : 2
+            confidence_level: 2  // Clear victory by surrender
           };
         }
       }
     }
 
-    // Look for victory conditions in scenario end
-    const scenario = wml.scenario as WmlNode | undefined;
-    if (scenario) {
-      // Parse victory condition (simplified - would need to look at side victory flag)
-      // For now, assume Player 1 wins if no surrender (can be enhanced)
-      const winner = players[0] || { side: 1, name: 'Player1' };
-      const loser = players[1] || { side: 2, name: 'Player2' };
-
-      return {
-        winner_side: winner.side,
-        loser_side: loser.side,
-        winner_name: winner.name || `Player${winner.side}`,
-        loser_name: loser.name || `Player${loser.side}`,
-        winner_faction: winner.faction,
-        loser_faction: loser.faction,
-        reason: 'victory_conditions',
-        confidence_level: addon.tournament ? 1 : 2
-      };
-    }
-
-    // Fallback - assume Player 1 wins
-    const winner = players[0] || { side: 1, name: 'Player1' };
-    const loser = players[1] || { side: 2, name: 'Player2' };
+    // No clear victory found (no surrenders)
+    // Return unknown reason with confidence=1 (needs player confirmation)
+    const player1 = players[0] || { side: 1, name: 'Player1' };
+    const player2 = players[1] || { side: 2, name: 'Player2' };
 
     return {
-      winner_side: winner.side,
-      loser_side: loser.side,
-      winner_name: winner.name || `Player${winner.side}`,
-      loser_name: loser.name || `Player${loser.side}`,
-      winner_faction: winner.faction,
-      loser_faction: loser.faction,
+      winner_side: player1.side,
+      loser_side: player2.side,
+      winner_name: player1.name || `Player${player1.side}`,
+      loser_name: player2.name || `Player${player2.side}`,
+      winner_faction: player1.faction,
+      loser_faction: player2.faction,
       reason: 'unknown',
-      confidence_level: addon.tournament ? 1 : 2
+      confidence_level: 1  // Always confidence=1 for unclear victories
     };
 
   } catch (error) {
-    console.warn('⚠️  [RANKED PARSE] Could not determine victory, defaulting:', error);
+    console.warn('⚠️  [RANKED PARSE] Could not determine victory:', error);
 
-    // Ultimate fallback
+    // Ultimate fallback - unclear victory
     return {
       winner_side: 1,
       loser_side: 2,
@@ -751,7 +745,7 @@ async function determineVictory(
       winner_faction: players[0]?.faction,
       loser_faction: players[1]?.faction,
       reason: 'unknown',
-      confidence_level: addon.tournament ? 1 : 2
+      confidence_level: 1  // Always confidence=1 for unclear victories
     };
   }
 }
