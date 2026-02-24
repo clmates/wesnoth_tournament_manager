@@ -46,6 +46,15 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
   const [reportingReplayId, setReportingReplayId] = React.useState<string | null>(null);
 
+  React.useEffect(() => {
+    console.log(`🔍 [MatchesTable] Received ${matches.length} matches`);
+    matches.forEach((m, i) => {
+      if (m.source_type === 'replay_confidence_1') {
+        console.log(`  [${i}] REPLAY confidence=1: ${m.id}`, m);
+      }
+    });
+  }, [matches]);
+
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
       setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));

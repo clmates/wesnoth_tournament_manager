@@ -93,6 +93,14 @@ const Matches: React.FC = () => {
         const matchesData = res.data?.data || [];
         console.log('Matches data:', matchesData);
         
+        // Check for replays
+        const replays = matchesData.filter((m: any) => m.source_type === 'replay_confidence_1');
+        if (replays.length > 0) {
+          console.log(`📋 Found ${replays.length} confidence=1 replays:`, replays);
+        } else {
+          console.log('📋 No confidence=1 replays found');
+        }
+        
         setAllMatches(matchesData);
         
         // Set pagination info

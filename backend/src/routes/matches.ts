@@ -2613,9 +2613,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
          AND r.parsed = 1
          AND r.match_id IS NULL
        ORDER BY r.created_at DESC
-       LIMIT ? OFFSET ?`,
+       LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
+
+    console.log(`📊 [MATCHES] Found ${result.rows.length} matches and ${replayResult.rows?.length || 0} confidence=1 replays`);
 
     // Get current user's nickname once (for security check)
     const currentUserResult = await query(
