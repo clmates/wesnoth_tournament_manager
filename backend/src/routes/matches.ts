@@ -2276,7 +2276,7 @@ router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => 
 // ============================================================================
 router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { replayId, winner_choice } = req.body;
+    const { replayId, winner_choice, rating, comments } = req.body;
     const userId = req.userId;
 
     // Validate user is authenticated
@@ -2412,11 +2412,10 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     const winner = winnerResult.rows[0];
     const loser = loserResult.rows[0];
 
-    // Get map and factions from parse_summary
-    const map = parseSummary?.parsedMap || 'Unknown Map';
-    const factions = parseSummary?.resolvedFactions || {};
-    const winner_faction = factions[player1?.user_name] || factions[winnerId] || 'Unknown';
-    const loser_faction = factions[player2?.user_name] || factions[loserId] || 'Unknown';
+    // Get map and factions from parse_summary (use resolved values - same as displayed in frontend)
+    const map = parseSummary?.resolvedMap || parseSummary?.finalMap || 'Unknown Map';
+    const winner_faction = parseSummary?.resolvedFactions?.side1 || parseSummary?.finalFactions?.side1 || 'Unknown';
+    const loser_faction = parseSummary?.resolvedFactions?.side2 || parseSummary?.finalFactions?.side2 || 'Unknown';
 
     console.log(`📋 [CONFIDENCE-1] Map: ${map}, Factions: ${winner_faction} vs ${loser_faction}`);
 
@@ -2425,28 +2424,80 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
     const eloChange = winnerNewRating - winner.elo_rating;
 
-    // Create match record
-    const matchResult = await query(
-      `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       RETURNING id`,
+    // Calculate levels before match
+    const winnerLevelBefore = getUserLevel(winner.elo_rating);
+    const loserLevelBefore = getUserLevel(loser.elo_rating);
+    const winnerLevelAfter = getUserLevel(winnerNewRating);
+    const loserLevelAfter = getUserLevel(loserNewRating);
+
+    // Get replay URL
+    const replayUrlResult = await query(
+      `SELECT replay_url FROM replays WHERE id = ?`,
+      [replayId]
+    );
+    const replayUrl = replayUrlResult.rows?.[0]?.replay_url || '';
+
+    // Generate match ID
+    const matchId = uuidv4();
+
+    // Validate and sanitize optional fields
+    const winnerComments = comments ? String(comments).substring(0, 500) : null;
+    const winnerRating = rating ? parseInt(rating, 10) : null;
+
+    // Create match record with all necessary fields
+    await query(
+      `INSERT INTO matches (
+        id,
+        replay_id,
+        winner_id,
+        loser_id,
+        map,
+        winner_faction,
+        loser_faction,
+        winner_elo_before,
+        loser_elo_before,
+        winner_elo_after,
+        loser_elo_after,
+        winner_level_before,
+        loser_level_before,
+        winner_level_after,
+        loser_level_after,
+        winner_comments,
+        winner_rating,
+        elo_change,
+        tournament_mode,
+        status,
+        replay_file_path,
+        auto_reported,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
+        matchId,
+        replayId,
         winnerId,
         loserId,
         map,
         winner_faction,
         loser_faction,
-        'ranked',
-        eloChange,
         winner.elo_rating,
         loser.elo_rating,
-        winner.level || 'Novato',
-        loser.level || 'Novato',
-        'unconfirmed'
+        winnerNewRating,
+        loserNewRating,
+        winnerLevelBefore,
+        loserLevelBefore,
+        winnerLevelAfter,
+        loserLevelAfter,
+        winnerComments,
+        winnerRating,
+        eloChange,
+        'ranked',
+        'reported',
+        replayUrl,
+        1
       ]
     );
 
-    const matchId = matchResult.rows[0].id;
     console.log(`✅ [CONFIDENCE-1] Match created: ${matchId}`);
 
     // Calculate new trends
@@ -2501,19 +2552,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       [finalLoserRating, loserIsNowRated, newLoserMatches, loserTrend, getUserLevel(finalLoserRating), loserId]
     );
 
-    // Update match with after-match ELO and levels
-    await query(
-      `UPDATE matches 
-       SET winner_elo_after = ?,
-           winner_level_after = ?,
-           loser_elo_after = ?,
-           loser_level_after = ?,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`,
-      [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), matchId]
-    );
-
-    // Update replay to link it to the new match
+    // Mark the replay as having a match
     await query(
       `UPDATE replays SET match_id = ? WHERE id = ?`,
       [matchId, replayId]
