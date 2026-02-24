@@ -41,7 +41,8 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   onReplayReported,
 }) => {
   const { t } = useTranslation();
-  const { isAuthenticated, userId } = useAuthStore();
+  const { isAuthenticated, userId, user } = useAuthStore();
+  const currentUserNickname = user?.nickname?.toLowerCase() || '';
 
   const [sortColumn, setSortColumn] = React.useState<SortColumn>('');
   const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
@@ -451,12 +452,13 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
         <ReplayConfirmationModal
           isOpen={showConfirmationModal}
           replayId={selectedReplay.id}
-          winner_nickname={selectedReplay.winner_nickname}
-          loser_nickname={selectedReplay.loser_nickname}
+          player1_nickname={selectedReplay.winner_nickname}
+          player2_nickname={selectedReplay.loser_nickname}
+          currentUserNickname={currentUserNickname}
           your_choice={modalChoice}
           map={selectedReplay.map}
-          winner_faction={selectedReplay.winner_faction}
-          loser_faction={selectedReplay.loser_faction}
+          player1_faction={selectedReplay.winner_faction}
+          player2_faction={selectedReplay.loser_faction}
           onClose={() => {
             setShowConfirmationModal(false);
             setSelectedReplay(null);
