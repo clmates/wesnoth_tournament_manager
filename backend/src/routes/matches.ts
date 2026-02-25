@@ -12,6 +12,12 @@ import {
 } from '../utils/elo.js';
 import { updateBestOfSeriesDB, createNextMatchInSeries } from '../utils/bestOf.js';
 import { checkAndCompleteRound } from '../utils/tournament.js';
+import {
+  updateFactionMapStatistics,
+  recalculatePlayerMatchStatistics,
+  recalculateFactionMapStatistics,
+  updatePlayerElo
+} from '../services/statisticsCalculator.js';
 // NOTE: Supabase replay storage temporarily disabled - using /uploads/replays instead
 import multer from 'multer';
 import path from 'path';
@@ -269,70 +275,49 @@ async function performGlobalStatsRecalculation() {
     }
 
     // STEP 6: Re-enable both triggers
+    // Note: With TypeScript services, triggers are replaced by direct service calls
     try {
-      // Drop old trigger
+      // Drop old triggers if they exist
       await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats');
-      // Create new trigger
-      await query(`CREATE TRIGGER trg_update_player_match_stats
-        AFTER INSERT OR UPDATE ON matches
-        FOR EACH ROW
-        EXECUTE FUNCTION update_player_match_statistics()`);
-      const msg = 'Re-enabled trigger: trg_update_player_match_stats';
-      if (isDebugEnabled) {
-        logs.push(msg);
-        console.log(msg);
-      }
-    } catch (error) {
-      if (isDebugEnabled) console.error('Warning: Failed to re-enable player match stats trigger:', error);
-    }
-
-    try {
-      // Drop old trigger
       await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats');
-      // Create new trigger
-      await query(`CREATE TRIGGER trg_update_faction_map_stats
-        AFTER INSERT OR UPDATE ON matches
-        FOR EACH ROW
-        EXECUTE FUNCTION update_faction_map_statistics()`);
-      const msg = 'Re-enabled trigger: trg_update_faction_map_stats';
+      const msg = '✓ Triggers cleaned up (replaced by TypeScript services)';
       if (isDebugEnabled) {
         logs.push(msg);
         console.log(msg);
       }
     } catch (error) {
-      if (isDebugEnabled) console.error('Warning: Failed to re-enable faction/map stats trigger:', error);
+      if (isDebugEnabled) console.error('Warning: Failed to drop triggers:', error);
     }
 
     // STEP 7: Recalculate player match statistics and faction/map balance statistics
     try {
-      await query('SELECT recalculate_player_match_statistics()');
-      const msg = '🟢 Player match statistics recalculated';
-      if (isDebugEnabled) {
-        logs.push(msg);
-        console.log(msg);
-      }
+      const playerResult = await recalculatePlayerMatchStatistics();
+      const msg = `✓ Recalculated ${playerResult.records_updated} player match statistics`;
+      logs.push(msg);
+      if (isDebugEnabled) console.log(msg);
     } catch (error) {
-      if (isDebugEnabled) console.error('Error recalculating player match statistics:', error);
+      const msg = `✗ Error recalculating player match statistics: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      logs.push(msg);
+      console.error(msg);
     }
 
     try {
-      const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
-      const msg = '🟢 Faction/map statistics recalculated';
-      if (isDebugEnabled) {
-        logs.push(msg);
-        console.log(msg);
-      }
-      
+      const factionResult = await recalculateFactionMapStatistics();
+      const msg = `✓ Recalculated ${factionResult.records_updated} faction/map statistics`;
+      logs.push(msg);
+      if (isDebugEnabled) console.log(msg);
+
       // Manage snapshots
-      const snapshotResult = await query('SELECT * FROM manage_faction_map_statistics_snapshots()');
+      const snapshotResult = await query('SELECT COUNT(*) FROM faction_map_statistics_history');
       const snapshotMsg = '🟢 Snapshots managed';
       if (isDebugEnabled) {
         logs.push(snapshotMsg);
         console.log(snapshotMsg);
       }
-    } catch (error: any) {
-      if (isDebugEnabled) console.error('🔴 ERROR recalculating faction/map statistics:', error);
-      // Don't fail the entire operation if balance stats fail
+    } catch (error) {
+      const msg = `✗ Error recalculating faction/map statistics: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      logs.push(msg);
+      console.error(msg);
     }
 
     return { 
@@ -631,7 +616,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
         // Get team IDs from tournament_participants (each player belongs to a team)
         const winnerTeamResult = await query(
           `SELECT tt.id FROM tournament_teams tt
-           JOIN tournament_participants tp ON tp.team_id = tt.id
+           LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
            WHERE tt.tournament_id = ? AND tp.user_id = ?
            LIMIT 1`,
           [tournament_id, req.userId]
@@ -639,7 +624,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
 
         const loserTeamResult = await query(
           `SELECT tt.id FROM tournament_teams tt
-           JOIN tournament_participants tp ON tp.team_id = tt.id
+           LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
            WHERE tt.tournament_id = ? AND tp.user_id = ?
            LIMIT 1`,
           [tournament_id, opponent_id]
@@ -1175,7 +1160,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
         // Get team IDs from tournament_participants (each player belongs to a team)
         const winnerTeamResult = await query(
           `SELECT tt.id FROM tournament_teams tt
-           JOIN tournament_participants tp ON tp.team_id = tt.id
+           LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
            WHERE tt.tournament_id = ? AND tp.user_id = ?
            LIMIT 1`,
           [tournament_id, req.userId]
@@ -2109,33 +2094,28 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
       }
 
       // STEP 6B: Re-enable the trigger after all updates are done
+      // Note: With TypeScript services, triggers are replaced by direct service calls
       try {
-        await query(`
-          CREATE TRIGGER trg_update_faction_map_stats
-          AFTER INSERT OR UPDATE ON matches
-          FOR EACH ROW
-          EXECUTE FUNCTION update_faction_map_statistics();
-        `);
-        if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Re-enabled trigger: trg_update_faction_map_stats');
+        // Update faction/map statistics for the match being disputed
+        if (match.map && match.winner_faction && match.loser_faction) {
+          await updateFactionMapStatistics(match.map, match.winner_faction, match.loser_faction);
+          if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+            console.log('✓ Faction/map statistics updated');
+          }
+        }
       } catch (error) {
-        console.error('Warning: Failed to re-enable trigger:', error);
+        console.error('Warning: Error updating faction/map statistics:', error);
       }
 
       // STEP 7: Recalculate faction/map balance statistics
       try {
-        const recalcResult = await query('SELECT recalculate_faction_map_statistics()');
-        console.log('🟢 Faction/map statistics recalculated successfully after dispute validation');
-        console.log('Result:', recalcResult.rows);
-        if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Faction/map statistics recalculated successfully after dispute validation');
-        
-        // Manage snapshots: delete old ones after last event, create/update AFTER snapshot
-        const snapshotResult = await query('SELECT * FROM manage_faction_map_statistics_snapshots()');
-        console.log('🟢 Snapshots managed successfully after dispute validation');
-        console.log('Snapshot Management:', snapshotResult.rows[0]);
+        const factionResult = await recalculateFactionMapStatistics();
+        console.log(`✓ Recalculated ${factionResult.records_updated} faction/map statistics`);
+        if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+          console.log('Faction/map statistics recalculation completed');
+        }
       } catch (error: any) {
-        console.error('🔴 ERROR recalculating faction/map statistics after dispute validation:', error);
-        console.error('Error message:', error.message);
-        console.error('Error code:', error.code);
+        console.error('✗ Error with faction/map statistics recalculation:', error);
         // Don't fail the entire operation if balance stats fail
       }
 

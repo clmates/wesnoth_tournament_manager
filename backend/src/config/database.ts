@@ -98,17 +98,32 @@ const query = async (sql: string, values?: any[]): Promise<QueryResult> => {
       const affectedRows = (results as ResultSetHeader).affectedRows || 0;
       
       if (affectedRows > 0) {
-        // Try to fetch updated rows using WHERE clause
         const returningCols = returningMatch[1].trim();
+        
+        // For UPDATE RETURNING, we need to extract only WHERE clause parameters
+        // Extract parameter indices from WHERE clause ($2, $3, etc.)
+        const whereParams = [];
+        const paramMatches = whereClause.match(/\$(\d+)/g) || [];
+        const paramIndices: number[] = [];
+        
+        for (const match of paramMatches) {
+          const paramIndex = parseInt(match.substring(1)) - 1; // Convert $2 to index 1
+          if (paramIndex >= 0 && paramIndex < (values?.length || 0)) {
+            paramIndices.push(paramIndex);
+            whereParams.push(values![paramIndex]);
+          }
+        }
         
         // Get table name from UPDATE statement
         const tableMatch = sql.match(/UPDATE\s+(\w+)/i);
-        if (tableMatch) {
+        if (tableMatch && whereParams.length > 0) {
           const tableName = tableMatch[1];
-          const selectSql = `SELECT ${returningCols} FROM ${tableName} WHERE ${whereClause}`;
+          // Replace PostgreSQL parameters in whereClause with MySQL ?
+          const convertedWhereClause = whereClause.replace(/\$\d+/g, '?');
+          const selectSql = `SELECT ${returningCols} FROM ${tableName} WHERE ${convertedWhereClause}`;
           const [updatedRows] = await connection.execute<any>(
             selectSql,
-            values || []
+            whereParams
           );
           
           if (updatedRows && Array.isArray(updatedRows)) {

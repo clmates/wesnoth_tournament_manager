@@ -3,6 +3,7 @@ import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { activateRound, checkAndCompleteRound, getWinnerAndRunnerUp } from '../utils/tournament.js';
 import discordService from '../services/discordService.js';
+import { randomUUID } from 'crypto';
 
 const router = Router();
 
@@ -132,17 +133,21 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     }
     // If elimination without max_participants, total_rounds will be calculated during close-registration
 
+    // Generate UUID for tournament
+    const tournamentId = randomUUID();
+
     // Create tournament
     const tournamentResult = await query(
       `INSERT INTO tournaments (
-        name, description, creator_id, tournament_type, tournament_mode,
+        id, name, description, creator_id, tournament_type, tournament_mode,
         max_participants, round_duration_days, auto_advance_round, 
         total_rounds, general_rounds, final_rounds,
         general_rounds_format, final_rounds_format,
         status, current_round
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING id`,
       [
+        tournamentId,
         name, 
         description,
         req.userId, 
@@ -161,8 +166,6 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       ]
     );
 
-    const tournamentId = tournamentResult.rows[0].id;
-
     // Add allowed factions and maps for all tournament modes (ranked, unranked, team)
     if (unranked_factions || unranked_maps) {
       try {
@@ -179,9 +182,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             const factionId = faction.id || faction;
             console.log(`Inserting faction ${factionId} into tournament ${tournamentId}`);
             await query(
-              `INSERT INTO tournament_unranked_factions (tournament_id, faction_id)
-               VALUES ($1, $2)
-               ON CONFLICT DO NOTHING`,
+              `INSERT IGNORE INTO tournament_unranked_factions (tournament_id, faction_id)
+               VALUES ($1, $2)`,
               [tournamentId, factionId]
             );
           }
@@ -193,9 +195,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             const mapId = map.id || map;
             console.log(`Inserting map ${mapId} into tournament ${tournamentId}`);
             await query(
-              `INSERT INTO tournament_unranked_maps (tournament_id, map_id)
-               VALUES ($1, $2)
-               ON CONFLICT DO NOTHING`,
+              `INSERT IGNORE INTO tournament_unranked_maps (tournament_id, map_id)
+               VALUES ($1, $2)`,
               [tournamentId, mapId]
             );
           }
@@ -559,15 +560,18 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Insert participant without elo_rating (it's only in users table)
+    // Generate UUID for participant
+    const participantId = randomUUID();
+
+    // Insert participant with explicit UUID
     const result = await query(
-      `INSERT INTO tournament_participants (tournament_id, user_id, participation_status)
-       VALUES ($1, $2, 'accepted')
+      `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status)
+       VALUES ($1, $2, $3, 'accepted')
        RETURNING id`,
-      [id, req.userId]
+      [participantId, id, req.userId]
     );
 
-    res.status(201).json({ id: result.rows[0].id });
+    res.status(201).json({ id: result.rows[0].id || participantId });
   } catch (error: any) {
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Already joined this tournament' });
@@ -679,18 +683,18 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
 
         // Current user joins as Position 2
         await query(
-          `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [id, req.userId, participationStatus, teamId, 2]
+          `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status, team_id, team_position)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [randomUUID(), id, req.userId, participationStatus, teamId, 2]
         );
         console.log('Player joined team at position 2');
 
         // If teammate provided, add them as Position 1 (unconfirmed - needs their confirmation)
         if (teammateUserId) {
           await query(
-            `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [id, teammateUserId, 'unconfirmed', teamId, 1]
+            `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status, team_id, team_position)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [randomUUID(), id, teammateUserId, 'unconfirmed', teamId, 1]
           );
           console.log('Teammate added to team at position 1 (unconfirmed - awaiting confirmation)');
         }
@@ -723,18 +727,18 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
 
         // Insert current user as Position 1
         await query(
-          `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [id, req.userId, participationStatus, teamId, 1]
+          `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status, team_id, team_position)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [randomUUID(), id, req.userId, participationStatus, teamId, 1]
         );
         console.log('Player 1 added to new team');
 
         // If teammate provided, insert as Position 2 (unconfirmed - needs their confirmation)
         if (teammateUserId) {
           await query(
-            `INSERT INTO tournament_participants (tournament_id, user_id, participation_status, team_id, team_position)
-             VALUES ($1, $2, $3, $4, $5)`,
-            [id, teammateUserId, 'unconfirmed', teamId, 2]
+            `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status, team_id, team_position)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [randomUUID(), id, teammateUserId, 'unconfirmed', teamId, 2]
           );
           console.log('Player 2 (teammate) added as unconfirmed - awaiting confirmation');
         }
@@ -751,9 +755,9 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     // For non-team tournaments, insert as pending participant (existing logic)
     if (tournament.tournament_mode !== 'team') {
       await query(
-        `INSERT INTO tournament_participants (tournament_id, user_id, participation_status)
-         VALUES ($1, $2, $3)`,
-        [id, req.userId, 'pending']
+        `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status)
+         VALUES ($1, $2, $3, $4)`,
+        [randomUUID(), id, req.userId, 'pending']
       );
     }
 
@@ -828,7 +832,7 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
     // Get participant info
     const participantResult = await query(
       `SELECT tp.*, u.nickname FROM tournament_participants tp
-       JOIN users_extension u ON tp.user_id = u.id
+       LEFT JOIN users_extension u ON tp.user_id = u.id
        WHERE tp.id = $1 AND tp.tournament_id = $2`,
       [participantId, tournamentId]
     );
@@ -901,7 +905,7 @@ router.post('/:tournamentId/participants/:participantId/confirm', authMiddleware
     // Get participant info
     const participantResult = await query(
       `SELECT tp.*, u.nickname FROM tournament_participants tp
-       JOIN users_extension u ON tp.user_id = u.id
+       LEFT JOIN users_extension u ON tp.user_id = u.id
        WHERE tp.id = $1 AND tp.tournament_id = $2`,
       [participantId, tournamentId]
     );
@@ -967,7 +971,7 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     // Get participant info including nickname
     const participantResult = await query(
       `SELECT tp.*, u.nickname FROM tournament_participants tp
-       JOIN users_extension u ON tp.user_id = u.id
+       LEFT JOIN users_extension u ON tp.user_id = u.id
        WHERE tp.id = $1 AND tp.tournament_id = $2`,
       [participantId, tournamentId]
     );
@@ -1101,7 +1105,7 @@ router.get('/:id/ranking', async (req, res) => {
     const result = await query(
       `SELECT tp.*, u.nickname, u.elo_rating 
        FROM tournament_participants tp
-       JOIN users_extension u ON tp.user_id = u.id
+       LEFT JOIN users_extension u ON tp.user_id = u.id
        WHERE tp.tournament_id = $1
        ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, u.elo_rating DESC`,
       [id]
@@ -2091,154 +2095,7 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
   }
 });
 
-// Get all tournament matches (individual matches from tournament_matches table)
-router.get('/:tournamentId/matches', async (req, res) => {
-  try {
-    const { tournamentId } = req.params;
-
-    // First, get tournament mode
-    const tournamentModeResult = await query(
-      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
-      [tournamentId]
-    );
-
-    if (tournamentModeResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Tournament not found' });
-    }
-
-    const tournamentMode = tournamentModeResult.rows[0].tournament_mode || 'ranked';
-
-    // Build dynamic query based on tournament mode
-    let selectClause, joinClause;
-    
-    if (tournamentMode === 'team') {
-      // Team mode: get team names from tournament_teams, match details from tournament_matches (NO fallback to matches for team mode)
-      selectClause = `
-        tm.id,
-        tm.tournament_id,
-        tm.round_id,
-        tm.player1_id,
-        tm.player2_id,
-        tm.winner_id,
-        tm.match_id,
-        tm.match_status,
-        tm.played_at,
-        tr.round_number,
-        tt1.name as player1_nickname,
-        tt2.name as player2_nickname,
-        tt_winner.name as winner_nickname,
-        (CASE WHEN tm.player1_id = tm.winner_id THEN tt2.name ELSE tt1.name END) as loser_nickname,
-        tm.status as match_status_from_matches,
-        tm.map,
-        NULL as winner_faction,
-        NULL as loser_faction,
-        tm.winner_comments,
-        tm.loser_comments,
-        tm.winner_rating,
-        tm.loser_rating,
-        tm.replay_file_path,
-        tm.replay_downloads as replay_downloads,
-        TRUE as is_team_mode
-      `;
-      joinClause = `
-        FROM tournament_matches tm
-        JOIN tournament_rounds tr ON tm.round_id = tr.id
-        LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
-        LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
-        LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
-      `;
-    } else if (tournamentMode === 'unranked') {
-      // Unranked 1v1: get player names from users, match details from tournament_matches (match_id is NULL for unranked, so NO matches table data)
-      selectClause = `
-        tm.id,
-        tm.tournament_id,
-        tm.round_id,
-        tm.player1_id,
-        tm.player2_id,
-        tm.winner_id,
-        tm.match_id,
-        tm.match_status,
-        tm.played_at,
-        tr.round_number,
-        u1.nickname as player1_nickname,
-        u2.nickname as player2_nickname,
-        uw.nickname as winner_nickname,
-        (CASE WHEN tm.player1_id = tm.winner_id THEN u2.nickname ELSE u1.nickname END) as loser_nickname,
-        tm.status as match_status_from_matches,
-        tm.map,
-        tm.winner_faction,
-        tm.loser_faction,
-        tm.winner_comments,
-        tm.loser_comments,
-        tm.winner_rating,
-        tm.loser_rating,
-        tm.replay_file_path,
-        tm.replay_downloads as replay_downloads,
-        FALSE as is_team_mode
-      `;
-      joinClause = `
-        FROM tournament_matches tm
-        JOIN tournament_rounds tr ON tm.round_id = tr.id
-        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
-        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
-        LEFT JOIN users_extension uw ON tm.winner_id = uw.id
-      `;
-    } else {
-      // Ranked 1v1: get player names from users, match details from matches table (via match_id link)
-      selectClause = `
-        tm.id,
-        tm.tournament_id,
-        tm.round_id,
-        tm.player1_id,
-        tm.player2_id,
-        tm.winner_id,
-        tm.match_id,
-        tm.match_status,
-        tm.played_at,
-        tr.round_number,
-        u1.nickname as player1_nickname,
-        u2.nickname as player2_nickname,
-        uw.nickname as winner_nickname,
-        ul.nickname as loser_nickname,
-        m.status as match_status_from_matches,
-        m.map,
-        m.winner_faction,
-        m.loser_faction,
-        m.winner_comments,
-        m.loser_comments,
-        m.winner_rating,
-        m.loser_rating,
-        m.replay_file_path,
-        m.replay_downloads,
-        FALSE as is_team_mode
-      `;
-      joinClause = `
-        FROM tournament_matches tm
-        JOIN tournament_rounds tr ON tm.round_id = tr.id
-        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
-        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
-        LEFT JOIN matches m ON tm.match_id = m.id
-        LEFT JOIN users_extension uw ON m.winner_id = uw.id
-        LEFT JOIN users_extension ul ON m.loser_id = ul.id
-      `;
-    }
-
-    const result = await query(
-      `SELECT ${selectClause}
-       ${joinClause}
-       WHERE tm.tournament_id = $1
-       ORDER BY tr.round_number ASC, tm.created_at ASC`,
-      [tournamentId]
-    );
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching tournament matches:', error);
-    res.status(500).json({ error: 'Failed to fetch tournament matches' });
-  }
-});
-
-    // Record match result for a tournament match
+// Record match result for a tournament match
 router.post('/:tournamentId/matches/:matchId/result', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { tournamentId, matchId } = req.params;
@@ -2561,6 +2418,155 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
       details: error.message,
       code: error.code 
     });
+  }
+});
+
+// Get all tournament matches (individual matches from tournament_matches table)
+// NOTE: This MUST be after all specific POST routes like :matchId/determine-winner and :matchId/result
+// to prevent Express from matching the generic route first
+router.get('/:tournamentId/matches', async (req, res) => {
+  try {
+    const { tournamentId } = req.params;
+
+    // First, get tournament mode
+    const tournamentModeResult = await query(
+      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      [tournamentId]
+    );
+
+    if (tournamentModeResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const tournamentMode = tournamentModeResult.rows[0].tournament_mode || 'ranked';
+
+    // Build dynamic query based on tournament mode
+    let selectClause, joinClause;
+    
+    if (tournamentMode === 'team') {
+      // Team mode: get team names from tournament_teams, match details from tournament_matches (NO fallback to matches for team mode)
+      selectClause = `
+        tm.id,
+        tm.tournament_id,
+        tm.round_id,
+        tm.player1_id,
+        tm.player2_id,
+        tm.winner_id,
+        tm.match_id,
+        tm.match_status,
+        tm.played_at,
+        tr.round_number,
+        tt1.name as player1_nickname,
+        tt2.name as player2_nickname,
+        tt_winner.name as winner_nickname,
+        (CASE WHEN tm.player1_id = tm.winner_id THEN tt2.name ELSE tt1.name END) as loser_nickname,
+        tm.status as match_status_from_matches,
+        tm.map,
+        NULL as winner_faction,
+        NULL as loser_faction,
+        tm.winner_comments,
+        tm.loser_comments,
+        tm.winner_rating,
+        tm.loser_rating,
+        tm.replay_file_path,
+        tm.replay_downloads as replay_downloads,
+        TRUE as is_team_mode
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        JOIN tournament_rounds tr ON tm.round_id = tr.id
+        LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
+        LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
+        LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
+      `;
+    } else if (tournamentMode === 'unranked') {
+      // Unranked 1v1: get player names from users, match details from tournament_matches (match_id is NULL for unranked, so NO matches table data)
+      selectClause = `
+        tm.id,
+        tm.tournament_id,
+        tm.round_id,
+        tm.player1_id,
+        tm.player2_id,
+        tm.winner_id,
+        tm.match_id,
+        tm.match_status,
+        tm.played_at,
+        tr.round_number,
+        u1.nickname as player1_nickname,
+        u2.nickname as player2_nickname,
+        uw.nickname as winner_nickname,
+        (CASE WHEN tm.player1_id = tm.winner_id THEN u2.nickname ELSE u1.nickname END) as loser_nickname,
+        tm.status as match_status_from_matches,
+        tm.map,
+        tm.winner_faction,
+        tm.loser_faction,
+        tm.winner_comments,
+        tm.loser_comments,
+        tm.winner_rating,
+        tm.loser_rating,
+        tm.replay_file_path,
+        tm.replay_downloads as replay_downloads,
+        FALSE as is_team_mode
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        JOIN tournament_rounds tr ON tm.round_id = tr.id
+        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
+        LEFT JOIN users_extension uw ON tm.winner_id = uw.id
+      `;
+    } else {
+      // Ranked 1v1: get player names from users, match details from matches table (via match_id link)
+      selectClause = `
+        tm.id,
+        tm.tournament_id,
+        tm.round_id,
+        tm.player1_id,
+        tm.player2_id,
+        tm.winner_id,
+        tm.match_id,
+        tm.match_status,
+        tm.played_at,
+        tr.round_number,
+        u1.nickname as player1_nickname,
+        u2.nickname as player2_nickname,
+        uw.nickname as winner_nickname,
+        ul.nickname as loser_nickname,
+        m.status as match_status_from_matches,
+        m.map,
+        m.winner_faction,
+        m.loser_faction,
+        m.winner_comments,
+        m.loser_comments,
+        m.winner_rating,
+        m.loser_rating,
+        m.replay_file_path,
+        m.replay_downloads,
+        FALSE as is_team_mode
+      `;
+      joinClause = `
+        FROM tournament_matches tm
+        JOIN tournament_rounds tr ON tm.round_id = tr.id
+        LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
+        LEFT JOIN matches m ON tm.match_id = m.id
+        LEFT JOIN users_extension uw ON m.winner_id = uw.id
+        LEFT JOIN users_extension ul ON m.loser_id = ul.id
+      `;
+    }
+
+    const result = await query(
+      `SELECT ${selectClause}
+       ${joinClause}
+       WHERE tm.tournament_id = $1
+       ORDER BY tr.round_number ASC, tm.created_at ASC`,
+      [tournamentId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching tournament matches:', error);
+    res.status(500).json({ error: 'Failed to fetch tournament matches' });
   }
 });
 
@@ -2896,8 +2902,22 @@ router.get('/:id/standings', async (req, res) => {
         [id, REJECTED_TEAM_ID]
       );
 
+      // Parse members_with_elo JSON and ensure it's an array
+      const parsedStandings = (teamStandings && teamStandings.rows) 
+        ? teamStandings.rows.map((row: any) => ({
+            ...row,
+            members_with_elo: row.members_with_elo 
+              ? (typeof row.members_with_elo === 'string' 
+                  ? JSON.parse(row.members_with_elo) 
+                  : Array.isArray(row.members_with_elo) 
+                    ? row.members_with_elo 
+                    : [])
+              : []
+          }))
+        : [];
+
       res.json({ 
-        standings: (teamStandings && teamStandings.rows) ? teamStandings.rows : [],
+        standings: parsedStandings,
         mode: 'team'
       });
     } else {
@@ -2928,7 +2948,7 @@ router.get('/:id/standings', async (req, res) => {
         `SELECT tp.*, u.nickname, u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users_extension u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND tp.team_id != $2
+         WHERE tp.tournament_id = $1 AND (tp.team_id IS NULL OR tp.team_id != $2)
          ORDER BY ${orderBy1v1}`,
         [id, REJECTED_TEAM_ID]
       );

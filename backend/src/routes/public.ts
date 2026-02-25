@@ -1009,7 +1009,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
       const membersResult = await query(
         `SELECT tp.id as participant_id, u.id, u.nickname, tp.team_position, tp.participation_status
          FROM tournament_participants tp
-         JOIN users_extension u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tp.team_id = $1 AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
          ORDER BY tp.team_position`,
         [team.id]
