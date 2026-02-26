@@ -416,6 +416,15 @@ async function handleSeriesAndRoundCompletion(seriesUpdate: any, tournamentRound
 
 // Report match (JSON only, no file upload required)
 router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
+  // Manual match reporting is disabled. All matches must come from a parsed replay.
+  return res.status(410).json({
+    error: 'Manual match reporting is no longer supported. All matches must come from a parsed replay. Please upload your replay to the Wesnoth ranking server and it will be processed automatically.'
+  });
+});
+
+// ---- LEGACY /report-json body below (kept for reference, unreachable) ----
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _disabledReportJson = async (req: AuthRequest, res: any) => {
   try {
     const { opponent_id, map, winner_faction, loser_faction, comments, rating, tournament_id, tournament_match_id } = req.body;
 
@@ -750,7 +759,7 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
     }
     res.status(500).json({ error: 'Failed to report match', details: error instanceof Error ? error.message : String(error) });
   }
-});
+};
 
 // OPTIONS handler for /report endpoint (file upload with CORS)
 router.options('/report', (req, res) => {
@@ -763,6 +772,15 @@ router.options('/report', (req, res) => {
 
 // Report match (with file upload)
 router.post('/report', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
+  // Manual match reporting is disabled. All matches must come from a parsed replay.
+  return res.status(410).json({
+    error: 'Manual match reporting is no longer supported. All matches must come from a parsed replay. Please upload your replay to the Wesnoth ranking server and it will be processed automatically.'
+  });
+});
+
+// ---- LEGACY /report body below (kept for reference, unreachable) ----
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _disabledReport = async (req: AuthRequest, res: any) => {
   try {
     // Ensure CORS headers are present for Cloudflare
     res.header('Access-Control-Allow-Origin', '*');
@@ -1331,7 +1349,7 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
     const errorDetails = error instanceof Error ? error.message : String(error);
     res.status(500).json({ error: 'Failed to report match', details: errorDetails });
   }
-});
+};
 
 /**
  * Preview replay file (decompress and extract data)
@@ -2101,7 +2119,7 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
       try {
         // Update faction/map statistics for the match being disputed
         if (match.map && match.winner_faction && match.loser_faction) {
-          await updateFactionMapStatistics(match.map, match.winner_faction, match.loser_faction);
+          await updateFactionMapStatistics(match.map, match.winner_faction, match.loser_faction, match.winner_side ?? null);
           if (process.env.BACKEND_DEBUG_LOGS === 'true') {
             console.log('✓ Faction/map statistics updated');
           }
@@ -2281,7 +2299,9 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
 
     // Get the replay from database
     const replayResult = await query(
-      `SELECT id, parse_summary, integration_confidence, parsed FROM replays WHERE id = ? AND integration_confidence = 1 AND parsed = 1`,
+      `SELECT id, parse_summary, integration_confidence, parsed,
+              game_id, wesnoth_version, instance_uuid
+       FROM replays WHERE id = ? AND integration_confidence = 1 AND parsed = 1`,
       [replayId]
     );
 
@@ -2378,6 +2398,13 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
 
     console.log(`✅ [CONFIDENCE-1] Players identified: winner=${winnerId}, loser=${loserId}`);
 
+    // Determine winner_side from forumPlayers (whichever player is the winner → their side_number)
+    const winnerNicknameForSide = winner_choice === 'I lost' ? otherPlayerNickname : currentUserNickname;
+    const winnerForumPlayer = forumPlayers.find(
+      (p: any) => p.user_name?.toLowerCase() === winnerNicknameForSide
+    );
+    const winnerSide: number | null = winnerForumPlayer?.side_number ?? null;
+
     // Get winner and loser data for ELO calculation
     const winnerResult = await query(
       `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
@@ -2452,8 +2479,12 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         tournament_mode,
         status,
         replay_file_path,
-        auto_reported
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        auto_reported,
+        winner_side,
+        game_id,
+        wesnoth_version,
+        instance_uuid
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         matchId,
         replayId,
@@ -2476,7 +2507,11 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         'ranked',
         'reported',
         replayUrl,
-        1
+        1,
+        winnerSide,                  // winner_side (1 or 2)
+        replay.game_id ?? null,      // game_id from forum
+        replay.wesnoth_version ?? null,  // wesnoth_version
+        replay.instance_uuid ?? null     // instance_uuid
       ]
     );
 
@@ -2539,6 +2574,15 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       `UPDATE replays SET match_id = ? WHERE id = ?`,
       [matchId, replayId]
     );
+
+    // Update faction/map statistics for this match (incremental update)
+    try {
+      if (map && winner_faction && loser_faction) {
+        await updateFactionMapStatistics(map, winner_faction, loser_faction, winnerSide);
+      }
+    } catch (statsError) {
+      console.error('Warning: Error updating faction/map statistics:', statsError);
+    }
 
     // If this replay belongs to a tournament match, associate and close it
     if (tournament_match_id) {

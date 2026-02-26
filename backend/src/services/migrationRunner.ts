@@ -18,10 +18,12 @@ function convertPostgresToMariaDB(sql: string): string {
   // Replace JSONB with JSON
   converted = converted.replace(/\bJSONB\b/gi, 'JSON');
 
-  // Replace CURRENT_TIMESTAMP ON UPDATE syntax
+  // Fix PostgreSQL-style missing DEFAULT before ON UPDATE (only when DEFAULT is absent)
+  // e.g. "TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" → "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+  // Do NOT touch already-correct MariaDB syntax "DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
   converted = converted.replace(
-    /CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP/gi,
-    'CURRENT_TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
+    /(?<!DEFAULT\s)\bCURRENT_TIMESTAMP\s+ON\s+UPDATE\s+CURRENT_TIMESTAMP\b/gi,
+    'DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
   );
 
   // Remove public. schema references (MariaDB doesn't use this)
@@ -117,11 +119,14 @@ async function executeMigration(filename: string): Promise<void> {
     // Remove multi-line comments /* ... */
     sql = sql.replace(/\/\*[\s\S]*?\*\//g, '');
     
-    // Split by semicolon and filter out empty statements
+    // Split by semicolon, strip single-line comments from each chunk, then filter empty
+    // BUG FIX: must strip -- comments BEFORE filtering, otherwise a statement that starts
+    // with a -- comment line (before the actual SQL) gets entirely dropped and the SQL
+    // never executes — but the migration is still recorded as applied.
     const statements = sql
       .split(';')
-      .map((stmt) => stmt.trim())
-      .filter((stmt) => stmt.length > 0 && !stmt.startsWith('--'));
+      .map((stmt) => stmt.replace(/--[^\n]*/g, '').trim())
+      .filter((stmt) => stmt.length > 0);
     
     console.log(`   📄 Found ${statements.length} SQL statements`);
     

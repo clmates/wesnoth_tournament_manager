@@ -535,11 +535,12 @@ export class ParseNewReplaysRefactorized {
       await query(
         `INSERT INTO matches (
           id, winner_id, loser_id, winner_faction, loser_faction, map,
-          replay_id, replay_file_path, auto_reported, status, tournament_type, tournament_mode, 
+          replay_id, replay_file_path, auto_reported, status, tournament_type, tournament_mode,
           winner_elo_before, loser_elo_before, winner_level_before, loser_level_before,
           winner_elo_after, loser_elo_after, winner_level_after, loser_level_after,
+          winner_side, game_id, wesnoth_version, instance_uuid,
           created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'reported', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'reported', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
         [
           matchId,
           winner.id,
@@ -553,12 +554,16 @@ export class ParseNewReplaysRefactorized {
           this.getTournamentMode(parseSummary.matchType),
           winner.elo_rating,              // winner_elo_before
           loser.elo_rating,               // loser_elo_before
-          getUserLevel(winner.elo_rating),        // winner_level_before - basado en ELO ANTES
-          getUserLevel(loser.elo_rating),         // loser_level_before - basado en ELO ANTES
+          getUserLevel(winner.elo_rating),        // winner_level_before
+          getUserLevel(loser.elo_rating),         // loser_level_before
           winnerNewRating,                // winner_elo_after
           loserNewRating,                 // loser_elo_after
           getUserLevel(winnerNewRating),  // winner_level_after
-          getUserLevel(loserNewRating)    // loser_level_after
+          getUserLevel(loserNewRating),   // loser_level_after
+          winnerForumData.side_number,    // winner_side (1 or 2 from forum)
+          replay.game_id,                 // game_id
+          replay.wesnoth_version,         // wesnoth_version
+          replay.instance_uuid            // instance_uuid
         ]
       );
 

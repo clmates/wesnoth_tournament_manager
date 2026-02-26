@@ -867,12 +867,13 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
     // Truncate the stats table
     await query('TRUNCATE TABLE faction_map_statistics');
 
-    // Get all faction/map combinations from matches
+    // Get all faction/map combinations from matches (split by winner_side for side analysis)
     const statsResult = await query(
       `SELECT
          gm.id as map_id,
          f_w.id as faction_id,
          f_l.id as opponent_faction_id,
+         COALESCE(m.winner_side, 0) as faction_side,
          COUNT(*) as total_games,
          SUM(CASE WHEN 1=1 THEN 1 ELSE 0 END) as wins,
          0 as losses
@@ -881,7 +882,7 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
        JOIN factions f_w ON f_w.name = m.winner_faction
        JOIN factions f_l ON f_l.name = m.loser_faction
        WHERE m.status != 'cancelled'
-       GROUP BY gm.id, f_w.id, f_l.id
+       GROUP BY gm.id, f_w.id, f_l.id, COALESCE(m.winner_side, 0)
        
        UNION ALL
        
@@ -889,6 +890,11 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
          gm.id as map_id,
          f_l.id as faction_id,
          f_w.id as opponent_faction_id,
+         CASE
+           WHEN m.winner_side = 1 THEN 2
+           WHEN m.winner_side = 2 THEN 1
+           ELSE 0
+         END as faction_side,
          COUNT(*) as total_games,
          0 as wins,
          SUM(CASE WHEN 1=1 THEN 1 ELSE 0 END) as losses
@@ -897,14 +903,14 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
        JOIN factions f_w ON f_w.name = m.winner_faction
        JOIN factions f_l ON f_l.name = m.loser_faction
        WHERE m.status != 'cancelled'
-       GROUP BY gm.id, f_l.id, f_w.id`
+       GROUP BY gm.id, f_l.id, f_w.id, CASE WHEN m.winner_side = 1 THEN 2 WHEN m.winner_side = 2 THEN 1 ELSE 0 END`
     );
 
-    // Aggregate by map/faction/opponent_faction
+    // Aggregate by map/faction/opponent_faction/faction_side
     const aggregated = new Map<string, any>();
 
     for (const row of statsResult.rows) {
-      const key = `${row.map_id}|${row.faction_id}|${row.opponent_faction_id}`;
+      const key = `${row.map_id}|${row.faction_id}|${row.opponent_faction_id}|${row.faction_side}`;
       const existing = aggregated.get(key);
 
       if (existing) {
@@ -916,6 +922,7 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
           map_id: row.map_id,
           faction_id: row.faction_id,
           opponent_faction_id: row.opponent_faction_id,
+          faction_side: row.faction_side,
           total_games: row.total_games,
           wins: row.wins,
           losses: row.losses
@@ -934,10 +941,10 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
 
       await query(
         `INSERT INTO faction_map_statistics
-         (id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [randomUUID(), stats.map_id, stats.faction_id, stats.opponent_faction_id, stats.total_games,
-         stats.wins, stats.losses, Math.round(stats.winrate * 100) / 100]
+         (id, map_id, faction_id, opponent_faction_id, faction_side, total_games, wins, losses, winrate)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [randomUUID(), stats.map_id, stats.faction_id, stats.opponent_faction_id, stats.faction_side,
+         stats.total_games, stats.wins, stats.losses, Math.round(stats.winrate * 100) / 100]
       );
       recordsInserted++;
     }
@@ -955,7 +962,8 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
 export async function updateFactionMapStatistics(
   map: string,
   winnerFaction: string,
-  loserFaction: string
+  loserFaction: string,
+  winnerSideNumber?: number | null
 ): Promise<boolean> {
   try {
     // Import randomUUID for ID generation
@@ -974,45 +982,33 @@ export async function updateFactionMapStatistics(
     const winnerFactionId = winnerFactionResult.rows[0].id;
     const loserFactionId = loserFactionResult.rows[0].id;
 
-    // Update winner stats (need to use INSERT + UPDATE since MariaDB doesn't support ON CONFLICT)
-    try {
-      await query(
-        `INSERT INTO faction_map_statistics
-         (id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
-         VALUES (?, ?, ?, ?, 1, 1, 0, 100.00)`,
-        [randomUUID(), mapId, winnerFactionId, loserFactionId]
-      );
-    } catch (e) {
-      // Record exists, update it
-      await query(
-        `UPDATE faction_map_statistics
-         SET total_games = total_games + 1,
-             wins = wins + 1,
-             winrate = ROUND(100.0 * (wins + 1) / (total_games + 1), 2)
-         WHERE map_id = ? AND faction_id = ? AND opponent_faction_id = ?`,
-        [mapId, winnerFactionId, loserFactionId]
-      );
-    }
+    // faction_side: 0 = unknown, 1 = side 1, 2 = side 2
+    const winnerFactionSide = winnerSideNumber ?? 0;
+    const loserFactionSide = winnerSideNumber === 1 ? 2 : winnerSideNumber === 2 ? 1 : 0;
 
-    // Update loser stats
-    try {
-      await query(
-        `INSERT INTO faction_map_statistics
-         (id, map_id, faction_id, opponent_faction_id, total_games, wins, losses, winrate)
-         VALUES (?, ?, ?, ?, 1, 0, 1, 0.00)`,
-        [randomUUID(), mapId, loserFactionId, winnerFactionId]
-      );
-    } catch (e) {
-      // Record exists, update it
-      await query(
-        `UPDATE faction_map_statistics
-         SET total_games = total_games + 1,
-             losses = losses + 1,
-             winrate = ROUND(100.0 * wins / (total_games + 1), 2)
-         WHERE map_id = ? AND faction_id = ? AND opponent_faction_id = ?`,
-        [mapId, loserFactionId, winnerFactionId]
-      );
-    }
+    // Update winner stats using ON DUPLICATE KEY UPDATE (requires UNIQUE KEY on map_id+faction_id+opponent_faction_id+faction_side)
+    await query(
+      `INSERT INTO faction_map_statistics
+       (id, map_id, faction_id, opponent_faction_id, faction_side, total_games, wins, losses, winrate)
+       VALUES (?, ?, ?, ?, ?, 1, 1, 0, 100.00)
+       ON DUPLICATE KEY UPDATE
+         total_games = total_games + 1,
+         wins = wins + 1,
+         winrate = ROUND(100.0 * (wins + 1) / (total_games + 1), 2)`,
+      [randomUUID(), mapId, winnerFactionId, loserFactionId, winnerFactionSide]
+    );
+
+    // Update loser stats using ON DUPLICATE KEY UPDATE
+    await query(
+      `INSERT INTO faction_map_statistics
+       (id, map_id, faction_id, opponent_faction_id, faction_side, total_games, wins, losses, winrate)
+       VALUES (?, ?, ?, ?, ?, 1, 0, 1, 0.00)
+       ON DUPLICATE KEY UPDATE
+         total_games = total_games + 1,
+         losses = losses + 1,
+         winrate = ROUND(100.0 * wins / (total_games + 1), 2)`,
+      [randomUUID(), mapId, loserFactionId, winnerFactionId, loserFactionSide]
+    );
 
     return true;
   } catch (error) {

@@ -75,6 +75,7 @@ router.get('/matchups', async (req, res) => {
     console.log(`[MATCHUPS] Total rows in faction_map_statistics: ${countResult.rows[0].total_rows}, Total games: ${countResult.rows[0].total_games_sum}`);
     
     // Get matchups - including both non-mirror (faction_id < opponent_faction_id) and mirror matchups
+    // Aggregate across faction_side dimension, but also expose per-side winrates for bias analysis
     const queryText = `SELECT 
       fms.map_id,
       gm.name as map_name,
@@ -84,19 +85,26 @@ router.get('/matchups', async (req, res) => {
       f1.name as faction_1_name,
       f2.id as faction_2_id,
       f2.name as faction_2_name,
-      fms.total_games,
-      fms.wins as faction_1_wins,
-      fms.losses as faction_2_wins,
-      ROUND(100.0 * fms.wins / fms.total_games, 2) as faction_1_winrate,
-      ROUND(100.0 * fms.losses / fms.total_games, 2) as faction_2_winrate,
-      ABS(fms.wins - fms.losses) as imbalance,
+      SUM(fms.total_games) as total_games,
+      SUM(fms.wins) as faction_1_wins,
+      SUM(fms.losses) as faction_2_wins,
+      ROUND(100.0 * SUM(fms.wins) / NULLIF(SUM(fms.total_games), 0), 2) as faction_1_winrate,
+      ROUND(100.0 * SUM(fms.losses) / NULLIF(SUM(fms.total_games), 0), 2) as faction_2_winrate,
+      ABS(SUM(fms.wins) - SUM(fms.losses)) as imbalance,
+      -- Side 1 breakdown (faction_1 playing as side 1)
+      SUM(CASE WHEN fms.faction_side = 1 THEN fms.total_games ELSE 0 END) as side1_games,
+      ROUND(100.0 * SUM(CASE WHEN fms.faction_side = 1 THEN fms.wins ELSE 0 END) / NULLIF(SUM(CASE WHEN fms.faction_side = 1 THEN fms.total_games ELSE 0 END), 0), 2) as f1_side1_winrate,
+      -- Side 2 breakdown (faction_1 playing as side 2)
+      SUM(CASE WHEN fms.faction_side = 2 THEN fms.total_games ELSE 0 END) as side2_games,
+      ROUND(100.0 * SUM(CASE WHEN fms.faction_side = 2 THEN fms.wins ELSE 0 END) / NULLIF(SUM(CASE WHEN fms.faction_side = 2 THEN fms.total_games ELSE 0 END), 0), 2) as f1_side2_winrate,
       CURRENT_TIMESTAMP as last_updated
     FROM faction_map_statistics fms
     JOIN game_maps gm ON fms.map_id = gm.id
     JOIN factions f1 ON fms.faction_id = f1.id
     JOIN factions f2 ON fms.opponent_faction_id = f2.id
     WHERE (fms.faction_id < fms.opponent_faction_id OR fms.faction_id = fms.opponent_faction_id)
-      AND fms.total_games >= ?
+    GROUP BY fms.map_id, gm.name, fms.faction_id, fms.opponent_faction_id, f1.id, f1.name, f2.id, f2.name
+    HAVING SUM(fms.total_games) >= ?
     ORDER BY imbalance DESC, gm.name, f1.name`;
     
     console.log('[MATCHUPS] Executing query with minGames=', minGames);

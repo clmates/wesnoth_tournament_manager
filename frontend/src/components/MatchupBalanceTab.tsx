@@ -14,6 +14,11 @@ interface MatchupStats {
   faction_2_wins: number;
   faction_1_winrate: number;
   imbalance: number;
+  // Side-specific winrates (null when no data for that side)
+  side1_games?: number;
+  f1_side1_winrate?: number | null;
+  side2_games?: number;
+  f1_side2_winrate?: number | null;
 }
 
 interface ComparisonData {
@@ -152,6 +157,10 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
           ...item,
           faction_1_winrate: typeof item.faction_1_winrate === 'string' ? parseFloat(item.faction_1_winrate) : item.faction_1_winrate,
           imbalance: typeof item.imbalance === 'string' ? parseFloat(item.imbalance) : item.imbalance,
+          f1_side1_winrate: item.f1_side1_winrate != null ? parseFloat(item.f1_side1_winrate) : null,
+          f1_side2_winrate: item.f1_side2_winrate != null ? parseFloat(item.f1_side2_winrate) : null,
+          side1_games: item.side1_games != null ? parseInt(item.side1_games) : 0,
+          side2_games: item.side2_games != null ? parseInt(item.side2_games) : 0,
         }));
         console.log('[MatchupBalanceTab] Backend data converted:', JSON.stringify(converted.slice(0, 3), null, 2));
         setStats(converted);
@@ -350,6 +359,8 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
               <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
               <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_1_wins') || 'F1 Wins'}</th>
               <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_2_wins') || 'F2 Wins'}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-800 bg-amber-50" title="Win rate of Faction 1 when playing as Side 1 (first mover)">{t('side_1_wr') || 'Side 1 WR'}</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-800 bg-purple-50" title="Win rate of Faction 1 when playing as Side 2">{t('side_2_wr') || 'Side 2 WR'}</th>
               <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('imbalance') || 'Imbalance'}</th>
             </tr>
           </thead>
@@ -380,6 +391,28 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
                   <span className={stat.faction_2_wins > stat.faction_1_wins ? 'text-green-700' : 'text-gray-700'}>
                     {stat.faction_2_wins}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-center bg-amber-50">
+                  {stat.f1_side1_winrate != null && stat.side1_games ? (
+                    <div className="flex flex-col items-center">
+                      <span className={`font-semibold text-sm ${
+                        stat.f1_side1_winrate >= 55 ? 'text-green-700' :
+                        stat.f1_side1_winrate <= 45 ? 'text-red-700' : 'text-gray-700'
+                      }`}>{stat.f1_side1_winrate.toFixed(1)}%</span>
+                      <span className="text-xs text-gray-500">{stat.side1_games}g</span>
+                    </div>
+                  ) : <span className="text-gray-400 text-xs">—</span>}
+                </td>
+                <td className="px-4 py-3 text-center bg-purple-50">
+                  {stat.f1_side2_winrate != null && stat.side2_games ? (
+                    <div className="flex flex-col items-center">
+                      <span className={`font-semibold text-sm ${
+                        stat.f1_side2_winrate >= 55 ? 'text-green-700' :
+                        stat.f1_side2_winrate <= 45 ? 'text-red-700' : 'text-gray-700'
+                      }`}>{stat.f1_side2_winrate.toFixed(1)}%</span>
+                      <span className="text-xs text-gray-500">{stat.side2_games}g</span>
+                    </div>
+                  ) : <span className="text-gray-400 text-xs">—</span>}
                 </td>
                 <td className="px-4 py-3 text-center">
                   <span className={`px-3 py-1 rounded-lg font-semibold inline-block text-sm ${
