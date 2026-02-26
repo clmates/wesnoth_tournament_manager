@@ -1392,8 +1392,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                            match.match_status_from_matches === 'cancelled' ? t('match_status_cancelled') :
                                            t('option_pending')}
                                         </span>
-                                        {/* Report Match button hidden: done via automatic replay detection */}
-                                        {/* {isPlayer && (round.round_status === 'pending' || round.round_status === 'in_progress') && (
+                                        {/* Report Match button hidden: done via automatic replay detection
+                                        isPlayer && (round.round_status === 'pending' || round.round_status === 'in_progress') && (
                                           <button
                                             className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                             onClick={() => handleOpenReportMatch(match)}
@@ -1401,7 +1401,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                           >
                                             {t('report_match_link')}
                                           </button>
-                                        )} */
+                                        )
+                                        */}
                                         {isCreator && (round.round_status === 'completed' || round.round_status === 'in_progress') && !match.winner_id && (
                                           <button
                                             className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
