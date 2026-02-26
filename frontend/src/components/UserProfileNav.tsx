@@ -45,7 +45,7 @@ const UserProfileNav: React.FC = () => {
           >
             <span className="text-lg flex items-center justify-center min-w-5 max-sm:text-base">📝</span>
             <span className="hidden md:inline">{t('report_match_link')}</span>
-          </button> */
+          </button> */}
 
           {/* Admin Separator */}
           {isAdmin && (
