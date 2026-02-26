@@ -90,42 +90,64 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
       console.log(`[BalanceEventImpactPanel] Loading impact for event: ${id}`);
       const data = await statisticsService.getEventImpact(id);
       console.log(`[BalanceEventImpactPanel] Received ${data.length} rows from backend`);
-      
-      // Convert string values to numbers if needed
-      const convertedData = data.map((item: any) => ({
+
+      // The backend returns pre-compared rows with winrate_before/after and games_before/after.
+      // Build beforeData and afterData directly from those fields.
+      const beforeAgg: AggregatedData[] = data.map((item: any) => {
+        const gamesBefore = typeof item.games_before === 'string' ? parseInt(item.games_before) : (item.games_before || 0);
+        const winrateBefore = typeof item.winrate_before === 'string' ? parseFloat(item.winrate_before) : (item.winrate_before || 0);
+        const winsBefore = Math.round((winrateBefore / 100) * gamesBefore);
+        return {
+          map_id: item.map_id,
+          map_name: item.map_name,
+          faction_id: item.faction_id,
+          faction_name: item.faction_name,
+          opponent_faction_id: item.opponent_faction_id,
+          opponent_faction_name: item.opponent_faction_name,
+          winrate: winrateBefore,
+          total_games: gamesBefore,
+          wins: winsBefore,
+          losses: gamesBefore - winsBefore,
+        };
+      }).filter((d: AggregatedData) => d.total_games > 0);
+
+      const afterAgg: AggregatedData[] = data.map((item: any) => {
+        const gamesAfter = typeof item.games_after === 'string' ? parseInt(item.games_after) : (item.games_after || 0);
+        const winrateAfter = typeof item.winrate_after === 'string' ? parseFloat(item.winrate_after) : (item.winrate_after || 0);
+        const winsAfter = Math.round((winrateAfter / 100) * gamesAfter);
+        return {
+          map_id: item.map_id,
+          map_name: item.map_name,
+          faction_id: item.faction_id,
+          faction_name: item.faction_name,
+          opponent_faction_id: item.opponent_faction_id,
+          opponent_faction_name: item.opponent_faction_name,
+          winrate: winrateAfter,
+          total_games: gamesAfter,
+          wins: winsAfter,
+          losses: gamesAfter - winsAfter,
+        };
+      }).filter((d: AggregatedData) => d.total_games > 0);
+
+      console.log(`[BalanceEventImpactPanel] Before: ${beforeAgg.length} records, After: ${afterAgg.length} records`);
+
+      // Also store raw impact data for the detailed table view (use after fields as primary)
+      const convertedData: ImpactData[] = data.map((item: any) => ({
         ...item,
-        winrate: typeof item.winrate === 'string' ? parseFloat(item.winrate) : item.winrate,
-        total_games: typeof item.total_games === 'string' ? parseInt(item.total_games) : item.total_games,
-        wins: typeof item.wins === 'string' ? parseInt(item.wins) : item.wins,
-        losses: typeof item.losses === 'string' ? parseInt(item.losses) : item.losses,
-        days_since_event: typeof item.days_since_event === 'string' ? parseInt(item.days_since_event) : item.days_since_event,
+        winrate: typeof item.winrate_after === 'string' ? parseFloat(item.winrate_after) : (item.winrate_after || 0),
+        total_games: typeof item.games_after === 'string' ? parseInt(item.games_after) : (item.games_after || 0),
+        wins: 0,
+        losses: 0,
+        snapshot_date: '',
+        days_since_event: 0,
       }));
-      console.log(`[BalanceEventImpactPanel] Sample data:`, convertedData.slice(0, 2));
       setImpactData(convertedData);
-      
-      // Aggregate data before and after event
-      if (selectedEvent) {
-        const eventDate = new Date(selectedEvent.event_date).getTime();
-        console.log(`[BalanceEventImpactPanel] Event date: ${selectedEvent.event_date}`);
-        
-        const before = convertedData.filter((d: ImpactData) => new Date(d.snapshot_date).getTime() < eventDate);
-        const after = convertedData.filter((d: ImpactData) => new Date(d.snapshot_date).getTime() >= eventDate);
-        
-        console.log(`[BalanceEventImpactPanel] Before: ${before.length} snapshots, After: ${after.length} snapshots`);
-        
-        // Aggregate before data
-        const beforeAgg = aggregateData(before);
-        setBeforeData(beforeAgg);
-        
-        // Aggregate after data
-        const afterAgg = aggregateData(after);
-        setAfterData(afterAgg);
-        
-        console.log(`[BalanceEventImpactPanel] Before aggregated: ${beforeAgg.length} records, After aggregated: ${afterAgg.length} records`);
-        
-        // Notify parent component
-        onComparisonDataChange?.(beforeAgg, afterAgg);
-      }
+
+      setBeforeData(beforeAgg);
+      setAfterData(afterAgg);
+
+      // Notify parent component
+      onComparisonDataChange?.(beforeAgg, afterAgg);
     } catch (err: any) {
       console.error(`[BalanceEventImpactPanel] Error loading impact:`, err);
       setError(err.response?.data?.error || t('error_loading_impact') || 'Error loading impact data');
