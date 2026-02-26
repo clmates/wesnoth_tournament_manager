@@ -9,7 +9,7 @@ const LOCKOUT_DURATION_MINUTES = 15;
 export async function isAccountLocked(userId: string): Promise<boolean> {
   try {
     const result = await query(
-      `SELECT locked_until FROM users_extension WHERE id = $1`,
+      `SELECT locked_until FROM users_extension WHERE id = ?`,
       [userId]
     );
 
@@ -43,21 +43,25 @@ export async function isAccountLocked(userId: string): Promise<boolean> {
 export async function recordFailedLoginAttempt(userId: string, username: string): Promise<void> {
   try {
     // Increment failed attempts
-    const result = await query(
+    await query(
       `UPDATE users_extension SET failed_login_attempts = failed_login_attempts + 1, 
                         last_login_attempt = NOW()
-       WHERE id = $1
-       RETURNING failed_login_attempts`,
+       WHERE id = ?`,
       [userId]
     );
 
-    const failedAttempts = result.rows[0]?.failed_login_attempts || 0;
+    const attemptResult = await query(
+      'SELECT failed_login_attempts FROM users_extension WHERE id = ?',
+      [userId]
+    );
+
+    const failedAttempts = attemptResult.rows[0]?.failed_login_attempts || 0;
 
     // Lock account if max attempts reached
     if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
       const lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
       await query(
-        `UPDATE users_extension SET locked_until = $1 WHERE id = $2`,
+        `UPDATE users_extension SET locked_until = ? WHERE id = ?`,
         [lockUntil, userId]
       );
 
@@ -77,7 +81,7 @@ export async function recordSuccessfulLogin(userId: string): Promise<void> {
       `UPDATE users_extension SET failed_login_attempts = 0, 
                         locked_until = NULL,
                         last_login_attempt = NOW()
-       WHERE id = $1`,
+       WHERE id = ?`,
       [userId]
     );
   } catch (error) {
@@ -91,7 +95,7 @@ export async function recordSuccessfulLogin(userId: string): Promise<void> {
 export async function unlockAccount(userId: string): Promise<void> {
   try {
     await query(
-      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1`,
+      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`,
       [userId]
     );
   } catch (error) {
@@ -105,7 +109,7 @@ export async function unlockAccount(userId: string): Promise<void> {
 export async function getRemainingLockoutTime(userId: string): Promise<number> {
   try {
     const result = await query(
-      `SELECT locked_until FROM users WHERE id = $1`,
+      `SELECT locked_until FROM users WHERE id = ?`,
       [userId]
     );
 

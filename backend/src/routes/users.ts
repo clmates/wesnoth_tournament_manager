@@ -36,7 +36,7 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
         AND pms.opponent_id IS NULL 
         AND pms.map_id IS NULL 
         AND pms.faction_id IS NULL
-      WHERE u.id = $1`,
+      WHERE u.id = ?`,
       [req.userId]
     );
 
@@ -80,10 +80,10 @@ router.get('/:id/stats', async (req, res) => {
       [id, id]
     );
 
-    const winsResult = await query("SELECT COUNT(*) as wins FROM matches WHERE winner_id = $1 AND status = 'confirmed'", [id]);
-    const lossesResult = await query("SELECT COUNT(*) as losses FROM matches WHERE loser_id = $1 AND status = 'confirmed'", [id]);
+    const winsResult = await query("SELECT COUNT(*) as wins FROM matches WHERE winner_id = ? AND status = 'confirmed'", [id]);
+    const lossesResult = await query("SELECT COUNT(*) as losses FROM matches WHERE loser_id = ? AND status = 'confirmed'", [id]);
 
-    const userResult = await query('SELECT elo_rating, level FROM users_extension WHERE id = $1', [id]);
+    const userResult = await query('SELECT elo_rating, level FROM users_extension WHERE id = ?', [id]);
 
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -122,31 +122,27 @@ router.get('/:id/matches', async (req, res) => {
     // Build WHERE clause dynamically
     let whereConditions: string[] = ['(m.winner_id = ? OR m.loser_id = ?)'];
     let params: any[] = [id, id];  // id appears twice in WHERE clause
-    let paramCount = 3;  // Next param index (params[0] and [1] are taken by id)
 
     if (playerFilter) {
-      whereConditions.push(`(w.nickname ILIKE $${paramCount} OR l.nickname ILIKE $${paramCount})`);
+      whereConditions.push(`(w.nickname LIKE ? OR l.nickname LIKE ?)`);
       params.push(`%${playerFilter}%`);
-      paramCount++;
+      params.push(`%${playerFilter}%`);
     }
 
     if (mapFilter) {
-      whereConditions.push(`m.map ILIKE $${paramCount}`);
+      whereConditions.push(`m.map LIKE ?`);
       params.push(`%${mapFilter}%`);
-      paramCount++;
     }
 
     if (statusFilter) {
-      whereConditions.push(`m.status = $${paramCount}`);
+      whereConditions.push(`m.status = ?`);
       params.push(statusFilter);
-      paramCount++;
     }
 
     if (factionFilter) {
-      whereConditions.push(`(m.winner_faction = $${paramCount} OR m.loser_faction = $${paramCount + 1})`);
+      whereConditions.push(`(m.winner_faction = ? OR m.loser_faction = ?)`);
       params.push(factionFilter);
       params.push(factionFilter);
-      paramCount += 2;
       console.log('🔍 Faction filter applied:', factionFilter);
     }
 
@@ -177,7 +173,7 @@ router.get('/:id/matches', async (req, res) => {
        JOIN users_extension l ON m.loser_id = l.id
        WHERE ${whereClause}
        ORDER BY m.created_at DESC
-       LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
+       LIMIT ? OFFSET ?`,
       params
     );
 
@@ -206,7 +202,7 @@ router.get('/search/:searchQuery', searchLimiter, async (req, res) => {
 
     const result = await query(
       `SELECT id, nickname, elo_rating, level FROM users_extension 
-       WHERE nickname ILIKE $1 AND is_active = true AND is_blocked = false
+       WHERE nickname LIKE ? AND is_active = 1 AND is_blocked = 0
        LIMIT 20`,
       [`%${searchQuery}%`]
     );
@@ -227,9 +223,14 @@ router.put('/profile/discord', authMiddleware, async (req: AuthRequest, res) => 
       return res.status(400).json({ error: 'Discord ID cannot be empty' });
     }
 
-    const result = await query(
-      `UPDATE users SET discord_id = $1 WHERE id = $2 RETURNING id, nickname, email, language, discord_id, country, avatar, elo_rating, level, created_at`,
+    await query(
+      `UPDATE users_extension SET discord_id = ? WHERE id = ?`,
       [discord_id, req.userId]
+    );
+
+    const result = await query(
+      `SELECT id, nickname, email, language, discord_id, country, avatar, elo_rating, level, created_at FROM users_extension WHERE id = ?`,
+      [req.userId]
     );
 
     if (result.rows.length === 0) {
@@ -255,25 +256,27 @@ router.put('/profile/update', authMiddleware, async (req: AuthRequest, res) => {
 
     let updateFields: string[] = [];
     let params: any[] = [];
-    let paramCount = 1;
 
     if (country) {
-      updateFields.push(`country = $${paramCount}`);
+      updateFields.push(`country = ?`);
       params.push(country);
-      paramCount++;
     }
 
     if (avatar) {
-      updateFields.push(`avatar = $${paramCount}`);
+      updateFields.push(`avatar = ?`);
       params.push(avatar);
-      paramCount++;
     }
 
     params.push(req.userId);
-    
-    const result = await query(
-      `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramCount} RETURNING id, nickname, email, language, discord_id, country, avatar, elo_rating, level, created_at`,
+
+    await query(
+      `UPDATE users_extension SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       params
+    );
+
+    const result = await query(
+      `SELECT id, nickname, email, language, discord_id, country, avatar, elo_rating, level, created_at FROM users_extension WHERE id = ?`,
+      [req.userId]
     );
 
     if (result.rows.length === 0) {
@@ -302,31 +305,27 @@ router.get('/ranking/global', async (req, res) => {
 
     // Build WHERE clause dynamically
     let whereConditions: string[] = [
-      'u.is_active = true',
-      'u.is_blocked = false',
-      'u.is_rated = true',
+      'u.is_active = 1',
+      'u.is_blocked = 0',
+      'u.is_rated = 1',
       'u.elo_rating >= 1400',
       'u.matches_played >= 10'
     ];
     let params: any[] = [];
-    let paramCount = 1;
 
     if (nicknameFilter) {
-      whereConditions.push(`u.nickname ILIKE $${paramCount}`);
+      whereConditions.push(`u.nickname LIKE ?`);
       params.push(`%${nicknameFilter}%`);
-      paramCount++;
     }
 
     if (minElo !== null) {
-      whereConditions.push(`u.elo_rating >= $${paramCount}`);
+      whereConditions.push(`u.elo_rating >= ?`);
       params.push(minElo);
-      paramCount++;
     }
 
     if (maxElo !== null) {
-      whereConditions.push(`u.elo_rating <= $${paramCount}`);
+      whereConditions.push(`u.elo_rating <= ?`);
       params.push(maxElo);
-      paramCount++;
     }
 
     const whereClause = whereConditions.join(' AND ');
@@ -345,7 +344,7 @@ router.get('/ranking/global', async (req, res) => {
        FROM users_extension u
        WHERE ${whereClause}
        ORDER BY u.elo_rating DESC
-       LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
+       LIMIT ? OFFSET ?`,
       params
     );
 
@@ -371,9 +370,9 @@ router.get('/ranking/active', async (req, res) => {
     const result = await query(
       `SELECT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, u.country, u.avatar, COALESCE(u.trend, '-') as trend
        FROM users_extension u
-       WHERE u.is_active = true 
-         AND u.is_blocked = false
-         AND u.is_rated = true
+       WHERE u.is_active = 1
+         AND u.is_blocked = 0
+         AND u.is_rated = 1
          AND u.elo_rating >= 1400
          AND u.matches_played >= 10
        ORDER BY u.elo_rating DESC
@@ -392,7 +391,7 @@ router.get('/all', async (req, res) => {
   try {
     const result = await query(
       `SELECT id, nickname, elo_rating, level, is_rated, country, avatar, created_at FROM users_extension 
-       WHERE is_blocked = false
+       WHERE is_blocked = 0
        ORDER BY created_at DESC
        LIMIT 500`
     );
@@ -443,7 +442,7 @@ router.get('/:id/stats/month', async (req, res) => {
 
     // Get current ELO
     const currentEloResult = await query(
-      'SELECT elo_rating FROM users_extension WHERE id = $1',
+      'SELECT elo_rating FROM users_extension WHERE id = ?',
       [id]
     );
 
@@ -455,29 +454,29 @@ router.get('/:id/stats/month', async (req, res) => {
     const startRankingResult = await query(
       `SELECT COUNT(*) as rank_at_start 
        FROM users_extension u2 
-       WHERE u2.is_active = true 
-         AND u2.is_blocked = false
-         AND u2.is_rated = true
+       WHERE u2.is_active = 1
+         AND u2.is_blocked = 0
+         AND u2.is_rated = 1
          AND u2.elo_rating >= 1400
          AND (
-           u2.elo_rating > $1 
-           OR (u2.elo_rating = $1 AND u2.id < $2)
+           u2.elo_rating > ?
+           OR (u2.elo_rating = ? AND u2.id < ?)
          )`,
-      [prevMonthElo, id]
+      [prevMonthElo, prevMonthElo, id]
     );
 
     const currentRankingResult = await query(
       `SELECT COUNT(*) as current_rank 
        FROM users_extension u2 
-       WHERE u2.is_active = true 
-         AND u2.is_blocked = false
-         AND u2.is_rated = true
+       WHERE u2.is_active = 1
+         AND u2.is_blocked = 0
+         AND u2.is_rated = 1
          AND u2.elo_rating >= 1400
          AND (
-           u2.elo_rating > $1 
-           OR (u2.elo_rating = $1 AND u2.id < $2)
+           u2.elo_rating > ?
+           OR (u2.elo_rating = ? AND u2.id < ?)
          )`,
-      [currentElo, id]
+      [currentElo, currentElo, id]
     );
 
     const rankAtStart = parseInt(startRankingResult.rows[0].rank_at_start) + 1;
@@ -512,7 +511,7 @@ router.get('/data/countries', async (req, res) => {
         official_name,
         region
        FROM countries 
-       WHERE is_active = true 
+       WHERE is_active = 1 
        ORDER BY JSON_EXTRACT(names_json, '$.en') ASC`
     );
     
@@ -548,7 +547,7 @@ router.get('/data/countries', async (req, res) => {
 router.get('/data/avatars', async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, name, icon_path, description FROM player_avatars WHERE is_active = true ORDER BY name ASC`
+      `SELECT id, name, icon_path, description FROM player_avatars WHERE is_active = 1 ORDER BY name ASC`
     );
     res.json(result.rows);
   } catch (error) {

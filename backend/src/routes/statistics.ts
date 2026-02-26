@@ -1,5 +1,11 @@
 import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database.js';
+import {
+  getBalanceTrend,
+  getBalanceEventForwardImpact,
+  createFactionMapStatisticsSnapshot,
+} from '../services/statisticsCalculator.js';
 
 const router = Router();
 
@@ -90,7 +96,7 @@ router.get('/matchups', async (req, res) => {
     JOIN factions f1 ON fms.faction_id = f1.id
     JOIN factions f2 ON fms.opponent_faction_id = f2.id
     WHERE (fms.faction_id < fms.opponent_faction_id OR fms.faction_id = fms.opponent_faction_id)
-      AND fms.total_games >= $1
+      AND fms.total_games >= ?
     ORDER BY imbalance DESC, gm.name, f1.name`;
     
     console.log('[MATCHUPS] Executing query with minGames=', minGames);
@@ -223,7 +229,7 @@ router.get('/faction/:factionId', async (req, res) => {
       FROM faction_map_statistics fms
       JOIN game_maps gm ON fms.map_id = gm.id
       JOIN factions f2 ON fms.opponent_faction_id = f2.id
-      WHERE fms.faction_id = $1
+      WHERE fms.faction_id = ?
       AND fms.total_games >= 2
       ORDER BY gm.name, fms.winrate DESC`,
       [factionId]
@@ -253,7 +259,7 @@ router.get('/map/:mapId', async (req, res) => {
         fms.last_updated
       FROM faction_map_statistics fms
       JOIN factions f ON fms.faction_id = f.id
-      WHERE fms.map_id = $1
+      WHERE fms.map_id = ?
       AND fms.total_games >= 2
       ORDER BY fms.winrate DESC`,
       [mapId]
@@ -279,12 +285,15 @@ router.get('/history/trend', async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameters: mapId, factionId, opponentFactionId, dateFrom, dateTo' });
     }
     
-    const result = await query(
-      `SELECT * FROM get_balance_trend($1, $2, $3, CAST($4 AS DATE), CAST($5 AS DATE))`,
-      [mapId, factionId, opponentFactionId, dateFrom, dateTo]
+    const rows = await getBalanceTrend(
+      mapId as string,
+      factionId as string,
+      opponentFactionId as string,
+      new Date(dateFrom as string),
+      new Date(dateTo as string)
     );
     
-    res.json(result.rows);
+    res.json(rows);
   } catch (error) {
     console.error('Error fetching balance trend:', error);
     res.status(500).json({ error: 'Failed to fetch balance trend' });
@@ -300,23 +309,22 @@ router.get('/history/events', async (req, res) => {
     const { factionId, mapId, eventType, limit = '50', offset = '0' } = req.query;
     
     let whereClause = '';
-    const params = [];
-    let paramIndex = 1;
+    const params: any[] = [];
     
     if (factionId) {
-      whereClause += `faction_id = $${paramIndex++} `;
+      whereClause += `faction_id = ? `;
       params.push(factionId);
     }
     
     if (mapId) {
       if (whereClause) whereClause += 'AND ';
-      whereClause += `map_id = $${paramIndex++} `;
+      whereClause += `map_id = ? `;
       params.push(mapId);
     }
     
     if (eventType) {
       if (whereClause) whereClause += 'AND ';
-      whereClause += `event_type = $${paramIndex++} `;
+      whereClause += `event_type = ? `;
       params.push(eventType);
     }
     
@@ -341,7 +349,7 @@ router.get('/history/events', async (req, res) => {
       LEFT JOIN users_extension u ON be.created_by = u.id
       ${whereClause}
       ORDER BY be.event_date DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      LIMIT ? OFFSET ?`,
       params
     );
     
@@ -364,7 +372,7 @@ router.get('/history/events/:eventId/impact', async (req, res) => {
     // First, verify the event exists
     const eventCheck = await query(
       `SELECT id, event_date, event_type, description, faction_id, map_id 
-       FROM balance_events WHERE id = $1`,
+       FROM balance_events WHERE id = ?`,
       [eventId]
     );
     
@@ -388,15 +396,12 @@ router.get('/history/events/:eventId/impact', async (req, res) => {
     console.log(`   Date range: ${countCheck.rows[0].earliest_date} to ${countCheck.rows[0].latest_date}`);
     
     // Now get the actual impact data
-    const result = await query(
-      `SELECT * FROM get_balance_event_forward_impact($1)`,
-      [eventId]
-    );
+    const impactRows = await getBalanceEventForwardImpact(eventId);
     
-    console.log(`⚡ Event impact function returned: ${result.rows.length} rows`);
-    if (result.rows.length > 0) {
-      console.log(`   First row: ${JSON.stringify(result.rows[0])}`);
-      console.log(`   Last row: ${JSON.stringify(result.rows[result.rows.length - 1])}`);
+    console.log(`⚡ Event impact function returned: ${impactRows.length} rows`);
+    if (impactRows.length > 0) {
+      console.log(`   First row: ${JSON.stringify(impactRows[0])}`);
+      console.log(`   Last row: ${JSON.stringify(impactRows[impactRows.length - 1])}`);
     } else {
       console.log(`   ⚠️  WARNING: No data returned from function for event ${eventId}`);
       
@@ -407,7 +412,7 @@ router.get('/history/events/:eventId/impact', async (req, res) => {
           (SELECT e2.event_date FROM balance_events e2 
            WHERE e2.event_date > e1.event_date 
            ORDER BY e2.event_date ASC LIMIT 1) as next_event_date
-         FROM balance_events e1 WHERE e1.id = $1`,
+         FROM balance_events e1 WHERE e1.id = ?`,
         [eventId]
       );
       
@@ -419,7 +424,7 @@ router.get('/history/events/:eventId/impact', async (req, res) => {
     }
     console.log('');
     
-    res.json(result.rows);
+    res.json(impactRows);
   } catch (error) {
     console.error('Error fetching event impact:', error);
     res.status(500).json({ error: 'Failed to fetch event impact' });
@@ -457,8 +462,8 @@ router.get('/history/snapshot', async (req, res) => {
       JOIN game_maps gm ON fms.map_id = gm.id
       JOIN factions f1 ON fms.faction_id = f1.id
       JOIN factions f2 ON fms.opponent_faction_id = f2.id
-      WHERE fms.snapshot_date = CAST($1 AS DATE)
-      AND fms.total_games >= CAST($2 AS INT)
+      WHERE fms.snapshot_date = CAST(? AS DATE)
+      AND fms.total_games >= ?
       ORDER BY gm.name, fms.winrate DESC`,
       [date, parseInt(minGames as string)]
     );
@@ -487,14 +492,18 @@ router.post('/history/events', async (req, res) => {
       return res.status(400).json({ error: 'Invalid event_type' });
     }
     
-    const result = await query(
-      `INSERT INTO balance_events (event_date, patch_version, event_type, description, faction_id, map_id, notes, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, event_date, patch_version, event_type, description, created_at`,
-      [event_date, patch_version, event_type, description, faction_id || null, map_id || null, notes || null, userId]
+    const eventId = uuidv4();
+    await query(
+      `INSERT INTO balance_events (id, event_date, patch_version, event_type, description, faction_id, map_id, notes, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [eventId, event_date, patch_version, event_type, description, faction_id || null, map_id || null, notes || null, userId]
+    );
+    const inserted = await query(
+      'SELECT id, event_date, patch_version, event_type, description, created_at FROM balance_events WHERE id = ?',
+      [eventId]
     );
     
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(inserted.rows[0]);
   } catch (error) {
     console.error('Error creating balance event:', error);
     res.status(500).json({ error: 'Failed to create balance event' });
@@ -518,19 +527,22 @@ router.put('/history/events/:eventId', async (req, res) => {
       return res.status(400).json({ error: 'Invalid event_type' });
     }
     
-    const result = await query(
+    const updateResult = await query(
       `UPDATE balance_events 
-       SET event_date = $1, patch_version = $2, event_type = $3, description = $4, faction_id = $5, map_id = $6, notes = $7, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $8
-       RETURNING id, event_date, patch_version, event_type, description, updated_at`,
+       SET event_date = ?, patch_version = ?, event_type = ?, description = ?, faction_id = ?, map_id = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
       [event_date, patch_version, event_type, description, faction_id || null, map_id || null, notes || null, eventId]
     );
     
-    if (result.rows.length === 0) {
+    if (updateResult.rowCount === 0) {
       return res.status(404).json({ error: 'Balance event not found' });
     }
+    const updated = await query(
+      'SELECT id, event_date, patch_version, event_type, description, updated_at FROM balance_events WHERE id = ?',
+      [eventId]
+    );
     
-    res.json(result.rows[0]);
+    res.json(updated.rows[0]);
   } catch (error) {
     console.error('Error updating balance event:', error);
     res.status(500).json({ error: 'Failed to update balance event' });
@@ -549,12 +561,7 @@ router.post('/history/snapshot', async (req, res) => {
       return res.status(400).json({ error: 'Missing required field: date' });
     }
     
-    const result = await query(
-      `SELECT * FROM create_faction_map_statistics_snapshot(CAST($1 AS DATE))`,
-      [date]
-    );
-    
-    const { snapshots_created, snapshots_skipped } = result.rows[0];
+    const { snapshots_created, snapshots_skipped } = await createFactionMapStatisticsSnapshot(new Date(date as string));
     res.json({ 
       message: 'Snapshot created successfully',
       snapshots_created,
@@ -599,15 +606,9 @@ router.post('/history/recalculate-snapshots', async (req, res) => {
       const dateStr = currentDate.toISOString().split('T')[0];
       
       try {
-        const result = await query(
-          `SELECT snapshots_created, snapshots_skipped FROM create_faction_map_statistics_snapshot(CAST($1 AS DATE))`,
-          [dateStr]
-        );
-        
-        if (result.rows[0]) {
-          totalSnapshots += result.rows[0].snapshots_created || 0;
-          totalSkipped += result.rows[0].snapshots_skipped || 0;
-        }
+        const snapResult = await createFactionMapStatisticsSnapshot(new Date(dateStr));
+        totalSnapshots += snapResult.snapshots_created || 0;
+        totalSkipped += snapResult.snapshots_skipped || 0;
       } catch (err) {
         console.error(`Error creating snapshot for ${dateStr}:`, err);
         // Continue with next date even if one fails

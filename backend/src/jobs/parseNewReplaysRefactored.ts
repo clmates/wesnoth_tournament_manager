@@ -551,14 +551,14 @@ export class ParseNewReplaysRefactorized {
           replayFilePath,
           this.getTournamentType(parseSummary.matchType),
           this.getTournamentMode(parseSummary.matchType),
-          winner.elo_rating,        // winner_elo_before
-          loser.elo_rating,         // loser_elo_before
-          winner.level || 'novato', // winner_level_before
-          loser.level || 'novato',  // loser_level_before
-          winnerNewRating,          // winner_elo_after
-          loserNewRating,           // loser_elo_after
-          getUserLevel(winnerNewRating), // winner_level_after
-          getUserLevel(loserNewRating)   // loser_level_after
+          winner.elo_rating,              // winner_elo_before
+          loser.elo_rating,               // loser_elo_before
+          getUserLevel(winner.elo_rating),        // winner_level_before - basado en ELO ANTES
+          getUserLevel(loser.elo_rating),         // loser_level_before - basado en ELO ANTES
+          winnerNewRating,                // winner_elo_after
+          loserNewRating,                 // loser_elo_after
+          getUserLevel(winnerNewRating),  // winner_level_after
+          getUserLevel(loserNewRating)    // loser_level_after
         ]
       );
 

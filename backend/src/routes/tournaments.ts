@@ -144,8 +144,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         total_rounds, general_rounds, final_rounds,
         general_rounds_format, final_rounds_format,
         status, current_round
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-       RETURNING id`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       `,
       [
         tournamentId,
         name, 
@@ -183,7 +183,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             console.log(`Inserting faction ${factionId} into tournament ${tournamentId}`);
             await query(
               `INSERT IGNORE INTO tournament_unranked_factions (tournament_id, faction_id)
-               VALUES ($1, $2)`,
+               VALUES (?, ?)`,
               [tournamentId, factionId]
             );
           }
@@ -196,7 +196,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
             console.log(`Inserting map ${mapId} into tournament ${tournamentId}`);
             await query(
               `INSERT IGNORE INTO tournament_unranked_maps (tournament_id, map_id)
-               VALUES ($1, $2)`,
+               VALUES (?, ?)`,
               [tournamentId, mapId]
             );
           }
@@ -212,7 +212,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
     // Get organizer nickname
     let organizerNickname = 'Unknown';
     try {
-      const userResult = await query('SELECT nickname FROM users_extension WHERE id = $1', [req.userId]);
+      const userResult = await query('SELECT nickname FROM users_extension WHERE id = ?', [req.userId]);
       if (userResult.rows.length > 0) {
         organizerNickname = userResult.rows[0].nickname;
       }
@@ -233,7 +233,7 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
       // Update tournament with Discord thread ID
       if (threadId) {
         await query(
-          'UPDATE tournaments SET discord_thread_id = $1 WHERE id = $2',
+          'UPDATE tournaments SET discord_thread_id = ? WHERE id = ?',
           [threadId, tournamentId]
         );
 
@@ -270,7 +270,7 @@ router.get('/my', authMiddleware, async (req: AuthRequest, res) => {
     const userId = req.userId;
     const result = await query(
       `SELECT * FROM tournaments 
-       WHERE creator_id = $1
+       WHERE creator_id = ?
        ORDER BY created_at DESC`,
       [userId]
     );
@@ -313,7 +313,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await query('SELECT * FROM tournaments WHERE id = $1', [id]);
+    const result = await query('SELECT * FROM tournaments WHERE id = ?', [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
@@ -344,7 +344,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
 
     // Verify the user is the tournament creator
     const tournamentResult = await query(
-      'SELECT creator_id, status FROM tournaments WHERE id = $1',
+      'SELECT creator_id, status FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -359,66 +359,55 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
     // Build update query dynamically
     const updates: string[] = [];
     const values: any[] = [];
-    let paramCount = 1;
 
     if (description !== undefined) {
-      updates.push(`description = $${paramCount}`);
+      updates.push(`description = ?`);
       values.push(description);
-      paramCount++;
     }
 
     if (max_participants !== undefined) {
-      updates.push(`max_participants = $${paramCount}`);
+      updates.push(`max_participants = ?`);
       values.push(max_participants);
-      paramCount++;
     }
 
     if (round_duration_days !== undefined) {
-      updates.push(`round_duration_days = $${paramCount}`);
+      updates.push(`round_duration_days = ?`);
       values.push(round_duration_days);
-      paramCount++;
     }
 
     if (auto_advance_round !== undefined) {
-      updates.push(`auto_advance_round = $${paramCount}`);
+      updates.push(`auto_advance_round = ?`);
       values.push(auto_advance_round);
-      paramCount++;
     }
 
     if (general_rounds !== undefined) {
-      updates.push(`general_rounds = $${paramCount}`);
+      updates.push(`general_rounds = ?`);
       values.push(general_rounds);
-      paramCount++;
     }
 
     if (final_rounds !== undefined) {
-      updates.push(`final_rounds = $${paramCount}`);
+      updates.push(`final_rounds = ?`);
       values.push(final_rounds);
-      paramCount++;
     }
 
     if (general_rounds_format !== undefined) {
-      updates.push(`general_rounds_format = $${paramCount}`);
+      updates.push(`general_rounds_format = ?`);
       values.push(general_rounds_format);
-      paramCount++;
     }
 
     if (final_rounds_format !== undefined) {
-      updates.push(`final_rounds_format = $${paramCount}`);
+      updates.push(`final_rounds_format = ?`);
       values.push(final_rounds_format);
-      paramCount++;
     }
 
     if (status !== undefined) {
-      updates.push(`status = $${paramCount}`);
+      updates.push(`status = ?`);
       values.push(status);
-      paramCount++;
     }
 
     if (started_at !== undefined) {
-      updates.push(`started_at = $${paramCount}`);
+      updates.push(`started_at = ?`);
       values.push(started_at);
-      paramCount++;
     }
 
     if (updates.length === 0) {
@@ -431,15 +420,15 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
     const updateQuery = `
       UPDATE tournaments 
       SET ${updates.join(', ')} 
-      WHERE id = $${paramCount}
-      RETURNING *
+      WHERE id = ?
     `;
 
-    const result = await query(updateQuery, values);
+    await query(updateQuery, values);
+    const updated = await query('SELECT * FROM tournaments WHERE id = ?', [id]);
 
     res.json({
       message: 'Tournament updated successfully',
-      tournament: result.rows[0]
+      tournament: updated.rows[0]
     });
   } catch (error: any) {
     console.error('Update tournament error:', error.message || error);
@@ -453,7 +442,7 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
     const { id } = req.params;
 
     // Verify tournament exists and user is creator
-    const tournamentCheck = await query('SELECT id, creator_id, status FROM tournaments WHERE id = $1', [id]);
+    const tournamentCheck = await query('SELECT id, creator_id, status FROM tournaments WHERE id = ?', [id]);
     if (tournamentCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
@@ -477,27 +466,27 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
       // Delete all related data in the correct order (respecting foreign keys)
       
       // Delete tournament_round_matches
-      await query('DELETE FROM tournament_round_matches WHERE round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = $1)', [id]);
+      await query('DELETE FROM tournament_round_matches WHERE round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = ?)', [id]);
       
       // Delete tournament_matches
-      await query('DELETE FROM tournament_matches WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM tournament_matches WHERE tournament_id = ?', [id]);
       
       // Delete tournament_rounds
-      await query('DELETE FROM tournament_rounds WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM tournament_rounds WHERE tournament_id = ?', [id]);
       
       // Delete tournament_teams
-      await query('DELETE FROM tournament_teams WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM tournament_teams WHERE tournament_id = ?', [id]);
       
       // Delete tournament_assets (if table exists)
-      await query('DELETE FROM tournament_assets WHERE tournament_id = $1', [id]).catch(() => {
+      await query('DELETE FROM tournament_assets WHERE tournament_id = ?', [id]).catch(() => {
         // Table might not exist, that's ok
       });
       
       // Delete tournament_participants
-      await query('DELETE FROM tournament_participants WHERE tournament_id = $1', [id]);
+      await query('DELETE FROM tournament_participants WHERE tournament_id = ?', [id]);
       
       // Delete tournament
-      await query('DELETE FROM tournaments WHERE id = $1', [id]);
+      await query('DELETE FROM tournaments WHERE id = ?', [id]);
 
       // Commit transaction
       await query('COMMIT');
@@ -523,7 +512,7 @@ router.get('/:id/rounds', async (req, res) => {
 
     const result = await query(
       `SELECT * FROM tournament_rounds 
-       WHERE tournament_id = $1 
+       WHERE tournament_id = ? 
        ORDER BY round_number ASC`,
       [id]
     );
@@ -555,7 +544,7 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res) => {
     const { id } = req.params;
 
     // Check if user exists
-    const userResult = await query('SELECT id FROM users_extension WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT id FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -564,16 +553,15 @@ router.post('/:id/join', authMiddleware, async (req: AuthRequest, res) => {
     const participantId = randomUUID();
 
     // Insert participant with explicit UUID
-    const result = await query(
+    await query(
       `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status)
-       VALUES ($1, $2, $3, 'accepted')
-       RETURNING id`,
+       VALUES (?, ?, ?, 'accepted')`,
       [participantId, id, req.userId]
     );
 
-    res.status(201).json({ id: result.rows[0].id || participantId });
+    res.status(201).json({ id: participantId });
   } catch (error: any) {
-    if (error.code === '23505') {
+    if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ error: 'Already joined this tournament' });
     }
     console.error('Join tournament error:', error);
@@ -590,7 +578,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
 
     // Check if tournament exists and get tournament_mode
     const tournamentResult = await query(
-      'SELECT id, discord_thread_id, max_participants, tournament_mode, creator_id FROM tournaments WHERE id = $1',
+      'SELECT id, discord_thread_id, max_participants, tournament_mode, creator_id FROM tournaments WHERE id = ?',
       [id]
     );
     if (tournamentResult.rows.length === 0) {
@@ -615,7 +603,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
       }
 
       // Get current user's info
-      const currentUserResult = await query('SELECT nickname FROM users_extension WHERE id = $1', [req.userId]);
+      const currentUserResult = await query('SELECT nickname FROM users_extension WHERE id = ?', [req.userId]);
       if (currentUserResult.rows.length === 0) {
         return res.status(404).json({ error: 'User not found' });
       }
@@ -624,7 +612,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
       // Check if current user is already in this tournament
       const userAlreadyInResult = await query(
         `SELECT id FROM tournament_participants 
-         WHERE tournament_id = $1 AND user_id = $2 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
+         WHERE tournament_id = ? AND user_id = ? AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
         [id, req.userId]
       );
       if (userAlreadyInResult.rows.length > 0) {
@@ -646,7 +634,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
       // If teammate provided, validate and get their ID
       if (teammate_name) {
         const teammateResult = await query(
-          'SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER($1)',
+          'SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)',
           [teammate_name]
         );
         if (teammateResult.rows.length === 0) {
@@ -657,7 +645,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         // Check if teammate is already in this tournament
         const existingParticipantResult = await query(
           `SELECT id FROM tournament_participants 
-           WHERE tournament_id = $1 AND user_id = $2 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
+           WHERE tournament_id = ? AND user_id = ? AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
           [id, teammateUserId]
         );
         if (existingParticipantResult.rows.length > 0) {
@@ -670,7 +658,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         `SELECT tt.id, COUNT(tp.id) as member_count
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
-         WHERE tt.tournament_id = $1 AND LOWER(tt.name) = LOWER($2) AND tt.id != $3
+         WHERE tt.tournament_id = ? AND LOWER(tt.name) = LOWER(?) AND tt.id != ?
          GROUP BY tt.id
          HAVING COUNT(tp.id) = 1`,
         [id, team_name, REJECTED_TEAM_ID]
@@ -684,7 +672,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         // Current user joins as Position 2
         await query(
           `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status, team_id, team_position)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [randomUUID(), id, req.userId, participationStatus, teamId, 2]
         );
         console.log('Player joined team at position 2');
@@ -693,7 +681,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         if (teammateUserId) {
           await query(
             `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status, team_id, team_position)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+             VALUES (?, ?, ?, ?, ?, ?)`,
             [randomUUID(), id, teammateUserId, 'unconfirmed', teamId, 1]
           );
           console.log('Teammate added to team at position 1 (unconfirmed - awaiting confirmation)');
@@ -704,7 +692,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
           `SELECT tt.id
            FROM tournament_teams tt
            LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
-           WHERE tt.tournament_id = $1 AND LOWER(tt.name) = LOWER($2) AND tt.id != $3
+           WHERE tt.tournament_id = ? AND LOWER(tt.name) = LOWER(?) AND tt.id != ?
            GROUP BY tt.id
            HAVING COUNT(tp.id) >= 2`,
           [id, team_name, REJECTED_TEAM_ID]
@@ -718,17 +706,16 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         const newTeamId = await generateSafeTeamId();
         const createTeamResult = await query(
           `INSERT INTO tournament_teams (id, tournament_id, name, created_by)
-           VALUES ($1, $2, $3, $4)
-           RETURNING id`,
+           VALUES (?, ?, ?, ?)`,
           [newTeamId, id, team_name, req.userId]
         );
-        teamId = createTeamResult.rows[0].id;
+        teamId = newTeamId;
         console.log('New team created:', { teamId, name: team_name });
 
         // Insert current user as Position 1
         await query(
           `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status, team_id, team_position)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [randomUUID(), id, req.userId, participationStatus, teamId, 1]
         );
         console.log('Player 1 added to new team');
@@ -737,7 +724,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
         if (teammateUserId) {
           await query(
             `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status, team_id, team_position)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+             VALUES (?, ?, ?, ?, ?, ?)`,
             [randomUUID(), id, teammateUserId, 'unconfirmed', teamId, 2]
           );
           console.log('Player 2 (teammate) added as unconfirmed - awaiting confirmation');
@@ -746,7 +733,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     }
 
     // Get user's ELO rating and nickname
-    const userResult = await query('SELECT elo_rating, nickname FROM users_extension WHERE id = $1', [req.userId]);
+    const userResult = await query('SELECT elo_rating, nickname FROM users_extension WHERE id = ?', [req.userId]);
     if (userResult.rows.length === 0) {
       console.log('User not found:', req.userId);
       return res.status(404).json({ error: 'User not found' });
@@ -756,7 +743,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     if (tournament.tournament_mode !== 'team') {
       await query(
         `INSERT INTO tournament_participants (id, tournament_id, user_id, participation_status)
-         VALUES ($1, $2, $3, $4)`,
+         VALUES (?, ?, ?, ?)`,
         [randomUUID(), id, req.userId, 'pending']
       );
     }
@@ -764,7 +751,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
     // Get current participant count
     const countResult = await query(
       `SELECT COUNT(*) as count FROM tournament_participants 
-       WHERE tournament_id = $1 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
+       WHERE tournament_id = ? AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
       [id]
     );
     const currentCount = countResult.rows[0]?.count || 0;
@@ -803,7 +790,7 @@ router.post('/:id/request-join', authMiddleware, async (req: AuthRequest, res) =
   } catch (error: any) {
     console.error('Request-join error:', error.message || error);
     console.error('Full error:', error);
-    if (error.code === '23505') {
+    if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ error: 'Already requested to join this tournament' });
     }
     res.status(500).json({ error: 'Failed to request join tournament', details: error.message });
@@ -817,7 +804,7 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
 
     // Verify the user is the tournament creator
     const tournamentResult = await query(
-      'SELECT creator_id, discord_thread_id FROM tournaments WHERE id = $1',
+      'SELECT creator_id, discord_thread_id FROM tournaments WHERE id = ?',
       [tournamentId]
     );
 
@@ -833,7 +820,7 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
     const participantResult = await query(
       `SELECT tp.*, u.nickname FROM tournament_participants tp
        LEFT JOIN users_extension u ON tp.user_id = u.id
-       WHERE tp.id = $1 AND tp.tournament_id = $2`,
+       WHERE tp.id = ? AND tp.tournament_id = ?`,
       [participantId, tournamentId]
     );
 
@@ -853,22 +840,26 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
     }
 
     // Update participant status to accepted
-    const result = await query(
+    await query(
       `UPDATE tournament_participants 
-       SET participation_status = $1 
-       WHERE id = $2 AND tournament_id = $3
-       RETURNING id`,
+       SET participation_status = ? 
+       WHERE id = ? AND tournament_id = ?`,
       ['accepted', participantId, tournamentId]
     );
 
-    if (result.rows.length === 0) {
+    const acceptedCheck = await query(
+      'SELECT id FROM tournament_participants WHERE id = ? AND tournament_id = ?',
+      [participantId, tournamentId]
+    );
+
+    if (acceptedCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Participant not found' });
     }
 
     // Get total accepted participants for Discord message
     const countResult = await query(
       `SELECT COUNT(*) as count FROM tournament_participants 
-       WHERE tournament_id = $1 AND participation_status = 'accepted'`,
+       WHERE tournament_id = ? AND participation_status = 'accepted'`,
       [tournamentId]
     );
     const totalAccepted = countResult.rows[0]?.count || 0;
@@ -888,7 +879,7 @@ router.post('/:tournamentId/participants/:participantId/accept', authMiddleware,
     }
 
     res.json({ 
-      id: result.rows[0].id,
+      id: participantId,
       message: 'Participant accepted successfully'
     });
   } catch (error: any) {
@@ -906,7 +897,7 @@ router.post('/:tournamentId/participants/:participantId/confirm', authMiddleware
     const participantResult = await query(
       `SELECT tp.*, u.nickname FROM tournament_participants tp
        LEFT JOIN users_extension u ON tp.user_id = u.id
-       WHERE tp.id = $1 AND tp.tournament_id = $2`,
+       WHERE tp.id = ? AND tp.tournament_id = ?`,
       [participantId, tournamentId]
     );
 
@@ -927,20 +918,24 @@ router.post('/:tournamentId/participants/:participantId/confirm', authMiddleware
     }
 
     // Update participant status from unconfirmed to pending
-    const result = await query(
+    await query(
       `UPDATE tournament_participants 
-       SET participation_status = $1 
-       WHERE id = $2 AND tournament_id = $3
-       RETURNING id`,
+       SET participation_status = ? 
+       WHERE id = ? AND tournament_id = ?`,
       ['pending', participantId, tournamentId]
     );
 
-    if (result.rows.length === 0) {
+    const confirmedCheck = await query(
+      'SELECT id FROM tournament_participants WHERE id = ? AND tournament_id = ?',
+      [participantId, tournamentId]
+    );
+
+    if (confirmedCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Participant not found' });
     }
 
     res.json({ 
-      id: result.rows[0].id,
+      id: participantId,
       message: 'Participation confirmed! Waiting for organizer approval.'
     });
   } catch (error: any) {
@@ -956,7 +951,7 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
 
     // Verify the user is the tournament creator
     const tournamentResult = await query(
-      'SELECT creator_id, discord_thread_id FROM tournaments WHERE id = $1',
+      'SELECT creator_id, discord_thread_id FROM tournaments WHERE id = ?',
       [tournamentId]
     );
 
@@ -972,7 +967,7 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     const participantResult = await query(
       `SELECT tp.*, u.nickname FROM tournament_participants tp
        LEFT JOIN users_extension u ON tp.user_id = u.id
-       WHERE tp.id = $1 AND tp.tournament_id = $2`,
+       WHERE tp.id = ? AND tp.tournament_id = ?`,
       [participantId, tournamentId]
     );
 
@@ -985,20 +980,19 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     // Get or create "Rejected players" system team with special UUID
     const rejectedTeamResult = await query(
       `SELECT id FROM tournament_teams 
-       WHERE id = $1`,
+       WHERE id = ?`,
       [REJECTED_TEAM_ID]
     );
 
     let rejectedTeamId: string;
     if (rejectedTeamResult.rows.length === 0) {
       // Create the "Rejected players" system team with special UUID
-      const createResult = await query(
+      await query(
         `INSERT INTO tournament_teams (id, tournament_id, name, created_by)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id`,
+         VALUES (?, ?, ?, ?)`,
         [REJECTED_TEAM_ID, tournamentId, 'Rejected players', tournamentResult.rows[0].creator_id]
       );
-      rejectedTeamId = createResult.rows[0].id;
+      rejectedTeamId = REJECTED_TEAM_ID;
     } else {
       rejectedTeamId = rejectedTeamResult.rows[0].id;
     }
@@ -1010,7 +1004,7 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     if (originalTeamId && originalTeamId !== REJECTED_TEAM_ID) {
       const otherTeamMembersResult = await query(
         `SELECT id, team_position FROM tournament_participants 
-         WHERE team_id = $1 AND id != $2 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
+         WHERE team_id = ? AND id != ? AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
         [originalTeamId, participantId]
       );
 
@@ -1021,7 +1015,7 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
           await query(
             `UPDATE tournament_participants 
              SET team_position = 1
-             WHERE id = $1`,
+             WHERE id = ?`,
             [otherMember.id]
           );
           console.log(`Moved teammate ${otherMember.id} to position 1 after rejection`);
@@ -1031,15 +1025,19 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
 
     // Update participant: change team to rejected team, update status to denied
     // For rejected players, set team_position to NULL (not a real team)
-    const result = await query(
+    await query(
       `UPDATE tournament_participants 
-       SET participation_status = $1, team_id = $2, team_position = $3
-       WHERE id = $4 AND tournament_id = $5
-       RETURNING id`,
+       SET participation_status = ?, team_id = ?, team_position = ?
+       WHERE id = ? AND tournament_id = ?`,
       ['denied', rejectedTeamId, null, participantId, tournamentId]
     );
 
-    if (result.rows.length === 0) {
+    const rejectedCheck = await query(
+      'SELECT id FROM tournament_participants WHERE id = ? AND tournament_id = ?',
+      [participantId, tournamentId]
+    );
+
+    if (rejectedCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Participant not found' });
     }
 
@@ -1047,21 +1045,17 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     if (originalTeamId && originalTeamId !== REJECTED_TEAM_ID) {
       const remainingMembersResult = await query(
         `SELECT COUNT(*) as count FROM tournament_participants 
-         WHERE team_id = $1 AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
+         WHERE team_id = ? AND participation_status IN ('pending', 'unconfirmed', 'accepted')`,
         [originalTeamId]
       );
 
       if (remainingMembersResult.rows[0].count === '0' || remainingMembersResult.rows[0].count === 0) {
         await query(
-          `DELETE FROM tournament_teams WHERE id = $1`,
+          `DELETE FROM tournament_teams WHERE id = ?`,
           [originalTeamId]
         );
         console.log(`Deleted empty team ${originalTeamId} after rejecting last member`);
       }
-    }
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Participant not found' });
     }
 
     // Post to Discord if thread exists
@@ -1088,7 +1082,7 @@ router.post('/:tournamentId/participants/:participantId/reject', authMiddleware,
     }
 
     res.json({ 
-      id: result.rows[0].id,
+      id: participantId,
       message: 'Participant rejected successfully'
     });
   } catch (error: any) {
@@ -1106,7 +1100,7 @@ router.get('/:id/ranking', async (req, res) => {
       `SELECT tp.*, u.nickname, u.elo_rating 
        FROM tournament_participants tp
        LEFT JOIN users_extension u ON tp.user_id = u.id
-       WHERE tp.tournament_id = $1
+       WHERE tp.tournament_id = ?
        ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, u.elo_rating DESC`,
       [id]
     );
@@ -1125,7 +1119,7 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
 
     // Verify tournament creator
     const tournamentCheck = await query(
-      'SELECT creator_id, status, discord_thread_id, name, tournament_type, tournament_mode, max_participants, total_rounds FROM tournaments WHERE id = $1', 
+      'SELECT creator_id, status, discord_thread_id, name, tournament_type, tournament_mode, max_participants, total_rounds FROM tournaments WHERE id = ?', 
       [id]
     );
     if (tournamentCheck.rows.length === 0) {
@@ -1151,7 +1145,7 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
         `SELECT tt.id, COUNT(tp.id) as member_count, SUM(CASE WHEN tp.participation_status = 'accepted' THEN 1 ELSE 0 END) as accepted_count
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
-         WHERE tt.tournament_id = $1
+         WHERE tt.tournament_id = ?
          GROUP BY tt.id`,
         [id]
       );
@@ -1181,7 +1175,7 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
     } else {
       // For 1v1 tournaments: count accepted individual participants
       const participantsCheck = await query(
-        'SELECT COUNT(*) as count FROM tournament_participants WHERE tournament_id = $1 AND participation_status = $2',
+        'SELECT COUNT(*) as count FROM tournament_participants WHERE tournament_id = ? AND participation_status = ?',
         [id, 'accepted']
       );
 
@@ -1207,13 +1201,13 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
     // If insufficient participants or incomplete team tournament (after confirmation)
     if (incompleteParticipants) {
       // Delete tournament and all related data
-      await query('DELETE FROM tournament_rounds WHERE tournament_id = $1', [id]);
-      await query('DELETE FROM tournament_matches WHERE tournament_id = $1', [id]);
-      await query('DELETE FROM tournament_round_matches WHERE tournament_id = $1', [id]);
-      await query('DELETE FROM matches WHERE tournament_id = $1', [id]);
-      await query('DELETE FROM tournament_participants WHERE tournament_id = $1', [id]);
-      await query('DELETE FROM tournament_teams WHERE tournament_id = $1', [id]);
-      await query('DELETE FROM tournaments WHERE id = $1', [id]);
+      await query('DELETE FROM tournament_rounds WHERE tournament_id = ?', [id]);
+      await query('DELETE FROM tournament_matches WHERE tournament_id = ?', [id]);
+      await query('DELETE FROM tournament_round_matches WHERE tournament_id = ?', [id]);
+      await query('DELETE FROM matches WHERE tournament_id = ?', [id]);
+      await query('DELETE FROM tournament_participants WHERE tournament_id = ?', [id]);
+      await query('DELETE FROM tournament_teams WHERE tournament_id = ?', [id]);
+      await query('DELETE FROM tournaments WHERE id = ?', [id]);
 
       return res.status(200).json({ 
         action: 'deleted',
@@ -1230,8 +1224,8 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
     // If has participants, close registration normally
     await query(
       `UPDATE tournaments 
-       SET status = $1, registration_closed_at = NOW(), total_rounds = $2
-       WHERE id = $3`,
+       SET status = ?, registration_closed_at = NOW(), total_rounds = ?
+       WHERE id = ?`,
       ['registration_closed', totalRounds, id]
     );
 
@@ -1266,7 +1260,7 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
 
     // Verify tournament creator
     const tournamentCheck = await query(
-      'SELECT creator_id, status, tournament_type, general_rounds, final_rounds, general_rounds_format, final_rounds_format FROM tournaments WHERE id = $1', 
+      'SELECT creator_id, status, tournament_type, general_rounds, final_rounds, general_rounds_format, final_rounds_format FROM tournaments WHERE id = ?', 
       [id]
     );
     if (tournamentCheck.rows.length === 0) {
@@ -1299,7 +1293,7 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     // Get number of accepted participants
     const participantsResult = await query(
       `SELECT COUNT(*) as count FROM tournament_participants 
-       WHERE tournament_id = $1 AND participation_status = 'accepted'`,
+       WHERE tournament_id = ? AND participation_status = 'accepted'`,
       [id]
     );
     const participantCount = participantsResult.rows[0]?.count || 0;
@@ -1562,7 +1556,7 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
       console.log(`[PREPARE] Inserting round ${round.roundNumber}: ${round.label} [${round.classification}]`);
       const insertResult = await query(
         `INSERT INTO tournament_rounds (tournament_id, round_number, round_type, match_format, round_status, round_phase_label, round_phase_description, round_classification, players_remaining, players_advancing_to_next)
-         VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9)`,
+         VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
         [id, round.roundNumber, round.roundType, round.matchFormat, round.label, round.description, round.classification, round.playersRemaining, round.playersAdvancing]
       );
       console.log(`[PREPARE] Round ${round.roundNumber} inserted successfully`);
@@ -1574,8 +1568,8 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     console.log(`[PREPARE] Updating total_rounds to ${totalCalculatedRounds} (${totalGeneralRounds} general + ${totalFinalRounds} final)`);
     await query(
       `UPDATE tournaments 
-       SET status = $1, prepared_at = NOW(), current_round = 1, total_rounds = $3
-       WHERE id = $2`,
+       SET status = ?, prepared_at = NOW(), current_round = 1, total_rounds = ?
+       WHERE id = ?`,
       ['prepared', id, totalCalculatedRounds]
     );
     console.log(`[PREPARE] Tournament status updated`);
@@ -1600,7 +1594,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
     // Verify tournament creator
     const tournamentCheck = await query(
       `SELECT creator_id, status, general_rounds, final_rounds, general_rounds_format, final_rounds_format, tournament_type, name, discord_thread_id
-       FROM tournaments WHERE id = $1`, 
+       FROM tournaments WHERE id = ?`, 
       [id]
     );
     if (tournamentCheck.rows.length === 0) {
@@ -1624,7 +1618,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
     // Verify participants before starting
     const participantsCheck = await query(
       `SELECT COUNT(*) as accepted_count FROM tournament_participants 
-       WHERE tournament_id = $1 AND participation_status = 'accepted'`,
+       WHERE tournament_id = ? AND participation_status = 'accepted'`,
       [id]
     );
     const acceptedParticipants = participantsCheck.rows[0].accepted_count;
@@ -1637,7 +1631,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
     // Check if rounds already exist
     const roundsCheck = await query(
       `SELECT COUNT(*) as round_count FROM tournament_rounds 
-       WHERE tournament_id = $1`,
+       WHERE tournament_id = ?`,
       [id]
     );
     let roundCount = parseInt(roundsCheck.rows[0].round_count) || 0;
@@ -1763,7 +1757,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
         console.log(`[START] Inserting round ${round.roundNumber} (${round.roundType}): ${round.label || 'N/A'}`);
         await query(
           `INSERT INTO tournament_rounds (tournament_id, round_number, round_type, match_format, round_status, round_phase_label, round_phase_description, round_classification)
-           VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7)`,
+           VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)`,
           [id, round.roundNumber, round.roundType, round.matchFormat, round.label || '', round.description || '', round.classification || '']
         );
         console.log(`[START] Round ${round.roundNumber} inserted successfully`);
@@ -1777,8 +1771,8 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
     console.log(`[START] Updating tournament status to in_progress`);
     await query(
       `UPDATE tournaments 
-       SET status = $1, started_at = NOW()
-       WHERE id = $2`,
+       SET status = ?, started_at = NOW()
+       WHERE id = ?`,
       ['in_progress', id]
     );
     console.log(`[START] Tournament ${id} status updated to in_progress`);
@@ -1809,7 +1803,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
       const roundDetailsResult = await query(
         `SELECT COUNT(*) as match_count FROM tournament_matches tm
          JOIN tournament_rounds tr ON tm.round_id = tr.id
-         WHERE tr.tournament_id = $1 AND tr.round_number = 1`,
+         WHERE tr.tournament_id = ? AND tr.round_number = 1`,
         [id]
       );
       const matchesCount = parseInt(roundDetailsResult.rows[0]?.match_count || '0');
@@ -1838,7 +1832,7 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
              FROM tournament_round_matches trm
              LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
              LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
-             WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = $1 AND round_number = 1)`,
+             WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = ? AND round_number = 1)`,
             [id]
           );
           
@@ -1883,7 +1877,7 @@ router.get('/:tournamentId/rounds/:roundId/matches', async (req, res) => {
 
     // First, get tournament mode
     const tournamentModeResult = await query(
-      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      `SELECT tournament_mode FROM tournaments WHERE id = ?`,
       [tournamentId]
     );
 
@@ -1992,7 +1986,7 @@ router.get('/:tournamentId/rounds/:roundId/matches', async (req, res) => {
     const result = await query(
       `SELECT ${selectClause}
        ${joinClause}
-       WHERE tm.tournament_id = $1 AND tm.round_id = $2
+       WHERE tm.tournament_id = ? AND tm.round_id = ?
        ORDER BY tm.created_at ASC`,
       [tournamentId, roundId]
     );
@@ -2011,7 +2005,7 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
 
     // First, get tournament mode
     const tournamentModeResult = await query(
-      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      `SELECT tournament_mode FROM tournaments WHERE id = ?`,
       [tournamentId]
     );
 
@@ -2083,7 +2077,7 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
     const result = await query(
       `SELECT ${selectClause}
        ${joinClause}
-       WHERE trm.tournament_id = $1
+       WHERE trm.tournament_id = ?
        ORDER BY tr.round_number ASC, trm.created_at ASC`,
       [tournamentId]
     );
@@ -2105,7 +2099,7 @@ router.post('/:tournamentId/matches/:matchId/result', authMiddleware, async (req
     const matchResult = await query(
       `SELECT tm.*, t.creator_id, t.tournament_mode FROM tournament_matches tm
        JOIN tournaments t ON tm.tournament_id = t.id
-       WHERE tm.id = $1 AND tm.tournament_id = $2`,
+       WHERE tm.id = ? AND tm.tournament_id = ?`,
       [matchId, tournamentId]
     );
 
@@ -2124,7 +2118,7 @@ router.post('/:tournamentId/matches/:matchId/result', authMiddleware, async (req
       // For team tournaments: validate user is in one of the teams and get their team_id
       const userTeamResult = await query(
         `SELECT tp.team_id FROM tournament_participants tp
-         WHERE tp.tournament_id = $1 AND tp.user_id = $2`,
+         WHERE tp.tournament_id = ? AND tp.user_id = ?`,
         [tournamentId, req.userId]
       );
 
@@ -2155,18 +2149,17 @@ router.post('/:tournamentId/matches/:matchId/result', authMiddleware, async (req
     }
 
     // Update tournament match with result
-    const updateResult = await query(
+    await query(
       `UPDATE tournament_matches 
-       SET winner_id = $1, match_id = $2, match_status = 'completed', played_at = NOW(), updated_at = NOW()
-       WHERE id = $3
-       RETURNING *`,
+       SET winner_id = ?, match_id = ?, match_status = 'completed', played_at = NOW(), updated_at = NOW()
+       WHERE id = ?`,
       [finalWinnerId, reported_match_id || null, matchId]
     );
 
     // NOTE: Best Of series is already updated in /api/matches/report-json
     // We just need to verify the round is complete
     const roundMatchResult = await query(
-      `SELECT round_id FROM tournament_matches WHERE id = $1`,
+      `SELECT round_id FROM tournament_matches WHERE id = ?`,
       [matchId]
     );
 
@@ -2175,7 +2168,7 @@ router.post('/:tournamentId/matches/:matchId/result', authMiddleware, async (req
       
       // Get round number to check if round is complete
       const roundNumberResult = await query(
-        `SELECT round_number, tournament_id FROM tournament_rounds WHERE id = $1`,
+        `SELECT round_number, tournament_id FROM tournament_rounds WHERE id = ?`,
         [roundId]
       );
       if (roundNumberResult.rows.length > 0) {
@@ -2185,8 +2178,7 @@ router.post('/:tournamentId/matches/:matchId/result', authMiddleware, async (req
     }
 
     res.json({
-      message: 'Match result recorded',
-      match: updateResult.rows[0]
+      message: 'Match result recorded'
     });
   } catch (error: any) {
     console.error('Error recording match result:', error);
@@ -2210,7 +2202,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
     const matchResult = await query(
       `SELECT tm.*, t.creator_id FROM tournament_matches tm
        JOIN tournaments t ON tm.tournament_id = t.id
-       WHERE tm.id = $1 AND tm.tournament_id = $2`,
+       WHERE tm.id = ? AND tm.tournament_id = ?`,
       [matchId, tournamentId]
     );
 
@@ -2236,7 +2228,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
 
     // Get round information
     const roundResult = await query(
-      `SELECT round_id FROM tournament_matches WHERE id = $1`,
+      `SELECT round_id FROM tournament_matches WHERE id = ?`,
       [matchId]
     );
 
@@ -2245,8 +2237,8 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
     // Get ALL matches of the loser in this round (including the selected one)
     const loserAllMatches = await query(
       `SELECT id, player1_id, player2_id, match_status FROM tournament_matches 
-       WHERE round_id = $1 
-       AND (player1_id = $2 OR player2_id = $2) 
+       WHERE round_id = ? 
+       AND (player1_id = ? OR player2_id = ?) 
        ORDER BY created_at`,
       [roundId, loser_id]
     );
@@ -2263,7 +2255,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
     // Process each match of the loser with unified logic
     for (const loserMatchId of loserMatchIds) {
       const loserMatch = await query(
-        `SELECT player1_id, player2_id FROM tournament_matches WHERE id = $1`,
+        `SELECT player1_id, player2_id FROM tournament_matches WHERE id = ?`,
         [loserMatchId]
       );
 
@@ -2279,9 +2271,9 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
       // Update the match with winner and organizer_action
       await query(
         `UPDATE tournament_matches 
-         SET winner_id = $1, match_status = 'completed', played_at = NOW(),
-             organizer_action = $2, updated_at = NOW()
-         WHERE id = $3`,
+         SET winner_id = ?, match_status = 'completed', played_at = NOW(),
+             organizer_action = ?, updated_at = NOW()
+         WHERE id = ?`,
         [opponent_id, organizer_action, loserMatchId]
       );
 
@@ -2291,7 +2283,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
                 trm.wins_required, trm.best_of, trm.series_status
          FROM tournament_round_matches trm
          WHERE trm.id IN (
-           SELECT tournament_round_match_id FROM tournament_matches WHERE id = $1
+           SELECT tournament_round_match_id FROM tournament_matches WHERE id = ?
          )`,
         [loserMatchId]
       );
@@ -2318,8 +2310,8 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         // Update tournament_round_matches
         await query(
           `UPDATE tournament_round_matches 
-           SET player1_wins = $1, player2_wins = $2, series_status = $3, winner_id = $4, updated_at = NOW()
-           WHERE id = $5`,
+           SET player1_wins = ?, player2_wins = ?, series_status = ?, winner_id = ?, updated_at = NOW()
+           WHERE id = ?`,
           [p1_wins, p2_wins, newSeriesStatus, newWinnerId, rmatch.id]
         );
 
@@ -2327,7 +2319,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         if (rmatch.best_of > 1 && seriesComplete) {
           const remainingMatches = await query(
             `SELECT id FROM tournament_matches 
-             WHERE tournament_round_match_id = $1 AND match_status = 'pending'
+             WHERE tournament_round_match_id = ? AND match_status = 'pending'
              ORDER BY created_at`,
             [rmatch.id]
           );
@@ -2336,9 +2328,9 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
             seriesMatchIds.add(remainingMatch.id);
             await query(
               `UPDATE tournament_matches 
-               SET winner_id = $1, match_status = 'completed', played_at = NOW(),
+               SET winner_id = ?, match_status = 'completed', played_at = NOW(),
                    organizer_action = 'organizer_win', updated_at = NOW()
-               WHERE id = $2`,
+               WHERE id = ?`,
               [newWinnerId, remainingMatch.id]
             );
           }
@@ -2351,7 +2343,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
     // Update loser's tournament record with losses
     const loserParticipantResult = await query(
       `SELECT id FROM tournament_participants 
-       WHERE tournament_id = $1 AND user_id = $2`,
+       WHERE tournament_id = ? AND user_id = ?`,
       [tournamentId, loser_id]
     );
 
@@ -2361,8 +2353,8 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
       // Add losses for all the loser's matches
       await query(
         `UPDATE tournament_participants 
-         SET tournament_losses = tournament_losses + $1 
-         WHERE id = $2`,
+         SET tournament_losses = tournament_losses + ? 
+         WHERE id = ?`,
         [loserLossCount, loserParticipantId]
       );
     }
@@ -2370,7 +2362,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
     // Update winner's tournament record with wins and points
     const winnerParticipantResult = await query(
       `SELECT id FROM tournament_participants 
-       WHERE tournament_id = $1 AND user_id = $2`,
+       WHERE tournament_id = ? AND user_id = ?`,
       [tournamentId, winner_id]
     );
 
@@ -2380,15 +2372,15 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
       // Add wins and points for all matches won (1 point per victory, consistent with normal logic)
       await query(
         `UPDATE tournament_participants 
-         SET tournament_wins = tournament_wins + $1, tournament_points = tournament_points + $1 
-         WHERE id = $2`,
+         SET tournament_wins = tournament_wins + ?, tournament_points = tournament_points + ? 
+         WHERE id = ?`,
         [loserLossCount, winnerParticipantId]
       );
     }
 
     // Check if round is complete
     const roundNumberResult = await query(
-      `SELECT round_number, tournament_id FROM tournament_rounds WHERE id = $1`,
+      `SELECT round_number, tournament_id FROM tournament_rounds WHERE id = ?`,
       [roundId]
     );
     
@@ -2399,7 +2391,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
 
     // Fetch the updated match to return
     const finalMatchResult = await query(
-      `SELECT * FROM tournament_matches WHERE id = $1`,
+      `SELECT * FROM tournament_matches WHERE id = ?`,
       [matchId]
     );
 
@@ -2430,7 +2422,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
 
     // First, get tournament mode
     const tournamentModeResult = await query(
-      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      `SELECT tournament_mode FROM tournaments WHERE id = ?`,
       [tournamentId]
     );
 
@@ -2558,7 +2550,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
     const result = await query(
       `SELECT ${selectClause}
        ${joinClause}
-       WHERE tm.tournament_id = $1
+       WHERE tm.tournament_id = ?
        ORDER BY tr.round_number ASC, tm.created_at ASC`,
       [tournamentId]
     );
@@ -2577,7 +2569,7 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
 
     // Verify creator owns this tournament
     const tournamentResult = await query(
-      'SELECT id, creator_id, status FROM tournaments WHERE id = $1',
+      'SELECT id, creator_id, status FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -2600,7 +2592,7 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
     // Find the currently completed round (most recent completed round)
     const activeRoundResult = await query(
       `SELECT round_number FROM tournament_rounds 
-       WHERE tournament_id = $1 AND round_status = 'completed'
+       WHERE tournament_id = ? AND round_status = 'completed'
        ORDER BY round_number DESC LIMIT 1`,
       [id]
     );
@@ -2615,7 +2607,7 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
     // Find next round record
     const nextRoundResult = await query(
       `SELECT id FROM tournament_rounds 
-       WHERE tournament_id = $1 AND round_number = $2`,
+       WHERE tournament_id = ? AND round_number = ?`,
       [id, nextRoundNum]
     );
 
@@ -2632,7 +2624,7 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
 
     // Get tournament info for Discord notification
     const tournamentInfoForNotify = await query(
-      'SELECT discord_thread_id FROM tournaments WHERE id = $1',
+      'SELECT discord_thread_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -2640,7 +2632,7 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
     const roundDetailsResult2 = await query(
       `SELECT COUNT(*) as match_count FROM tournament_matches tm
        JOIN tournament_rounds tr ON tm.round_id = tr.id
-       WHERE tr.tournament_id = $1 AND tr.round_number = $2`,
+       WHERE tr.tournament_id = ? AND tr.round_number = ?`,
       [id, nextRoundNum]
     );
     const matchesCount2 = parseInt(roundDetailsResult2.rows[0]?.match_count || '0');
@@ -2666,7 +2658,7 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
            FROM tournament_round_matches trm
            LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
            LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
-           WHERE trm.round_id = $1`,
+           WHERE trm.round_id = ?`,
           [nextRoundId]
         );
         
@@ -2711,7 +2703,7 @@ router.get('/:id/config', authMiddleware, async (req: AuthRequest, res) => {
     const { id } = req.params;
     
     const rows = await query(
-      `SELECT * FROM tournaments WHERE tournament_id = $1`,
+      `SELECT * FROM tournaments WHERE tournament_id = ?`,
       [id]
     );
     
@@ -2829,7 +2821,7 @@ router.get('/:id/standings', async (req, res) => {
     
     // Get tournament mode and type first
     const tournamentModeResult = await query(
-      `SELECT tournament_mode, tournament_type FROM tournaments WHERE id = $1`,
+      `SELECT tournament_mode, tournament_type FROM tournaments WHERE id = ?`,
       [id]
     );
 
@@ -2894,10 +2886,10 @@ router.get('/:id/standings', async (req, res) => {
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
          LEFT JOIN users_extension u ON tp.user_id = u.id
-         WHERE tt.tournament_id = $1
+         WHERE tt.tournament_id = ?
          GROUP BY tt.id
          ORDER BY 
-           CASE WHEN tt.id = $2 THEN 1 ELSE 0 END ASC,
+           CASE WHEN tt.id = ? THEN 1 ELSE 0 END ASC,
            ${orderBy}`,
         [id, REJECTED_TEAM_ID]
       );
@@ -2948,7 +2940,7 @@ router.get('/:id/standings', async (req, res) => {
         `SELECT tp.*, u.nickname, u.elo_rating
          FROM tournament_participants tp
          LEFT JOIN users_extension u ON tp.user_id = u.id
-         WHERE tp.tournament_id = $1 AND (tp.team_id IS NULL OR tp.team_id != $2)
+         WHERE tp.tournament_id = ? AND (tp.team_id IS NULL OR tp.team_id != ?)
          ORDER BY ${orderBy1v1}`,
         [id, REJECTED_TEAM_ID]
       );
@@ -2975,7 +2967,7 @@ router.get('/:id/swiss-pairings/:round_id', authMiddleware, async (req: AuthRequ
     
     const pairings = await query(
       `SELECT * FROM swiss_pairings 
-       WHERE tournament_id = $1 AND tournament_round_id = $2 
+       WHERE tournament_id = ? AND tournament_round_id = ? 
        ORDER BY pairing_number ASC`,
       [id, round_id]
     );
@@ -2998,7 +2990,7 @@ router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthReques
     
     // Check if user is admin or tournament creator
     const tournamentQuery = await query(
-      'SELECT creator_id FROM tournaments WHERE tournament_id = $1',
+      'SELECT creator_id FROM tournaments WHERE tournament_id = ?',
       [id]
     );
     
@@ -3008,7 +3000,7 @@ router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthReques
     
     const tournament = tournamentQuery.rows[0];
     const userQuery = await query(
-      'SELECT is_admin FROM users_extension WHERE user_id = $1',
+      'SELECT is_admin FROM users_extension WHERE user_id = ?',
       [req.userId]
     );
     
@@ -3024,7 +3016,7 @@ router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthReques
     
     // Execute the stored procedure
     const result = await query(
-      `SELECT updated_count, error_message FROM ${functionName}($1)`,
+      `SELECT updated_count, error_message FROM ${functionName}(?)`,
       [id]
     );
     
@@ -3040,7 +3032,7 @@ router.post('/:id/calculate-tiebreakers', authMiddleware, async (req: AuthReques
     // Fetch updated participants ordered by tiebreakers
     const participants = await query(
       `SELECT * FROM tournament_participants 
-       WHERE tournament_id = $1 
+       WHERE tournament_id = ? 
        ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC`,
       [id]
     );
@@ -3068,7 +3060,7 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
     
     // Check if user is admin or tournament creator
     const tournamentQuery = await query(
-      'SELECT creator_id FROM tournaments WHERE tournament_id = $1',
+      'SELECT creator_id FROM tournaments WHERE tournament_id = ?',
       [id]
     );
     
@@ -3078,7 +3070,7 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
     
     const tournament = tournamentQuery.rows[0];
     const userQuery = await query(
-      'SELECT is_admin FROM users_extension WHERE user_id = $1',
+      'SELECT is_admin FROM users_extension WHERE user_id = ?',
       [req.userId]
     );
     
@@ -3091,7 +3083,7 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
     
     // Execute the stored procedure
     const result = await query(
-      'SELECT updated_count, error_message FROM update_league_tiebreakers($1)',
+      'SELECT updated_count, error_message FROM update_league_tiebreakers(?)',
       [id]
     );
     
@@ -3107,7 +3099,7 @@ router.post('/leagues/:id/calculate-tiebreakers', authMiddleware, async (req: Au
     // Fetch updated participants ordered by: tournament_points DESC, omp DESC, gwp DESC, ogp DESC
     const participants = await query(
       `SELECT * FROM tournament_participants 
-       WHERE tournament_id = $1 
+       WHERE tournament_id = ? 
        ORDER BY tournament_points DESC, omp DESC, gwp DESC, ogp DESC`,
       [id]
     );
@@ -3138,7 +3130,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
 
     // Verify user is tournament organizer
     const tournamentResult = await query(
-      'SELECT creator_id FROM tournaments WHERE id = $1',
+      'SELECT creator_id FROM tournaments WHERE id = ?',
       [tournamentId]
     );
 
@@ -3152,7 +3144,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
 
     // Get the tournament match
     const matchResult = await query(
-      'SELECT * FROM tournament_matches WHERE id = $1 AND tournament_id = $2',
+      'SELECT * FROM tournament_matches WHERE id = ? AND tournament_id = ?',
       [matchId, tournamentId]
     );
 
@@ -3176,7 +3168,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
         `UPDATE tournament_participants 
          SET tournament_wins = tournament_wins - 1,
              tournament_points = tournament_points - 1
-         WHERE tournament_id = $1 AND user_id = $2`,
+         WHERE tournament_id = ? AND user_id = ?`,
         [tournamentId, winnerId]
       );
 
@@ -3184,7 +3176,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
       await query(
         `UPDATE tournament_participants 
          SET tournament_losses = tournament_losses - 1
-         WHERE tournament_id = $1 AND user_id = $2`,
+         WHERE tournament_id = ? AND user_id = ?`,
         [tournamentId, loserId]
       );
 
@@ -3203,14 +3195,14 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
              replay = NULL,
              played_at = NULL,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $1`,
+         WHERE id = ?`,
         [matchId]
       );
 
       // Check if round is completed and reopen it if needed
       const roundResult = await query(
         `SELECT id FROM tournament_rounds 
-         WHERE tournament_id = $1 AND id = $2 AND round_status = 'completed'`,
+         WHERE tournament_id = ? AND id = ? AND round_status = 'completed'`,
         [tournamentId, match.round_id]
       );
 
@@ -3219,7 +3211,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
           `UPDATE tournament_rounds 
            SET round_status = 'in_progress',
                updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1`,
+           WHERE id = ?`,
           [match.round_id]
         );
       }
@@ -3229,7 +3221,7 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
     } else if (action === 'dismiss') {
       // Dismiss the dispute: keep original result
       await query(
-        'UPDATE tournament_matches SET match_status = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+        'UPDATE tournament_matches SET match_status = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         ['completed', 'confirmed', matchId]
       );
 

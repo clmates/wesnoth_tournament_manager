@@ -13,7 +13,7 @@ router.get('/faq', async (req, res) => {
   try {
     const result = await query(
       `SELECT id, question, answer, language_code, created_at, "order"
-       FROM public.faq
+       FROM faq
        ORDER BY "order" ASC, created_at DESC, language_code ASC`
     );
     res.json(result.rows);
@@ -43,37 +43,33 @@ router.get('/tournaments', optionalAuthMiddleware, async (req, res) => {
     // Build WHERE clause dynamically
     let whereConditions: string[] = [];
     let params: any[] = [];
-    let paramCount = 1;
 
     if (nameFilter) {
-      whereConditions.push(`t.name ILIKE $${paramCount}`);
+      whereConditions.push(`t.name LIKE ?`);
       params.push(`%${nameFilter}%`);
-      paramCount++;
     }
 
     if (statusFilter) {
-      whereConditions.push(`t.status = $${paramCount}`);
+      whereConditions.push(`t.status = ?`);
       params.push(statusFilter);
-      paramCount++;
     }
 
     if (typeFilter) {
-      whereConditions.push(`t.tournament_type = $${paramCount}`);
+      whereConditions.push(`t.tournament_type = ?`);
       params.push(typeFilter);
-      paramCount++;
     }
 
     // Add my_tournaments filter if requested and user is authenticated
     if (myTournamentsFilter && currentUserId) {
-      whereConditions.push(`(t.creator_id = $${paramCount} OR t.id IN (SELECT tournament_id FROM tournament_participants WHERE user_id = $${paramCount}))`);
+      whereConditions.push(`(t.creator_id = ? OR t.id IN (SELECT tournament_id FROM tournament_participants WHERE user_id = ?))`);
       params.push(currentUserId);
-      paramCount++;
+      params.push(currentUserId);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Get total count of filtered tournaments
-    const countQuery = `SELECT COUNT(*) as total FROM public.tournaments t ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) as total FROM tournaments t ${whereClause}`;
     const countResult = await query(countQuery, params);
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
@@ -107,7 +103,7 @@ router.get('/tournaments', optionalAuthMiddleware, async (req, res) => {
       LEFT JOIN users_extension u ON t.creator_id = u.id
       ${whereClause}
       ORDER BY t.updated_at DESC
-      LIMIT $${paramCount} OFFSET $${paramCount + 1}
+      LIMIT ? OFFSET ?
     `, params);
 
     // For each tournament, if status = 'finished', fetch winner and runner-up from participants or teams
@@ -181,7 +177,7 @@ router.get('/tournaments/:id', async (req, res) => {
         t.approved_at
       FROM tournaments t
       LEFT JOIN users_extension u ON t.creator_id = u.id
-      WHERE t.id = $1
+      WHERE t.id = ?
     `, [id]);
 
     if (result.rows.length === 0) {
@@ -214,7 +210,7 @@ router.get('/tournaments/:id/participants', async (req, res) => {
         tp.tournament_points
       FROM tournament_participants tp
       LEFT JOIN users_extension u ON tp.user_id = u.id
-      WHERE tp.tournament_id = $1
+      WHERE tp.tournament_id = ?
       ORDER BY tp.tournament_ranking IS NULL, tp.tournament_ranking ASC, u.elo_rating DESC
     `, [id]);
 
@@ -240,7 +236,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
     
     // Get tournament mode
     const tournamentModeResult = await query(
-      `SELECT tournament_mode FROM tournaments WHERE id = $1`,
+      `SELECT tournament_mode FROM tournaments WHERE id = ?`,
       [id]
     );
 
@@ -379,7 +375,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
     const result = await query(`
       SELECT ${selectClause}
       ${joinClause}
-      WHERE tm.tournament_id = $1
+      WHERE tm.tournament_id = ?
       ORDER BY tr.round_number ASC, tm.created_at ASC
     `, [id]);
 
@@ -452,36 +448,31 @@ router.get('/players', async (req, res) => {
     const minMatches = req.query.min_matches ? parseInt(req.query.min_matches as string) : null;
 
     // Build WHERE clause dynamically
-    let whereConditions: string[] = ['is_blocked = false'];
+    let whereConditions: string[] = ['is_blocked = 0'];
     let params: any[] = [];
-    let paramCount = 1;
 
     if (nicknameFilter) {
-      whereConditions.push(`nickname ILIKE $${paramCount}`);
+      whereConditions.push(`nickname LIKE ?`);
       params.push(`%${nicknameFilter}%`);
-      paramCount++;
     }
 
     if (ratedOnly) {
-      whereConditions.push(`is_rated = true`);
+      whereConditions.push(`is_rated = 1`);
     }
 
     if (minElo !== null) {
-      whereConditions.push(`elo_rating >= $${paramCount}`);
+      whereConditions.push(`elo_rating >= ?`);
       params.push(minElo);
-      paramCount++;
     }
 
     if (maxElo !== null) {
-      whereConditions.push(`elo_rating <= $${paramCount}`);
+      whereConditions.push(`elo_rating <= ?`);
       params.push(maxElo);
-      paramCount++;
     }
 
     if (minMatches !== null) {
-      whereConditions.push(`matches_played >= $${paramCount}`);
+      whereConditions.push(`matches_played >= ?`);
       params.push(minMatches);
-      paramCount++;
     }
 
     const whereClause = whereConditions.join(' AND ');
@@ -500,7 +491,7 @@ router.get('/players', async (req, res) => {
        FROM users_extension
        WHERE ${whereClause}
        ORDER BY nickname ASC
-       LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
+       LIMIT ? OFFSET ?`,
       params
     );
 
@@ -539,39 +530,34 @@ router.get('/matches', async (req, res) => {
     // Build WHERE conditions
     const whereConditions: string[] = [];
     const params: any[] = [];
-    let paramCount = 1;
 
     if (player) {
-      whereConditions.push(`(w.nickname ILIKE $${paramCount} OR l.nickname ILIKE $${paramCount})`);
+      whereConditions.push(`(w.nickname LIKE ? OR l.nickname LIKE ?)`);
       params.push(`%${player}%`);
-      paramCount++;
+      params.push(`%${player}%`);
     }
 
     if (map) {
-      whereConditions.push(`m.map ILIKE $${paramCount}`);
+      whereConditions.push(`m.map LIKE ?`);
       params.push(`%${map}%`);
-      paramCount++;
     }
 
     if (status) {
-      whereConditions.push(`m.status = $${paramCount}`);
+      whereConditions.push(`m.status = ?`);
       params.push(status);
-      paramCount++;
     }
 
     if (confirmed) {
       const isConfirmed = confirmed.toLowerCase() === 'true' || confirmed === '1';
-      whereConditions.push(`m.loser_confirmed = $${paramCount}`);
-      params.push(isConfirmed);
-      paramCount++;
+      whereConditions.push(`m.loser_confirmed = ?`);
+      params.push(isConfirmed ? 1 : 0);
     }
 
     if (faction) {
       console.log('🔍 Faction filter applied:', faction);
-      whereConditions.push(`(m.winner_faction = $${paramCount} OR m.loser_faction = $${paramCount + 1})`);
+      whereConditions.push(`(m.winner_faction = ? OR m.loser_faction = ?)`);
       params.push(faction);
       params.push(faction);
-      paramCount += 2;
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -599,7 +585,7 @@ router.get('/matches', async (req, res) => {
        JOIN users_extension l ON m.loser_id = l.id
        ${whereClause}
        ORDER BY m.created_at DESC
-       LIMIT $${paramCount} OFFSET $${paramCount + 1}
+       LIMIT ? OFFSET ?
     `;
 
     params.push(pageSize);
@@ -649,7 +635,7 @@ router.get('/matches', async (req, res) => {
              AND r.parsed = 1
              AND r.match_id IS NULL
            ORDER BY r.created_at DESC
-           LIMIT $1 OFFSET $2`,
+           LIMIT ? OFFSET ?`,
           [pageSize, offset]
         );
 
@@ -787,7 +773,7 @@ router.get('/players/:id', async (req, res) => {
         AND pms.opponent_id IS NULL 
         AND pms.map_id IS NULL 
         AND pms.faction_id IS NULL
-      WHERE u.id = $1 AND u.is_active = true AND u.is_blocked = false`,
+      WHERE u.id = ? AND u.is_active = 1 AND u.is_blocked = 0`,
       [id]
     );
 
@@ -826,10 +812,10 @@ router.get('/players/:id', async (req, res) => {
 router.get('/maps', async (req, res) => {
   try {
     const isRanked = req.query.is_ranked === 'true';
-    let query_str = `SELECT id, name, created_at, usage_count FROM public.game_maps WHERE is_active = true`;
+    let query_str = `SELECT id, name, created_at, usage_count FROM game_maps WHERE is_active = 1`;
     
     if (isRanked) {
-      query_str += ` AND is_ranked = true`;
+      query_str += ` AND is_ranked = 1`;
       console.log('🔍 GET /public/maps?is_ranked=true - Filtering to ranked only');
     } else {
       console.log('🔍 GET /public/maps - No ranking filter');
@@ -851,10 +837,10 @@ router.get('/maps', async (req, res) => {
 router.get('/factions', async (req, res) => {
   try {
     const isRanked = req.query.is_ranked === 'true';
-    let query_str = `SELECT id, name, description, icon_path, created_at FROM public.factions WHERE is_active = true`;
+    let query_str = `SELECT id, name, description, icon_path, created_at FROM factions WHERE is_active = 1`;
     
     if (isRanked) {
-      query_str += ` AND is_ranked = true`;
+      query_str += ` AND is_ranked = 1`;
       console.log('🔍 GET /public/factions?is_ranked=true - Filtering to ranked only');
     } else {
       console.log('🔍 GET /public/factions - No ranking filter');
@@ -890,7 +876,7 @@ router.get('/player-of-month', async (req, res) => {
     const result = await query(
       `SELECT player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year, calculated_at
        FROM player_of_month
-       WHERE month_year = $1`,
+       WHERE month_year = ?`,
       [monthYearStr]
     );
 
@@ -921,7 +907,7 @@ router.get('/tournaments/:id/unranked-assets', async (req, res) => {
 
     // Get tournament
     const tournamentResult = await query(
-      'SELECT id, tournament_mode FROM tournaments WHERE id = $1',
+      'SELECT id, tournament_mode FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -936,7 +922,7 @@ router.get('/tournaments/:id/unranked-assets', async (req, res) => {
       `SELECT f.id, f.name
        FROM factions f
        JOIN tournament_unranked_factions tuf ON f.id = tuf.faction_id
-       WHERE tuf.tournament_id = $1
+       WHERE tuf.tournament_id = ?
        ORDER BY f.name ASC`,
       [id]
     );
@@ -946,7 +932,7 @@ router.get('/tournaments/:id/unranked-assets', async (req, res) => {
       `SELECT m.id, m.name
        FROM game_maps m
        JOIN tournament_unranked_maps tum ON m.id = tum.map_id
-       WHERE tum.tournament_id = $1
+       WHERE tum.tournament_id = ?
        ORDER BY m.name ASC`,
       [id]
     );
@@ -972,7 +958,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
 
     // Verify tournament exists and is team tournament
     const tournResult = await query(
-      'SELECT id, tournament_mode FROM tournaments WHERE id = $1',
+      'SELECT id, tournament_mode FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -998,7 +984,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
         COUNT(tp.id) as member_count
       FROM tournament_teams tt
       LEFT JOIN tournament_participants tp ON tt.id = tp.team_id AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
-      WHERE tt.tournament_id = $1
+      WHERE tt.tournament_id = ?
       GROUP BY tt.id, tt.name, tt.tournament_wins, tt.tournament_losses, tt.tournament_points, tt.status
       ORDER BY tt.name`,
       [id]
@@ -1010,7 +996,7 @@ router.get('/tournaments/:id/teams', async (req, res) => {
         `SELECT tp.id as participant_id, u.id, u.nickname, tp.team_position, tp.participation_status
          FROM tournament_participants tp
          LEFT JOIN users_extension u ON tp.user_id = u.id
-         WHERE tp.team_id = $1 AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
+         WHERE tp.team_id = ? AND tp.participation_status IN ('pending', 'unconfirmed', 'accepted')
          ORDER BY tp.team_position`,
         [team.id]
       );
@@ -1084,8 +1070,13 @@ router.post('/tournament-matches/:matchId/replay/download-count', async (req, re
     console.log('📊 [TOURNAMENT-COUNTER] Incrementing download count for tournament match:', matchId);
 
     // Increment the download count in tournament_matches
+    await query(
+      'UPDATE tournament_matches SET replay_downloads = COALESCE(replay_downloads, 0) + 1 WHERE id = ?',
+      [matchId]
+    );
+
     const result = await query(
-      'UPDATE tournament_matches SET replay_downloads = COALESCE(replay_downloads, 0) + 1 WHERE id = $1 RETURNING replay_downloads',
+      'SELECT COALESCE(replay_downloads, 0) as replay_downloads FROM tournament_matches WHERE id = ?',
       [matchId]
     );
 
@@ -1102,4 +1093,116 @@ router.post('/tournament-matches/:matchId/replay/download-count', async (req, re
   }
 });
 
+// ============================================================================
+// GET /public/tournaments/:tournamentId/pending-replays
+// Returns confidence=1 replays where both players are tournament participants
+// and the corresponding tournament_match exists without a match_id yet
+// ============================================================================
+router.get('/tournaments/:tournamentId/pending-replays', async (req, res) => {
+  try {
+    const { tournamentId } = req.params;
+
+    // Get tournament participants
+    const participantsResult = await query(
+      `SELECT tp.user_id, ue.nickname
+       FROM tournament_participants tp
+       JOIN users_extension ue ON tp.user_id = ue.id
+       WHERE tp.tournament_id = ? AND tp.participation_status = 'approved'`,
+      [tournamentId]
+    );
+
+    const participants = participantsResult.rows as any[];
+    if (participants.length < 2) {
+      return res.json({ success: true, replays: [] });
+    }
+
+    const participantMap = new Map<string, string>(
+      participants.map((p: any) => [p.nickname.toLowerCase(), p.user_id])
+    );
+    const participantNicknames = new Set<string>(participants.map((p: any) => p.nickname.toLowerCase()));
+
+    // Get recent unmatched confidence=1 replays
+    const replayResult = await query(
+      `SELECT r.id, r.replay_url, r.parse_summary, r.created_at, r.wesnoth_version
+       FROM replays r
+       WHERE r.integration_confidence = 1
+         AND r.parsed = 1
+         AND r.match_id IS NULL
+         AND r.deleted_at IS NULL
+       ORDER BY r.created_at DESC
+       LIMIT 200`,
+      []
+    );
+
+    const pendingReplays: any[] = [];
+
+    for (const r of replayResult.rows as any[]) {
+      try {
+        const parseSummary = typeof r.parse_summary === 'string'
+          ? JSON.parse(r.parse_summary)
+          : r.parse_summary;
+
+        const players = parseSummary?.forumPlayers || [];
+        if (players.length < 2) continue;
+
+        const p1Name = (players[0]?.user_name || '').toLowerCase();
+        const p2Name = (players[1]?.user_name || '').toLowerCase();
+
+        // Both players must be tournament participants
+        if (!participantNicknames.has(p1Name) || !participantNicknames.has(p2Name)) continue;
+
+        const player1UserId = participantMap.get(p1Name);
+        const player2UserId = participantMap.get(p2Name);
+
+        // Find a pending tournament_match linking these two players (unmatched)
+        const tmResult = await query(
+          `SELECT id, player1_id, player2_id FROM tournament_matches
+           WHERE tournament_id = ?
+             AND match_id IS NULL
+             AND match_status = 'pending'
+             AND (
+               (player1_id = ? AND player2_id = ?) OR
+               (player1_id = ? AND player2_id = ?)
+             )
+           LIMIT 1`,
+          [tournamentId, player1UserId, player2UserId, player2UserId, player1UserId]
+        );
+
+        if ((tmResult.rows as any[]).length === 0) continue;
+
+        const tm = (tmResult.rows as any[])[0];
+
+        const map = parseSummary.resolvedMap || parseSummary.parsedMap || parseSummary.map || parseSummary.scenario || 'Unknown Map';
+        const resolvedFactions = parseSummary.resolvedFactions || {};
+
+        pendingReplays.push({
+          id: r.id,
+          tournament_match_id: tm.id,
+          tournament_match_player1_id: tm.player1_id,
+          tournament_match_player2_id: tm.player2_id,
+          player1_nickname: players[0]?.user_name || 'Unknown',
+          player2_nickname: players[1]?.user_name || 'Unknown',
+          winner_nickname: parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown',
+          loser_nickname: parseSummary.replayVictory?.loser_name || players[1]?.user_name || 'Unknown',
+          winner_faction: resolvedFactions.side1 || 'Unknown',
+          loser_faction: resolvedFactions.side2 || 'Unknown',
+          map,
+          replay_url: r.replay_url,
+          created_at: r.created_at,
+          source_type: 'replay_confidence_1',
+          confidence_level: 1,
+        });
+      } catch (err) {
+        console.error('Error processing replay for tournament:', err);
+      }
+    }
+
+    res.json({ success: true, replays: pendingReplays });
+  } catch (error) {
+    console.error('❌ [TOURNAMENT-REPLAYS] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch pending replays' });
+  }
+});
+
 export default router;
+

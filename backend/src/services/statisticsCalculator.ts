@@ -80,7 +80,7 @@ export async function calculateLeagueTiebreakers(
     const participantsResult = await query(
       `SELECT DISTINCT tp.user_id
        FROM tournament_participants tp
-       WHERE tp.tournament_id = $1
+       WHERE tp.tournament_id = ?
        ORDER BY tp.user_id`,
       [tournamentId]
     );
@@ -94,26 +94,26 @@ export async function calculateLeagueTiebreakers(
       const pointsResult = await query(
         `SELECT COALESCE(tp.tournament_wins, 0) as total_points
          FROM tournament_participants tp
-         WHERE tp.tournament_id = $1 AND tp.user_id = $2`,
+         WHERE tp.tournament_id = ? AND tp.user_id = ?`,
         [tournamentId, userId]
       );
       const totalPoints = pointsResult.rows[0]?.total_points || 0;
 
       // 2. OMP (Opponent Match Points) = Average wins of all opponents faced
       const ompResult = await query(
-        `SELECT COALESCE(AVG(COALESCE(tp.tournament_wins, 0)), 0)::DECIMAL(8,2) as omp
+        `SELECT COALESCE(AVG(COALESCE(tp.tournament_wins, 0)), 0) as omp
          FROM (
            SELECT DISTINCT
              CASE 
-               WHEN tm.player1_id = $1 THEN tm.player2_id
+               WHEN tm.player1_id = ? THEN tm.player2_id
                ELSE tm.player1_id
              END as opponent_id
            FROM tournament_round_matches tm
-           WHERE tm.tournament_id = $2
-             AND (tm.player1_id = $1 OR tm.player2_id = $1)
+           WHERE tm.tournament_id = ?
+             AND (tm.player1_id = ? OR tm.player2_id = ?)
              AND tm.series_status = 'completed'
          ) opponents
-         LEFT JOIN tournament_participants tp ON tp.tournament_id = $2 
+         LEFT JOIN tournament_participants tp ON tp.tournament_id = ? 
            AND tp.user_id = opponents.opponent_id`,
         [userId, tournamentId]
       );
@@ -122,11 +122,11 @@ export async function calculateLeagueTiebreakers(
       // 3. GWP (Game Win Percentage) = (games won / total games) * 100
       const gwpResult = await query(
         `SELECT 
-           COALESCE(SUM(CASE WHEN tm.player1_id = $1 THEN tm.player1_wins ELSE tm.player2_wins END), 0) as games_won,
-           COALESCE(SUM(CASE WHEN tm.player1_id = $1 THEN tm.player2_wins ELSE tm.player1_wins END), 0) as games_lost
+           COALESCE(SUM(CASE WHEN tm.player1_id = ? THEN tm.player1_wins ELSE tm.player2_wins END), 0) as games_won,
+           COALESCE(SUM(CASE WHEN tm.player1_id = ? THEN tm.player2_wins ELSE tm.player1_wins END), 0) as games_lost
          FROM tournament_round_matches tm
-         WHERE tm.tournament_id = $2
-           AND (tm.player1_id = $1 OR tm.player2_id = $1)
+         WHERE tm.tournament_id = ?
+           AND (tm.player1_id = ? OR tm.player2_id = ?)
            AND tm.series_status = 'completed'`,
         [userId, tournamentId]
       );
@@ -141,27 +141,27 @@ export async function calculateLeagueTiebreakers(
         `SELECT COALESCE(AVG(
            CASE 
              WHEN (opp_wins + opp_losses) > 0 
-             THEN (opp_wins::DECIMAL / (opp_wins + opp_losses) * 100)
+             THEN (opp_wins / (opp_wins + opp_losses) * 100)
              ELSE 0
            END
-         ), 0)::DECIMAL(5,2) as ogp
+         ), 0) as ogp
          FROM (
            SELECT DISTINCT
              CASE 
-               WHEN tm.player1_id = $1 THEN tm.player2_id
+               WHEN tm.player1_id = ? THEN tm.player2_id
                ELSE tm.player1_id
              END as opponent_id,
              CASE 
-               WHEN tm.player1_id = $1 THEN tm.player2_wins
+               WHEN tm.player1_id = ? THEN tm.player2_wins
                ELSE tm.player1_wins
              END as opp_wins,
              CASE 
-               WHEN tm.player1_id = $1 THEN tm.player1_wins
+               WHEN tm.player1_id = ? THEN tm.player1_wins
                ELSE tm.player2_wins
              END as opp_losses
            FROM tournament_round_matches tm
-           WHERE tm.tournament_id = $2
-             AND (tm.player1_id = $1 OR tm.player2_id = $1)
+           WHERE tm.tournament_id = ?
+             AND (tm.player1_id = ? OR tm.player2_id = ?)
              AND tm.series_status = 'completed'
          ) opponent_data`,
         [userId, tournamentId]
@@ -205,7 +205,7 @@ export async function calculateTeamSwissTiebreakers(
     const teamsResult = await query(
       `SELECT DISTINCT tt.id
        FROM tournament_teams tt
-       WHERE tt.tournament_id = $1
+       WHERE tt.tournament_id = ?
        ORDER BY tt.id`,
       [tournamentId]
     );
@@ -219,26 +219,26 @@ export async function calculateTeamSwissTiebreakers(
       const pointsResult = await query(
         `SELECT COALESCE(tt.tournament_wins, 0) * 3 as total_points
          FROM tournament_teams tt
-         WHERE tt.tournament_id = $1 AND tt.id = $2`,
+         WHERE tt.tournament_id = ? AND tt.id = ?`,
         [tournamentId, teamId]
       );
       const totalPoints = pointsResult.rows[0]?.total_points || 0;
 
       // 2. OMP = Average wins of all opponent teams * 3
       const ompResult = await query(
-        `SELECT COALESCE(AVG(COALESCE(tt.tournament_wins, 0) * 3), 0)::DECIMAL(8,2) as omp
+        `SELECT COALESCE(AVG(COALESCE(tt.tournament_wins, 0) * 3), 0) as omp
          FROM (
            SELECT DISTINCT
              CASE 
-               WHEN tm.player1_id = $1 THEN tm.player2_id
+               WHEN tm.player1_id = ? THEN tm.player2_id
                ELSE tm.player1_id
              END as opponent_id
            FROM tournament_round_matches tm
-           WHERE tm.tournament_id = $2
-             AND (tm.player1_id = $1 OR tm.player2_id = $1)
+           WHERE tm.tournament_id = ?
+             AND (tm.player1_id = ? OR tm.player2_id = ?)
              AND tm.series_status = 'completed'
          ) opponents
-         LEFT JOIN tournament_teams tt ON tt.tournament_id = $2 
+         LEFT JOIN tournament_teams tt ON tt.tournament_id = ? 
            AND tt.id = opponents.opponent_id`,
         [teamId, tournamentId]
       );
@@ -247,11 +247,11 @@ export async function calculateTeamSwissTiebreakers(
       // 3. GWP (Game Win Percentage)
       const gwpResult = await query(
         `SELECT 
-           COALESCE(SUM(CASE WHEN tm.player1_id = $1 THEN tm.player1_wins ELSE tm.player2_wins END), 0) as games_won,
-           COALESCE(SUM(CASE WHEN tm.player1_id = $1 THEN tm.player2_wins ELSE tm.player1_wins END), 0) as games_lost
+           COALESCE(SUM(CASE WHEN tm.player1_id = ? THEN tm.player1_wins ELSE tm.player2_wins END), 0) as games_won,
+           COALESCE(SUM(CASE WHEN tm.player1_id = ? THEN tm.player2_wins ELSE tm.player1_wins END), 0) as games_lost
          FROM tournament_round_matches tm
-         WHERE tm.tournament_id = $2
-           AND (tm.player1_id = $1 OR tm.player2_id = $1)
+         WHERE tm.tournament_id = ?
+           AND (tm.player1_id = ? OR tm.player2_id = ?)
            AND tm.series_status = 'completed'`,
         [teamId, tournamentId]
       );
@@ -266,27 +266,27 @@ export async function calculateTeamSwissTiebreakers(
         `SELECT COALESCE(AVG(
            CASE 
              WHEN (opp_wins + opp_losses) > 0 
-             THEN (opp_wins::DECIMAL / (opp_wins + opp_losses) * 100)
+             THEN (opp_wins / (opp_wins + opp_losses) * 100)
              ELSE 0
            END
-         ), 0)::DECIMAL(5,2) as ogp
+         ), 0) as ogp
          FROM (
            SELECT DISTINCT
              CASE 
-               WHEN tm.player1_id = $1 THEN tm.player2_id
+               WHEN tm.player1_id = ? THEN tm.player2_id
                ELSE tm.player1_id
              END as opponent_id,
              CASE 
-               WHEN tm.player1_id = $1 THEN tm.player2_wins
+               WHEN tm.player1_id = ? THEN tm.player2_wins
                ELSE tm.player1_wins
              END as opp_wins,
              CASE 
-               WHEN tm.player1_id = $1 THEN tm.player1_wins
+               WHEN tm.player1_id = ? THEN tm.player1_wins
                ELSE tm.player2_wins
              END as opp_losses
            FROM tournament_round_matches tm
-           WHERE tm.tournament_id = $2
-             AND (tm.player1_id = $1 OR tm.player2_id = $1)
+           WHERE tm.tournament_id = ?
+             AND (tm.player1_id = ? OR tm.player2_id = ?)
              AND tm.series_status = 'completed'
          ) opponent_data`,
         [teamId, tournamentId]
@@ -321,7 +321,7 @@ export async function checkTeamMemberCount(teamId: string): Promise<boolean> {
     const result = await query(
       `SELECT COUNT(*) as count 
        FROM tournament_participants 
-       WHERE team_id = $1 AND team_position IS NOT NULL`,
+       WHERE team_id = ? AND team_position IS NOT NULL`,
       [teamId]
     );
     
@@ -345,9 +345,9 @@ export async function checkTeamMemberPositions(
     const result = await query(
       `SELECT COUNT(*) as count 
        FROM tournament_participants 
-       WHERE team_id = $1 
-         AND team_position = $2 
-         AND user_id != $3`,
+       WHERE team_id = ? 
+         AND team_position = ? 
+         AND user_id != ?`,
       [teamId, position, userId]
     );
     
@@ -372,9 +372,22 @@ export async function createBalanceEventBeforeSnapshot(
   try {
     const beforeDate = new Date();
     beforeDate.setDate(beforeDate.getDate() - 1); // Yesterday
+    const dateStr = beforeDate.toISOString().split('T')[0];
+
+    // Get existing snapshots for this date to avoid duplicates
+    const existingResult = await query(
+      `SELECT COUNT(*) as count FROM faction_map_statistics_history WHERE snapshot_date = ?`,
+      [dateStr]
+    );
+    
+    if (existingResult.rows[0].count > 0) {
+      // Snapshot already exists for this date, skip
+      return existingResult.rows[0].count;
+    }
 
     const result = await query(
       `INSERT INTO faction_map_statistics_history (
+        id,
         snapshot_date,
         snapshot_timestamp,
         map_id,
@@ -388,7 +401,8 @@ export async function createBalanceEventBeforeSnapshot(
         confidence_level
       )
       SELECT
-        $1::DATE,
+        UUID(),
+        ?,
         CURRENT_TIMESTAMP,
         fms.map_id,
         fms.faction_id,
@@ -409,16 +423,15 @@ export async function createBalanceEventBeforeSnapshot(
           ELSE 95.0
         END
       FROM faction_map_statistics fms
-      WHERE fms.total_games > 0
-      ON CONFLICT DO NOTHING`,
-      [beforeDate.toISOString().split('T')[0]]
+      WHERE fms.total_games > 0`,
+      [dateStr]
     );
 
     // Update balance_events to record snapshot date
     await query(
       `UPDATE balance_events
-       SET snapshot_before_date = $1
-       WHERE id = $2`,
+       SET snapshot_before_date = ?
+       WHERE id = ?`,
       [beforeDate.toISOString().split('T')[0], eventId]
     );
 
@@ -436,10 +449,26 @@ export async function createFactionMapStatisticsSnapshot(
   snapshotDate: Date = new Date()
 ): Promise<{ snapshots_created: number; snapshots_skipped: number }> {
   try {
+    const { randomUUID } = await import('crypto');
     const dateStr = snapshotDate.toISOString().split('T')[0];
+
+    // Check if snapshot already exists for this date
+    const existingResult = await query(
+      `SELECT COUNT(*) as count FROM faction_map_statistics_history WHERE snapshot_date = ?`,
+      [dateStr]
+    );
+    
+    if (existingResult.rows[0].count > 0) {
+      // Snapshot already exists, skip
+      return {
+        snapshots_created: 0,
+        snapshots_skipped: existingResult.rows[0].count
+      };
+    }
 
     const result = await query(
       `INSERT INTO faction_map_statistics_history (
+        id,
         snapshot_date,
         snapshot_timestamp,
         map_id,
@@ -453,7 +482,8 @@ export async function createFactionMapStatisticsSnapshot(
         confidence_level
       )
       SELECT
-        $1::DATE,
+        UUID(),
+        ?,
         CURRENT_TIMESTAMP,
         fms.map_id,
         fms.faction_id,
@@ -474,8 +504,7 @@ export async function createFactionMapStatisticsSnapshot(
           ELSE 95.0
         END
       FROM faction_map_statistics fms
-      WHERE fms.total_games > 0
-      ON CONFLICT DO NOTHING`,
+      WHERE fms.total_games > 0`,
       [dateStr]
     );
 
@@ -500,7 +529,7 @@ export async function getBalanceEventImpact(
   try {
     // Get event details
     const eventResult = await query(
-      'SELECT snapshot_before_date, event_date FROM balance_events WHERE id = $1',
+      'SELECT snapshot_before_date, event_date FROM balance_events WHERE id = ?',
       [eventId]
     );
 
@@ -520,19 +549,19 @@ export async function getBalanceEventImpact(
         COALESCE(f1.name, '') as faction_name,
         COALESCE(f2.id, '') as opponent_faction_id,
         COALESCE(f2.name, '') as opponent_faction_name,
-        COALESCE(AVG(CASE WHEN fmsh.snapshot_date < $3 THEN fmsh.winrate ELSE NULL END), 0)::DECIMAL(5,2) as winrate_before,
-        COALESCE(AVG(CASE WHEN fmsh.snapshot_date >= $3 THEN fmsh.winrate ELSE NULL END), 0)::DECIMAL(5,2) as winrate_after,
-        COALESCE(AVG(CASE WHEN fmsh.snapshot_date >= $3 THEN fmsh.winrate ELSE NULL END), 0)::DECIMAL(6,2) -
-          COALESCE(AVG(CASE WHEN fmsh.snapshot_date < $3 THEN fmsh.winrate ELSE NULL END), 0)::DECIMAL(6,2) as winrate_change,
-        COUNT(DISTINCT CASE WHEN fmsh.snapshot_date < $3 THEN fmsh.map_id END) as sample_size_before,
-        COUNT(DISTINCT CASE WHEN fmsh.snapshot_date >= $3 THEN fmsh.map_id END) as sample_size_after,
-        COALESCE(SUM(CASE WHEN fmsh.snapshot_date < $3 THEN fmsh.total_games ELSE 0 END), 0)::INT as games_before,
-        COALESCE(SUM(CASE WHEN fmsh.snapshot_date >= $3 THEN fmsh.total_games ELSE 0 END), 0)::INT as games_after
+        COALESCE(AVG(CASE WHEN fmsh.snapshot_date < ? THEN fmsh.winrate ELSE NULL END), 0) as winrate_before,
+        COALESCE(AVG(CASE WHEN fmsh.snapshot_date >= ? THEN fmsh.winrate ELSE NULL END), 0) as winrate_after,
+        COALESCE(AVG(CASE WHEN fmsh.snapshot_date >= ? THEN fmsh.winrate ELSE NULL END), 0) -
+          COALESCE(AVG(CASE WHEN fmsh.snapshot_date < ? THEN fmsh.winrate ELSE NULL END), 0) as winrate_change,
+        COUNT(DISTINCT CASE WHEN fmsh.snapshot_date < ? THEN fmsh.map_id END) as sample_size_before,
+        COUNT(DISTINCT CASE WHEN fmsh.snapshot_date >= ? THEN fmsh.map_id END) as sample_size_after,
+        COALESCE(SUM(CASE WHEN fmsh.snapshot_date < ? THEN fmsh.total_games ELSE 0 END), 0) as games_before,
+        COALESCE(SUM(CASE WHEN fmsh.snapshot_date >= ? THEN fmsh.total_games ELSE 0 END), 0) as games_after
       FROM faction_map_statistics_history fmsh
       LEFT JOIN game_maps gm ON gm.id = fmsh.map_id
       LEFT JOIN factions f1 ON f1.id = fmsh.faction_id
       LEFT JOIN factions f2 ON f2.id = fmsh.opponent_faction_id
-      WHERE fmsh.snapshot_date BETWEEN $2 AND $4
+      WHERE fmsh.snapshot_date BETWEEN ? AND ?
       GROUP BY gm.id, gm.name, f1.id, f1.name, f2.id, f2.name`,
       [eventId, snapshot_before_date, event_date, afterDate.toISOString().split('T')[0]]
     );
@@ -565,10 +594,10 @@ export async function getBalanceTrend(
         fms.confidence_level,
         fms.sample_size_category
       FROM faction_map_statistics_history fms
-      WHERE fms.map_id = $1
-        AND fms.faction_id = $2
-        AND fms.opponent_faction_id = $3
-        AND fms.snapshot_date BETWEEN $4 AND $5
+      WHERE fms.map_id = ?
+        AND fms.faction_id = ?
+        AND fms.opponent_faction_id = ?
+        AND fms.snapshot_date BETWEEN ? AND ?
       ORDER BY fms.snapshot_date ASC`,
       [mapId, factionId, opponentFactionId, dateFrom, dateTo]
     );
@@ -607,7 +636,7 @@ export async function manageFactionMapStatisticsSnapshots(): Promise<{
     // Delete snapshots after last event
     const deleteResult = await query(
       `DELETE FROM faction_map_statistics_history
-       WHERE snapshot_date > $1`,
+       WHERE snapshot_date > ?`,
       [lastEventDate]
     );
 
@@ -630,17 +659,24 @@ export async function manageFactionMapStatisticsSnapshots(): Promise<{
 
 /**
  * Recalculate all player match statistics
+ * Populates 4 types of rows per player:
+ *  1. Global  (opponent_id=NULL, map_id=NULL, faction_id=NULL)
+ *  2. Per-opponent (opponent_id=set, map_id=NULL, faction_id=NULL, opponent_faction_id=NULL)
+ *  3. Per-map      (opponent_id=NULL, map_id=set, faction_id=NULL)
+ *  4. Per-faction  (opponent_id=NULL, map_id=NULL, faction_id=set, opponent_faction_id=set)
  */
 export async function recalculatePlayerMatchStatistics(): Promise<{ records_updated: number }> {
   try {
+    const { randomUUID } = await import('crypto');
+
     // Truncate the stats table
     await query('TRUNCATE TABLE player_match_statistics');
 
-    // Get all unique players
+    // Get all unique players that have played at least one non-cancelled match
     const playersResult = await query(
-      `SELECT DISTINCT winner_id as player_id FROM matches
+      `SELECT DISTINCT winner_id as player_id FROM matches WHERE status != 'cancelled'
        UNION
-       SELECT DISTINCT loser_id FROM matches`
+       SELECT DISTINCT loser_id FROM matches WHERE status != 'cancelled'`
     );
 
     let recordsUpdated = 0;
@@ -648,31 +684,172 @@ export async function recalculatePlayerMatchStatistics(): Promise<{ records_upda
     for (const p of playersResult.rows) {
       const playerId = p.player_id;
 
-      // Global stats
+      // ── 1. GLOBAL STATS ─────────────────────────────────────────────────────
       const globalResult = await query(
         `SELECT
-           COUNT(CASE WHEN winner_id = ? THEN 1 END) as wins,
-           COUNT(CASE WHEN loser_id = ? THEN 1 END) as losses,
+           SUM(CASE WHEN winner_id = ? THEN 1 ELSE 0 END) as wins,
+           SUM(CASE WHEN loser_id  = ? THEN 1 ELSE 0 END) as losses,
            AVG(CASE WHEN winner_id = ? THEN winner_elo_after - winner_elo_before
-                    WHEN loser_id = ? THEN loser_elo_after - loser_elo_before END) as avg_elo_change
+                    WHEN loser_id  = ? THEN loser_elo_after  - loser_elo_before END) as avg_elo_change
          FROM matches
-         WHERE (winner_id = ? OR loser_id = ?)
-         AND NOT (admin_reviewed = true AND status = 'cancelled')`,
+         WHERE (winner_id = ? OR loser_id = ?) AND status != 'cancelled'`,
         [playerId, playerId, playerId, playerId, playerId, playerId]
       );
 
-      const { wins, losses, avg_elo_change } = globalResult.rows[0];
-      const totalGames = wins + losses;
-      const winrate = totalGames > 0 ? (wins / totalGames) * 100 : 0;
+      const gRow = globalResult.rows[0];
+      const gWins   = parseInt(gRow.wins)   || 0;
+      const gLosses = parseInt(gRow.losses) || 0;
+      const gTotal  = gWins + gLosses;
+      const gWinrate = gTotal > 0 ? (gWins / gTotal) * 100 : 0;
 
       await query(
         `INSERT INTO player_match_statistics
-         (player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+         (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
           total_games, wins, losses, winrate, avg_elo_change)
-         VALUES (?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?)`,
-        [playerId, totalGames, wins, losses, Math.round(winrate * 100) / 100, avg_elo_change || 0]
+         VALUES (?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?)`,
+        [randomUUID(), playerId, gTotal, gWins, gLosses,
+         Math.round(gWinrate * 100) / 100, Math.round((gRow.avg_elo_change || 0) * 100) / 100]
       );
       recordsUpdated++;
+
+      // ── 2. PER-OPPONENT STATS ────────────────────────────────────────────────
+      const opponentResult = await query(
+        `SELECT
+           CASE WHEN winner_id = ? THEN loser_id  ELSE winner_id END as opponent_id,
+           SUM(CASE WHEN winner_id = ? THEN 1 ELSE 0 END) as wins,
+           SUM(CASE WHEN loser_id  = ? THEN 1 ELSE 0 END) as losses,
+           AVG(CASE WHEN winner_id = ? THEN winner_elo_after - winner_elo_before
+                    WHEN loser_id  = ? THEN loser_elo_after  - loser_elo_before END) as avg_elo_change,
+           SUM(CASE WHEN winner_id = ? AND (winner_elo_after - winner_elo_before) > 0
+                    THEN winner_elo_after - winner_elo_before ELSE 0 END) as elo_gained,
+           SUM(CASE WHEN loser_id  = ? AND (loser_elo_before - loser_elo_after) > 0
+                    THEN loser_elo_before - loser_elo_after  ELSE 0 END) as elo_lost,
+           MAX(CASE WHEN winner_id = ? THEN loser_elo_before
+                    WHEN loser_id  = ? THEN winner_elo_before END) as last_elo_against_me,
+           MAX(created_at) as last_match_date
+         FROM matches
+         WHERE (winner_id = ? OR loser_id = ?) AND status != 'cancelled'
+         GROUP BY CASE WHEN winner_id = ? THEN loser_id ELSE winner_id END`,
+        [playerId, playerId, playerId, playerId, playerId,
+         playerId, playerId, playerId, playerId, playerId, playerId, playerId]
+      );
+
+      for (const row of opponentResult.rows) {
+        const wins   = parseInt(row.wins)   || 0;
+        const losses = parseInt(row.losses) || 0;
+        const total  = wins + losses;
+        const winrate = total > 0 ? (wins / total) * 100 : 0;
+
+        await query(
+          `INSERT INTO player_match_statistics
+           (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+            total_games, wins, losses, winrate, avg_elo_change,
+            elo_gained, elo_lost, last_elo_against_me, last_match_date)
+           VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [randomUUID(), playerId, row.opponent_id, total, wins, losses,
+           Math.round(winrate * 100) / 100,
+           Math.round((row.avg_elo_change || 0) * 100) / 100,
+           Math.round((row.elo_gained || 0) * 100) / 100,
+           Math.round((row.elo_lost   || 0) * 100) / 100,
+           row.last_elo_against_me ? Math.round(row.last_elo_against_me * 100) / 100 : null,
+           row.last_match_date || null]
+        );
+        recordsUpdated++;
+      }
+
+      // ── 3. PER-MAP STATS ─────────────────────────────────────────────────────
+      const mapResult = await query(
+        `SELECT
+           gm.id as map_id,
+           SUM(CASE WHEN m.winner_id = ? THEN 1 ELSE 0 END) as wins,
+           SUM(CASE WHEN m.loser_id  = ? THEN 1 ELSE 0 END) as losses,
+           AVG(CASE WHEN m.winner_id = ? THEN m.winner_elo_after - m.winner_elo_before
+                    WHEN m.loser_id  = ? THEN m.loser_elo_after  - m.loser_elo_before END) as avg_elo_change
+         FROM matches m
+         JOIN game_maps gm ON gm.name = m.map
+         WHERE (m.winner_id = ? OR m.loser_id = ?) AND m.status != 'cancelled'
+         GROUP BY gm.id`,
+        [playerId, playerId, playerId, playerId, playerId, playerId]
+      );
+
+      for (const row of mapResult.rows) {
+        const wins   = parseInt(row.wins)   || 0;
+        const losses = parseInt(row.losses) || 0;
+        const total  = wins + losses;
+        const winrate = total > 0 ? (wins / total) * 100 : 0;
+
+        await query(
+          `INSERT INTO player_match_statistics
+           (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+            total_games, wins, losses, winrate, avg_elo_change)
+           VALUES (?, ?, NULL, ?, NULL, NULL, ?, ?, ?, ?, ?)`,
+          [randomUUID(), playerId, row.map_id, total, wins, losses,
+           Math.round(winrate * 100) / 100,
+           Math.round((row.avg_elo_change || 0) * 100) / 100]
+        );
+        recordsUpdated++;
+      }
+
+      // ── 4. PER-FACTION (PLAYER'S FACTION vs OPPONENT FACTION) ───────────────
+      // Wins side: player was winner — group by winner_faction vs loser_faction
+      const factionWinResult = await query(
+        `SELECT
+           f_w.id as faction_id,
+           f_l.id as opponent_faction_id,
+           COUNT(*) as wins
+         FROM matches m
+         JOIN factions f_w ON f_w.name = m.winner_faction
+         JOIN factions f_l ON f_l.name = m.loser_faction
+         WHERE m.winner_id = ? AND m.status != 'cancelled'
+         GROUP BY f_w.id, f_l.id`,
+        [playerId]
+      );
+
+      // Losses side: player was loser — group by loser_faction vs winner_faction
+      const factionLossResult = await query(
+        `SELECT
+           f_l.id as faction_id,
+           f_w.id as opponent_faction_id,
+           COUNT(*) as losses
+         FROM matches m
+         JOIN factions f_w ON f_w.name = m.winner_faction
+         JOIN factions f_l ON f_l.name = m.loser_faction
+         WHERE m.loser_id = ? AND m.status != 'cancelled'
+         GROUP BY f_l.id, f_w.id`,
+        [playerId]
+      );
+
+      // Merge wins and losses by faction pairing
+      const factionMap = new Map<string, { faction_id: string; opponent_faction_id: string; wins: number; losses: number }>();
+
+      for (const row of factionWinResult.rows) {
+        const key = `${row.faction_id}|${row.opponent_faction_id}`;
+        factionMap.set(key, { faction_id: row.faction_id, opponent_faction_id: row.opponent_faction_id, wins: parseInt(row.wins) || 0, losses: 0 });
+      }
+      for (const row of factionLossResult.rows) {
+        const key = `${row.faction_id}|${row.opponent_faction_id}`;
+        const existing = factionMap.get(key);
+        if (existing) {
+          existing.losses += parseInt(row.losses) || 0;
+        } else {
+          factionMap.set(key, { faction_id: row.faction_id, opponent_faction_id: row.opponent_faction_id, wins: 0, losses: parseInt(row.losses) || 0 });
+        }
+      }
+
+      for (const stats of factionMap.values()) {
+        const total  = stats.wins + stats.losses;
+        const winrate = total > 0 ? (stats.wins / total) * 100 : 0;
+
+        await query(
+          `INSERT INTO player_match_statistics
+           (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+            total_games, wins, losses, winrate, avg_elo_change)
+           VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, 0)`,
+          [randomUUID(), playerId, stats.faction_id, stats.opponent_faction_id,
+           total, stats.wins, stats.losses, Math.round(winrate * 100) / 100]
+        );
+        recordsUpdated++;
+      }
     }
 
     return { records_updated: recordsUpdated };
@@ -703,7 +880,7 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
        JOIN game_maps gm ON gm.name = m.map
        JOIN factions f_w ON f_w.name = m.winner_faction
        JOIN factions f_l ON f_l.name = m.loser_faction
-       WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
+       WHERE m.status != 'cancelled'
        GROUP BY gm.id, f_w.id, f_l.id
        
        UNION ALL
@@ -719,7 +896,7 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
        JOIN game_maps gm ON gm.name = m.map
        JOIN factions f_w ON f_w.name = m.winner_faction
        JOIN factions f_l ON f_l.name = m.loser_faction
-       WHERE NOT (m.admin_reviewed = true AND m.status = 'cancelled')
+       WHERE m.status != 'cancelled'
        GROUP BY gm.id, f_l.id, f_w.id`
     );
 
@@ -866,7 +1043,7 @@ export async function getBalanceStatisticsSnapshot(
         sample_size_category,
         confidence_level
        FROM faction_map_statistics_history
-       WHERE snapshot_date = $1`,
+       WHERE snapshot_date = ?`,
       [dateStr]
     );
 
@@ -909,10 +1086,10 @@ export async function updatePlayerElo(
   try {
     await query(
       `UPDATE player_rankings
-       SET current_elo = $1,
-           elo_change = elo_change + $2,
+       SET current_elo = ?,
+           elo_change = elo_change + ?,
            last_elo_update = CURRENT_TIMESTAMP
-       WHERE player_id = $3`,
+       WHERE player_id = ?`,
       [newElo, eloChange, playerId]
     );
 
@@ -938,7 +1115,7 @@ export async function updatePlayerFactionStats(
          SET games_played = games_played + 1,
              games_won = games_won + 1,
              winrate = ROUND(100.0 * (games_won + 1) / (games_played + 1), 2)
-         WHERE player_id = $1 AND faction_id = $2`,
+         WHERE player_id = ? AND faction_id = ?`,
         [playerId, factionId]
       );
     } else {
@@ -947,7 +1124,7 @@ export async function updatePlayerFactionStats(
          SET games_played = games_played + 1,
              games_lost = games_lost + 1,
              winrate = ROUND(100.0 * games_won / (games_played + 1), 2)
-         WHERE player_id = $1 AND faction_id = $2`,
+         WHERE player_id = ? AND faction_id = ?`,
         [playerId, factionId]
       );
     }
@@ -971,7 +1148,7 @@ export async function calculateFactionWinrates(
         faction_id,
         winrate
        FROM faction_map_statistics
-       WHERE map_id = $1
+       WHERE map_id = ?
        ORDER BY faction_id`,
       [mapId]
     );
@@ -1007,7 +1184,7 @@ export async function updateLeagueRankings(
         ) as final_rank,
         user_id
        FROM tournament_participants
-       WHERE tournament_id = $1`,
+       WHERE tournament_id = ?`,
       [tournamentId]
     );
 
@@ -1017,9 +1194,9 @@ export async function updateLeagueRankings(
       // Update player rankings table
       await query(
         `UPDATE player_rankings
-         SET league_rank = CASE WHEN $1 <= 10 THEN $1 ELSE NULL END,
+         SET league_rank = CASE WHEN ? <= 10 THEN ? ELSE NULL END,
              last_rank_update = CURRENT_TIMESTAMP
-         WHERE player_id = $2`,
+         WHERE player_id = ?`,
         [row.final_rank, row.user_id]
       );
       updatedCount++;
@@ -1048,15 +1225,15 @@ export async function getTournamentSnapshot(
   try {
     const result = await query(
       `SELECT
-        $1 as tournament_id,
+        ? as tournament_id,
         COUNT(DISTINCT tm.id) as total_matches,
         SUM(tm.player1_wins + tm.player2_wins) as total_games,
         ROUND(AVG(tm.player1_wins + tm.player2_wins), 2) as avg_games_per_match,
         COUNT(DISTINCT tp.user_id) as total_participants,
         MAX(tm.completed_at) as final_date
        FROM tournament_round_matches tm
-       LEFT JOIN tournament_participants tp ON tp.tournament_id = $1
-       WHERE tm.tournament_id = $1
+       LEFT JOIN tournament_participants tp ON tp.tournament_id = ?
+       WHERE tm.tournament_id = ?
        AND tm.series_status = 'completed'`,
       [tournamentId]
     );
@@ -1081,7 +1258,7 @@ export async function createBalanceEventAfterSnapshot(
   try {
     // Find the event
     const eventResult = await query(
-      'SELECT event_date FROM balance_events WHERE id = $1',
+      'SELECT event_date FROM balance_events WHERE id = ?',
       [eventId]
     );
 
@@ -1089,12 +1266,32 @@ export async function createBalanceEventAfterSnapshot(
       throw new Error('Balance event not found');
     }
 
+    const { randomUUID } = await import('crypto');
     const eventDate = new Date(eventResult.rows[0].event_date);
     const afterDate = new Date(eventDate);
     afterDate.setDate(afterDate.getDate() + 1); // One day after
+    const dateStr = afterDate.toISOString().split('T')[0];
+
+    // Check if snapshot already exists for this date
+    const existingResult = await query(
+      `SELECT COUNT(*) as count FROM faction_map_statistics_history WHERE snapshot_date = ?`,
+      [dateStr]
+    );
+    
+    if (existingResult.rows[0].count > 0) {
+      // Snapshot already exists, skip and just update the after_date
+      await query(
+        `UPDATE balance_events
+         SET snapshot_after_date = ?
+         WHERE id = ?`,
+        [dateStr, eventId]
+      );
+      return 0;
+    }
 
     const result = await query(
       `INSERT INTO faction_map_statistics_history (
+        id,
         snapshot_date,
         snapshot_timestamp,
         map_id,
@@ -1108,7 +1305,8 @@ export async function createBalanceEventAfterSnapshot(
         confidence_level
       )
       SELECT
-        $1::DATE,
+        UUID(),
+        ?,
         CURRENT_TIMESTAMP,
         fms.map_id,
         fms.faction_id,
@@ -1130,14 +1328,14 @@ export async function createBalanceEventAfterSnapshot(
         END
       FROM faction_map_statistics fms
       WHERE fms.total_games > 0`,
-      [afterDate.toISOString().split('T')[0]]
+      [dateStr]
     );
 
     // Update balance_events to record snapshot date
     await query(
       `UPDATE balance_events
-       SET snapshot_after_date = $1
-       WHERE id = $2`,
+       SET snapshot_after_date = ?
+       WHERE id = ?`,
       [afterDate.toISOString().split('T')[0], eventId]
     );
 
@@ -1158,7 +1356,7 @@ export async function getBalanceEventForwardImpact(
   try {
     // Get event details
     const eventResult = await query(
-      'SELECT event_date FROM balance_events WHERE id = $1',
+      'SELECT event_date FROM balance_events WHERE id = ?',
       [eventId]
     );
 
@@ -1179,17 +1377,17 @@ export async function getBalanceEventForwardImpact(
         COALESCE(f2.id, '') as opponent_faction_id,
         COALESCE(f2.name, '') as opponent_faction_name,
         0 as winrate_before,
-        COALESCE(AVG(fmsh.winrate), 0)::DECIMAL(5,2) as winrate_after,
-        COALESCE(AVG(fmsh.winrate), 0)::DECIMAL(6,2) as winrate_change,
+        COALESCE(AVG(fmsh.winrate), 0) as winrate_after,
+        COALESCE(AVG(fmsh.winrate), 0) as winrate_change,
         0 as sample_size_before,
         COUNT(DISTINCT fmsh.map_id) as sample_size_after,
         0 as games_before,
-        COALESCE(SUM(fmsh.total_games), 0)::INT as games_after
+        COALESCE(SUM(fmsh.total_games), 0) as games_after
       FROM faction_map_statistics_history fmsh
       LEFT JOIN game_maps gm ON gm.id = fmsh.map_id
       LEFT JOIN factions f1 ON f1.id = fmsh.faction_id
       LEFT JOIN factions f2 ON f2.id = fmsh.opponent_faction_id
-      WHERE fmsh.snapshot_date BETWEEN $1 AND $2
+      WHERE fmsh.snapshot_date BETWEEN ? AND ?
       GROUP BY gm.id, gm.name, f1.id, f1.name, f2.id, f2.name`,
       [eventDate.toISOString().split('T')[0], afterDate.toISOString().split('T')[0]]
     );
@@ -1243,6 +1441,113 @@ export async function recalculateBalanceEventSnapshots(): Promise<{
     throw error;
   }
 }
+/**
+ * CRITICAL: Recalculate player ELO from match records
+ * Takes the FINAL ELO from the last non-cancelled match for each player
+ * Updates users_extension with correct ELO, ranking, and level
+ */
+export async function recalculatePlayerEloSequential(): Promise<{
+  players_updated: number;
+  total_matches_processed: number;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  let playersUpdated = 0;
+
+  try {
+    // Get all unique players from non-cancelled matches
+    const playersResult = await query(
+      `SELECT DISTINCT winner_id as player_id FROM matches
+       WHERE status != 'cancelled'
+       UNION
+       SELECT DISTINCT loser_id FROM matches
+       WHERE status != 'cancelled'`
+    );
+
+    const totalMatches = await query(
+      `SELECT COUNT(*) as count FROM matches
+       WHERE status != 'cancelled'`
+    );
+
+    // For each player, get their final ELO and stats from their matches
+    for (const player of playersResult.rows) {
+      const playerId = player.player_id;
+      
+      try {
+        // Get all stats for this player from their matches (non-cancelled only)
+        const statsResult = await query(
+          `SELECT
+             COUNT(CASE WHEN winner_id = ? THEN 1 END) as wins,
+             COUNT(CASE WHEN loser_id = ? THEN 1 END) as losses,
+             MAX(CASE WHEN winner_id = ? THEN winner_elo_after ELSE NULL END) as final_elo_as_winner,
+             MAX(CASE WHEN loser_id = ? THEN loser_elo_after ELSE NULL END) as final_elo_as_loser
+           FROM matches
+           WHERE (winner_id = ? OR loser_id = ?)
+           AND status != 'cancelled'`,
+          [playerId, playerId, playerId, playerId, playerId, playerId]
+        );
+
+        const stats = statsResult.rows[0];
+        const wins = stats.wins || 0;
+        const losses = stats.losses || 0;
+        const matchesPlayed = wins + losses;
+
+        // Get final ELO (use the most recent match ELO)
+        const finalElo = stats.final_elo_as_winner || stats.final_elo_as_loser || 1400;
+
+        // Determine if player should be rated (10+ matches and ELO >= 1400)
+        const isRated = matchesPlayed >= 10 && finalElo >= 1400 ? 1 : 0;
+
+        // Calculate level based on ELO
+        let level = 'Novato';
+        if (finalElo >= 1600) level = 'Experto';
+        else if (finalElo >= 1500) level = 'Avanzado';
+        else if (finalElo >= 1450) level = 'Iniciado';
+
+        // Get previous ELO for trend calculation
+        const prevEloResult = await query(
+          `SELECT elo_rating FROM users_extension WHERE id = ?`,
+          [playerId]
+        );
+
+        const prevElo = prevEloResult.rows[0]?.elo_rating || 1400;
+        const trend = finalElo > prevElo ? 1 : (finalElo < prevElo ? -1 : 0);
+
+        // Update users_extension
+        await query(
+          `UPDATE users_extension
+           SET elo_rating = ?,
+               matches_played = ?,
+               total_wins = ?,
+               total_losses = ?,
+               is_rated = ?,
+               level = ?,
+               trend = ?,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+          [finalElo, matchesPlayed, wins, losses, isRated, level, trend, playerId]
+        );
+
+        playersUpdated++;
+      } catch (e) {
+        const msg = `Error updating player ${playerId}: ${e instanceof Error ? e.message : String(e)}`;
+        errors.push(msg);
+        console.error(msg);
+      }
+    }
+
+    return {
+      players_updated: playersUpdated,
+      total_matches_processed: totalMatches.rows[0]?.count || 0,
+      errors
+    };
+  } catch (error) {
+    const msg = `Error in recalculatePlayerEloSequential: ${error instanceof Error ? error.message : String(error)}`;
+    errors.push(msg);
+    console.error(msg);
+    throw error;
+  }
+}
 
 export default {
   calculateLeagueTiebreakers,
@@ -1267,5 +1572,6 @@ export default {
   getTournamentSnapshot,
   createBalanceEventAfterSnapshot,
   getBalanceEventForwardImpact,
-  recalculateBalanceEventSnapshots
+  recalculateBalanceEventSnapshots,
+  recalculatePlayerEloSequential
 };

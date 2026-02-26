@@ -4,6 +4,7 @@ import { calculatePlayerOfMonth } from './playerOfMonthJob.js';
 import { SyncGamesFromForumJob } from './syncGamesFromForum.js';
 import ParseNewReplaysRefactored from './parseNewReplaysRefactored.js';
 import { v4 as uuidv4 } from 'uuid';
+import { createFactionMapStatisticsSnapshot, recalculatePlayerMatchStatistics } from '../services/statisticsCalculator.js';
 
 /**
  * Initialize all scheduled jobs
@@ -22,13 +23,24 @@ export const initializeScheduledJobs = (): void => {
     cron.schedule('30 0 * * *', async () => {
       try {
         console.log('⏰ [CRON] Running daily balance snapshot...');
-        await query('SELECT daily_snapshot_faction_map_statistics()');
+        await createFactionMapStatisticsSnapshot();
         console.log('✅ [CRON] Daily balance snapshot completed');
       } catch (error) {
         console.error('❌ [CRON] Failed to create daily snapshot:', error);
       }
     });
     
+    // Schedule daily player statistics recalculation at 00:45 UTC
+    cron.schedule('45 0 * * *', async () => {
+      try {
+        console.log('📊 [CRON] Recalculating player match statistics...');
+        const result = await recalculatePlayerMatchStatistics();
+        console.log(`✅ [CRON] Player statistics recalculated: ${result.records_updated} records`);
+      } catch (error) {
+        console.error('❌ [CRON] Failed to recalculate player statistics:', error);
+      }
+    });
+
     // Schedule daily inactive player check at 01:00 UTC
     // Marks players as inactive if they have no matches in the last 30 days
     cron.schedule('0 1 * * *', async () => {
@@ -36,19 +48,18 @@ export const initializeScheduledJobs = (): void => {
         console.log('👤 [CRON] Running inactive player check...');
         const result = await query(
           `UPDATE users_extension 
-           SET is_active = false, updated_at = CURRENT_TIMESTAMP
-           WHERE is_active = true 
-             AND is_blocked = false
+           SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+           WHERE is_active = 1 
+             AND is_blocked = 0
              AND id NOT IN (
                SELECT DISTINCT u.id
                FROM users_extension u
                INNER JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id)
                WHERE m.status != 'cancelled' 
                  AND m.created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)
-             )
-           RETURNING id`
+             )`
         );
-        console.log(`✅ [CRON] Marked ${result.rows.length} players as inactive`);
+        console.log(`✅ [CRON] Marked inactive players as inactive`);
       } catch (error) {
         console.error('❌ [CRON] Failed to check inactive players:', error);
       }

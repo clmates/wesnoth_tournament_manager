@@ -59,7 +59,7 @@ class TournamentService {
           tiebreaker_2,
           tiebreaker_3
         FROM tournaments
-        WHERE tournament_id = $1
+        WHERE tournament_id = ?
       `;
       
       const result = await db.query(query, [tournamentId]);
@@ -83,11 +83,14 @@ class TournamentService {
     tournamentName: string,
     tournamentType: TournamentType,
     config: Partial<TournamentConfigUnion>
-  ): Promise<number> {
+  ): Promise<string> {
     try {
       const configAny = config as any;
-      const query = `
+      const { randomUUID } = await import('crypto');
+      const newTournamentId = randomUUID();
+      const queryStr = `
         INSERT INTO tournaments (
+          id,
           tournament_name,
           tournament_status,
           tournament_type,
@@ -109,11 +112,11 @@ class TournamentService {
           tiebreaker_1,
           tiebreaker_2,
           tiebreaker_3
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
-        RETURNING id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       
-      const result = await db.query(query, [
+      await db.query(queryStr, [
+        newTournamentId,
         tournamentName,
         'pending',
         tournamentType,
@@ -137,7 +140,7 @@ class TournamentService {
         configAny.tiebreaker_3 ?? null,
       ]);
       
-      return result.rows[0]?.id || 0;
+      return newTournamentId;
     } catch (error) {
       console.error('Error creating tournament:', error);
       throw error;
@@ -155,13 +158,13 @@ class TournamentService {
       let query = `
         SELECT *
         FROM tournament_standings
-        WHERE tournament_id = $1
+        WHERE tournament_id = ?
       `;
       
       const params: any[] = [tournamentId];
       
       if (roundId) {
-        query += ` AND tournament_round_id = $2`;
+        query += ` AND tournament_round_id = ?`;
         params.push(roundId);
       }
       
@@ -183,7 +186,7 @@ class TournamentService {
       const query = `
         SELECT *
         FROM league_standings
-        WHERE tournament_id = $1
+        WHERE tournament_id = ?
         ORDER BY league_position ASC
       `;
       
@@ -206,7 +209,7 @@ class TournamentService {
       const query = `
         SELECT *
         FROM swiss_pairings
-        WHERE tournament_id = $1 AND tournament_round_id = $2
+        WHERE tournament_id = ? AND tournament_round_id = ?
         ORDER BY pairing_number ASC
       `;
       
@@ -229,7 +232,7 @@ class TournamentService {
     try {
       // Delete existing standings for this round
       await db.query(
-        'DELETE FROM tournament_standings WHERE tournament_id = $1 AND tournament_round_id = $2',
+        'DELETE FROM tournament_standings WHERE tournament_id = ? AND tournament_round_id = ?',
         [tournamentId, roundId]
       );
       
@@ -248,7 +251,7 @@ class TournamentService {
             total_points,
             current_rank,
             previous_rank
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
         await db.query(query, [

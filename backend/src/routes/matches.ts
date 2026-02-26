@@ -109,11 +109,11 @@ async function performGlobalStatsRecalculation() {
 
     const defaultElo = 1400; // FIDE standard baseline for new users
 
-    // STEP 2: Get ALL non-cancelled matches in chronological order
+    // STEP 2: Get ALL non-cancelled matches in chronological order (including 'reported')
     const allNonCancelledMatches = await query(
       `SELECT m.id, m.winner_id, m.loser_id, m.created_at
        FROM matches m
-       WHERE m.status IN ('confirmed', 'unconfirmed', 'pending', 'disputed')
+       WHERE m.status != 'cancelled'
        ORDER BY m.created_at ASC, m.id ASC`
     );
 
@@ -172,9 +172,11 @@ async function performGlobalStatsRecalculation() {
       const winnerKInfo = getKFactorWithReason(winner.elo_rating, winner.matches_played);
       const loserKInfo = getKFactorWithReason(loser.elo_rating, loser.matches_played);
 
-      // Store before values for levels (before ELO update)
-      const winnerLevelBefore = winner.level;
-      const loserLevelBefore = loser.level;
+      // Calculate levels based on ELO BEFORE and AFTER (not from previous state)
+      const winnerLevelBefore = getUserLevel(winnerEloBefore);
+      const loserLevelBefore = getUserLevel(loserEloBefore);
+      const winnerLevelAfter = getUserLevel(winnerNewRating);
+      const loserLevelAfter = getUserLevel(loserNewRating);
 
       // Update stats
       winner.elo_rating = winnerNewRating;
@@ -186,9 +188,9 @@ async function performGlobalStatsRecalculation() {
       winner.trend = calculateTrend(winner.trend, true);
       loser.trend = calculateTrend(loser.trend, false);
       
-      // Calculate new levels based on updated ELO
-      winner.level = getUserLevel(winner.elo_rating);
-      loser.level = getUserLevel(loser.elo_rating);
+      // Update levels in state for next iteration
+      winner.level = winnerLevelAfter;
+      loser.level = loserLevelAfter;
 
       // Calculate ELO changes for both players
       const winnerEloChange = winnerNewRating - winnerEloBefore;
@@ -202,28 +204,28 @@ async function performGlobalStatsRecalculation() {
      - ELO: ${winnerEloBefore} | Matches played: ${winnerMatchesBeforeCalc}
      - K-factor: ${winnerKInfo.k} (${winnerKInfo.reason})
      - New ELO: ${winnerNewRating} | Change: ${winnerEloChange > 0 ? '+' : ''}${winnerEloChange}
-     - Level: ${winnerLevelBefore} → ${winner.level}
+     - Level: ${winnerLevelBefore} → ${winnerLevelAfter}
    
    LOSER: ${loserId.substring(0, 8)}...
      - ELO: ${loserEloBefore} | Matches played: ${loserMatchesBeforeCalc}
      - K-factor: ${loserKInfo.k} (${loserKInfo.reason})
      - New ELO: ${loserNewRating} | Change: ${loserEloChange > 0 ? '+' : ''}${loserEloChange}
-     - Level: ${loserLevelBefore} → ${loser.level}
+     - Level: ${loserLevelBefore} → ${loserLevelAfter}
    
    ✅ Winner +${winnerEloChange}, Loser ${loserEloChange} (balance: ${winnerEloChange + loserEloChange})`;
         debugSampleLogs.push(debugLog);
       }
 
-      // Update the match record with correct before/after ELO values, FIDE elo_change, and levels
+      // Update the match record with correct before/after ELO values and levels
       await query(
         `UPDATE matches 
-         SET winner_elo_before = $1, winner_elo_after = $2, 
-             loser_elo_before = $3, loser_elo_after = $4,
-             winner_level_before = $5, winner_level_after = $6,
-             loser_level_before = $7, loser_level_after = $8,
-             elo_change = $9
-         WHERE id = $10`,
-        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, winnerLevelBefore, winner.level, loserLevelBefore, loser.level, winnerEloChange, matchRow.id]
+         SET winner_elo_before = ?, winner_elo_after = ?, 
+             loser_elo_before = ?, loser_elo_after = ?,
+             winner_level_before = ?, winner_level_after = ?,
+             loser_level_before = ?, loser_level_after = ?,
+             elo_change = ?
+         WHERE id = ?`,
+        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, winnerLevelBefore, winnerLevelAfter, loserLevelBefore, loserLevelAfter, winnerEloChange, matchRow.id]
       );
 
       matchProcessedCount++;
@@ -260,16 +262,16 @@ async function performGlobalStatsRecalculation() {
       
       await query(
         `UPDATE users_extension 
-         SET elo_rating = $1, 
-             matches_played = $2,
-             total_wins = $3,
-             total_losses = $4,
-             trend = $5,
-             level = $6,
-             is_rated = $7,
+         SET elo_rating = ?, 
+             matches_played = ?,
+             total_wins = ?,
+             total_losses = ?,
+             trend = ?,
+             level = ?,
+             is_rated = ?,
              updated_at = CURRENT_TIMESTAMP 
-         WHERE id = $8`,
-        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, stats.level, isRated, userId]
+         WHERE id = ?`,
+        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, stats.level, isCurrentlyRated, userId]
       );
       usersUpdatedCount++;
     }
@@ -478,11 +480,12 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
     let matchId: string | null = null;
 
     if (tournamentMode === 'ranked') {
-      const matchResult = await query(
-        `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before)
-         VALUES (?, ?, ?, ?, ?, $6, $7, $8, $9, ?0, ?1, ?2, ?3, ?4, ?5)
-         RETURNING id`,
+      const newMatchId = uuidv4();
+      await query(
+        `INSERT INTO matches (id, winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          newMatchId,
           req.userId,
           opponent_id,
           map,
@@ -496,12 +499,12 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
           eloChange,
           winner!.elo_rating,
           loser!.elo_rating,
-          winner!.level || 'novato',
-          loser!.level || 'novato',
+          getUserLevel(winner!.elo_rating),
+          getUserLevel(loser!.elo_rating),
         ]
       );
 
-      matchId = matchResult.rows[0].id;
+      matchId = newMatchId;
 
       // Calculate new trends: winner gets a win, loser gets a loss
       const currentWinnerTrend = winner!.trend || '-';
@@ -529,11 +532,11 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
              is_rated = ?, 
              matches_played = ?,
              total_wins = total_wins + 1,
-             trend = $6,
+             trend = ?,
              level = ?,
              updated_at = CURRENT_TIMESTAMP 
          WHERE id = ?`,
-        [finalWinnerRating, winnerIsNowRated, newWinnerMatches, req.userId, getUserLevel(finalWinnerRating), winnerTrend]
+        [finalWinnerRating, winnerIsNowRated, newWinnerMatches, winnerTrend, getUserLevel(finalWinnerRating), req.userId]
       );
 
       // Update loser: increment matches_played and set new ELO
@@ -556,11 +559,11 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
              is_rated = ?, 
              matches_played = ?,
              total_losses = total_losses + 1,
-             trend = $6,
+             trend = ?,
              level = ?,
              updated_at = CURRENT_TIMESTAMP 
          WHERE id = ?`,
-        [finalLoserRating, loserIsNowRated, newLoserMatches, opponent_id, getUserLevel(finalLoserRating), loserTrend]
+        [finalLoserRating, loserIsNowRated, newLoserMatches, loserTrend, getUserLevel(finalLoserRating), opponent_id]
       );
 
       // Update match with after-match ELO and level ratings
@@ -594,15 +597,15 @@ router.post('/report-json', authMiddleware, async (req: AuthRequest, res) => {
              loser_id = ?,
              map = ?,
              winner_faction = ?,
-             loser_faction = $6,
-             winner_comments = $8,
-             winner_rating = $9,
+             loser_faction = ?,
+             winner_comments = ?,
+             winner_rating = ?,
              replay_file_path = NULL,
-             status = ?1,
+             status = ?,
              played_at = CURRENT_TIMESTAMP, 
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $7`,
-        [matchId || null, req.userId, opponent_id, map, winner_faction || null, loser_faction || null, tournament_match_id, comments || null, rating || null, 'unconfirmed']
+         WHERE id = ?`,
+        [matchId || null, req.userId, opponent_id, map, winner_faction || null, loser_faction || null, comments || null, rating || null, 'unconfirmed', tournament_match_id]
       );
       console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
 
@@ -972,11 +975,12 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
 
     if (tournamentMode === 'ranked') {
       // Insert match with ranking positions and tournament_mode (only for ranked/unranked)
-      const matchResult = await query(
-        `INSERT INTO matches (winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, loser_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, winner_ranking_pos, loser_ranking_pos)
-         VALUES (?, ?, ?, ?, ?, $6, $7, $8, $9, ?0, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
-         RETURNING id`,
+      const newMatchId2 = uuidv4();
+      await query(
+        `INSERT INTO matches (id, winner_id, loser_id, map, winner_faction, loser_faction, winner_comments, loser_comments, winner_rating, replay_file_path, tournament_id, tournament_mode, elo_change, winner_elo_before, loser_elo_before, winner_level_before, loser_level_before, winner_ranking_pos, loser_ranking_pos)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          newMatchId2,
           req.userId,
           opponent_id,
           map,
@@ -991,15 +995,14 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
           eloChange,
           winner.elo_rating,
           loser.elo_rating,
-          winner.level || 'novato',
-          loser.level || 'novato',
+          getUserLevel(winner.elo_rating),
+          getUserLevel(loser.elo_rating),
           winnerCurrentRank,
           loserCurrentRank,
         ]
       );
 
-      matchId = matchResult.rows[0].id;
-      console.log('📤 [MATCH] Match created with ID:', matchId);
+      matchId = newMatchId2;
       if (replayPath) {
         console.log('✅ [UPLOAD] Replay stored in Supabase at:', replayPath);
       }
@@ -1031,11 +1034,11 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
                is_rated = ?, 
                matches_played = ?,
                total_wins = total_wins + 1,
-               trend = $6,
+               trend = ?,
                level = ?,
                updated_at = CURRENT_TIMESTAMP 
            WHERE id = ?`,
-          [finalWinnerRating, winnerIsNowRated, newWinnerMatches, req.userId, getUserLevel(finalWinnerRating), winnerTrend]
+          [finalWinnerRating, winnerIsNowRated, newWinnerMatches, winnerTrend, getUserLevel(finalWinnerRating), req.userId]
         );
       } else {
         // For unranked tournaments, only update trend and wins (no ELO change)
@@ -1070,11 +1073,11 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
                is_rated = ?, 
                matches_played = ?,
                total_losses = total_losses + 1,
-               trend = $6,
+               trend = ?,
                level = ?,
                updated_at = CURRENT_TIMESTAMP 
            WHERE id = ?`,
-          [finalLoserRating, loserIsNowRated, newLoserMatches, opponent_id, getUserLevel(finalLoserRating), loserTrend]
+          [finalLoserRating, loserIsNowRated, newLoserMatches, loserTrend, getUserLevel(finalLoserRating), opponent_id]
         );
       } else {
         // For unranked tournaments, only update trend and losses (no ELO change)
@@ -1131,9 +1134,9 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
              loser_elo_after = ?,
              loser_level_after = ?,
              winner_ranking_change = ?,
-             loser_ranking_change = $6,
+             loser_ranking_change = ?,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $7`,
+         WHERE id = ?`,
         [finalWinnerRating, getUserLevel(finalWinnerRating), finalLoserRating, getUserLevel(finalLoserRating), winnerRankingChange, loserRankingChange, matchId]
       );
 
@@ -1199,13 +1202,13 @@ router.post('/report', authMiddleware, upload.single('replay'), async (req: Auth
              loser_id = ?,
              map = ?,
              winner_faction = ?,
-             loser_faction = $6,
-             winner_comments = $7,
-             winner_rating = $8,
-             replay_file_path = $9,
+             loser_faction = ?,
+             winner_comments = ?,
+             winner_rating = ?,
+             replay_file_path = ?,
              played_at = CURRENT_TIMESTAMP, 
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?0`,
+         WHERE id = ?`,
         [matchId || null, finalWinnerId, finalLoserId, map, winner_faction || null, loser_faction || null, comments || null, rating ? parseInt(rating) : null, replayPath || null, tournament_match_id]
       );
       console.log(`Updated tournament_matches ${tournament_match_id} with match_id ${matchId || 'NULL (unranked/team mode)'}. Rows affected: ${updateResult.rowCount}`);
@@ -2086,9 +2089,9 @@ router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) 
                total_wins = ?,
                total_losses = ?,
                trend = ?,
-               is_rated = $6,
+               is_rated = ?,
                updated_at = CURRENT_TIMESTAMP 
-           WHERE id = $7`,
+           WHERE id = ?`,
           [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, isRated, userId]
         );
       }
@@ -2232,18 +2235,19 @@ router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => 
     console.log('📊 [COUNTER] Incrementing download count for match:', matchId);
 
     // Increment the download count
-    const result = await query(
-      'UPDATE matches SET replay_downloads = COALESCE(replay_downloads, 0) + 1 WHERE id = ? RETURNING replay_downloads',
+    const updateCountResult = await query(
+      'UPDATE matches SET replay_downloads = COALESCE(replay_downloads, 0) + 1 WHERE id = ?',
       [matchId]
     );
+    const countResult = await query('SELECT replay_downloads FROM matches WHERE id = ?', [matchId]);
 
-    if (result.rows.length === 0) {
+    if (updateCountResult.rowCount === 0) {
       console.warn('📊 [COUNTER] Match not found:', matchId);
       return res.status(404).json({ error: 'Match not found' });
     }
 
-    console.log('✅ [COUNTER] Download count updated to:', result.rows[0].replay_downloads);
-    res.json({ replay_downloads: result.rows[0].replay_downloads });
+    console.log('✅ [COUNTER] Download count updated to:', countResult.rows[0].replay_downloads);
+    res.json({ replay_downloads: countResult.rows[0].replay_downloads });
   } catch (error) {
     console.error('❌ [COUNTER] Error incrementing replay downloads:', error);
     res.status(500).json({ error: 'Failed to increment download count' });
@@ -2256,7 +2260,7 @@ router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => 
 // ============================================================================
 router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { replayId, winner_choice, rating, comments } = req.body;
+    const { replayId, winner_choice, rating, comments, tournament_match_id } = req.body;
     const userId = req.userId;
 
     // Validate user is authenticated
@@ -2536,8 +2540,21 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       [matchId, replayId]
     );
 
-    console.log(`✅ [CONFIDENCE-1] Match reported successfully: ${winnerId} (+${eloChange} ELO) vs ${loserId}`);
+    // If this replay belongs to a tournament match, associate and close it
+    if (tournament_match_id) {
+      await query(
+        `UPDATE tournament_matches
+         SET match_id = ?,
+             winner_id = ?,
+             match_status = 'completed',
+             played_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [matchId, winnerId, tournament_match_id]
+      );
+      console.log(`✅ [CONFIDENCE-1] Tournament match ${tournament_match_id} updated with match_id ${matchId}`);
+    }
 
+    console.log(`✅ [CONFIDENCE-1] Match reported successfully: ${winnerId} (+${eloChange} ELO) vs ${loserId}`);
     res.status(201).json({ 
       success: true,
       matchId,
@@ -2574,34 +2591,30 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     let paramCount = 1;
 
     if (playerFilter) {
-      whereConditions.push(`(w.nickname ILIKE $${paramCount} OR l.nickname ILIKE $${paramCount})`);
+      whereConditions.push(`(w.nickname LIKE ? OR l.nickname LIKE ?)`);
       params.push(`%${playerFilter}%`);
-      paramCount++;
+      params.push(`%${playerFilter}%`);
     }
 
     if (mapFilter) {
-      whereConditions.push(`m.map ILIKE $${paramCount}`);
+      whereConditions.push(`m.map LIKE ?`);
       params.push(`%${mapFilter}%`);
-      paramCount++;
     }
 
     if (statusFilter) {
-      whereConditions.push(`m.status = $${paramCount}`);
+      whereConditions.push(`m.status = ?`);
       params.push(statusFilter);
-      paramCount++;
     }
 
     if (confirmedFilter) {
-      whereConditions.push(`m.status = $${paramCount}`);
+      whereConditions.push(`m.status = ?`);
       params.push(confirmedFilter);
-      paramCount++;
     }
 
     if (factionFilter) {
-      whereConditions.push(`(m.winner_faction = $${paramCount} OR m.loser_faction = $${paramCount})`);
+      whereConditions.push(`(m.winner_faction = ? OR m.loser_faction = ?)`);
       params.push(factionFilter);
       params.push(factionFilter);
-      paramCount++;
       console.log('🔍 Faction filter applied:', factionFilter);
     }
 
@@ -2633,7 +2646,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
        JOIN users_extension l ON m.loser_id = l.id
        ${whereClause}
        ORDER BY m.created_at DESC
-       LIMIT $${paramCount} OFFSET $${paramCount + 1}`,
+       LIMIT ? OFFSET ?`,
       params
     );
 
@@ -2650,7 +2663,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
          AND r.parsed = 1
          AND r.match_id IS NULL
        ORDER BY r.created_at DESC
-       LIMIT $1 OFFSET $2`,
+       LIMIT ? OFFSET ?`,
       [limit, offset]
     );
 

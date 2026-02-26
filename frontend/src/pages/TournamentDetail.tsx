@@ -10,6 +10,7 @@ import MatchDetailsModal from '../components/MatchDetailsModal';
 import { TeamJoinModal } from '../components/TeamJoinModal';
 import PlayerLink from '../components/PlayerLink';
 import StarDisplay from '../components/StarDisplay';
+import { ReplayConfirmationModal } from '../components/ReplayConfirmationModal';
 
 // Get API URL for direct backend calls - matches RecentGamesTable pattern
 const getApiUrl = (): string => {
@@ -144,6 +145,12 @@ const TournamentDetail: React.FC = () => {
   const [determineWinnerData, setDetermineWinnerData] = useState<any>(null);
   const [showDetermineWinnerModal, setShowDetermineWinnerModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+
+  // Confidence=1 replay detection for tournament matches
+  const [pendingTournamentReplays, setPendingTournamentReplays] = useState<any[]>([]);
+  const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
+  const [selectedTournamentReplay, setSelectedTournamentReplay] = useState<any>(null);
+  const [replayModalChoice, setReplayModalChoice] = useState<'I won' | 'I lost'>('I won');
   const [editData, setEditData] = useState<TournamentFormData>({
     name: '',
     description: '',
@@ -158,6 +165,13 @@ const TournamentDetail: React.FC = () => {
     general_rounds_format: 'bo3' as 'bo1' | 'bo3' | 'bo5',
     final_rounds_format: 'bo5' as 'bo1' | 'bo3' | 'bo5'
   });
+
+  // Load pending replays when the matches tab is activated or tournament data refreshes
+  useEffect(() => {
+    if (activeTab === 'matches' && id && (tournament?.status === 'in_progress' || tournament?.status === 'finished')) {
+      fetchPendingTournamentReplays();
+    }
+  }, [activeTab, id, tournament?.status]);
 
   // Get the origin page from location state
   const originPage = (location.state as any)?.from || 'tournaments';
@@ -565,6 +579,37 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     } catch (err: any) {
       setError(err.response?.data?.error || t('error_failed_reject_participant'));
     }
+  };
+
+  // Fetch confidence=1 replays matching open tournament matches
+  const fetchPendingTournamentReplays = async () => {
+    if (!id) return;
+    try {
+      const API_BASE = getApiUrl();
+      const res = await fetch(`${API_BASE}/public/tournaments/${id}/pending-replays`);
+      if (res.ok) {
+        const data = await res.json();
+        setPendingTournamentReplays(data.replays || []);
+        console.log(`🎮 [TOURNAMENT-REPLAYS] Found ${data.replays?.length || 0} confidence=1 replays`);
+      }
+    } catch (err) {
+      console.error('Error fetching pending tournament replays:', err);
+    }
+  };
+
+  const handleOpenReplayModal = (replay: any, choice: 'I won' | 'I lost') => {
+    setSelectedTournamentReplay(replay);
+    setReplayModalChoice(choice);
+    setShowReplayConfirmModal(true);
+  };
+
+  const handleReplayConfirmSuccess = () => {
+    setShowReplayConfirmModal(false);
+    setSelectedTournamentReplay(null);
+    setSuccess(t('success_match_reported'));
+    fetchTournamentData();
+    fetchPendingTournamentReplays();
+    setTimeout(() => setSuccess(''), 3000);
   };
 
   const handleOpenReportMatch = (match: TournamentMatch) => {
@@ -1173,6 +1218,86 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
             <p className="bg-gray-100 text-gray-700 text-center py-8 px-4 rounded">{t('matches_will_be_generated')}</p>
           ) : (
           <>
+            {/* Detected Replays Section - confidence=1 replays linked to pending tournament matches */}
+            {pendingTournamentReplays.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-yellow-400">⚠️ Auto-detected Replays</h3>
+                <p className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+                  These replays were automatically detected from the game server and matched to pending tournament matches. Confirm the result to report the match.
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="bg-yellow-100">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_player1')}</th>
+                        <th className="px-4 py-3 text-center font-semibold text-gray-700">vs</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_player2')}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_map')}</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_status_actions') || 'Status / Actions'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingTournamentReplays.map((replay) => {
+                        const isInvolved =
+                          user?.nickname?.toLowerCase() === replay.player1_nickname?.toLowerCase() ||
+                          user?.nickname?.toLowerCase() === replay.player2_nickname?.toLowerCase();
+                        return (
+                          <tr key={replay.id} className="border-b border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-yellow-900">{replay.player1_nickname}</div>
+                              <div className="text-xs text-yellow-700 mt-1">{replay.winner_faction}</div>
+                              <div className="text-xs text-yellow-600 italic mt-1">⚠️ confidence=1</div>
+                            </td>
+                            <td className="px-4 py-3 text-center font-bold text-gray-500">vs</td>
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-yellow-900">{replay.player2_nickname}</div>
+                              <div className="text-xs text-yellow-700 mt-1">{replay.loser_faction}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-yellow-900">{replay.map}</div>
+                              <div className="text-xs text-yellow-600 mt-1">🎮 Detected Replay</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="space-y-2">
+                                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">🔍 Need Confirmation</span>
+                                {isInvolved ? (
+                                  <>
+                                    <div className="text-xs text-yellow-700 font-semibold">Who won?</div>
+                                    <div className="flex gap-2 flex-wrap">
+                                      <button
+                                        className="px-3 py-1 rounded text-xs font-semibold bg-green-500 text-white hover:bg-green-600 transition"
+                                        onClick={() => handleOpenReplayModal(replay, 'I won')}
+                                      >
+                                        ✓ I won
+                                      </button>
+                                      <button
+                                        className="px-3 py-1 rounded text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition"
+                                        onClick={() => handleOpenReplayModal(replay, 'I lost')}
+                                      >
+                                        ✗ I lost
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="text-xs text-yellow-600 italic">Waiting for player confirmation</div>
+                                )}
+                                {replay.replay_url && (
+                                  <a href={replay.replay_url} target="_blank" rel="noopener noreferrer"
+                                     className="inline-block px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 transition mt-1">
+                                    ⬇️ Download Replay
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Scheduled Matches Section */}
             <div className="mb-8">
               <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-500">{t('matches.scheduled')}</h3>
@@ -1267,7 +1392,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                            match.match_status_from_matches === 'cancelled' ? t('match_status_cancelled') :
                                            t('option_pending')}
                                         </span>
-                                        {isPlayer && (round.round_status === 'pending' || round.round_status === 'in_progress') && (
+                                        {/* Report Match button hidden: done via automatic replay detection */}
+                                        {/* {isPlayer && (round.round_status === 'pending' || round.round_status === 'in_progress') && (
                                           <button
                                             className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                             onClick={() => handleOpenReportMatch(match)}
@@ -1275,7 +1401,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                           >
                                             {t('report_match_link')}
                                           </button>
-                                        )}
+                                        )} */
                                         {isCreator && (round.round_status === 'completed' || round.round_status === 'in_progress') && !match.winner_id && (
                                           <button
                                             className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
@@ -1754,6 +1880,24 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       )}
 
       {/* Report Match Modal */}
+      {/* Replay Confirmation Modal - for confidence=1 replays in tournament matches */}
+      {showReplayConfirmModal && selectedTournamentReplay && (
+        <ReplayConfirmationModal
+          isOpen={showReplayConfirmModal}
+          replayId={selectedTournamentReplay.id}
+          player1_nickname={selectedTournamentReplay.player1_nickname}
+          player2_nickname={selectedTournamentReplay.player2_nickname}
+          currentUserNickname={user?.nickname?.toLowerCase() || ''}
+          your_choice={replayModalChoice}
+          map={selectedTournamentReplay.map}
+          player1_faction={selectedTournamentReplay.winner_faction}
+          player2_faction={selectedTournamentReplay.loser_faction}
+          tournament_match_id={selectedTournamentReplay.tournament_match_id}
+          onClose={() => { setShowReplayConfirmModal(false); setSelectedTournamentReplay(null); }}
+          onSuccess={handleReplayConfirmSuccess}
+        />
+      )}
+
       {showReportModal && reportMatchData && tournament && (
         <TournamentMatchReportModal
           tournamentMatchId={reportMatchData.tournamentMatchId}

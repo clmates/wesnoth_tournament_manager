@@ -167,9 +167,10 @@ export const matchService = {
     replayId: string, 
     winner_choice: 'I won' | 'I lost',
     comments?: string,
-    rating?: number
+    rating?: number,
+    tournament_match_id?: string
   ) => 
-    api.post('/matches/report-confidence-1-replay', { replayId, winner_choice, comments, rating }),
+    api.post('/matches/report-confidence-1-replay', { replayId, winner_choice, comments, rating, tournament_match_id }),
 };
 
 export const tournamentService = {
@@ -308,8 +309,9 @@ export const reportConfidence1Replay = (
   replayId: string,
   winner_choice: 'I won' | 'I lost',
   comments?: string,
-  rating?: number
-) => matchService.reportConfidence1Replay(replayId, winner_choice, comments, rating);
+  rating?: number,
+  tournament_match_id?: string
+) => matchService.reportConfidence1Replay(replayId, winner_choice, comments, rating, tournament_match_id);
 
 export { api };
 export default api;

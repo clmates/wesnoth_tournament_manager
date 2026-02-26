@@ -22,7 +22,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     // First, check if there are any matches in the previous month
     const matchCheckResult = await query(
       `SELECT COUNT(*) as match_count FROM matches 
-       WHERE created_at >= $1 AND created_at < $2 AND status != 'cancelled'`,
+       WHERE created_at >= ? AND created_at < ? AND status != 'cancelled'`,
       [prevMonthStart, prevMonthEnd]
     );
     console.log(`📊 Non-cancelled matches in previous month: ${matchCheckResult.rows[0]?.match_count || 0}`);
@@ -48,8 +48,8 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
         FROM users_extension u
         LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) 
           AND m.status != 'cancelled'
-          AND m.created_at >= $1
-          AND m.created_at < $2
+          AND m.created_at >= ?
+          AND m.created_at < ?
         GROUP BY u.id, u.nickname, u.elo_rating
         ORDER BY elo_change DESC
         LIMIT 1
@@ -74,8 +74,8 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
           FROM users_extension u
           LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) 
             AND m.status != 'cancelled'
-            AND m.created_at >= $1
-            AND m.created_at < $2
+            AND m.created_at >= ?
+            AND m.created_at < ?
           GROUP BY u.id, u.nickname, u.elo_rating
         )
         SELECT * FROM elo_gains WHERE match_count > 0 ORDER BY elo_gained DESC`,
@@ -95,7 +95,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     const rankingResult = await query(
       `SELECT COUNT(*) + 1 as ranking_position
        FROM users_extension u2
-       WHERE (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+       WHERE (u2.elo_rating > ? OR (u2.elo_rating = ? AND u2.id < ?))`,
       [player.elo_rating, player.elo_rating, playerId]
     );
 
@@ -104,14 +104,14 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     // Get ranking position at start of previous month to calculate positions gained
     const startOfMonthEloResult = await query(
       `SELECT CASE 
-         WHEN m.winner_id = $1 THEN m.winner_elo_before
+         WHEN m.winner_id = ? THEN m.winner_elo_before
          ELSE m.loser_elo_before
        END as elo_at_month_start
        FROM matches m
-       WHERE (m.winner_id = $1 OR m.loser_id = $1)
+       WHERE (m.winner_id = ? OR m.loser_id = ?)
          AND m.status != 'cancelled'
-         AND m.created_at >= $2
-         AND m.created_at < $3
+         AND m.created_at >= ?
+         AND m.created_at < ?
        ORDER BY m.created_at ASC
        LIMIT 1`,
       [playerId, playerId, playerId, prevMonthStart, prevMonthEnd]
@@ -125,7 +125,7 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
       const rankAtStartResult = await query(
         `SELECT COUNT(*) + 1 as rank_at_start
          FROM users_extension u2
-         WHERE (u2.elo_rating > $1 OR (u2.elo_rating = $1 AND u2.id < $2))`,
+         WHERE (u2.elo_rating > ? OR (u2.elo_rating = ? AND u2.id < ?))`,
         [eloAtMonthStart, eloAtMonthStart, playerId]
       );
 
@@ -137,13 +137,13 @@ export const calculatePlayerOfMonth = async (): Promise<void> => {
     // Store the month_year as the first day of the PREVIOUS month in YYYY-MM-DD format
     
     await query(
-      `DELETE FROM player_of_month WHERE month_year = $1`,
+      `DELETE FROM player_of_month WHERE month_year = ?`,
       [monthYearStr]
     );
 
     await query(
       `INSERT INTO player_of_month (player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [playerId, player.nickname, player.elo_rating, rankingPosition, Math.round(player.elo_gained), positionsGained, monthYearStr]
     );
 

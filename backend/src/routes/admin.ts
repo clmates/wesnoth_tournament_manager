@@ -69,11 +69,11 @@ router.post('/registration-requests/:id/approve', authMiddleware, async (req: Au
     const passwordHash = await hashPassword(password);
 
     // New players start with elo_rating = 1400 (FIDE standard, unrated status)
-    const userResult = await query(
-      `INSERT INTO users_extension (nickname, email, language, discord_id, password_hash, is_active, is_rated, elo_rating, matches_played)
-       VALUES (?, ?, ?, $4, $5, true, false, 1400, 0)
-       RETURNING id`,
-      [regRequest.nickname, regRequest.email, regRequest.language, regRequest.discord_id, passwordHash]
+    const newUserId = uuidv4();
+    await query(
+      `INSERT INTO users_extension (id, nickname, email, language, discord_id, password_hash, is_active, is_rated, elo_rating, matches_played)
+       VALUES (?, ?, ?, ?, ?, ?, 1, 0, 1400, 0)`,
+      [newUserId, regRequest.nickname, regRequest.email, regRequest.language, regRequest.discord_id, passwordHash]
     );
 
     await query(
@@ -82,7 +82,7 @@ router.post('/registration-requests/:id/approve', authMiddleware, async (req: Au
     );
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`New user created: ${regRequest.nickname} (unrated)`);
-    res.json({ message: 'Registration approved', userId: userResult.rows[0].id });
+    res.json({ message: 'Registration approved', userId: newUserId });
   } catch (error) {
     console.error('Error approving registration:', error);
     res.status(500).json({ error: 'Failed to approve registration' });
@@ -107,7 +107,7 @@ router.post('/registration-requests/:id/reject', authMiddleware, async (req: Aut
 router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('UPDATE users_extension SET is_blocked = true WHERE id = ?', [id]);
+    await query('UPDATE users_extension SET is_blocked = 1 WHERE id = ?', [id]);
     res.json({ message: 'User blocked' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to block user' });
@@ -141,7 +141,7 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
     // Unlock account - reset failed attempts and unblock
     await unlockAccount(id);
     await query(
-      'UPDATE users_extension SET is_blocked = false WHERE id = ?',
+      'UPDATE users_extension SET is_blocked = 0 WHERE id = ?',
       [id]
     );
     if (process.env.BACKEND_DEBUG_LOGS === 'true') {
@@ -285,7 +285,7 @@ router.put('/password-policy', authMiddleware, async (req: AuthRequest, res) => 
     await query(
       `UPDATE password_policy 
        SET min_length = ?, require_uppercase = ?, require_lowercase = ?, 
-           require_numbers = $4, require_symbols = $5, previous_passwords_count = $6
+           require_numbers = ?, require_symbols = ?, previous_passwords_count = ?
        WHERE id = (SELECT id FROM password_policy LIMIT 1)`,
       [min_length, require_uppercase, require_lowercase, require_numbers, require_symbols, previous_passwords_count]
     );
@@ -308,30 +308,20 @@ router.post('/news', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'English title and content are required' });
     }
 
-    const createdNewsId = await (async () => {
-      let newsId: string | null = null;
-      
-      for (const lang of languages) {
-        const langData = req.body[lang];
-        // Skip languages that are not provided (except English which is required)
-        if (!langData || !langData.title || !langData.content) {
-          continue;
-        }
-
-        const result = await query(
-          `INSERT INTO public.news (title, content, language_code, author_id, published_at)
-           VALUES (?, ?, ?, $4, CURRENT_TIMESTAMP)
-           RETURNING id`,
-          [langData.title, langData.content, lang, req.userId]
-        );
-
-        if (!newsId) {
-          newsId = result.rows[0].id;
-        }
+    const createdNewsId = uuidv4();
+    for (const lang of languages) {
+      const langData = req.body[lang];
+      // Skip languages that are not provided (except English which is required)
+      if (!langData || !langData.title || !langData.content) {
+        continue;
       }
 
-      return newsId;
-    })();
+      await query(
+        `INSERT INTO news (id, title, content, language_code, author_id, published_at)
+         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [createdNewsId, langData.title, langData.content, lang, req.userId]
+      );
+    }
 
     res.status(201).json({ id: createdNewsId });
   } catch (error: any) {
@@ -363,23 +353,23 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
 
       // Check if record exists for this language
       const existsResult = await query(
-        `SELECT id FROM public.news WHERE id = ? AND language_code = ?`,
+        `SELECT id FROM news WHERE id = ? AND language_code = ?`,
         [id, lang]
       );
 
       if (existsResult.rows.length > 0) {
         // Update existing record, only updating title, content, and updated_at
         await query(
-          `UPDATE public.news 
+          `UPDATE news 
            SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP
-           WHERE id = ? AND language_code = $4`,
+           WHERE id = ? AND language_code = ?`,
           [langData.title, langData.content, id, lang]
         );
       } else {
         // Insert new language version (if it doesn't exist)
         await query(
-          `INSERT INTO public.news (id, title, content, language_code, author_id, published_at, created_at, updated_at)
-           VALUES (?, ?, ?, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+          `INSERT INTO news (id, title, content, language_code, author_id, published_at, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
           [id, langData.title, langData.content, lang, req.userId]
         );
       }
@@ -396,7 +386,7 @@ router.put('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/news/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('DELETE FROM public.news WHERE id = ?', [id]);
+    await query('DELETE FROM news WHERE id = ?', [id]);
     res.json({ message: 'News deleted' });
   } catch (error) {
     console.error('News delete error:', error);
@@ -457,12 +447,12 @@ router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
       if (lang.data && lang.data.question && lang.data.answer) {
         if (lang.code === 'en') {
           await query(
-            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES (?, ?, ?, $4, $5)`,
+            `INSERT INTO faq (id, question, answer, language_code, \`order\`) VALUES (?, ?, ?, ?, ?)`,
             [faqId, lang.data.question, lang.data.answer, lang.code, lang.data.order ? Number(lang.data.order) : 0]
           );
         } else {
           await query(
-            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES (?, ?, ?, $4, $5)`,
+            `INSERT INTO faq (id, question, answer, language_code, \`order\`) VALUES (?, ?, ?, ?, ?)`,
             [faqId, lang.data.question, lang.data.answer, lang.code, en.order ? Number(en.order) : 0]
           );
         }
@@ -489,7 +479,7 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Delete all existing records for this FAQ ID
-    await query(`DELETE FROM public.faq WHERE id = ?`, [id]);
+    await query(`DELETE FROM faq WHERE id = ?`, [id]);
 
     const languages = [
       { code: 'en', data: en },
@@ -504,12 +494,12 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
       if (lang.data && lang.data.question && lang.data.answer) {
         if (lang.code === 'en') {
           await query(
-            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES (?, ?, ?, $4, $5)`,
+            `INSERT INTO faq (id, question, answer, language_code, \`order\`) VALUES (?, ?, ?, ?, ?)`,
             [id, lang.data.question, lang.data.answer, lang.code, lang.data.order ? Number(lang.data.order) : 0]
           );
         } else {
           await query(
-            `INSERT INTO public.faq (id, question, answer, language_code, "order") VALUES (?, ?, ?, $4, $5)`,
+            `INSERT INTO faq (id, question, answer, language_code, \`order\`) VALUES (?, ?, ?, ?, ?)`,
             [id, lang.data.question, lang.data.answer, lang.code, en.order ? Number(en.order) : 0]
           );
         }
@@ -527,7 +517,7 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.delete('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    await query('DELETE FROM public.faq WHERE id = ?', [id]);
+    await query('DELETE FROM faq WHERE id = ?', [id]);
     res.json({ message: 'FAQ entry deleted' });
   } catch (error) {
     console.error('FAQ delete error:', error);
@@ -539,10 +529,8 @@ router.delete('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const result = await query(
-      `UPDATE users_extension SET is_blocked = true WHERE id = ? RETURNING id, nickname, email, is_blocked, is_admin`,
-      [id]
-    );
+    await query(`UPDATE users_extension SET is_blocked = 1 WHERE id = ?`, [id]);
+    const result = await query(`SELECT id, nickname, email, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -558,10 +546,8 @@ router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) =>
 router.post('/users/:id/make-admin', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const result = await query(
-      `UPDATE users_extension SET is_admin = true WHERE id = ? RETURNING id, nickname, email, is_blocked, is_admin`,
-      [id]
-    );
+    await query(`UPDATE users_extension SET is_admin = 1 WHERE id = ?`, [id]);
+    const result = await query(`SELECT id, nickname, email, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -577,10 +563,8 @@ router.post('/users/:id/make-admin', authMiddleware, async (req: AuthRequest, re
 router.post('/users/:id/remove-admin', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const result = await query(
-      `UPDATE users_extension SET is_admin = false WHERE id = ? RETURNING id, nickname, email, is_blocked, is_admin`,
-      [id]
-    );
+    await query(`UPDATE users_extension SET is_admin = 0 WHERE id = ?`, [id]);
+    const result = await query(`SELECT id, nickname, email, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -622,9 +606,13 @@ router.post('/users/:id/force-reset-password', authMiddleware, async (req: AuthR
       [id, currentUserResult.rows[0].password_hash]
     );
 
-    const result = await query(
-      `UPDATE users_extension SET password_hash = ?, password_must_change = true, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING id, nickname, email`,
+    await query(
+      `UPDATE users_extension SET password_hash = ?, password_must_change = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [passwordHash, id]
+    );
+    const result = await query(
+      `SELECT id, nickname, email FROM users_extension WHERE id = ?`,
+      [id]
     );
 
     if (result.rows.length === 0) {
@@ -648,9 +636,9 @@ router.get('/debug/faction-map-stats', authMiddleware, async (req: AuthRequest, 
     const matchesCount = await query(`
       SELECT 
         COUNT(*) as total_matches,
-        COUNT(*) FILTER (WHERE status = 'confirmed') as confirmed_matches,
-        COUNT(*) FILTER (WHERE status = 'unconfirmed') as unconfirmed_matches,
-        COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_matches
+        SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed_matches,
+        SUM(CASE WHEN status = 'unconfirmed' THEN 1 ELSE 0 END) as unconfirmed_matches,
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_matches
       FROM matches
     `);
     console.log('📊 Matches Summary:');
@@ -792,27 +780,23 @@ router.get('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
     // Build WHERE clause
     let whereConditions: string[] = [];
     let params: any[] = [];
-    let paramCount = 1;
 
     // Filter by date range
     whereConditions.push(`created_at >= DATE_SUB(NOW(), INTERVAL ${parseInt(daysBack as string) || 7} DAY)`);
 
     if (eventType) {
-      whereConditions.push(`event_type = $${paramCount}`);
+      whereConditions.push(`event_type = ?`);
       params.push(eventType);
-      paramCount++;
     }
 
     if (username) {
-      whereConditions.push(`username ILIKE $${paramCount}`);
+      whereConditions.push(`username LIKE ?`);
       params.push(`%${username}%`);
-      paramCount++;
     }
 
     if (ipAddress) {
-      whereConditions.push(`ip_address = $${paramCount}`);
+      whereConditions.push(`ip_address = ?`);
       params.push(ipAddress);
-      paramCount++;
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -849,7 +833,7 @@ router.delete('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Delete logs with proper parameterized query
-    const placeholders = logIds.map((_, i) => `$${i + 1}`).join(',');
+    const placeholders = logIds.map(() => '?').join(',');
     await query(
       `DELETE FROM audit_logs WHERE id IN (${placeholders})`,
       logIds
@@ -984,20 +968,21 @@ router.post('/maps', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Create map
-    const mapResult = await query(`
-      INSERT INTO game_maps (name, is_active, is_ranked)
-      VALUES (?, ?, ?)
-      RETURNING id, name, is_active, is_ranked, created_at
-    `, [name, is_active === undefined ? true : is_active, is_ranked === undefined ? true : is_ranked]);
-
-    const mapId = mapResult.rows[0].id;
+    const mapId = uuidv4();
+    await query(`
+      INSERT INTO game_maps (id, name, is_active, is_ranked)
+      VALUES (?, ?, ?, ?)
+    `, [mapId, name, is_active === undefined ? 1 : (is_active ? 1 : 0), is_ranked === undefined ? 1 : (is_ranked ? 1 : 0)]);
 
     // Create translation
     await query(`
       INSERT INTO map_translations (map_id, language_code, name, description)
-      VALUES (?, ?, ?, $4)
+      VALUES (?, ?, ?, ?)
     `, [mapId, language_code, name, description || null]);
 
+    const mapResult = await query(`
+      SELECT id, name, is_active, is_ranked, created_at FROM game_maps WHERE id = ?
+    `, [mapId]);
     res.json(mapResult.rows[0]);
   } catch (error) {
     console.error('Error creating map:', error);
@@ -1017,18 +1002,21 @@ router.patch('/maps/:mapId', authMiddleware, async (req: AuthRequest, res) => {
     const { mapId } = req.params;
     const { is_active, is_ranked } = req.body;
 
-    const result = await query(`
+    await query(`
       UPDATE game_maps
       SET 
         is_active = COALESCE(?, is_active),
         is_ranked = COALESCE(?, is_ranked)
       WHERE id = ?
-      RETURNING id, name, is_active, is_ranked, created_at
     `, [
-      is_active !== undefined ? is_active : null,
-      is_ranked !== undefined ? is_ranked : null,
+      is_active !== undefined ? (is_active ? 1 : 0) : null,
+      is_ranked !== undefined ? (is_ranked ? 1 : 0) : null,
       mapId
     ]);
+
+    const result = await query(`
+      SELECT id, name, is_active, is_ranked, created_at FROM game_maps WHERE id = ?
+    `, [mapId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Map not found' });
@@ -1057,16 +1045,18 @@ router.post('/maps/:mapId/translations', authMiddleware, async (req: AuthRequest
       return res.status(400).json({ error: 'language_code and name are required' });
     }
 
-    const result = await query(`
+    await query(`
       INSERT INTO map_translations (map_id, language_code, name, description)
-      VALUES (?, ?, ?, $4)
-      ON CONFLICT (map_id, language_code) DO UPDATE SET
-        name = ?,
-        description = $4,
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        name = VALUES(name),
+        description = VALUES(description),
         updated_at = CURRENT_TIMESTAMP
-      RETURNING id, map_id, language_code, name, description
     `, [mapId, language_code, name, description || null]);
 
+    const result = await query(`
+      SELECT id, map_id, language_code, name, description FROM map_translations WHERE map_id = ? AND language_code = ?
+    `, [mapId, language_code]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error adding translation:', error);
@@ -1170,20 +1160,21 @@ router.post('/factions', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     // Create faction
-    const factionResult = await query(`
-      INSERT INTO factions (name, is_active, is_ranked)
-      VALUES (?, ?, ?)
-      RETURNING id, name, is_active, is_ranked, created_at
-    `, [name, is_active === undefined ? true : is_active, is_ranked === undefined ? true : is_ranked]);
-
-    const factionId = factionResult.rows[0].id;
+    const factionId = uuidv4();
+    await query(`
+      INSERT INTO factions (id, name, is_active, is_ranked)
+      VALUES (?, ?, ?, ?)
+    `, [factionId, name, is_active === undefined ? 1 : (is_active ? 1 : 0), is_ranked === undefined ? 1 : (is_ranked ? 1 : 0)]);
 
     // Create translation
     await query(`
       INSERT INTO faction_translations (faction_id, language_code, name, description)
-      VALUES (?, ?, ?, $4)
+      VALUES (?, ?, ?, ?)
     `, [factionId, language_code, name, description || null]);
 
+    const factionResult = await query(`
+      SELECT id, name, is_active, is_ranked, created_at FROM factions WHERE id = ?
+    `, [factionId]);
     res.json(factionResult.rows[0]);
   } catch (error) {
     console.error('Error creating faction:', error);
@@ -1203,18 +1194,21 @@ router.patch('/factions/:factionId', authMiddleware, async (req: AuthRequest, re
     const { factionId } = req.params;
     const { is_active, is_ranked } = req.body;
 
-    const result = await query(`
+    await query(`
       UPDATE factions
       SET 
         is_active = COALESCE(?, is_active),
         is_ranked = COALESCE(?, is_ranked)
       WHERE id = ?
-      RETURNING id, name, is_active, is_ranked, created_at
     `, [
-      is_active !== undefined ? is_active : null,
-      is_ranked !== undefined ? is_ranked : null,
+      is_active !== undefined ? (is_active ? 1 : 0) : null,
+      is_ranked !== undefined ? (is_ranked ? 1 : 0) : null,
       factionId
     ]);
+
+    const result = await query(`
+      SELECT id, name, is_active, is_ranked, created_at FROM factions WHERE id = ?
+    `, [factionId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Faction not found' });
@@ -1243,16 +1237,18 @@ router.post('/factions/:factionId/translations', authMiddleware, async (req: Aut
       return res.status(400).json({ error: 'language_code and name are required' });
     }
 
-    const result = await query(`
+    await query(`
       INSERT INTO faction_translations (faction_id, language_code, name, description)
-      VALUES (?, ?, ?, $4)
-      ON CONFLICT (faction_id, language_code) DO UPDATE SET
-        name = ?,
-        description = $4,
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        name = VALUES(name),
+        description = VALUES(description),
         updated_at = CURRENT_TIMESTAMP
-      RETURNING id, faction_id, language_code, name, description
     `, [factionId, language_code, name, description || null]);
 
+    const result = await query(`
+      SELECT id, faction_id, language_code, name, description FROM faction_translations WHERE faction_id = ? AND language_code = ?
+    `, [factionId, language_code]);
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error adding translation:', error);
@@ -1276,7 +1272,7 @@ router.delete('/factions/:factionId', authMiddleware, async (req: AuthRequest, r
       SELECT COUNT(*) as count FROM matches 
       WHERE winner_faction = (SELECT name FROM factions WHERE id = ?)
       OR loser_faction = (SELECT name FROM factions WHERE id = ?)
-    `, [factionId]);
+    `, [factionId, factionId]);
 
     if (parseInt(usageResult.rows[0].count) > 0) {
       return res.status(400).json({ error: 'Cannot delete faction that has been used in matches' });
@@ -1304,31 +1300,17 @@ router.post('/recalculate-snapshots', authMiddleware, async (req: AuthRequest, r
     console.log('🟡 Starting balance event snapshots recalculation');
     console.log('Parameters:', { eventId, recreateAll });
 
-    // Call SQL function to recalculate snapshots
-    const winnerResult = await query(
-      'SELECT * FROM recalculate_balance_event_snapshots(?, ?)',
-      [eventId || null, recreateAll || false]
-    );
+    // Call TypeScript function to recalculate snapshots
+    const { recalculateBalanceEventSnapshots } = await import('../services/statisticsCalculator.js');
+    const tsResult = await recalculateBalanceEventSnapshots();
 
-    console.log('🟢 Winner faction snapshots recalculated');
-    console.log('Result:', winnerResult.rows[0]);
+    console.log('🟢 Balance event snapshots recalculated');
 
-    // Also calculate loser faction snapshots
-    await query(
-      'SELECT * FROM recalculate_balance_event_snapshots_loser(?, ?)',
-      [eventId || null, recreateAll || false]
-    );
-
-    console.log('🟢 Loser faction snapshots recalculated');
-
-    const result = winnerResult.rows[0];
     res.json({
       success: true,
       message: 'Balance event snapshots recalculated successfully',
-      totalEventsProcessed: result.total_events_processed,
-      totalSnapshotsCreated: result.total_snapshots_created,
-      beforeSnapshots: result.before_snapshots,
-      afterSnapshots: result.after_snapshots,
+      totalEventsProcessed: tsResult.balance_events_updated,
+      totalSnapshotsCreated: tsResult.snapshots_created,
       recreatedAll: recreateAll
     });
   } catch (error) {
@@ -1423,7 +1405,7 @@ router.get('/unranked-factions', authMiddleware, async (req: AuthRequest, res) =
 
     const params = [];
     if (search) {
-      query_str += ` WHERE f.name ILIKE ?`;
+      query_str += ` WHERE f.name LIKE ?`;
       params.push(`%${search}%`);
     }
 
@@ -1461,11 +1443,15 @@ router.post('/unranked-factions', authMiddleware, async (req: AuthRequest, res) 
       });
     }
 
+    const newFactionId = uuidv4();
+    await query(
+      `INSERT INTO factions (id, name, is_active, is_ranked)
+       VALUES (?, ?, 1, 0)`,
+      [newFactionId, name]
+    );
     const result = await query(
-      `INSERT INTO factions (name, is_active, is_ranked)
-       VALUES (?, true, false)
-       RETURNING id, name, is_ranked, created_at`,
-      [name]
+      `SELECT id, name, is_ranked, created_at FROM factions WHERE id = ?`,
+      [newFactionId]
     );
 
     res.status(201).json({
@@ -1493,7 +1479,7 @@ router.get('/unranked-factions/:id/usage', authMiddleware, async (req: AuthReque
 
     // Get faction info
     const factionResult = await query(
-      'SELECT id, name FROM factions WHERE id = ? AND is_ranked = false',
+      'SELECT id, name FROM factions WHERE id = ? AND is_ranked = 0',
       [id]
     );
     if (factionResult.rows.length === 0) {
@@ -1617,7 +1603,7 @@ router.get('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
 
     const params = [];
     if (search) {
-      query_str += ` WHERE m.name ILIKE ?`;
+      query_str += ` WHERE m.name LIKE ?`;
       params.push(`%${search}%`);
     }
 
@@ -1656,16 +1642,21 @@ router.post('/unranked-maps', authMiddleware, async (req: AuthRequest, res) => {
       });
     }
 
-    const result = await query(
-      `INSERT INTO game_maps (name, is_active, is_ranked)
-       VALUES (?, true, false)
-       RETURNING id, name, is_ranked, is_active, created_at`,
-      [name]
+    const mapId = uuidv4();
+    await query(
+      `INSERT INTO game_maps (id, name, is_active, is_ranked)
+       VALUES (?, ?, 1, 0)`,
+      [mapId, name]
+    );
+
+    const inserted = await query(
+      'SELECT id, name, is_ranked, is_active, created_at FROM game_maps WHERE id = ?',
+      [mapId]
     );
 
     res.status(201).json({
       success: true,
-      data: result.rows[0]
+      data: inserted.rows[0]
     });
   } catch (error) {
     console.error('Error creating unranked map:', error);
@@ -1688,7 +1679,7 @@ router.get('/unranked-maps/:id/usage', authMiddleware, async (req: AuthRequest, 
 
     // Get map info
     const mapResult = await query(
-      'SELECT id, name FROM game_maps WHERE id = ? AND is_ranked = false',
+      'SELECT id, name FROM game_maps WHERE id = ? AND is_ranked = 0',
       [id]
     );
     if (mapResult.rows.length === 0) {
@@ -1882,18 +1873,16 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
     // Insert new associations
     for (const factionId of faction_ids) {
       await query(
-        `INSERT INTO tournament_unranked_factions (tournament_id, faction_id)
-         VALUES (?, ?)
-         ON CONFLICT DO NOTHING`,
+        `INSERT IGNORE INTO tournament_unranked_factions (tournament_id, faction_id)
+         VALUES (?, ?)`,
         [id, factionId]
       );
     }
 
     for (const mapId of map_ids) {
       await query(
-        `INSERT INTO tournament_unranked_maps (tournament_id, map_id)
-         VALUES (?, ?)
-         ON CONFLICT DO NOTHING`,
+        `INSERT IGNORE INTO tournament_unranked_maps (tournament_id, map_id)
+         VALUES (?, ?)`,
         [id, mapId]
       );
     }
@@ -2016,17 +2005,22 @@ router.post('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, r
     }
 
     // Create team
-    const teamResult = await query(
-      `INSERT INTO tournament_teams (tournament_id, name, created_by)
-       VALUES (?, ?, ?)
-       RETURNING id, name, created_at`,
-      [id, name.trim(), req.userId]
+    const teamId = uuidv4();
+    await query(
+      `INSERT INTO tournament_teams (id, tournament_id, name, created_by)
+       VALUES (?, ?, ?, ?)`,
+      [teamId, id, name.trim(), req.userId]
     );
 
-    res.json({ success: true, data: teamResult.rows[0], message: 'Team created successfully' });
+    const teamInserted = await query(
+      'SELECT id, name, created_at FROM tournament_teams WHERE id = ?',
+      [teamId]
+    );
+
+    res.json({ success: true, data: teamInserted.rows[0], message: 'Team created successfully' });
   } catch (error: any) {
     console.error('Error creating team:', error);
-    if (error.code === '23505') {
+    if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ success: false, error: 'Team with this name already exists' });
     }
     res.status(500).json({ success: false, error: 'Failed to create team' });
@@ -2068,17 +2062,16 @@ router.post('/tournaments/:id/teams/:teamId/members', authMiddleware, async (req
     }
 
     // Add member
-    const memberResult = await query(
+    await query(
       `INSERT INTO team_members (team_id, player_id, position)
-       VALUES (?, ?, ?)
-       RETURNING id`,
+       VALUES (?, ?, ?)`,
       [teamId, player_id, position]
     );
 
     res.json({ success: true, message: 'Member added successfully' });
   } catch (error: any) {
     console.error('Error adding member:', error);
-    if (error.code === '23505') {
+    if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ success: false, error: 'Player is already in this team or position is taken' });
     }
     res.status(500).json({ success: false, error: 'Failed to add member' });
@@ -2146,11 +2139,16 @@ router.post('/tournaments/:id/teams/:teamId/substitutes', authMiddleware, async 
     }
 
     // Add substitute
+    const orderResult = await query(
+      'SELECT COALESCE(MAX(substitute_order), 0) + 1 AS next_order FROM team_substitutes WHERE team_id = ?',
+      [teamId]
+    );
+    const nextOrder = orderResult.rows[0].next_order;
+
     await query(
-      `INSERT INTO team_substitutes (team_id, player_id, substitute_order)
-       VALUES (?, ?, (SELECT COALESCE(MAX(substitute_order), 0) + 1 FROM team_substitutes WHERE team_id = ?))
-       ON CONFLICT DO NOTHING`,
-      [teamId, player_id]
+      `INSERT IGNORE INTO team_substitutes (team_id, player_id, substitute_order)
+       VALUES (?, ?, ?)`,
+      [teamId, player_id, nextOrder]
     );
 
     res.json({ success: true, message: 'Substitute added successfully' });

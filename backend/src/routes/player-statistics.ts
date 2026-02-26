@@ -23,7 +23,7 @@ router.get('/player/:playerId/global', async (req, res) => {
         pms.last_updated
       FROM player_match_statistics pms
       JOIN users_extension u ON pms.player_id = u.id
-      WHERE pms.player_id = $1
+      WHERE pms.player_id = ?
       AND pms.opponent_id IS NULL
       AND pms.map_id IS NULL
       AND pms.faction_id IS NULL`,
@@ -58,11 +58,11 @@ router.get('/player/:playerId/by-map', async (req, res) => {
         pms.avg_elo_change
       FROM player_match_statistics pms
       JOIN game_maps gm ON pms.map_id = gm.id
-      WHERE pms.player_id = $1
+      WHERE pms.player_id = ?
       AND pms.opponent_id IS NULL
       AND pms.map_id IS NOT NULL
       AND pms.faction_id IS NULL
-      AND pms.total_games >= $2
+      AND pms.total_games >= ?
       ORDER BY pms.winrate DESC`,
       [playerId, minGames]
     );
@@ -96,11 +96,11 @@ router.get('/player/:playerId/by-faction', async (req, res) => {
         pms.avg_elo_change
       FROM player_match_statistics pms
       JOIN factions f ON pms.faction_id = f.id
-      WHERE pms.player_id = $1
+      WHERE pms.player_id = ?
       AND pms.opponent_id IS NULL
       AND pms.map_id IS NULL
       AND pms.faction_id IS NOT NULL
-      AND pms.total_games >= $2
+      AND pms.total_games >= ?
       ORDER BY pms.winrate DESC`,
       [playerId, minGames]
     );
@@ -135,8 +135,8 @@ router.get('/player/:playerId/vs-player/:opponentId', async (req, res) => {
       JOIN users_extension u1 ON pms.player_id = u1.id
       JOIN users_extension u2 ON pms.opponent_id = u2.id
       LEFT JOIN game_maps gm ON pms.map_id = gm.id
-      WHERE pms.player_id = $1
-      AND pms.opponent_id = $2
+      WHERE pms.player_id = ?
+      AND pms.opponent_id = ?
       AND pms.map_id IS NULL
       AND pms.faction_id IS NULL
       GROUP BY pms.player_id, u1.nickname, pms.opponent_id, u2.nickname, pms.total_games, pms.wins, pms.losses, pms.winrate, pms.avg_elo_change`,
@@ -169,8 +169,8 @@ router.get('/player/:playerId/map/:mapId', async (req, res) => {
       FROM player_match_statistics pms
       JOIN game_maps gm ON pms.map_id = gm.id
       LEFT JOIN factions f ON pms.faction_id = f.id AND pms.map_id = gm.id
-      WHERE pms.player_id = $1
-      AND pms.map_id = $2
+      WHERE pms.player_id = ?
+      AND pms.map_id = ?
       AND pms.opponent_id IS NULL
       AND pms.faction_id IS NULL
       GROUP BY gm.id, gm.name, pms.total_games, pms.wins, pms.losses, pms.winrate, pms.avg_elo_change`,
@@ -203,8 +203,8 @@ router.get('/player/:playerId/faction/:factionId', async (req, res) => {
       FROM player_match_statistics pms
       JOIN factions f ON pms.faction_id = f.id
       LEFT JOIN game_maps gm ON pms.map_id = gm.id AND pms.faction_id = f.id
-      WHERE pms.player_id = $1
-      AND pms.faction_id = $2
+      WHERE pms.player_id = ?
+      AND pms.faction_id = ?
       AND pms.opponent_id IS NULL
       AND pms.map_id IS NULL
       GROUP BY f.id, f.name, pms.total_games, pms.wins, pms.losses, pms.winrate, pms.avg_elo_change`,
@@ -238,9 +238,9 @@ router.get('/player/:playerId/map/:mapId/faction/:factionId', async (req, res) =
       FROM player_match_statistics pms
       JOIN game_maps gm ON pms.map_id = gm.id
       JOIN factions f ON pms.faction_id = f.id
-      WHERE pms.player_id = $1
-      AND pms.map_id = $2
-      AND pms.faction_id = $3
+      WHERE pms.player_id = ?
+      AND pms.map_id = ?
+      AND pms.faction_id = ?
       AND pms.opponent_id IS NULL`,
       [playerId, mapId, factionId]
     );
@@ -278,13 +278,13 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
         pms.last_elo_against_me
       FROM player_match_statistics pms
       JOIN users_extension u ON pms.opponent_id = u.id
-      WHERE pms.player_id = $1
+      WHERE pms.player_id = ?
       AND pms.opponent_id IS NOT NULL
       AND pms.map_id IS NULL
       AND pms.faction_id IS NULL
       AND pms.opponent_faction_id IS NULL
       ORDER BY IF(pms.last_match_date IS NULL, 1, 0), pms.last_match_date DESC
-      LIMIT $2`,
+      LIMIT ?`,
       [playerId, limit]
     );
     console.log('Recent opponents result rows:', result.rows);
