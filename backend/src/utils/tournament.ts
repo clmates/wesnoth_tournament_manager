@@ -155,7 +155,7 @@ export async function selectPlayersForEliminationPhase(
 
       const topPlayersResult = await query(
         `SELECT tp.user_id FROM tournament_participants tp
-         LEFT JOIN users u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
          ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
                   COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
@@ -177,7 +177,7 @@ export async function selectPlayersForEliminationPhase(
       fullRankingResult = await query(
         `SELECT tp.user_id, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp, u.elo_rating
          FROM tournament_participants tp
-         LEFT JOIN users u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
          ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, 
                   COALESCE(tp.omp, 0) DESC, COALESCE(tp.gwp, 0) DESC, COALESCE(tp.ogp, 0) DESC, 
@@ -539,7 +539,7 @@ async function generateSwissMatches(
           tp.gwp,
           tp.ogp
          FROM tournament_participants tp
-         LEFT JOIN users u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tp.tournament_id = ? AND tp.user_id = ANY(?)
          ORDER BY 
            (tp.tournament_wins - tp.tournament_losses) DESC,
@@ -988,7 +988,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         const participantsResult = await query(
           `SELECT tp.id, tp.user_id, u.elo_rating
            FROM tournament_participants tp
-           LEFT JOIN users u ON tp.user_id = u.id
+           LEFT JOIN users_extension u ON tp.user_id = u.id
            WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'`,
           [tournamentId]
         );
@@ -1037,7 +1037,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         const participantsResult = await query(
           `SELECT tp.id, tp.user_id, u.elo_rating
            FROM tournament_participants tp
-           LEFT JOIN users u ON tp.user_id = u.id
+           LEFT JOIN users_extension u ON tp.user_id = u.id
            WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted' AND status = 'active'`,
           [tournamentId]
         );
@@ -1050,7 +1050,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         const participantsResult = await query(
           `SELECT tp.id, tp.user_id, u.elo_rating, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp
            FROM tournament_participants tp
-           LEFT JOIN users u ON tp.user_id = u.id
+           LEFT JOIN users_extension u ON tp.user_id = u.id
            WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted' AND status = 'active'
            ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC, u.elo_rating DESC, tp.user_id`,
           [tournamentId]
@@ -1064,7 +1064,7 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
         const participantsResult = await query(
           `SELECT tp.id, tp.user_id, u.elo_rating
            FROM tournament_participants tp
-           LEFT JOIN users u ON tp.user_id = u.id
+           LEFT JOIN users_extension u ON tp.user_id = u.id
            WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'`,
           [tournamentId]
         );
@@ -1830,7 +1830,7 @@ export async function getWinnerAndRunnerUp(
         const topPlayersResult = await query(
           `SELECT u.id, u.nickname, tp.tournament_points, tp.tournament_wins, tp.omp, tp.gwp, tp.ogp
            FROM tournament_participants tp
-           LEFT JOIN users u ON tp.user_id = u.id
+           LEFT JOIN users_extension u ON tp.user_id = u.id
            WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
            ORDER BY tp.tournament_points DESC, tp.omp DESC, tp.gwp DESC, tp.ogp DESC
            LIMIT 2`,
@@ -1922,7 +1922,7 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
           u.nickname,
           u.elo_rating
          FROM tournament_participants tp
-         LEFT JOIN users u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
          ORDER BY 
            CASE WHEN tp.status = 'active' THEN 0 ELSE 1 END,
@@ -1949,7 +1949,7 @@ export async function recalculateParticipantRankings(tournamentId: string): Prom
           u.nickname,
           u.elo_rating
          FROM tournament_participants tp
-         LEFT JOIN users u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
          ORDER BY 
            tp.tournament_points DESC,
@@ -2013,7 +2013,7 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
           COALESCE(SUM(u.elo_rating), 0) as team_total_elo
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
-         LEFT JOIN users u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tt.tournament_id = ?
          GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
          ORDER BY 
@@ -2042,7 +2042,7 @@ export async function recalculateTeamRankingsForTournament(tournamentId: string)
           COALESCE(SUM(u.elo_rating), 0) as team_total_elo
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
-         LEFT JOIN users u ON tp.user_id = u.id
+         LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tt.tournament_id = ?
          GROUP BY tt.id, tt.name, tt.status, tt.current_round, tt.tournament_points, tt.omp, tt.gwp, tt.ogp
          ORDER BY 
