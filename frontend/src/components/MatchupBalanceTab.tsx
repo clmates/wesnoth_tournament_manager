@@ -225,7 +225,7 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
           after,
         };
       })
-      .filter(item => item.after || item.before)
+      .filter(item => (item.after || item.before) && ((item.after?.total_games || 0) + (item.before?.total_games || 0)) >= minGames)
       .sort((a, b) => {
         const aImbalance = Math.max(a.after?.imbalance || 0, a.before?.imbalance || 0);
         const bImbalance = Math.max(b.after?.imbalance || 0, b.before?.imbalance || 0);
@@ -235,10 +235,23 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
     return (
       <div className="bg-white rounded-lg p-6 shadow-md">
         <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('unbalanced_matchups_comparison') || 'Unbalanced Matchups - Before & After'}</h3>
-        <p className="text-blue-600 text-sm mb-6 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
+        <p className="text-blue-600 text-sm mb-3 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
           {t('before_event') || 'Before'}: {beforeData ? beforeData.length : 0} {t('matches_evaluated') || 'matches'} | 
           {t('after_event') || 'After'}: {afterData ? afterData.length : 0} {t('matches_evaluated') || 'matches'}
         </p>
+        <div className="bg-gray-100 p-4 rounded-lg mb-6 border border-gray-200 flex items-center gap-4">
+          <label className="flex items-center gap-2 font-semibold text-gray-800">
+            {t('minimum_games') || 'Minimum Games'}:
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={minGames}
+              onChange={(e) => setMinGames(Math.max(1, parseInt(e.target.value) || 1))}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 w-24"
+            />
+          </label>
+        </div>
 
         <div className="overflow-x-auto border border-gray-200 rounded-lg">
           <table className="w-full border-collapse bg-white">

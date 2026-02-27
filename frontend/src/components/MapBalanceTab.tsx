@@ -117,7 +117,7 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
       return {
         map_id: mapData.map_id,
         map_name: mapData.map_name,
-        total_games: totalGames,
+        total_games: Math.round(totalGames),
         factions_used: factionStats.size,
         avg_imbalance: avgImbalance,
         lowest_winrate: winrates.length > 0 ? Math.min(...winrates) : 50,
@@ -222,9 +222,10 @@ const MapBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ before
       })
       .filter(item => item.after || item.before)
       .sort((a, b) => {
-        const aGames = (a.after?.total_games || 0) + (a.before?.total_games || 0);
-        const bGames = (b.after?.total_games || 0) + (b.before?.total_games || 0);
-        return bGames - aGames;
+        // Match global sort: lowest imbalance first (best balanced maps first)
+        const aImbalance = a.after?.avg_imbalance ?? a.before?.avg_imbalance ?? 999;
+        const bImbalance = b.after?.avg_imbalance ?? b.before?.avg_imbalance ?? 999;
+        return aImbalance - bImbalance;
       });
 
     return (

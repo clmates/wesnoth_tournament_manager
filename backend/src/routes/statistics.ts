@@ -192,7 +192,7 @@ router.get('/map-balance', async (req, res) => {
         gm.id as map_id,
         gm.name as map_name,
         COUNT(DISTINCT fms.faction_id) as factions_used,
-        SUM(fms.total_games) / 2 as total_games,
+        ROUND(SUM(fms.total_games) / 2) as total_games,
         ROUND(STDDEV(fms.winrate), 2) as avg_imbalance,
         MIN(fms.winrate) as lowest_winrate,
         MAX(fms.winrate) as highest_winrate,

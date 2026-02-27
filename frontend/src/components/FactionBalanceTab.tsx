@@ -139,7 +139,7 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
         total_games: stat.total_games,
         winrate: stat.total_games > 0 ? (stat.wins / stat.total_games) * 100 : 0,
         maps_played: stat.maps.size,
-      })).sort((a, b) => b.total_games - a.total_games);
+      })).sort((a, b) => b.winrate - a.winrate); // Match global sort: highest winrate first
   };
 
   if (loading) return <div className="p-8 text-center text-gray-600 bg-gray-50 rounded-lg">{t('loading')}</div>;
@@ -172,9 +172,10 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
       })
       .filter(item => item.after || item.before) // Keep items with data in either period
       .sort((a, b) => {
-        const aGames = (a.after?.total_games || 0) + (a.before?.total_games || 0);
-        const bGames = (b.after?.total_games || 0) + (b.before?.total_games || 0);
-        return bGames - aGames;
+        // Match global sort: highest winrate first
+        const aWinrate = a.after?.winrate ?? a.before?.winrate ?? 0;
+        const bWinrate = b.after?.winrate ?? b.before?.winrate ?? 0;
+        return bWinrate - aWinrate;
       });
 
     return (
