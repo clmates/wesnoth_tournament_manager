@@ -1570,7 +1570,7 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
       `UPDATE tournaments 
        SET status = ?, prepared_at = NOW(), current_round = 1, total_rounds = ?
        WHERE id = ?`,
-      ['prepared', id, totalCalculatedRounds]
+      ['prepared', totalCalculatedRounds, id]
     );
     console.log(`[PREPARE] Tournament status updated`);
 
