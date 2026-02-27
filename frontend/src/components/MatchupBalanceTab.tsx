@@ -127,7 +127,6 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
     console.log('[MatchupBalanceTab] Final aggregated result:', JSON.stringify(results, null, 2));
     
     return results
-      .filter(m => m.total_games >= minGamesThreshold) // Apply minimum games filter
       .sort((a, b) => b.imbalance - a.imbalance);
   };
 
@@ -178,26 +177,22 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
   useEffect(() => {
     if (beforeData && beforeData.length > 0) {
       console.log('[MatchupBalanceTab] Before data received, item count:', beforeData.length);
-      console.log('[MatchupBalanceTab] Before data sample:', JSON.stringify(beforeData.slice(0, 2), null, 2));
       const aggregated = aggregateMatchupData(beforeData);
       setBeforeStats(aggregated);
     } else {
-      console.log('[MatchupBalanceTab] Before data: EMPTY or NULL', { beforeData: beforeData?.length || 'null' });
       setBeforeStats([]);
     }
-  }, [beforeData]);
+  }, [beforeData, minGames]);
 
   useEffect(() => {
     if (afterData && afterData.length > 0) {
       console.log('[MatchupBalanceTab] After data received, item count:', afterData.length);
-      console.log('[MatchupBalanceTab] After data sample:', JSON.stringify(afterData.slice(0, 2), null, 2));
       const aggregated = aggregateMatchupData(afterData);
       setAfterStats(aggregated);
     } else {
-      console.log('[MatchupBalanceTab] After data: EMPTY or NULL', { afterData: afterData?.length || 'null' });
       setAfterStats([]);
     }
-  }, [afterData]);
+  }, [afterData, minGames]);
 
   if (loading) return <div className="p-8 text-center text-gray-600 bg-gray-50 rounded-lg">{t('loading')}</div>;
   if (error) return <div className="p-8 text-center text-red-600 bg-red-50 rounded-lg border-l-4 border-red-500">{error}</div>;
