@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { query } from '../config/database.js';
 
 // Best Of series management utilities
@@ -267,21 +268,19 @@ export async function createNextMatchInSeries(
     }
 
     // Create the new match
-    const matchResult = await query(
+    const newMatchId = randomUUID();
+    await query(
       `INSERT INTO tournament_matches (
-        tournament_id, round_id, player1_id, player2_id, tournament_round_match_id, match_status
-      ) VALUES ($1, $2, $3, $4, $5, 'pending')
-       RETURNING id`,
-      [tournamentId, roundId, series.player1_id, series.player2_id, tournamentRoundMatchId]
+        id, tournament_id, round_id, player1_id, player2_id, tournament_round_match_id, match_status
+      ) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+      [newMatchId, tournamentId, roundId, series.player1_id, series.player2_id, tournamentRoundMatchId]
     );
-
-    const newMatchId = matchResult.rows[0].id;
 
     // Increment matches_scheduled counter
     await query(
       `UPDATE tournament_round_matches
        SET matches_scheduled = matches_scheduled + 1
-       WHERE id = $1`,
+       WHERE id = ?`,
       [tournamentRoundMatchId]
     );
 

@@ -1555,9 +1555,9 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     for (const round of roundsToCreate) {
       console.log(`[PREPARE] Inserting round ${round.roundNumber}: ${round.label} [${round.classification}]`);
       const insertResult = await query(
-        `INSERT INTO tournament_rounds (tournament_id, round_number, round_type, match_format, round_status, round_phase_label, round_phase_description, round_classification, players_remaining, players_advancing_to_next)
-         VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
-        [id, round.roundNumber, round.roundType, round.matchFormat, round.label, round.description, round.classification, round.playersRemaining ?? null, round.playersAdvancing ?? null]
+        `INSERT INTO tournament_rounds (id, tournament_id, round_number, round_type, match_format, round_status, round_phase_label, round_phase_description, round_classification, players_remaining, players_advancing_to_next)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
+        [randomUUID(), id, round.roundNumber, round.roundType, round.matchFormat, round.label, round.description, round.classification, round.playersRemaining ?? null, round.playersAdvancing ?? null]
       );
       console.log(`[PREPARE] Round ${round.roundNumber} inserted successfully`);
     }
@@ -1756,9 +1756,9 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
       for (const round of roundsToCreate) {
         console.log(`[START] Inserting round ${round.roundNumber} (${round.roundType}): ${round.label || 'N/A'}`);
         await query(
-          `INSERT INTO tournament_rounds (tournament_id, round_number, round_type, match_format, round_status, round_phase_label, round_phase_description, round_classification)
-           VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)`,
-          [id, round.roundNumber, round.roundType, round.matchFormat, round.label || '', round.description || '', round.classification || '']
+          `INSERT INTO tournament_rounds (id, tournament_id, round_number, round_type, match_format, round_status, round_phase_label, round_phase_description, round_classification)
+           VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+          [randomUUID(), id, round.roundNumber, round.roundType, round.matchFormat, round.label || '', round.description || '', round.classification || '']
         );
         console.log(`[START] Round ${round.roundNumber} inserted successfully`);
       }

@@ -5,6 +5,7 @@
 
 
 
+import { randomUUID } from 'crypto';
 import { query } from '../config/database.js';
 import discordService from '../services/discordService.js';
 
@@ -282,9 +283,9 @@ export async function generateRoundMatches(
     // Insert all matches
     for (const match of matches) {
       await query(
-        `INSERT INTO tournament_matches (tournament_id, round_id, player1_id, player2_id, match_status)
-         VALUES (?, ?, ?, ?, 'pending')`,
-        [match.tournament_id, match.round_id, match.player1_id, match.player2_id]
+        `INSERT INTO tournament_matches (id, tournament_id, round_id, player1_id, player2_id, match_status)
+         VALUES (?, ?, ?, ?, ?, 'pending')`,
+        [randomUUID(), match.tournament_id, match.round_id, match.player1_id, match.player2_id]
       );
     }
 
@@ -1169,15 +1170,13 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       }
 
       // Create tournament_round_matches entry
-      const tmResult = await query(
+      const roundMatchId = randomUUID();
+      await query(
         `INSERT INTO tournament_round_matches 
-         (tournament_id, round_id, player1_id, player2_id, best_of, wins_required, series_status, matches_scheduled)
-         VALUES (?, ?, ?, ?, ?, $6, 'in_progress', $7)
-         RETURNING id`,
-        [tournamentId, round.id, pairing.player1_id, pairing.player2_id, bestOf, winsRequired, winsRequired]
+         (id, tournament_id, round_id, player1_id, player2_id, best_of, wins_required, series_status, matches_scheduled)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'in_progress', ?)`,
+        [roundMatchId, tournamentId, round.id, pairing.player1_id, pairing.player2_id, bestOf, winsRequired, winsRequired]
       );
-
-      const roundMatchId = tmResult.rows[0].id;
 
       // Create initial tournament_matches entries (exactly wins_required matches)
       // For Bo3: 2 matches (need 2 wins), for Bo5: 3 matches (need 3 wins)
@@ -1185,9 +1184,9 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       for (let i = 0; i < matchesToCreate; i++) {
         await query(
           `INSERT INTO tournament_matches 
-           (tournament_id, round_id, player1_id, player2_id, match_status, tournament_round_match_id)
-           VALUES (?, ?, ?, ?, 'pending', ?)`,
-          [tournamentId, round.id, pairing.player1_id, pairing.player2_id, roundMatchId]
+           (id, tournament_id, round_id, player1_id, player2_id, match_status, tournament_round_match_id)
+           VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+          [randomUUID(), tournamentId, round.id, pairing.player1_id, pairing.player2_id, roundMatchId]
         );
       }
 
@@ -1389,9 +1388,9 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
           
           await query(
             `INSERT INTO tournament_matches 
-             (tournament_id, round_id, player1_id, player2_id, match_status, tournament_round_match_id)
-             VALUES (?, ?, ?, ?, 'pending', ?)`,
-            [tournamentId, roundId, match.player1_id, match.player2_id, match.id]
+             (id, tournament_id, round_id, player1_id, player2_id, match_status, tournament_round_match_id)
+             VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+            [randomUUID(), tournamentId, roundId, match.player1_id, match.player2_id, match.id]
           );
         }
       }
