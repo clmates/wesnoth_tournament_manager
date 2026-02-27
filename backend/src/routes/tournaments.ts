@@ -1557,7 +1557,7 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
       const insertResult = await query(
         `INSERT INTO tournament_rounds (tournament_id, round_number, round_type, match_format, round_status, round_phase_label, round_phase_description, round_classification, players_remaining, players_advancing_to_next)
          VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
-        [id, round.roundNumber, round.roundType, round.matchFormat, round.label, round.description, round.classification, round.playersRemaining, round.playersAdvancing]
+        [id, round.roundNumber, round.roundType, round.matchFormat, round.label, round.description, round.classification, round.playersRemaining ?? null, round.playersAdvancing ?? null]
       );
       console.log(`[PREPARE] Round ${round.roundNumber} inserted successfully`);
     }

@@ -56,7 +56,12 @@ const Navbar: React.FC = () => {
   // Calculate language dropdown position when it opens
   useEffect(() => {
     if (languageDropdownOpen) {
-      const ref = languageBtnMobileRef.current || languageBtnRef.current;
+      // Use whichever button is actually visible (offsetParent is null for hidden elements)
+      const ref = (languageBtnRef.current && languageBtnRef.current.offsetParent)
+        ? languageBtnRef.current
+        : (languageBtnMobileRef.current && languageBtnMobileRef.current.offsetParent)
+          ? languageBtnMobileRef.current
+          : null;
       if (ref) {
         const rect = ref.getBoundingClientRect();
         setLanguageDropdownPosition({
