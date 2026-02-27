@@ -1302,7 +1302,7 @@ router.post('/recalculate-snapshots', authMiddleware, async (req: AuthRequest, r
 
     // Call TypeScript function to recalculate snapshots
     const { recalculateBalanceEventSnapshots } = await import('../services/statisticsCalculator.js');
-    const tsResult = await recalculateBalanceEventSnapshots();
+    const tsResult = await recalculateBalanceEventSnapshots(recreateAll === true);
 
     console.log('🟢 Balance event snapshots recalculated');
 

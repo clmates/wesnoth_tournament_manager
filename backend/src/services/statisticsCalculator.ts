@@ -1398,12 +1398,19 @@ export async function getBalanceEventForwardImpact(
 /**
  * Recalculate balance event snapshots and impacts
  */
-export async function recalculateBalanceEventSnapshots(): Promise<{
+export async function recalculateBalanceEventSnapshots(recreateAll: boolean = false): Promise<{
   balance_events_updated: number;
   snapshots_created: number;
 }> {
   try {
-    // Get all balance events without snapshots
+    if (recreateAll) {
+      // Clear all snapshot dates so every event is reprocessed
+      await query(`UPDATE balance_events SET snapshot_before_date = NULL, snapshot_after_date = NULL`);
+      // Clear the history table so createFactionMapStatisticsSnapshot won't skip existing dates
+      await query(`TRUNCATE TABLE faction_map_statistics_history`);
+    }
+
+    // Get all balance events without snapshots (after optional clear above, this picks up all)
     const eventsResult = await query(
       `SELECT id FROM balance_events
        WHERE snapshot_before_date IS NULL OR snapshot_after_date IS NULL`
