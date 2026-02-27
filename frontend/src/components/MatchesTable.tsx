@@ -49,7 +49,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   const [reportingReplayId, setReportingReplayId] = React.useState<string | null>(null);
   const [showConfirmationModal, setShowConfirmationModal] = React.useState(false);
   const [selectedReplay, setSelectedReplay] = React.useState<any>(null);
-  const [modalChoice, setModalChoice] = React.useState<'I won' | 'I lost'>('I won');
+  const [modalChoice, setModalChoice] = React.useState<'I won' | 'I lost' | 'cancel'>('I won');
 
   React.useEffect(() => {
     console.log(`🔍 [MatchesTable] Received ${matches.length} matches`);
@@ -110,7 +110,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
     }
   };
 
-  const handleReportConfidence1Replay = (match: any, winner_choice: 'I won' | 'I lost') => {
+  const handleReportConfidence1Replay = (match: any, winner_choice: 'I won' | 'I lost' | 'cancel') => {
     // Open the modal with replay details
     setSelectedReplay(match);
     setModalChoice(winner_choice);
@@ -256,6 +256,11 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                   <td className="px-4 py-3 text-sm">
                     <div className="font-semibold text-yellow-900">{map}</div>
                     <div className="text-xs text-yellow-600 mt-1">🎮 Unparsed Replay</div>
+                    {(match.replay_filename || match.game_name) && (
+                      <div className="text-xs text-yellow-700 mt-1 font-mono bg-yellow-100 px-2 py-1 rounded truncate max-w-[200px]" title={match.replay_filename || match.game_name}>
+                        📄 {match.replay_filename || match.game_name}
+                      </div>
+                    )}
                   </td>
 
                   <td className="px-4 py-3 text-sm">
@@ -265,6 +270,11 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           🔍 Need Confirmation
                         </span>
                       </div>
+                      {match.cancel_requested_by && (
+                        <div className="text-xs text-gray-600 bg-gray-100 border border-gray-300 rounded px-2 py-1">
+                          🚫 {t('label_cancel_requested') || 'Cancel requested'} — {t('label_waiting_other_player') || 'waiting for other player'}
+                        </div>
+                      )}
                       <div className="text-xs text-yellow-700 mb-2 font-semibold">
                         Who won this match?
                       </div>
@@ -293,10 +303,22 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                         >
                           ✗ I lost
                         </button>
+                        <button
+                          className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                            showConfirmationModal
+                              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                              : 'bg-gray-500 text-white hover:bg-gray-600'
+                          }`}
+                          onClick={() => handleReportConfidence1Replay(match, 'cancel')}
+                          disabled={showConfirmationModal}
+                          title="Game not finished (Save & Exit)"
+                        >
+                          🚫 {t('button_cancel_replay') || 'Cancel Replay'}
+                        </button>
                       </div>
                       <div className="mt-2 pt-2 border-t border-yellow-200">
                         <a
-                          href={match.replay_url || '#'}
+                          href={match.replay_url || match.replay_file_path || '#'}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-block px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 transition"

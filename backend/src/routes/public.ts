@@ -626,10 +626,12 @@ router.get('/matches', async (req, res) => {
           `SELECT 
             r.id, 
             r.replay_filename,
+            r.game_name,
             r.replay_url,
             r.parse_summary,
             r.created_at,
-            r.wesnoth_version
+            r.wesnoth_version,
+            r.cancel_requested_by
            FROM replays r
            WHERE r.integration_confidence = 1 
              AND r.parsed = 1
@@ -702,7 +704,10 @@ router.get('/matches', async (req, res) => {
               source_type: 'replay_confidence_1',
               replay_id: r.id,
               confidence_level: 1,
-              parse_summary: parseSummary
+              parse_summary: parseSummary,
+              replay_filename: r.replay_filename,
+              game_name: r.game_name,
+              cancel_requested_by: r.cancel_requested_by || null
             };
 
             console.log(`📋 [REPLAY] ${replayData.winner_nickname} (${winner_faction}) vs ${replayData.loser_nickname} (${loser_faction}) on ${map}`);
@@ -1123,7 +1128,8 @@ router.get('/tournaments/:tournamentId/pending-replays', async (req, res) => {
 
     // Get recent unmatched confidence=1 replays
     const replayResult = await query(
-      `SELECT r.id, r.replay_url, r.parse_summary, r.created_at, r.wesnoth_version
+      `SELECT r.id, r.replay_url, r.replay_filename, r.game_name, r.parse_summary, r.created_at, r.wesnoth_version,
+              r.cancel_requested_by
        FROM replays r
        WHERE r.integration_confidence = 1
          AND r.parsed = 1
@@ -1188,6 +1194,9 @@ router.get('/tournaments/:tournamentId/pending-replays', async (req, res) => {
           loser_faction: resolvedFactions.side2 || 'Unknown',
           map,
           replay_url: r.replay_url,
+          replay_filename: r.replay_filename,
+          game_name: r.game_name,
+          cancel_requested_by: r.cancel_requested_by || null,
           created_at: r.created_at,
           source_type: 'replay_confidence_1',
           confidence_level: 1,

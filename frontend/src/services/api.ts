@@ -171,6 +171,8 @@ export const matchService = {
     tournament_match_id?: string
   ) => 
     api.post('/matches/report-confidence-1-replay', { replayId, winner_choice, comments, rating, tournament_match_id }),
+  cancelConfidence1Replay: (replayId: string) =>
+    api.post('/matches/cancel-confidence-1-replay', { replayId }),
 };
 
 export const tournamentService = {
@@ -312,6 +314,9 @@ export const reportConfidence1Replay = (
   rating?: number,
   tournament_match_id?: string
 ) => matchService.reportConfidence1Replay(replayId, winner_choice, comments, rating, tournament_match_id);
+
+export const cancelConfidence1Replay = (replayId: string) =>
+  matchService.cancelConfidence1Replay(replayId);
 
 export { api };
 export default api;

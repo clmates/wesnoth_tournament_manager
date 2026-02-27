@@ -2612,7 +2612,125 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
   }
 });
 
-// Get all matches (both confirmed and unconfirmed) - Requires authentication
+/**
+ * POST /api/matches/cancel-confidence-1-replay
+ *
+ * Request or confirm cancellation of a confidence=1 replay (game saved mid-match).
+ * Both players must call this endpoint to fully cancel the replay.
+ *
+ * Flow:
+ *   - First player calls → cancel_requested_by = userId  (status: waiting_confirmation)
+ *   - Second player calls → the replay row is DELETED     (status: cancelled)
+ *
+ * Requires: User authentication + must be a participant in the replay
+ */
+router.post('/cancel-confidence-1-replay', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { replayId } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    if (!replayId) {
+      return res.status(400).json({ error: 'Missing replayId in request body' });
+    }
+
+    console.log(`🚫 [CANCEL-REPLAY] Processing cancel request for replay ${replayId} by user ${userId}`);
+
+    // Fetch the replay
+    const replayResult = await query(
+      `SELECT id, parse_summary, integration_confidence, parsed, cancel_requested_by
+       FROM replays WHERE id = ? AND integration_confidence = 1 AND parsed = 1`,
+      [replayId]
+    );
+
+    if (replayResult.rows.length === 0) {
+      // Row not found: already deleted (both players confirmed) or never existed
+      return res.status(404).json({ error: 'Replay not found or already cancelled' });
+    }
+
+    const replay = replayResult.rows[0];
+
+    // Parse summary to identify the players
+    let parseSummary: any;
+    try {
+      parseSummary = typeof replay.parse_summary === 'string'
+        ? JSON.parse(replay.parse_summary)
+        : replay.parse_summary;
+    } catch {
+      return res.status(500).json({ error: 'Invalid parse_summary data in replay' });
+    }
+
+    const forumPlayers = parseSummary?.forumPlayers || [];
+    if (forumPlayers.length < 2) {
+      return res.status(400).json({ error: 'Replay does not have 2 identified players' });
+    }
+
+    // Get current user's nickname
+    const currentUserResult = await query(
+      `SELECT nickname FROM users_extension WHERE id = ?`,
+      [userId]
+    );
+    if (currentUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const currentUserNickname = currentUserResult.rows[0].nickname?.toLowerCase() || '';
+
+    const player1Nickname = forumPlayers[0]?.user_name?.toLowerCase() || '';
+    const player2Nickname = forumPlayers[1]?.user_name?.toLowerCase() || '';
+
+    // Security: user must be one of the 2 players
+    if (currentUserNickname !== player1Nickname && currentUserNickname !== player2Nickname) {
+      return res.status(403).json({ error: 'You are not a participant in this replay' });
+    }
+
+    // Case 1: No cancel request yet → record first request
+    if (!replay.cancel_requested_by) {
+      await query(
+        `UPDATE replays SET cancel_requested_by = ? WHERE id = ?`,
+        [userId, replayId]
+      );
+      console.log(`🚫 [CANCEL-REPLAY] Cancel requested by ${userId} for replay ${replayId}. Waiting for other player.`);
+      return res.json({
+        success: true,
+        status: 'waiting_confirmation',
+        message: 'Cancel request recorded. Waiting for the other player to confirm.'
+      });
+    }
+
+    // Case 2: Same player is clicking cancel again → idempotent, already requested
+    if (replay.cancel_requested_by === userId) {
+      return res.json({
+        success: true,
+        status: 'waiting_confirmation',
+        message: 'You have already requested cancellation. Waiting for the other player to confirm.'
+      });
+    }
+
+    // Case 3: Different player is now confirming the cancel → delete the replay entirely.
+    // Replays exist only to become matches; if both players agree the game was not finished,
+    // there is no match to create and the record is no longer needed.
+    await query(
+      `DELETE FROM replays WHERE id = ?`,
+      [replayId]
+    );
+
+    console.log(`✅ [CANCEL-REPLAY] Replay ${replayId} deleted. Both players agreed game was not finished.`);
+    return res.json({
+      success: true,
+      status: 'cancelled',
+      message: 'Both players confirmed. Replay has been deleted (game not finished).'
+    });
+
+  } catch (error) {
+    console.error('❌ Error cancelling confidence-1 replay:', error);
+    res.status(500).json({ error: 'Failed to cancel replay', details: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+
 router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
     // Get page from query params, default to 1
@@ -2699,9 +2817,11 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       `SELECT 
         r.id, 
         r.replay_filename,
+        r.game_name,
         r.parse_summary,
         r.created_at,
-        r.wesnoth_version
+        r.wesnoth_version,
+        r.cancel_requested_by
        FROM replays r
        WHERE r.integration_confidence = 1 
          AND r.parsed = 1
@@ -2774,7 +2894,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
           source_type: 'replay_confidence_1',
           replay_id: r.id,
           confidence_level: 1,
-          parse_summary: parseSummary
+          parse_summary: parseSummary,
+          replay_filename: r.replay_filename,
+          game_name: r.game_name,
+          cancel_requested_by: r.cancel_requested_by || null
         });
       } catch (error) {
         console.error('Error formatting replay:', error);

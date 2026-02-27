@@ -150,7 +150,7 @@ const TournamentDetail: React.FC = () => {
   const [pendingTournamentReplays, setPendingTournamentReplays] = useState<any[]>([]);
   const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
   const [selectedTournamentReplay, setSelectedTournamentReplay] = useState<any>(null);
-  const [replayModalChoice, setReplayModalChoice] = useState<'I won' | 'I lost'>('I won');
+  const [replayModalChoice, setReplayModalChoice] = useState<'I won' | 'I lost' | 'cancel'>('I won');
   const [editData, setEditData] = useState<TournamentFormData>({
     name: '',
     description: '',
@@ -597,7 +597,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     }
   };
 
-  const handleOpenReplayModal = (replay: any, choice: 'I won' | 'I lost') => {
+  const handleOpenReplayModal = (replay: any, choice: 'I won' | 'I lost' | 'cancel') => {
     setSelectedTournamentReplay(replay);
     setReplayModalChoice(choice);
     setShowReplayConfirmModal(true);
@@ -1256,6 +1256,11 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             <td className="px-4 py-3">
                               <div className="font-semibold text-yellow-900">{replay.map}</div>
                               <div className="text-xs text-yellow-600 mt-1">🎮 Detected Replay</div>
+                              {(replay.replay_filename || replay.game_name) && (
+                                <div className="text-xs text-yellow-700 mt-1 font-mono bg-yellow-100 px-2 py-1 rounded truncate max-w-[180px]" title={replay.replay_filename || replay.game_name}>
+                                  📄 {replay.replay_filename || replay.game_name}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3">
                               <div className="space-y-2">
@@ -1263,6 +1268,11 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 {isInvolved ? (
                                   <>
                                     <div className="text-xs text-yellow-700 font-semibold">Who won?</div>
+                                    {replay.cancel_requested_by && (
+                                      <div className="text-xs text-gray-600 bg-gray-100 border border-gray-300 rounded px-2 py-1">
+                                        🚫 Cancel requested — waiting for other player
+                                      </div>
+                                    )}
                                     <div className="flex gap-2 flex-wrap">
                                       <button
                                         className="px-3 py-1 rounded text-xs font-semibold bg-green-500 text-white hover:bg-green-600 transition"
@@ -1275,6 +1285,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         onClick={() => handleOpenReplayModal(replay, 'I lost')}
                                       >
                                         ✗ I lost
+                                      </button>
+                                      <button
+                                        className="px-3 py-1 rounded text-xs font-semibold bg-gray-500 text-white hover:bg-gray-600 transition"
+                                        onClick={() => handleOpenReplayModal(replay, 'cancel')}
+                                        title="Game not finished (Save & Exit)"
+                                      >
+                                        🚫 Cancel Replay
                                       </button>
                                     </div>
                                   </>
