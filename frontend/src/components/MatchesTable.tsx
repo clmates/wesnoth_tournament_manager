@@ -313,7 +313,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           disabled={showConfirmationModal}
                           title="Game not finished (Save & Exit)"
                         >
-                          🚫 {t('button_cancel_replay') || 'Cancel Replay'}
+                          🚫 {t('button_cancel_replay') || 'Discard Match'}
                         </button>
                       </div>
                       <div className="mt-2 pt-2 border-t border-yellow-200">

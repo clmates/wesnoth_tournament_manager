@@ -1291,7 +1291,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         onClick={() => handleOpenReplayModal(replay, 'cancel')}
                                         title="Game not finished (Save & Exit)"
                                       >
-                                        🚫 Cancel Replay
+                                        🚫 {t('button_cancel_replay') || 'Discard Match'}
                                       </button>
                                     </div>
                                   </>
