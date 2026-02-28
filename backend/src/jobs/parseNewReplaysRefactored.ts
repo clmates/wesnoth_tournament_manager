@@ -16,9 +16,7 @@
 import { query } from '../config/database.js';
 import ReplayParser from '../services/replayParser.js';
 import { parseRankedReplay, ParsedRankedReplay } from '../utils/replayRankedParser.js';
-import { calculateNewRating, calculateTrend } from '../utils/elo.js';
-import { getUserLevel } from '../utils/auth.js';
-import { v4 as uuidv4 } from 'uuid';
+import { createMatch, updateTournamentRoundMatch } from '../services/matchCreationService.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -58,6 +56,9 @@ interface ParseSummary {
   finalMap: string | null;
   confidenceLevel: 1 | 2;
   matchType: 'ranked' | 'tournament_ranked' | 'tournament_unranked' | 'rejected';
+  // Set when matchType is tournament_* and a matching tournament_round_match is found
+  linkedTournamentId: string | null;
+  linkedTournamentRoundMatchId: string | null;
 }
 
 export class ParseNewReplaysRefactorized {
@@ -113,12 +114,27 @@ export class ParseNewReplaysRefactorized {
             continue;
           }
 
+          // For tournament matches, link to the specific tournament_round_match
+          if (parseSummary.matchType === 'tournament_ranked' || parseSummary.matchType === 'tournament_unranked') {
+            const linked = await this.linkToTournament(replay, parseSummary);
+            if (!linked) {
+              console.log(`❌ [PARSE] Tournament link failed → REJECTED`);
+              await query(
+                `UPDATE replays SET parse_status = 'rejected', parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
+                [parseSummary.confidenceLevel, JSON.stringify(parseSummary), replay.id]
+              );
+              errorCount++;
+              continue;
+            }
+          }
+
           // Check confidence level - only create match if confidence=2
           if (parseSummary.confidenceLevel === 1) {
             console.log(`⏳ [PARSE] Confidence=1 → Parsed but no match created (awaiting player confirmation)`);
             await query(
-              `UPDATE replays SET parse_status = 'parsed', parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
-              [parseSummary.confidenceLevel, JSON.stringify(parseSummary), replay.id]
+              `UPDATE replays SET parse_status = 'parsed', parsed = 1, integration_confidence = ?,
+               tournament_round_match_id = ?, parse_summary = ? WHERE id = ?`,
+              [parseSummary.confidenceLevel, parseSummary.linkedTournamentRoundMatchId, JSON.stringify(parseSummary), replay.id]
             );
             parsedCount++;
             continue;
@@ -229,7 +245,9 @@ export class ParseNewReplaysRefactorized {
       finalFactions: {},
       finalMap: null,
       confidenceLevel: 1,
-      matchType: 'rejected'
+      matchType: 'rejected',
+      linkedTournamentId: null,
+      linkedTournamentRoundMatchId: null
     };
 
     // ======== STEP 1: Query forum for addon ========
@@ -437,190 +455,170 @@ export class ParseNewReplaysRefactorized {
   }
 
   /**
-   * Create match in database from ParseSummary
+   * Create match in database from ParseSummary.
+   * Resolves player identities then delegates to the shared matchCreationService.
    */
   private async createMatchFromParseSummary(
     replay: UnparsedReplay,
     parseSummary: ParseSummary
   ): Promise<{ success: boolean; matchId?: string; error?: string }> {
-    try {
-      if (parseSummary.forumPlayers.length < 2 || !parseSummary.replayVictory) {
-        return { success: false, error: 'Insufficient data: missing forum players or replay victory' };
-      }
-
-      // Use replay victory to find winner/loser names
-      const winnerName = parseSummary.replayVictory.winner_name;
-      const loserName = parseSummary.replayVictory.loser_name;
-
-      // Find winner and loser in forumPlayers (forum is source of truth for side ↔ nickname mapping)
-      const winnerForumData = parseSummary.forumPlayers.find(p => p.user_name === winnerName);
-      const loserForumData = parseSummary.forumPlayers.find(p => p.user_name === loserName);
-
-      if (!winnerForumData || !loserForumData) {
-        return { 
-          success: false, 
-          error: `Players not found in forum data: winner=${winnerName} (found=${!!winnerForumData}), loser=${loserName} (found=${!!loserForumData})`
-        };
-      }
-
-      // Get factions based on forum side mapping
-      const winnerSide = `side${winnerForumData.side_number}`;
-      const loserSide = `side${loserForumData.side_number}`;
-      const winnerFaction = parseSummary.resolvedFactions[winnerSide] || 'Unknown';
-      const loserFaction = parseSummary.resolvedFactions[loserSide] || 'Unknown';
-      const map = parseSummary.resolvedMap || 'Unknown';
-
-      // Fetch user data by nickname (case-insensitive)
-      const winnerUserData = await this.getUserDataByNickname(winnerName);
-      const loserUserData = await this.getUserDataByNickname(loserName);
-
-      if (!winnerUserData || !loserUserData) {
-        return { 
-          success: false, 
-          error: `User not found in users_extension: winner=${winnerName} (found=${!!winnerUserData}), loser=${loserName} (found=${!!loserUserData})`
-        };
-      }
-
-      console.log(`\n📝 Creating match:`);
-      console.log(`   Winner: ${winnerName} (Side ${winnerForumData.side_number}, ID ${winnerUserData.id}, ELO ${winnerUserData.elo_rating}, ${winnerFaction})`);
-      console.log(`   Loser: ${loserName} (Side ${loserForumData.side_number}, ID ${loserUserData.id}, ELO ${loserUserData.elo_rating}, ${loserFaction})`);
-      console.log(`   Map: ${map}`);
-      console.log(`   Confidence: ${parseSummary.confidenceLevel}`);
-      console.log(`   Type: ${parseSummary.matchType}`);
-
-      // Fetch full user data including matches_played, is_rated, trend
-      const winnerFullData = await query(
-        `SELECT id, elo_rating, level, matches_played, is_rated, trend FROM users_extension WHERE id = ?`,
-        [winnerUserData.id]
-      );
-      const loserFullData = await query(
-        `SELECT id, elo_rating, level, matches_played, is_rated, trend FROM users_extension WHERE id = ?`,
-        [loserUserData.id]
-      );
-
-      if ((winnerFullData as any).rows?.length === 0 || (loserFullData as any).rows?.length === 0) {
-        return { success: false, error: 'Failed to fetch full user data' };
-      }
-
-      const winner = (winnerFullData as any).rows[0];
-      const loser = (loserFullData as any).rows[0];
-
-      // Calculate new ELO ratings using FIDE formula
-      const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
-      const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
-
-      // Calculate trends
-      const currentWinnerTrend = winner.trend || '-';
-      const currentLoserTrend = loser.trend || '-';
-      const winnerTrend = calculateTrend(currentWinnerTrend, true);
-      const loserTrend = calculateTrend(currentLoserTrend, false);
-
-      // Build replay file path: https://replays.wesnoth.org/{version}/{yyyy}/{mm}/{dd}/{filename}
-      const gameDate = new Date(replay.end_time);
-      const yyyy = gameDate.getFullYear();
-      const mm = String(gameDate.getMonth() + 1).padStart(2, '0');
-      const dd = String(gameDate.getDate()).padStart(2, '0');
-      // Remove .bz2 extension if present, then add it back
-      const replayFilenameCleaned = replay.replay_filename.replace(/\.bz2$/, '');
-      const replayFilePath = `https://replays.wesnoth.org/${replay.wesnoth_version}/${yyyy}/${mm}/${dd}/${replayFilenameCleaned}.bz2`;
-
-      console.log(`\n🎮 Match Details:`);
-      console.log(`   Winner: ${winnerName} (${winner.elo_rating} → ${winnerNewRating}, L${winner.level})`);
-      console.log(`   Loser: ${loserName} (${loser.elo_rating} → ${loserNewRating}, L${loser.level})`);
-      console.log(`   Replay: ${replayFilePath}`);
-
-      const matchId = uuidv4();
-      
-      // Insert match with before and after ELO/level values
-      await query(
-        `INSERT INTO matches (
-          id, winner_id, loser_id, winner_faction, loser_faction, map,
-          replay_id, replay_file_path, auto_reported, status, tournament_type, tournament_mode,
-          winner_elo_before, loser_elo_before, winner_level_before, loser_level_before,
-          winner_elo_after, loser_elo_after, winner_level_after, loser_level_after,
-          winner_side, game_id, wesnoth_version, instance_uuid,
-          created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'reported', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [
-          matchId,
-          winner.id,
-          loser.id,
-          winnerFaction,
-          loserFaction,
-          map,
-          replay.id,
-          replayFilePath,
-          this.getTournamentType(parseSummary.matchType),
-          this.getTournamentMode(parseSummary.matchType),
-          winner.elo_rating,              // winner_elo_before
-          loser.elo_rating,               // loser_elo_before
-          getUserLevel(winner.elo_rating),        // winner_level_before
-          getUserLevel(loser.elo_rating),         // loser_level_before
-          winnerNewRating,                // winner_elo_after
-          loserNewRating,                 // loser_elo_after
-          getUserLevel(winnerNewRating),  // winner_level_after
-          getUserLevel(loserNewRating),   // loser_level_after
-          winnerForumData.side_number,    // winner_side (1 or 2 from forum)
-          replay.game_id,                 // game_id
-          replay.wesnoth_version,         // wesnoth_version
-          replay.instance_uuid            // instance_uuid
-        ]
-      );
-
-      // Update winner in users_extension
-      const newWinnerMatches = winner.matches_played + 1;
-      let winnerIsNowRated = winner.is_rated;
-      
-      if (winner.is_rated && winnerNewRating < 1400) {
-        winnerIsNowRated = false;
-      } else if (!winner.is_rated && newWinnerMatches >= 10 && winnerNewRating >= 1400) {
-        winnerIsNowRated = true;
-      }
-
-      await query(
-        `UPDATE users_extension 
-         SET elo_rating = ?, 
-             is_rated = ?, 
-             matches_played = ?,
-             total_wins = total_wins + 1,
-             trend = ?,
-             level = ?,
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = ?`,
-        [winnerNewRating, winnerIsNowRated, newWinnerMatches, winnerTrend, getUserLevel(winnerNewRating), winner.id]
-      );
-
-      // Update loser in users_extension
-      const newLoserMatches = loser.matches_played + 1;
-      let loserIsNowRated = loser.is_rated;
-      
-      if (loser.is_rated && loserNewRating < 1400) {
-        loserIsNowRated = false;
-      } else if (!loser.is_rated && newLoserMatches >= 10 && loserNewRating >= 1400) {
-        loserIsNowRated = true;
-      }
-
-      await query(
-        `UPDATE users_extension 
-         SET elo_rating = ?, 
-             is_rated = ?, 
-             matches_played = ?,
-             total_losses = total_losses + 1,
-             trend = ?,
-             level = ?,
-             updated_at = CURRENT_TIMESTAMP 
-         WHERE id = ?`,
-        [loserNewRating, loserIsNowRated, newLoserMatches, loserTrend, getUserLevel(loserNewRating), loser.id]
-      );
-
-      console.log(`✅ [PARSE] Match created: ID ${matchId}`);
-      console.log(`   ELO Change - Winner: +${winnerNewRating - winner.elo_rating}, Loser: ${loserNewRating - loser.elo_rating}`);
-      return { success: true, matchId };
-
-    } catch (err) {
-      const errorMsg = (err as any)?.message || String(err);
-      return { success: false, error: errorMsg };
+    if (parseSummary.forumPlayers.length < 2 || !parseSummary.replayVictory) {
+      return { success: false, error: 'Insufficient data: missing forum players or replay victory' };
     }
+
+    const winnerName = parseSummary.replayVictory.winner_name;
+    const loserName  = parseSummary.replayVictory.loser_name;
+
+    const winnerForumData = parseSummary.forumPlayers.find(p => p.user_name === winnerName);
+    const loserForumData  = parseSummary.forumPlayers.find(p => p.user_name === loserName);
+
+    if (!winnerForumData || !loserForumData) {
+      return {
+        success: false,
+        error: `Players not found in forum data: winner=${winnerName} (found=${!!winnerForumData}), loser=${loserName} (found=${!!loserForumData})`
+      };
+    }
+
+    const winnerUserData = await this.getUserDataByNickname(winnerName);
+    const loserUserData  = await this.getUserDataByNickname(loserName);
+
+    if (!winnerUserData || !loserUserData) {
+      return {
+        success: false,
+        error: `User not found in users_extension: winner=${winnerName} (found=${!!winnerUserData}), loser=${loserName} (found=${!!loserUserData})`
+      };
+    }
+
+    const winnerFaction = parseSummary.resolvedFactions[`side${winnerForumData.side_number}`] || 'Unknown';
+    const loserFaction  = parseSummary.resolvedFactions[`side${loserForumData.side_number}`]  || 'Unknown';
+    const map = parseSummary.resolvedMap || 'Unknown';
+
+    // Build replay file URL
+    const gameDate = new Date(replay.end_time);
+    const yyyy = gameDate.getFullYear();
+    const mm = String(gameDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(gameDate.getDate()).padStart(2, '0');
+    const cleanFilename = replay.replay_filename.replace(/\.bz2$/, '');
+    const replayFilePath = `https://replays.wesnoth.org/${replay.wesnoth_version}/${yyyy}/${mm}/${dd}/${cleanFilename}.bz2`;
+
+    console.log(`\n📝 Creating match: ${winnerName} beat ${loserName} | Map: ${map} | Confidence: ${parseSummary.confidenceLevel}`);
+
+    return createMatch({
+      winnerId:                       winnerUserData.id,
+      loserId:                        loserUserData.id,
+      winnerFaction,
+      loserFaction,
+      map,
+      winnerSide:                     winnerForumData.side_number,
+      replayRowId:                    replay.id,
+      replayFilePath,
+      matchType:                      parseSummary.matchType,
+      linkedTournamentId:             parseSummary.linkedTournamentId,
+      linkedTournamentRoundMatchId:   parseSummary.linkedTournamentRoundMatchId,
+      gameId:                         replay.game_id,
+      wesnothVersion:                 replay.wesnoth_version,
+      instanceUuid:                   replay.instance_uuid,
+    });
+  }
+
+  /**
+   * Link a tournament replay to the correct tournament and tournament_round_match.
+   * Searches for an in-progress tournament whose name is contained in the replay's GAME_NAME (case-insensitive).
+   * Verifies both players are active participants and finds their open series.
+   * Mutates parseSummary.linkedTournamentId and parseSummary.linkedTournamentRoundMatchId.
+   * Returns true on success, false if the replay should be rejected.
+   */
+  private async linkToTournament(replay: UnparsedReplay, parseSummary: ParseSummary): Promise<boolean> {
+    const gameName = (replay.game_name || '').toLowerCase();
+
+    if (!gameName) {
+      console.log(`   ❌ [TOURNAMENT LINK] No game_name available`);
+      return false;
+    }
+
+    // Find all in-progress tournaments whose name is a substring of the game name
+    const tournamentResult = await query(
+      `SELECT id, name, tournament_mode FROM tournaments
+       WHERE status = 'in_progress'
+         AND LOCATE(LOWER(name), ?) > 0
+       ORDER BY LENGTH(name) DESC
+       LIMIT 5`,
+      [gameName]
+    );
+
+    const tournaments = (tournamentResult as any).rows || [];
+
+    if (tournaments.length === 0) {
+      console.log(`   ❌ [TOURNAMENT LINK] No in-progress tournament found in game_name: "${replay.game_name}"`);
+      return false;
+    }
+
+    // Use the longest (most specific) matching tournament name
+    const tournament = tournaments[0];
+    console.log(`   ✅ [TOURNAMENT LINK] Matched tournament: "${tournament.name}" (id=${tournament.id})`);
+
+    // Resolve winner and loser user IDs from parseSummary
+    const winnerName = parseSummary.replayVictory?.winner_name;
+    const loserName  = parseSummary.replayVictory?.loser_name;
+
+    if (!winnerName || !loserName) {
+      console.log(`   ❌ [TOURNAMENT LINK] Missing winner/loser names in parseSummary`);
+      return false;
+    }
+
+    const winnerUser = await this.getUserDataByNickname(winnerName);
+    const loserUser  = await this.getUserDataByNickname(loserName);
+
+    if (!winnerUser || !loserUser) {
+      console.log(`   ❌ [TOURNAMENT LINK] Users not found: winner=${winnerName}, loser=${loserName}`);
+      return false;
+    }
+
+    // Verify both players are active approved participants in this tournament
+    const participantsResult = await query(
+      `SELECT user_id FROM tournament_participants
+       WHERE tournament_id = ?
+         AND user_id IN (?, ?)
+         AND status = 'active'
+         AND participation_status = 'approved'`,
+      [tournament.id, winnerUser.id, loserUser.id]
+    );
+
+    const participants = (participantsResult as any).rows || [];
+    if (participants.length < 2) {
+      console.log(`   ❌ [TOURNAMENT LINK] Not all players are active approved participants (found ${participants.length}/2)`);
+      return false;
+    }
+
+    // Find open tournament_round_match for this pair in the current round
+    const roundMatchResult = await query(
+      `SELECT trm.id, trm.player1_id, trm.player2_id
+       FROM tournament_round_matches trm
+       JOIN tournament_rounds tr ON trm.round_id = tr.id
+       WHERE trm.tournament_id = ?
+         AND trm.series_status = 'in_progress'
+         AND tr.round_status = 'in_progress'
+         AND (
+           (trm.player1_id = ? AND trm.player2_id = ?)
+           OR
+           (trm.player1_id = ? AND trm.player2_id = ?)
+         )
+       LIMIT 1`,
+      [tournament.id, winnerUser.id, loserUser.id, loserUser.id, winnerUser.id]
+    );
+
+    const roundMatches = (roundMatchResult as any).rows || [];
+    if (roundMatches.length === 0) {
+      console.log(`   ❌ [TOURNAMENT LINK] No open tournament_round_match found for ${winnerName} vs ${loserName}`);
+      return false;
+    }
+
+    const roundMatch = roundMatches[0];
+    console.log(`   ✅ [TOURNAMENT LINK] Linked to round_match id=${roundMatch.id}`);
+
+    parseSummary.linkedTournamentId             = tournament.id;
+    parseSummary.linkedTournamentRoundMatchId   = roundMatch.id;
+    return true;
   }
 
   /**
@@ -638,32 +636,6 @@ export class ParseNewReplaysRefactorized {
     );
 
     return ((result as any).rows || []) as UnparsedReplay[];
-  }
-
-  /**
-   * Parse replay from URL (download + parse)
-   */
-  private getTournamentType(matchType: string): string | null {
-    // Map matchType to tournament_type field
-    // 'ranked' -> null (no tournament)
-    // 'tournament_ranked' -> 'ranked'
-    // 'tournament_unranked' -> 'unranked'
-    // 'rejected' -> null
-    if (matchType === 'tournament_ranked') return 'ranked';
-    if (matchType === 'tournament_unranked') return 'unranked';
-    return null;
-  }
-
-  private getTournamentMode(matchType: string): string | null {
-    // Map matchType to tournament_mode field
-    // 'ranked' -> 'ladder'
-    // 'tournament_ranked' -> 'ranked'
-    // 'tournament_unranked' -> 'unranked'
-    // 'rejected' -> null
-    if (matchType === 'ranked') return 'ladder';
-    if (matchType === 'tournament_ranked') return 'ranked';
-    if (matchType === 'tournament_unranked') return 'unranked';
-    return null;
   }
 
   private async parseReplayFromUrl(

@@ -1,298 +1,291 @@
 /**
  * Routes: Replay Management
  * File: backend/src/routes/replays.ts
- * 
+ *
  * Handles:
- * - Listing replays pending player confirmation
- * - Player confirmation of match winners (creates match if valid)
- * - Player discard of incomplete/invalid replays
- * - Replay status queries
+ * - Listing replays pending player confirmation (confidence=1)
+ * - Player confirmation of match result → creates match via matchCreationService
+ * - Player discard of replays
  */
 
 import express from 'express';
 import { query } from '../config/database.js';
-import { v4 as uuidv4 } from 'uuid';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { createMatch, updateTournamentRoundMatch } from '../services/matchCreationService.js';
 
 const router = express.Router();
 
 /**
- * GET /api/replays/pending-confirmation/:playerId
- * 
- * Get all replays pending player confirmation
- * These are replays where:
- * - integration_confidence = 1 (manual confirmation needed)
- * - parsed = 1
- * - need_integration = 1
- * - Player is one of the match participants
- * 
- * Returns replays where the player can confirm/select the winner
+ * GET /api/replays/pending-confirmation
+ *
+ * Returns all replays with parse_status='parsed', integration_confidence=1
+ * where the authenticated player appears in parse_summary.forumPlayers.
  */
-router.get('/pending-confirmation/:playerId', async (req, res) => {
-    try {
-        const playerId = parseInt(req.params.playerId, 10);
+router.get('/pending-confirmation', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId;
 
-        if (isNaN(playerId)) {
-            return res.status(400).json({ error: 'Invalid player ID' });
-        }
-
-        // Get replays pending confirmation where this player participated
-        const result = await query(
-            `SELECT 
-                r.id,
-                r.replay_filename,
-                r.map_name,
-                r.era_id,
-                r.wesnoth_version,
-                r.parse_summary,
-                r.parsing_completed_at,
-                r.integration_confidence,
-                GROUP_CONCAT(DISTINCT rp.player_name ORDER BY rp.side SEPARATOR ' vs ') as players_involved,
-                GROUP_CONCAT(DISTINCT rp.side) as player_sides
-             FROM replays r
-             LEFT JOIN replay_participants rp ON r.id = rp.replay_id
-             WHERE r.parsed = 1
-               AND r.need_integration = 1
-               AND r.integration_confidence = 1
-               AND r.match_id IS NULL
-               AND rp.player_id = ?
-             GROUP BY r.id
-             ORDER BY r.parsing_completed_at DESC
-             LIMIT 50`,
-            [playerId]
-        );
-
-        const rows = (result as any).rows || (result as unknown as any[]);
-
-        res.json({
-            status: 'success',
-            count: rows.length,
-            replays: rows.map((row: any) => ({
-                replay_id: row.id,
-                filename: row.replay_filename,
-                map: row.map_name,
-                era: row.era_id,
-                version: row.wesnoth_version,
-                summary: row.parse_summary,
-                parsed_at: row.parsing_completed_at,
-                players: row.players_involved?.split(' vs ') || [],
-                sides: row.player_sides?.split(',').map((s: string) => parseInt(s, 10)) || []
-            }))
-        });
-    } catch (error) {
-        console.error('Error fetching pending confirmations:', error);
-        res.status(500).json({ error: 'Failed to fetch pending confirmations' });
+    // Get the forum username for this user so we can match against parse_summary
+    const userResult = await query(
+      `SELECT nickname FROM users_extension WHERE id = ?`,
+      [userId]
+    );
+    const userRows = (userResult as any).rows || [];
+    if (userRows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
     }
+    const nickname = userRows[0].nickname;
+
+    // Find replays awaiting this player's confirmation
+    const result = await query(
+      `SELECT id, game_name, replay_filename, wesnoth_version,
+              parse_summary, integration_confidence, tournament_round_match_id,
+              end_time
+       FROM replays
+       WHERE parse_status = 'parsed'
+         AND integration_confidence = 1
+         AND JSON_SEARCH(LOWER(parse_summary), 'one', LOWER(?), NULL, '$.forumPlayers[*].user_name') IS NOT NULL
+       ORDER BY end_time DESC
+       LIMIT 50`,
+      [nickname]
+    );
+
+    const rows = (result as any).rows || [];
+    res.json({
+      status: 'success',
+      count: rows.length,
+      replays: rows.map((row: any) => ({
+        replay_id: row.id,
+        game_name: row.game_name,
+        filename: row.replay_filename,
+        version: row.wesnoth_version,
+        summary: typeof row.parse_summary === 'string' ? JSON.parse(row.parse_summary) : row.parse_summary,
+        confidence: row.integration_confidence,
+        tournament_round_match_id: row.tournament_round_match_id,
+        end_time: row.end_time,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching pending confirmations:', error);
+    res.status(500).json({ error: 'Failed to fetch pending confirmations' });
+  }
 });
 
 /**
  * POST /api/replays/:replayId/confirm-winner
- * 
- * Player confirms the match result
- * 
- * Body:
- * {
- *   playerId: int,
- *   iWon: boolean  // true = player won, false = other player won
- * }
+ *
+ * Authenticated player confirms match result.
+ * Body: { iWon: boolean }
+ *
+ * Flow:
+ *  1. Validate replay is parse_status='parsed' + confidence=1
+ *  2. Identify confirming player via JWT → users_extension.nickname → forumPlayers
+ *  3. Derive winner/loser from iWon
+ *  4. Create match via matchCreationService (handles ELO + tournament round match update)
+ *  5. Mark replay as parse_status='completed'
  */
-router.post('/:replayId/confirm-winner', async (req, res) => {
-    try {
-        const replayId = req.params.replayId;
-        const { playerId, iWon } = req.body;
+router.post('/:replayId/confirm-winner', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const replayId = req.params.replayId;
+    const { iWon } = req.body;
+    const userId = req.userId;
 
-        // Validate inputs
-        if (!playerId || typeof iWon !== 'boolean') {
-            return res.status(400).json({
-                error: 'Missing required fields: playerId (int), iWon (boolean)'
-            });
-        }
-
-        // Verify replay exists and is pending confirmation
-        const replayResult = await query(
-            `SELECT r.id, r.parsed, r.need_integration, r.integration_confidence, r.match_id,
-                    r.map_name, r.era_id, r.replay_filename
-             FROM replays r
-             WHERE r.id = ?`,
-            [replayId]
-        );
-
-        const replayRows = (replayResult as any).rows || (replayResult as unknown as any[]);
-        if (!replayRows || replayRows.length === 0) {
-            return res.status(404).json({ error: 'Replay not found' });
-        }
-
-        const replay = replayRows[0];
-        if (replay.parsed !== 1 || replay.need_integration !== 1 || replay.integration_confidence !== 1) {
-            return res.status(400).json({
-                error: 'Replay is not pending player confirmation (may already be confirmed or discarded)'
-            });
-        }
-
-        if (replay.match_id) {
-            return res.status(400).json({
-                error: 'This replay has already been reported as a match'
-            });
-        }
-
-        // Get all participants (should be 2)
-        const participantsResult = await query(
-            `SELECT player_id, player_name, side FROM replay_participants 
-             WHERE replay_id = ? 
-             ORDER BY side`,
-            [replayId]
-        );
-
-        const participantRows = (participantsResult as any).rows || (participantsResult as unknown as any[]);
-        if (!participantRows || participantRows.length < 2) {
-            return res.status(400).json({
-                error: 'Replay must have exactly 2 participants'
-            });
-        }
-
-        // Verify player participated
-        const playerParticipant = participantRows.find((p: any) => p.player_id === playerId);
-        if (!playerParticipant) {
-            return res.status(403).json({
-                error: 'Player did not participate in this replay'
-            });
-        }
-
-        // Determine winner based on iWon
-        const winnerSide = iWon ? playerParticipant.side : (playerParticipant.side === 1 ? 2 : 1);
-        const winner = participantRows.find((p: any) => p.side === winnerSide);
-        const loser = participantRows.find((p: any) => p.side !== winnerSide);
-
-        // Create match entry
-        const matchId = uuidv4();
-        try {
-            await query(
-                `INSERT INTO matches (id, player1_name, player2_name, winner_name, map_name, era_id, replay_id, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-                [
-                    matchId,
-                    participantRows[0].player_name,
-                    participantRows[1].player_name,
-                    winner.player_name,
-                    replay.map_name,
-                    replay.era_id,
-                    replayId
-                ]
-            );
-        } catch (error) {
-            console.warn('Could not auto-create match entry (table structure may differ):', error);
-            // Continue anyway - the important thing is to mark it as confirmed
-        }
-
-        // Update replay: set match_id and integration_confidence = 3 (confirmed via player)
-        await query(
-            `UPDATE replays 
-             SET match_id = ?,
-                 integration_confidence = 3
-             WHERE id = ?`,
-            [matchId, replayId]
-        );
-
-        res.json({
-            status: 'success',
-            message: 'Match confirmed and created',
-            replay_id: replayId,
-            match_id: matchId,
-            player_id: playerId,
-            confirmed_as_winner: iWon
-        });
-    } catch (error) {
-        console.error('Error confirming winner:', error);
-        res.status(500).json({ error: 'Failed to confirm winner' });
+    if (typeof iWon !== 'boolean') {
+      return res.status(400).json({ error: 'Missing required field: iWon (boolean)' });
     }
+
+    // Fetch the replay
+    const replayResult = await query(
+      `SELECT id, parse_status, integration_confidence, parse_summary,
+              tournament_round_match_id, replay_filename, replay_url,
+              game_id, wesnoth_version, instance_uuid, end_time
+       FROM replays
+       WHERE id = ?`,
+      [replayId]
+    );
+    const replayRows = (replayResult as any).rows || [];
+    if (replayRows.length === 0) {
+      return res.status(404).json({ error: 'Replay not found' });
+    }
+
+    const replay = replayRows[0];
+
+    if (replay.parse_status !== 'parsed' || replay.integration_confidence !== 1) {
+      return res.status(400).json({
+        error: 'Replay is not awaiting confirmation (wrong parse_status or confidence)',
+      });
+    }
+
+    // Parse the summary JSON
+    const summary = typeof replay.parse_summary === 'string'
+      ? JSON.parse(replay.parse_summary)
+      : replay.parse_summary;
+
+    if (!summary?.forumPlayers || summary.forumPlayers.length < 2) {
+      return res.status(400).json({ error: 'Replay parse_summary missing player data' });
+    }
+
+    // Identify the authenticating player from their DB nickname
+    const userResult = await query(
+      `SELECT id, nickname FROM users_extension WHERE id = ?`,
+      [userId]
+    );
+    const userRows = (userResult as any).rows || [];
+    if (userRows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const nickname: string = userRows[0].nickname;
+
+    // Match against forumPlayers (case-insensitive)
+    const myForumPlayer = summary.forumPlayers.find(
+      (p: any) => p.user_name?.toLowerCase() === nickname.toLowerCase()
+    );
+    if (!myForumPlayer) {
+      return res.status(403).json({ error: 'You did not participate in this replay' });
+    }
+
+    // Determine winner/loser names
+    const otherForumPlayer = summary.forumPlayers.find(
+      (p: any) => p.user_name?.toLowerCase() !== nickname.toLowerCase()
+    );
+    if (!otherForumPlayer) {
+      return res.status(400).json({ error: 'Could not determine opponent from replay data' });
+    }
+
+    const winnerName: string = iWon ? nickname : otherForumPlayer.user_name;
+    const loserName:  string = iWon ? otherForumPlayer.user_name : nickname;
+
+    const winnerForumData = summary.forumPlayers.find(
+      (p: any) => p.user_name?.toLowerCase() === winnerName.toLowerCase()
+    );
+    const loserForumData = summary.forumPlayers.find(
+      (p: any) => p.user_name?.toLowerCase() === loserName.toLowerCase()
+    );
+
+    // Resolve users_extension IDs
+    const [winnerDbResult, loserDbResult] = await Promise.all([
+      query(`SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)`, [winnerName]),
+      query(`SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)`, [loserName]),
+    ]);
+    const winnerDbRow = ((winnerDbResult as any).rows || [])[0];
+    const loserDbRow  = ((loserDbResult  as any).rows || [])[0];
+
+    if (!winnerDbRow || !loserDbRow) {
+      return res.status(400).json({
+        error: `Could not find users_extension entry: winner=${winnerName} (found=${!!winnerDbRow}), loser=${loserName} (found=${!!loserDbRow})`,
+      });
+    }
+
+    // Build replay file URL
+    const gameDate = new Date(replay.end_time);
+    const yyyy = gameDate.getFullYear();
+    const mm = String(gameDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(gameDate.getDate()).padStart(2, '0');
+    const cleanFilename = (replay.replay_filename || '').replace(/\.bz2$/, '');
+    const replayFilePath = `https://replays.wesnoth.org/${replay.wesnoth_version}/${yyyy}/${mm}/${dd}/${cleanFilename}.bz2`;
+
+    // Determine factions and map from summary
+    const resolvedFactions: Record<string, string> = summary.resolvedFactions || {};
+    const winnerFaction = resolvedFactions[`side${winnerForumData?.side_number}`] || 'Unknown';
+    const loserFaction  = resolvedFactions[`side${loserForumData?.side_number}`]  || 'Unknown';
+    const map = summary.resolvedMap || 'Unknown';
+
+    const result = await createMatch({
+      winnerId:                     winnerDbRow.id,
+      loserId:                      loserDbRow.id,
+      winnerFaction,
+      loserFaction,
+      map,
+      winnerSide:                   winnerForumData?.side_number ?? 1,
+      replayRowId:                  replay.id,
+      replayFilePath,
+      matchType:                    summary.matchType || 'ranked',
+      linkedTournamentId:           summary.linkedTournamentId   || null,
+      linkedTournamentRoundMatchId: replay.tournament_round_match_id || null,
+      gameId:                       replay.game_id,
+      wesnothVersion:               replay.wesnoth_version,
+      instanceUuid:                 replay.instance_uuid,
+    });
+
+    if (!result.success) {
+      console.error('[CONFIRM-WINNER] Match creation failed:', result.error);
+      return res.status(500).json({ error: `Failed to create match: ${result.error}` });
+    }
+
+    // Mark replay as completed
+    await query(
+      `UPDATE replays SET parse_status = 'completed', updated_at = NOW() WHERE id = ?`,
+      [replayId]
+    );
+
+    console.log(`✅ [CONFIRM-WINNER] Match ${result.matchId} created by player ${nickname}`);
+
+    res.json({
+      status: 'success',
+      message: 'Match confirmed and created',
+      replay_id: replayId,
+      match_id: result.matchId,
+      confirmed_as_winner: iWon,
+    });
+  } catch (error) {
+    console.error('Error confirming winner:', error);
+    res.status(500).json({ error: 'Failed to confirm winner' });
+  }
 });
 
 /**
  * POST /api/replays/:replayId/discard
- * 
- * Player discards a replay (incomplete match, paused and continued another day, etc)
- * Sets integration_confidence = 0 to mark as discarded
- * No match will be created
- * 
- * Body:
- * {
- *   playerId: int,
- *   reason?: string (optional, for logging)
- * }
+ *
+ * Player discards a pending-confirmation replay (e.g. paused match, will replay later).
+ * Sets parse_status='rejected'.
  */
-router.post('/:replayId/discard', async (req, res) => {
-    try {
-        const replayId = req.params.replayId;
-        const { playerId, reason } = req.body;
+router.post('/:replayId/discard', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const replayId = req.params.replayId;
+    const userId = req.userId;
 
-        if (!playerId) {
-            return res.status(400).json({
-                error: 'Missing required field: playerId'
-            });
-        }
-
-        // Verify replay exists and is pending confirmation
-        const replayResult = await query(
-            `SELECT id, parsed, need_integration, integration_confidence, match_id
-             FROM replays 
-             WHERE id = ?`,
-            [replayId]
-        );
-
-        const replayRows = (replayResult as any).rows || (replayResult as unknown as any[]);
-        if (!replayRows || replayRows.length === 0) {
-            return res.status(404).json({ error: 'Replay not found' });
-        }
-
-        const replay = replayRows[0];
-        if (replay.integration_confidence === 0) {
-            return res.status(400).json({
-                error: 'This replay has already been discarded'
-            });
-        }
-
-        if (replay.match_id) {
-            return res.status(400).json({
-                error: 'This replay has already been reported as a match and cannot be discarded'
-            });
-        }
-
-        // Verify player participated in this replay
-        const participantResult = await query(
-            `SELECT player_id FROM replay_participants 
-             WHERE replay_id = ? AND player_id = ?`,
-            [replayId, playerId]
-        );
-
-        const participantRows = (participantResult as any).rows || (participantResult as unknown as any[]);
-        if (!participantRows || participantRows.length === 0) {
-            return res.status(403).json({
-                error: 'Player did not participate in this replay'
-            });
-        }
-
-        // Discard: set integration_confidence = 0
-        await query(
-            `UPDATE replays 
-             SET integration_confidence = 0
-             WHERE id = ?`,
-            [replayId]
-        );
-
-        // Log discard reason if provided
-        if (reason) {
-            console.log(`[REPLAY DISCARD] Replay ${replayId} discarded by player ${playerId}: ${reason}`);
-        }
-
-        res.json({
-            status: 'success',
-            message: 'Replay discarded (will not be reported as a match)',
-            replay_id: replayId,
-            player_id: playerId
-        });
-    } catch (error) {
-        console.error('Error discarding replay:', error);
-        res.status(500).json({ error: 'Failed to discard replay' });
+    const replayResult = await query(
+      `SELECT id, parse_status, parse_summary FROM replays WHERE id = ?`,
+      [replayId]
+    );
+    const replayRows = (replayResult as any).rows || [];
+    if (replayRows.length === 0) {
+      return res.status(404).json({ error: 'Replay not found' });
     }
+    const replay = replayRows[0];
+
+    if (replay.parse_status !== 'parsed') {
+      return res.status(400).json({ error: 'Replay is not awaiting confirmation' });
+    }
+
+    // Verify the requesting user is a participant
+    const userResult = await query(
+      `SELECT nickname FROM users_extension WHERE id = ?`,
+      [userId]
+    );
+    const userNickname = ((userResult as any).rows || [])[0]?.nickname;
+    const summary = typeof replay.parse_summary === 'string'
+      ? JSON.parse(replay.parse_summary)
+      : replay.parse_summary;
+
+    const isParticipant = summary?.forumPlayers?.some(
+      (p: any) => p.user_name?.toLowerCase() === userNickname?.toLowerCase()
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ error: 'You did not participate in this replay' });
+    }
+
+    await query(
+      `UPDATE replays SET parse_status = 'rejected', updated_at = NOW() WHERE id = ?`,
+      [replayId]
+    );
+
+    res.json({ status: 'success', message: 'Replay discarded', replay_id: replayId });
+  } catch (error) {
+    console.error('Error discarding replay:', error);
+    res.status(500).json({ error: 'Failed to discard replay' });
+  }
 });
 
 export default router;
+
