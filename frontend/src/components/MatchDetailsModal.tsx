@@ -151,7 +151,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
                       <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Replay</td>
                       <td colSpan={2} className="px-4 py-3 text-center">
                         <a
-                          href={match.replay_file_path}
+                          href={match.replay_url || match.replay_file_path}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-block px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-colors"

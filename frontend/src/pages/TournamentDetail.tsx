@@ -1569,7 +1569,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         </button>
                                         {match.replay_file_path ? (
                                           <a
-                                            href={match.replay_file_path}
+                                            href={match.replay_url || match.replay_file_path}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"

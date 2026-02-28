@@ -367,7 +367,7 @@ const Home: React.FC = () => {
                           <td className="px-4 py-3">
                             {match.replay_file_path && (
                               <a
-                                href={match.replay_file_path}
+                                href={match.replay_url || match.replay_file_path}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-block px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs transition-colors"
