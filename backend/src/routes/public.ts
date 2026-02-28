@@ -597,20 +597,22 @@ router.get('/matches', async (req, res) => {
 
     // Get current user info from token if authenticated
     let currentUserNickname = '';
+    let currentUserIsAdmin = false;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.substring(7);
         const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
         if (decoded.userId) {
-          // Get user's nickname
+          // Get user's nickname and admin status
           const userResult = await query(
-            `SELECT nickname FROM users_extension WHERE id = ?`,
+            `SELECT nickname, is_admin FROM users_extension WHERE id = ?`,
             [decoded.userId]
           );
           if (userResult.rows.length > 0) {
             currentUserNickname = userResult.rows[0].nickname?.toLowerCase() || '';
-            console.log(`✅ [PUBLIC/MATCHES] Authenticated user: ${userResult.rows[0].nickname}`);
+            currentUserIsAdmin = !!(userResult.rows[0].is_admin);
+            console.log(`✅ [PUBLIC/MATCHES] Authenticated user: ${userResult.rows[0].nickname} isAdmin=${currentUserIsAdmin}`);
           }
         }
       } catch (tokenError) {
@@ -656,8 +658,9 @@ router.get('/matches', async (req, res) => {
             const player1Name = players[0]?.user_name?.toLowerCase() || '';
             const player2Name = players[1]?.user_name?.toLowerCase() || '';
 
-            // SECURITY: only show to involved players
-            if (currentUserNickname !== player1Name && currentUserNickname !== player2Name) {
+            // SECURITY: only show to involved players OR admins
+            const isInvolved = currentUserNickname === player1Name || currentUserNickname === player2Name;
+            if (!isInvolved && !currentUserIsAdmin) {
               continue;
             }
 
@@ -707,7 +710,8 @@ router.get('/matches', async (req, res) => {
               parse_summary: parseSummary,
               replay_filename: r.replay_filename,
               game_name: r.game_name,
-              cancel_requested_by: r.cancel_requested_by || null
+              cancel_requested_by: r.cancel_requested_by || null,
+              is_admin_view: currentUserIsAdmin && !isInvolved
             };
 
             console.log(`📋 [REPLAY] ${replayData.winner_nickname} (${winner_faction}) vs ${replayData.loser_nickname} (${loser_faction}) on ${map}`);
