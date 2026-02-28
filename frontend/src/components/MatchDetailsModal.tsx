@@ -150,8 +150,11 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
                     <tr className="border-b border-gray-200 hover:bg-gray-50">
                       <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Replay</td>
                       <td colSpan={2} className="px-4 py-3 text-center">
-                        <button 
-                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-colors"
+                        <a
+                          href={match.replay_file_path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm transition-colors"
                           onClick={() => {
                             if (onDownloadReplay && (match.id || match.match_id)) {
                               onDownloadReplay(match.match_id || null, match.replay_file_path, match.id);
@@ -160,7 +163,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
                           title={`Downloads: ${match.replay_downloads || 0}`}
                         >
                           ⬇️ Download ({match.replay_downloads || 0})
-                        </button>
+                        </a>
                       </td>
                     </tr>
                   )}

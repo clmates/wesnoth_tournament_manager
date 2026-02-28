@@ -1568,13 +1568,16 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                           {t('details_btn')}
                                         </button>
                                         {match.replay_file_path ? (
-                                          <button
+                                          <a
+                                            href={match.replay_file_path}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
                                             className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
                                             onClick={() => handleDownloadReplay(match.match_id, match.replay_file_path, match.id)}
                                             title={`${t('downloads')}: ${match.replay_downloads || 0}`}
                                           >
                                             ⬇️
-                                          </button>
+                                          </a>
                                         ) : (
                                           <span className="text-xs text-gray-500">{t('no_replay')}</span>
                                         )}

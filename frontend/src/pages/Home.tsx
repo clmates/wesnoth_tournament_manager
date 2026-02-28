@@ -366,14 +366,16 @@ const Home: React.FC = () => {
                           
                           <td className="px-4 py-3">
                             {match.replay_file_path && (
-                              <button 
-                                className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs transition-colors"
+                              <a
+                                href={match.replay_file_path}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs transition-colors"
                                 onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
                                 title={`${t('downloads')}: ${match.replay_downloads || 0}`}
-                                type="button"
                               >
                                 ⬇️
-                              </button>
+                              </a>
                             )}
                           </td>
                         </tr>

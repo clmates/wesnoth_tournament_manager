@@ -478,13 +478,16 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                       {t('details_btn')}
                     </button>
                     {match.replay_file_path ? (
-                      <button
+                      <a
+                        href={match.replay_file_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
                         onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
                         title={`${t('downloads')}: ${match.replay_downloads || 0}`}
                       >
                         ⬇️ {match.replay_downloads || 0}
-                      </button>
+                      </a>
                     ) : (
                       <span className="px-2 py-1 text-xs text-gray-500">{t('no_replay')}</span>
                     )}
