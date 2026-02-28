@@ -2841,6 +2841,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
     const currentUserNickname = currentUserResult.rows?.[0]?.nickname?.toLowerCase() || '';
     const currentUserIsAdmin = !!(currentUserResult.rows?.[0]?.is_admin);
 
+    console.log(`🔍 [MATCHES DEBUG] userId=${req.userId} nickname=${currentUserNickname} isAdmin=${currentUserIsAdmin} replayRows=${replayResult.rows?.length ?? 'undefined'}`);
+
     // Format confidence=1 replays as match-like objects - BUT ONLY IF USER IS INVOLVED
     const formattedReplays = [];
     
