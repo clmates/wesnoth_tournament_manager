@@ -180,19 +180,19 @@ export class ParseNewReplaysRefactorized {
             const replayAge = Date.now() - new Date(replay.created_at).getTime();
             const ageHours = replayAge / (1000 * 60 * 60);
 
-            if (ageHours < 24) {
-              // Mark as pending for retry
-              console.log(`   File not found but < 24h old → Mark as pending`);
+            if (ageHours < 12) {
+              // Leave as 'new' so the next parse cycle will retry automatically
+              console.log(`   ⏳ File not found but < 12h old → Leave as 'new' for retry (age: ${ageHours.toFixed(1)}h)`);
               await query(
-                `UPDATE replays SET parse_status = 'pending', parse_error_message = ? WHERE id = ?`,
-                [errorMsg, replay.id]
+                `UPDATE replays SET parse_error_message = ? WHERE id = ?`,
+                [`File not found, waiting (${ageHours.toFixed(1)}h elapsed)`, replay.id]
               );
             } else {
-              // Mark as error
-              console.log(`   File not found and >= 24h old → Mark as error`);
+              // 12h elapsed, discard
+              console.log(`   🗑️  File not found and >= 12h old → Discarding (age: ${ageHours.toFixed(1)}h)`);
               await query(
-                `UPDATE replays SET parse_status = 'error', parsed = 1, parse_error_message = ? WHERE id = ?`,
-                [errorMsg, replay.id]
+                `UPDATE replays SET parse_status = 'rejected', parsed = 1, parse_error_message = ? WHERE id = ?`,
+                [`File never appeared after ${ageHours.toFixed(1)}h — discarded`, replay.id]
               );
             }
           } else {
