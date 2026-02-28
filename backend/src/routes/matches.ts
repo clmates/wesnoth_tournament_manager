@@ -2833,12 +2833,13 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 
     console.log(`📊 [MATCHES] Found ${result.rows.length} matches and ${replayResult.rows?.length || 0} confidence=1 replays`);
 
-    // Get current user's nickname once (for security check)
+    // Get current user's nickname and admin status once (for security check)
     const currentUserResult = await query(
-      `SELECT nickname FROM users_extension WHERE id = ?`,
+      `SELECT nickname, is_admin FROM users_extension WHERE id = ?`,
       [req.userId]
     );
     const currentUserNickname = currentUserResult.rows?.[0]?.nickname?.toLowerCase() || '';
+    const currentUserIsAdmin = !!(currentUserResult.rows?.[0]?.is_admin);
 
     // Format confidence=1 replays as match-like objects - BUT ONLY IF USER IS INVOLVED
     const formattedReplays = [];
@@ -2856,9 +2857,10 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
         const player1Name = players[0]?.user_name?.toLowerCase() || '';
         const player2Name = players[1]?.user_name?.toLowerCase() || '';
 
-        // SECURITY: Only show this replay to involved players
-        if (currentUserNickname !== player1Name && currentUserNickname !== player2Name) {
-          continue; // User not involved in this replay
+        // SECURITY: Only show this replay to involved players OR admins
+        const isInvolved = currentUserNickname === player1Name || currentUserNickname === player2Name;
+        if (!isInvolved && !currentUserIsAdmin) {
+          continue;
         }
 
         // Get victory condition info
@@ -2897,7 +2899,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
           parse_summary: parseSummary,
           replay_filename: r.replay_filename,
           game_name: r.game_name,
-          cancel_requested_by: r.cancel_requested_by || null
+          cancel_requested_by: r.cancel_requested_by || null,
+          is_admin_view: currentUserIsAdmin && !isInvolved
         });
       } catch (error) {
         console.error('Error formatting replay:', error);
@@ -3256,6 +3259,54 @@ router.post('/:matchId/reject-report', authMiddleware, async (req: AuthRequest, 
 });
 
 // Routes are now properly ordered with specific paths first
+
+/**
+ * POST /api/matches/admin-discard-replay
+ * Admin-only: immediately discard a confidence=1 replay.
+ * Players are NOT asked for confirmation; replay goes straight to parse_status='rejected'.
+ * Body: { replayId: string }
+ */
+router.post('/admin-discard-replay', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { replayId } = req.body;
+    if (!replayId) {
+      return res.status(400).json({ error: 'Missing required field: replayId' });
+    }
+
+    // Verify admin
+    const adminResult = await query(
+      `SELECT is_admin FROM users_extension WHERE id = ?`,
+      [req.userId]
+    );
+    if (!adminResult.rows?.[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Verify replay exists and is awaiting confirmation
+    const replayResult = await query(
+      `SELECT id, parse_status, integration_confidence FROM replays WHERE id = ?`,
+      [replayId]
+    );
+    const replay = replayResult.rows?.[0];
+    if (!replay) {
+      return res.status(404).json({ error: 'Replay not found' });
+    }
+    if (replay.parse_status !== 'parsed' || replay.integration_confidence !== 1) {
+      return res.status(400).json({ error: 'Replay is not awaiting confirmation' });
+    }
+
+    await query(
+      `UPDATE replays SET parse_status = 'rejected', parsed = 1, updated_at = NOW() WHERE id = ?`,
+      [replayId]
+    );
+
+    console.log(`🗑️  [ADMIN DISCARD] Replay ${replayId} discarded by admin ${req.userId}`);
+    res.json({ status: 'success', message: 'Replay discarded by admin', replay_id: replayId });
+  } catch (error) {
+    console.error('Error in admin-discard-replay:', error);
+    res.status(500).json({ error: 'Failed to discard replay' });
+  }
+});
 
 export default router;
 export { performGlobalStatsRecalculation };

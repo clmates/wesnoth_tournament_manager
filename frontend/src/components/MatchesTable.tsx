@@ -41,7 +41,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   onReplayReported,
 }) => {
   const { t } = useTranslation();
-  const { isAuthenticated, userId, user } = useAuthStore();
+  const { isAuthenticated, userId, user, isAdmin } = useAuthStore();
   const currentUserNickname = user?.nickname?.toLowerCase() || '';
 
   const [sortColumn, setSortColumn] = React.useState<SortColumn>('');
@@ -125,6 +125,17 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
     
     if (onReplayReported && selectedReplay) {
       onReplayReported(selectedReplay.id);
+    }
+  };
+
+  const handleAdminDiscardReplay = async (replayId: string) => {
+    if (!window.confirm('⚠️ Admin discard: this replay will be permanently rejected. Players will NOT be asked for confirmation. Continue?')) return;
+    try {
+      await matchService.adminDiscardReplay(replayId);
+      if (onReplayReported) onReplayReported(replayId);
+    } catch (err) {
+      console.error('Admin discard failed:', err);
+      alert('Failed to discard replay. Please try again.');
     }
   };
 
@@ -275,47 +286,64 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           🚫 {t('label_cancel_requested') || 'Cancel requested'} — {t('label_waiting_other_player') || 'waiting for other player'}
                         </div>
                       )}
-                      <div className="text-xs text-yellow-700 mb-2 font-semibold">
-                        Who won this match?
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        <button
-                          className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                            showConfirmationModal
-                              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                              : 'bg-green-500 text-white hover:bg-green-600'
-                          }`}
-                          onClick={() => handleReportConfidence1Replay(match, 'I won')}
-                          disabled={showConfirmationModal}
-                          title={`I won: ${player1Name} beats ${player2Name}`}
-                        >
-                          ✓ I won
-                        </button>
-                        <button
-                          className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                            showConfirmationModal
-                              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                              : 'bg-red-500 text-white hover:bg-red-600'
-                          }`}
-                          onClick={() => handleReportConfidence1Replay(match, 'I lost')}
-                          disabled={showConfirmationModal}
-                          title={`I lost: ${player2Name} beats ${player1Name}`}
-                        >
-                          ✗ I lost
-                        </button>
-                        <button
-                          className={`px-3 py-1 rounded text-xs font-semibold transition ${
-                            showConfirmationModal
-                              ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                              : 'bg-gray-500 text-white hover:bg-gray-600'
-                          }`}
-                          onClick={() => handleReportConfidence1Replay(match, 'cancel')}
-                          disabled={showConfirmationModal}
-                          title="Game not finished (Save & Exit)"
-                        >
-                          🚫 {t('button_cancel_replay') || 'Discard Match'}
-                        </button>
-                      </div>
+                      {match.is_admin_view ? (
+                        // Admin view: only discard
+                        <div className="space-y-1">
+                          <div className="text-xs text-orange-700 font-semibold">👁️ Admin view</div>
+                          <button
+                            className="px-3 py-1 rounded text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition"
+                            onClick={() => handleAdminDiscardReplay(match.id)}
+                            title="Discard this replay (admin action, no player confirmation required)"
+                          >
+                            🗑️ Discard
+                          </button>
+                        </div>
+                      ) : (
+                        // Player view: I won / I lost / Discard
+                        <>
+                          <div className="text-xs text-yellow-700 mb-2 font-semibold">
+                            Who won this match?
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                                showConfirmationModal
+                                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                  : 'bg-green-500 text-white hover:bg-green-600'
+                              }`}
+                              onClick={() => handleReportConfidence1Replay(match, 'I won')}
+                              disabled={showConfirmationModal}
+                              title={`I won: ${player1Name} beats ${player2Name}`}
+                            >
+                              ✓ I won
+                            </button>
+                            <button
+                              className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                                showConfirmationModal
+                                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                  : 'bg-red-500 text-white hover:bg-red-600'
+                              }`}
+                              onClick={() => handleReportConfidence1Replay(match, 'I lost')}
+                              disabled={showConfirmationModal}
+                              title={`I lost: ${player2Name} beats ${player1Name}`}
+                            >
+                              ✗ I lost
+                            </button>
+                            <button
+                              className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                                showConfirmationModal
+                                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                  : 'bg-gray-500 text-white hover:bg-gray-600'
+                              }`}
+                              onClick={() => handleReportConfidence1Replay(match, 'cancel')}
+                              disabled={showConfirmationModal}
+                              title="Game not finished (Save & Exit)"
+                            >
+                              🚫 {t('button_cancel_replay') || 'Discard Match'}
+                            </button>
+                          </div>
+                        </>
+                      )}
                       <div className="mt-2 pt-2 border-t border-yellow-200">
                         <a
                           href={match.replay_url || match.replay_file_path || '#'}
