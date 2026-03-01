@@ -456,12 +456,8 @@ export class ParseNewReplaysRefactorized {
     if (!parseSummary.forumAddon) {
       parseSummary.matchType = 'rejected';
       console.log(`   ❌ No Ranked addon in forum → REJECTED`);
-    } else if (parseSummary.replayRankedMode && parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
-      // Ranked assets
-      parseSummary.matchType = 'ranked';
-      console.log(`   ✅ ranked_mode=true, factions ranked, map ranked → RANKED`);
     } else if (parseSummary.replayTournament || gameNameMatchesTournament) {
-      // Tournament match (detected via WML tournament field OR game_name matching)
+      // Tournament check takes priority over generic ranked — check BEFORE ranked branch
       if (parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
         parseSummary.matchType = 'tournament_ranked';
         console.log(`   ✅ Tournament with ranked assets → TOURNAMENT_RANKED`);
@@ -469,6 +465,10 @@ export class ParseNewReplaysRefactorized {
         parseSummary.matchType = 'tournament_unranked';
         console.log(`   ⚠️  Tournament with non-ranked assets → TOURNAMENT_UNRANKED`);
       }
+    } else if (parseSummary.replayRankedMode && parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
+      // Generic ranked match (no tournament detected)
+      parseSummary.matchType = 'ranked';
+      console.log(`   ✅ ranked_mode=true, factions ranked, map ranked → RANKED`);
     } else if (parseSummary.replayRankedMode && !parseSummary.factionsAreRanked && !parseSummary.mapIsRanked) {
       // Non-ranked assets with ranked addon and no tournament
       parseSummary.matchType = 'rejected';
