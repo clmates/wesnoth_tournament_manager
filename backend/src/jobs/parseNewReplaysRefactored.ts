@@ -638,7 +638,7 @@ export class ParseNewReplaysRefactorized {
        WHERE tournament_id = ?
          AND user_id IN (?, ?)
          AND status = 'active'
-         AND participation_status = 'approved'`,
+         AND participation_status = 'accepted'`,
       [tournament.id, winnerUser.id, loserUser.id]
     );
 
