@@ -108,18 +108,7 @@ export class SyncGamesFromForumJob {
       let processedWithAddon = 0;
       let skippedWithoutAddon = 0;
       let skippedDuplicateNicknames = 0;
-      let skippedTurn1Replays = 0;
       let latestGameTimestamp = lastCheckTimestamp; // Track the newest game processed
-
-      // Build a set of game IDs in this batch for Turn_1 detection
-      const gameIdsByInstance = new Map<string, Set<number>>();
-      for (const game of gamesResult) {
-        const key = game.INSTANCE_UUID;
-        if (!gameIdsByInstance.has(key)) {
-          gameIdsByInstance.set(key, new Set());
-        }
-        gameIdsByInstance.get(key)!.add(game.GAME_ID);
-      }
 
       // Process each game
       for (const game of gamesResult) {
@@ -151,18 +140,6 @@ export class SyncGamesFromForumJob {
           if (!hasRankedAddon) {
             skippedWithoutAddon++;
             continue; // Skip silently if no addon (don't log to reduce noise)
-          }
-
-          // Detect temporary replays (Turn 1 scenario selection rounds)
-          // These have "Turn_1_" in the filename and are followed by another game with game_id+1
-          if (game.replay_filename.includes('Turn_1_')) {
-            // Check if the next game_id exists in THIS batch of games
-            const nextGameIds = gameIdsByInstance.get(instanceUuid);
-            if (nextGameIds && nextGameIds.has(gameId + 1)) {
-              console.log(`⚠️  [FORUM SYNC] Skipped (temporary Turn_1 replay): ${game.game_name} - This is a scenario selection round`);
-              skippedTurn1Replays++;
-              continue;
-            }
           }
 
           // Log only games that have the addon
@@ -243,7 +220,7 @@ export class SyncGamesFromForumJob {
         }
       }
 
-      console.log(`✅ [FORUM SYNC] Processed ${processedWithAddon} games with addon, ${skippedWithoutAddon} without addon, ${skippedDuplicateNicknames} with duplicate nicknames, ${skippedTurn1Replays} Turn_1 replays`);
+      console.log(`✅ [FORUM SYNC] Processed ${processedWithAddon} games with addon, ${skippedWithoutAddon} without addon, ${skippedDuplicateNicknames} with duplicate nicknames`);
       console.log(`❌ [FORUM SYNC] ${this.errorCount} errors during processing`);
 
       // Update last check timestamp with the latest game timestamp

@@ -2345,19 +2345,16 @@ router.post('/admin-discard-replay', authMiddleware, async (req: AuthRequest, re
 
     // Verify replay exists and is awaiting confirmation
     const replayResult = await query(
-      `SELECT id, parse_status, integration_confidence FROM replays WHERE id = ?`,
+      `SELECT id, parse_status, integration_confidence, need_integration FROM replays WHERE id = ?`,
       [replayId]
     );
     const replay = replayResult.rows?.[0];
-    if (!replay) {
-      return res.status(404).json({ error: 'Replay not found' });
-    }
-    if (replay.parse_status !== 'parsed' || replay.integration_confidence !== 1) {
+    if (!replay || replay.need_integration !== 1) {
       return res.status(400).json({ error: 'Replay is not awaiting confirmation' });
     }
 
     await query(
-      `UPDATE replays SET parse_status = 'rejected', parsed = 1, updated_at = NOW() WHERE id = ?`,
+      `UPDATE replays SET parse_status = 'rejected', need_integration = 0, parsed = 1, updated_at = NOW() WHERE id = ?`,
       [replayId]
     );
 

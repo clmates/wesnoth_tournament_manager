@@ -105,11 +105,17 @@ export class ParseNewReplaysRefactorized {
           const parseSummary = await this.parseReplayForumFirst(replay);
 
           if (parseSummary.matchType === 'rejected') {
-            console.log(`❌ [PARSE] Match rejected → Update replay as rejected`);
-            await query(
-              `UPDATE replays SET parse_status = 'rejected', parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
-              [parseSummary.confidenceLevel, JSON.stringify(parseSummary), replay.id]
-            );
+            // Turn_1 replays that are rejected have no value — delete them entirely
+            if (replay.replay_filename.includes('Turn_1_')) {
+              console.log(`🗑️  [PARSE] Turn_1 replay rejected → Deleting from replays table`);
+              await query(`DELETE FROM replays WHERE id = ?`, [replay.id]);
+            } else {
+              console.log(`❌ [PARSE] Match rejected → Update replay as rejected`);
+              await query(
+                `UPDATE replays SET parse_status = 'rejected', need_integration = 0, parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
+                [parseSummary.confidenceLevel, JSON.stringify(parseSummary), replay.id]
+              );
+            }
             errorCount++;
             continue;
           }
@@ -120,7 +126,7 @@ export class ParseNewReplaysRefactorized {
             if (!linked) {
               console.log(`❌ [PARSE] Tournament link failed → REJECTED`);
               await query(
-                `UPDATE replays SET parse_status = 'rejected', parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
+                `UPDATE replays SET parse_status = 'rejected', need_integration = 0, parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
                 [parseSummary.confidenceLevel, JSON.stringify(parseSummary), replay.id]
               );
               errorCount++;
