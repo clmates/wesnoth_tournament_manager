@@ -1250,7 +1250,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                            t('option_pending')}
                                         </span>
                                                                                 {/* Inline replay confirmation for auto-detected matches */}
-                                        {match.pending_replay_id && match.pending_replay_need_integration === 1 && !match.winner_id && (() => {
+                                        {match.pending_replay_id && !!match.pending_replay_need_integration && !match.winner_id && (() => {
                                           const summary = (() => { try { return JSON.parse(match.pending_replay_summary); } catch { return null; } })();
                                           const replayObj = {
                                             id: match.pending_replay_id,

@@ -2052,7 +2052,7 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
         LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
         LEFT JOIN tournament_teams tt_winner ON trm.winner_id = tt_winner.id
-        LEFT JOIN replays pr ON (pr.tournament_round_match_id = trm.id OR JSON_UNQUOTE(JSON_EXTRACT(pr.parse_summary, '$.linkedTournamentRoundMatchId')) = trm.id) AND pr.parse_status = 'parsed' AND pr.need_integration = 1
+        LEFT JOIN replays pr ON (pr.tournament_round_match_id = trm.id OR JSON_UNQUOTE(JSON_EXTRACT(pr.parse_summary, '$.linkedTournamentRoundMatchId')) = trm.id) AND pr.parse_status = 'parsed'
       `;
     } else {
       // 1v1 mode: get player names from users (original behavior)
@@ -2088,7 +2088,7 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
         LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
         LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
         LEFT JOIN users_extension uw ON trm.winner_id = uw.id
-        LEFT JOIN replays pr ON (pr.tournament_round_match_id = trm.id OR JSON_UNQUOTE(JSON_EXTRACT(pr.parse_summary, '$.linkedTournamentRoundMatchId')) = trm.id) AND pr.parse_status = 'parsed' AND pr.need_integration = 1
+        LEFT JOIN replays pr ON (pr.tournament_round_match_id = trm.id OR JSON_UNQUOTE(JSON_EXTRACT(pr.parse_summary, '$.linkedTournamentRoundMatchId')) = trm.id) AND pr.parse_status = 'parsed'
       `;
     }
 
