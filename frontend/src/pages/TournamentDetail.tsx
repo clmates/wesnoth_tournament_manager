@@ -12,16 +12,6 @@ import StarDisplay from '../components/StarDisplay';
 import { ReplayConfirmationModal } from '../components/ReplayConfirmationModal';
 
 // Get API URL for direct backend calls - matches RecentGamesTable pattern
-const getApiUrl = (): string => {
-  if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-    return 'https://wesnothtournamentmanager-main.up.railway.app/api';
-  } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-    return 'https://wesnothtournamentmanager-production.up.railway.app/api';
-  } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-    return 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
-  }
-  return '/api';
-};
 
 interface Tournament {
   id: string;
@@ -410,13 +400,12 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   try {
     if (!replayFilePath) return;
     const filename = replayFilePath.split('/').pop() || `replay_${matchId || 'tournament'}`;
-    const API_URL = getApiUrl();
     
     // Increment download counts
     if (matchId) {
       // For ranked tournaments (with match_id), increment from matches endpoint
       try {
-        await fetch(`${API_URL}/matches/${matchId}/replay/download-count`, { method: 'POST' });
+        await api.post(`/matches/${matchId}/replay/download-count`);
       } catch (e) {
         console.error('Failed to increment download count:', e);
       }
@@ -424,7 +413,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       // For unranked/team tournaments (no match_id), increment from tournament endpoint
       if (tournamentMatchId) {
         try {
-          await fetch(`${API_URL}/public/tournament-matches/${tournamentMatchId}/replay/download-count`, { method: 'POST' });
+          await api.post(`/public/tournament-matches/${tournamentMatchId}/replay/download-count`);
         } catch (e) {
           console.error('Failed to increment tournament download count:', e);
         }
@@ -582,13 +571,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   const fetchPendingTournamentReplays = async () => {
     if (!id) return;
     try {
-      const API_BASE = getApiUrl();
-      const res = await fetch(`${API_BASE}/public/tournaments/${id}/pending-replays`);
-      if (res.ok) {
-        const data = await res.json();
-        setPendingTournamentReplays(data.replays || []);
-        console.log(`🎮 [TOURNAMENT-REPLAYS] Found ${data.replays?.length || 0} confidence=1 replays`);
-      }
+      const res = await api.get(`/public/tournaments/${id}/pending-replays`);
+      setPendingTournamentReplays(res.data.replays || []);
+      console.log(`🎮 [TOURNAMENT-REPLAYS] Found ${res.data.replays?.length || 0} confidence=1 replays`);
     } catch (err) {
       console.error('Error fetching pending tournament replays:', err);
     }

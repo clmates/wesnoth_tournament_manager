@@ -1,20 +1,8 @@
 import axios from 'axios';
 
-// Determine API URL based on environment at runtime (not build time)
 const getApiBaseUrl = (): string => {
-  if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-    return 'https://wesnothtournamentmanager-main.up.railway.app/api';
-  } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-    return 'https://wesnothtournamentmanager-production.up.railway.app/api';
-  } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-    return 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
-  } else if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1') {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-    return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
-  } else {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-    return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
-  }
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  return apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
 };
 
 const API_BASE_URL = getApiBaseUrl();

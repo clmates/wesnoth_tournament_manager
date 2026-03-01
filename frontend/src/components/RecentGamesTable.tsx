@@ -5,18 +5,6 @@ import MatchConfirmationModal from './MatchConfirmationModal';
 import { matchService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
-// Get API URL for direct backend calls
-let API_URL: string;
-if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-} else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
-} else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-  API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
-} else {
-  API_URL = '/api';
-}
-
 interface RecentGamesTableProps {
   matches: any[];
   currentPlayerId: string;

@@ -129,17 +129,11 @@ export async function parseReplayFile(file: File): Promise<ReplayData> {
       }
       const fileData = btoa(binaryString);
       
-      // Determine backend URL based on environment
-      let backendUrl = '/api/matches/preview-replay-base64';
-      if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-        backendUrl = 'https://wesnothtournamentmanager-main.up.railway.app/api/matches/preview-replay-base64';
-      } else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-        backendUrl = 'https://wesnothtournamentmanager-production.up.railway.app/api/matches/preview-replay-base64';
-      } else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-        backendUrl = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api/matches/preview-replay-base64';
-      } else if (window.location.hostname === 'wesnoth.playranked.org') {
-        backendUrl = 'https://wesnothtournamentmanager-production.up.railway.app/api/matches/preview-replay-base64';
-      }
+      // Determine backend URL from environment
+      const apiBase = import.meta.env.VITE_API_URL
+        ? (import.meta.env.VITE_API_URL.endsWith('/api') ? import.meta.env.VITE_API_URL : `${import.meta.env.VITE_API_URL}/api`)
+        : '/api';
+      const backendUrl = `${apiBase}/matches/preview-replay-base64`;
       console.log('[REPLAY] Sending BZ2 request to', backendUrl);
       
       const response = await fetch(backendUrl, {

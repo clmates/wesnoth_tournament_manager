@@ -7,31 +7,6 @@ import PlayerLink from '../components/PlayerLink';
 
 // Get API URL for direct backend calls
 // Determine API URL based on frontend hostname and Vite environment variables
-let API_URL: string;
-
-if (window.location.hostname === 'main.wesnoth-tournament-manager.pages.dev') {
-  // Main deployment on Cloudflare Pages
-  API_URL = 'https://wesnothtournamentmanager-main.up.railway.app/api';
-  console.log('🔍 Main deployment detected, using main backend');
-} else if (window.location.hostname === 'wesnoth-tournament-manager.pages.dev') {
-  // Production deployment (Cloudflare Pages production)
-  API_URL = 'https://wesnothtournamentmanager-production.up.railway.app/api';
-  console.log('🔍 Production deployment detected');
-} else if (window.location.hostname.includes('feature-unranked-tournaments')) {
-  // PR preview on Cloudflare (feature-unranked-tournaments.wesnoth-tournament-manager.pages.dev)
-  API_URL = 'https://wesnothtournamentmanager-wesnothtournamentmanager-pr-1.up.railway.app/api';
-  console.log('🔍 PR preview detected, using PR backend');
-} else if (window.location.hostname.includes('localhost') || window.location.hostname === '127.0.0.1') {
-  // Local development
-  API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-  console.log('🔍 Local development detected');
-} else {
-  // Fallback
-  API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-  console.log('🔍 Fallback API URL used');
-}
-
-console.log(`📊 Using API_URL: ${API_URL}`);
 
 // Cache with 5-minute TTL for home page data
 const homeDataCache = new Map<string, { data: any; timestamp: number; userId: string | null }>();
@@ -172,15 +147,8 @@ const Home: React.FC = () => {
           });
         } else {
           try {
-            // Test debug endpoint first
-            const debugUrl = `${API_URL}/public/debug`;
-            console.log(`🔍 Testing debug endpoint: ${debugUrl}`);
             const debugRes = await publicService.getDebug();
             console.log(`📊 Debug response (${debugRes.status}):`, debugRes.data);
-            
-            // Now try player of month
-            const pomUrl = `${API_URL}/public/player-of-month`;
-            console.log(`🔍 Fetching player of month from: ${pomUrl}`);
             
             const pomRes = await publicService.getPlayerOfMonth();
             console.log(`📊 Response status: ${pomRes.status}`);
