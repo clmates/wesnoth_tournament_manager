@@ -103,7 +103,7 @@ export class ParseNewReplaysRefactorized {
         try {
           console.log(`\n🎬 [PARSE] Processing: ${replay.game_name} (Replay ${replay.game_id})`);
 
-          // Early exit: OOS replays are unreliable — delete Turn_1, reject others
+          // Early exit: OOS replays are unreliable (game had sync errors)
           if (replay.oos === 1) {
             if (replay.replay_filename.includes('Turn_1_')) {
               console.log(`🗑️  [PARSE] OOS Turn_1 replay → Deleting`);
