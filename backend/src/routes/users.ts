@@ -14,7 +14,6 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
       `SELECT 
         u.id, 
         u.nickname, 
-        u.email, 
         u.language, 
         u.discord_id, 
         u.elo_rating, 
@@ -29,7 +28,6 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
         u.is_active,
         u.country,
         u.avatar,
-        COALESCE(u.password_must_change, false) as password_must_change,
         pms.avg_elo_change
       FROM users_extension u
       LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
@@ -229,7 +227,7 @@ router.put('/profile/discord', authMiddleware, async (req: AuthRequest, res) => 
     );
 
     const result = await query(
-      `SELECT id, nickname, email, language, discord_id, country, avatar, elo_rating, level, created_at FROM users_extension WHERE id = ?`,
+      `SELECT id, nickname, language, discord_id, country, avatar, elo_rating, level, created_at FROM users_extension WHERE id = ?`,
       [req.userId]
     );
 
@@ -275,7 +273,7 @@ router.put('/profile/update', authMiddleware, async (req: AuthRequest, res) => {
     );
 
     const result = await query(
-      `SELECT id, nickname, email, language, discord_id, country, avatar, elo_rating, level, created_at FROM users_extension WHERE id = ?`,
+      `SELECT id, nickname, language, discord_id, country, avatar, elo_rating, level, created_at FROM users_extension WHERE id = ?`,
       [req.userId]
     );
 

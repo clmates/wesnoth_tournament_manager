@@ -79,7 +79,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             user: { 
               id: response.data.userId,
               nickname: response.data.nickname,
-              email: response.data.email,
             } as User,
             isAdmin: isAdmin,
             userId: response.data.userId

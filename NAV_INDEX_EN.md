@@ -1,117 +1,198 @@
-Navigation-oriented API Index
+# Navigation-oriented API Index
 
 This index is organized following the app navigation (Navbar as entry point). For each screen/page it lists the frontend page, where it appears in nav, and the API endpoints the page calls (with purpose).
 
-Note (canonical locations)
-- Routes are registered in `frontend/src/App.tsx` (React Router `Routes`/`Route`).
-- Navbar links are in `frontend/src/components/Navbar.tsx`.
-- Frontend ↔ backend mapping (query param names, endpoints used by UI) is in `frontend/src/services/api.ts`.
-
-Navbar (global links)
-- Home → `/` (page: `frontend/src/pages/Home.tsx`)
-- Players → `/players` (page: `frontend/src/pages/Players.tsx`)
-- Rankings → `/rankings` (page: `frontend/src/pages/Rankings.tsx`)
-- Tournaments → `/tournaments` (page: `frontend/src/pages/Tournaments.tsx`)
-- Matches → `/matches` (page: `frontend/src/pages/Matches.tsx`)
-- FAQ → `/faq` (page: `frontend/src/pages/FAQ.tsx`)
-- (Auth links) Login/Register → `/login`, `/register`
-- Report Match (authenticated) → `/report-match` (page: `frontend/src/pages/ReportMatch.tsx`)
-- User/Profile → `/user` (page: `frontend/src/pages/User.tsx`)
-
-Home (`/`) — `frontend/src/pages/Home.tsx`
-- Calls:
-  - `userService.getGlobalRanking()` → [GET] `/api/users/ranking/global` — show top players on home (supports `page` and basic ranking filters).
-  - `publicService.getRecentMatches()` → [GET] `/api/public/matches/recent` — show recent matches.
-  - `publicService.getTournaments()` → [GET] `/api/public/tournaments` — show featured / latest tournaments (supports `page` and filters).
-  - `userService.getMatches()` / `matchService` used for lists when authenticated.
-- Purpose: Landing, quick stats, recent activity.
-
-Players (`/players`) — `frontend/src/pages/Players.tsx`
-- Calls:
-  - `publicService.getAllPlayers(page, filters)` → [GET] `/api/public/players` — players directory list (supports `page` and filters: `nickname`, `min_elo`, `max_elo`, `min_matches`, `rated_only`).
-  - `userService.getUserStats(userId)` → [GET] `/api/users/:id/stats` (on player card/profile) — show player stats.
-- Notes: The UI applies client-side debounce to filter inputs and sends requests using the query params above.
-- Purpose: Browse players and inspect a player's recent results.
-
-Rankings (`/rankings`) — `frontend/src/pages/Rankings.tsx`
-- Calls:
-  - `userService.getGlobalRanking(page, filters)` → [GET] `/api/users/ranking/global` — global ranking (supports `page`, `nickname`, `min_elo`, `max_elo`).
-  - Optionally `matchService.getPendingMatches` for additional context.
-- Notes: Filters use the same debounce pattern as Players; the frontend sends filter values as query params.
-- Purpose: Leaderboards.
-
-Tournaments list (`/tournaments`) — `frontend/src/pages/Tournaments.tsx`
-- Calls:
-  - `publicService.getTournaments(page, filters)` → [GET] `/api/public/tournaments` — list tournaments (public view), supports `page`, `name`, `status`, `type` query params.
-  - `tournamentService.getMyTournaments()` → [GET] `/api/tournaments/my` (if viewing own area).
-- Notes: Tournaments page also debounces filter inputs in the UI before sending requests.
-- Purpose: Browse and open tournament details.
-
-Tournament Detail (`/tournament/:id`) — `frontend/src/pages/TournamentDetail.tsx`
-- Calls (on load via `fetchTournamentData`):
-  - `publicService.getTournamentById(id)` → [GET] `/api/public/tournaments/:id` — tournament meta/details.
-  - `publicService.getTournamentParticipants(id)` → [GET] `/api/public/tournaments/:id/participants` — participants list.
-  - `tournamentService.getTournamentMatches(id)` → [GET] `/api/tournaments/:tournamentId/matches` — individual tournament matches.
-  - `tournamentService.getTournamentRoundMatches(id)` → [GET] `/api/tournaments/:tournamentId/round-matches` — Best-Of series summary (player wins, best_of, series_status).
-  - `tournamentService.getTournamentRounds(id)` → [GET] `/api/tournaments/:id/rounds` — rounds metadata.
-- Actions available in UI and corresponding endpoints:
-  - Create tournament (MyTournaments page) → `tournamentService.createTournament()` → [POST] `/api/tournaments`.
-  - Join tournament → `tournamentService.joinTournament(id)` → [POST] `/api/tournaments/:id/join`.
-  - Request join (pending) → `tournamentService.requestJoinTournament(id)` → [POST] `/api/tournaments/:id/request-join`.
-  - Close registration → `tournamentService.updateTournament(id, {status:'registration_closed'})` (calls [PUT] `/api/tournaments/:id`).
-  - Prepare tournament → `tournamentService.updateTournament(id, {status:'prepared'})` (PUT), or `POST /api/tournaments/:id/prepare` (organizer) — server generates rounds.
-  - Start tournament → `tournamentService.startTournament(id)` → [POST] `/api/tournaments/:id/start`.
-  - Accept/Reject participants → [POST] `/api/tournaments/:tournamentId/participants/:participantId/accept` and `/reject`.
-  - Report tournament match (via Report modal) → `matchService.reportMatch` → [POST] `/api/matches/report` or `report-json` endpoint; after report the client calls `tournamentService.recordMatchResult(tournamentId, matchId, {winner_id, reported_match_id})` → [POST] `/api/tournaments/:tournamentId/matches/:matchId/result`.
-  - Determine match winner (organizer) → `tournamentService.determineMatchWinner(tournamentId, matchId, {winner_id})` → [POST] `/api/tournaments/:tournamentId/matches/:matchId/determine-winner`.
-  - Activate next round (organizer) → `tournamentService.updateTournament(...)` or `POST /api/tournaments/:id/next-round`.
-
-My Tournaments (`/my-tournaments`) — `frontend/src/pages/MyTournaments.tsx`
-- Calls:
-  - `tournamentService.getMyTournaments()` → [GET] `/api/tournaments/my` — list of tournaments created by current user.
-  - `tournamentService.createTournament(data)` → [POST] `/api/tournaments` — create new tournament.
-  - `tournamentService.joinTournament(id)` → [POST] `/api/tournaments/:id/join` — join a tournament from list.
-- Purpose: Organizer dashboard and actions.
-
-Matches (`/matches`) — `frontend/src/pages/Matches.tsx`
-- Calls:
-  - `matchService.getAllMatches(page, filters)` → [GET] `/api/matches` (auth required) — list matches (supports paging and filters: `winner`, `loser`, `map`, `status`, `confirmed`).
-  - `matchService.getPendingMatches()` → [GET] `/api/matches/pending/user` — user's pending matches.
-  - Admin pages call `/matches/pending/all` and `/matches/disputed/all`.
-- Purpose: View and confirm/dispute matches.
-
-Report Match (`/report-match`) — `frontend/src/pages/ReportMatch.tsx`
-- Calls:
-  - `userService.getAllUsers()` → [GET] `/api/users/all` — opponent selector.
-  - `matchService.reportMatch(data)` → [POST] `/api/matches/report` — report match (with optional replay file).
-  - Alternatively `POST /api/matches/report-json` is used by scripts/tests.
-- Purpose: Report a non-tournament or tournament match.
-
-Profile / User (`/user`) — `frontend/src/pages/User.tsx` and `Profile.tsx`
-- Calls:
-  - `userService.getProfile()` → [GET] `/api/users/profile` — get current user profile.
-  - `userService.getUserStats(userId)` → [GET] `/api/users/:id/stats` — aggregated stats.
-  - `userService.getRecentMatches(userId)` → [GET] `/api/users/:id/matches` — recent matches.
-  - `userService.updateDiscordId(discordId)` → [PUT] `/api/users/profile/discord` — update discord id.
-
-FAQ (`/faq`) — `frontend/src/pages/FAQ.tsx`
-- Calls:
-  - `publicService.getFaqByLanguage(lang)` → [GET] `/api/public/faq?language=xx` — fetch FAQ entries.
-  - Admin FAQ page uses admin endpoints `/api/admin/faq` for CRUD.
-
-Admin area (`/admin` and subpages) — `frontend/src/pages/Admin*.tsx`
-- Calls (admin-only):
-  - `adminService.getRegistrationRequests()` → [GET] `/api/admin/registration-requests`.
-  - `adminService.approveRegistration(id, password)` → [POST] `/api/admin/registration-requests/:id/approve`.
-  - `adminService.getAllUsers()` → [GET] `/api/admin/users`.
-  - `adminService.recalculateAllStats()` → [POST] `/api/admin/recalculate-all-stats`.
-  - News/FAQ admin pages use `/api/admin/news` and `/api/admin/faq` endpoints for CRUD.
-
-Notes & guidance
-- All frontend service wrappers are in `frontend/src/services/api.ts`. Use it as canonical mapping from UI to back-end endpoints.
-- Pages that expose table filters (Players, Rankings, Tournaments) use a client-side debounce: the UI updates an intermediate input state immediately and applies filters after a short delay — the values are sent as query params to the endpoints above.
-- Most pages call multiple endpoints on load (see `fetchTournamentData` in `TournamentDetail.tsx` for an example of how multiple calls are made in parallel).
-- If you want, I can convert this index into a clickable markdown with direct links to source lines where each call occurs.
+**Canonical locations:**
+- Routes registered in `frontend/src/App.tsx` (React Router `Routes`/`Route`).
+- Navbar links in `frontend/src/components/Navbar.tsx`.
+- Frontend ↔ backend mapping in `frontend/src/services/api.ts` (main service) and `frontend/src/services/statisticsService.ts`, `frontend/src/services/playerStatisticsService.ts`.
 
 ---
-Generated by scanning `frontend/src/services/api.ts`, `frontend/src/App.tsx` and page files in `frontend/src/pages`. If you want a machine-readable spec (OpenAPI/Swagger) or a CSV/JSON export of endpoints/navigation, tell me which format and I will generate it.
+
+## Navbar (global links)
+
+| Link | Route | Page |
+|------|-------|------|
+| Home | `/` | `pages/Home.tsx` |
+| Players | `/players` | `pages/Players.tsx` |
+| Rankings | `/rankings` | `pages/Rankings.tsx` |
+| Statistics | `/statistics` | `pages/Statistics.tsx` |
+| Tournaments | `/tournaments` | `pages/Tournaments.tsx` |
+| Matches | `/matches` | `pages/Matches.tsx` |
+| FAQ | `/faq` | `pages/FAQ.tsx` |
+| User menu → Profile *(auth)* | `/user` | `pages/User.tsx` |
+| Login *(unauth)* | `/login` | `pages/Login.tsx` |
+| Register *(unauth)* | `/register` | `pages/Register.tsx` (→ wesnoth.org) |
+
+Admin panel is accessible at `/admin` for users with `is_admin = 1` in `users_extension`.
+
+---
+
+## Pages
+
+### Home (`/`) — `pages/Home.tsx`
+- `userService.getGlobalRanking()` → `GET /api/users/ranking/global` — top players widget.
+- `publicService.getRecentMatches()` → `GET /api/public/matches/recent` — recent matches widget.
+- `publicService.getTournaments()` → `GET /api/public/tournaments` — featured tournaments widget.
+- `publicService.getPlayerOfMonth()` → `GET /api/public/player-of-month` — player of the month widget.
+- `publicService.getDebug()` → `GET /api/public/debug` — debug info (shown to admins only).
+
+### Players (`/players`) — `pages/Players.tsx`
+- `publicService.getAllPlayers(page, filters)` → `GET /api/public/players` — paginated player directory.
+  - Filters: `nickname`, `min_elo`, `max_elo`, `min_matches`, `rated_only`.
+
+### Player Profile (`/player/:id`) — `pages/PlayerProfile.tsx`
+- `publicService.getPlayerProfile(id)` → `GET /api/public/players/:id` — player details.
+- `userService.getRecentMatches(id)` → `GET /api/users/:id/matches` — recent match history.
+- `playerStatisticsService.getRecentOpponents(id)` → `GET /api/player-statistics/player/:id/recent-opponents` — recent opponents.
+- Components rendered: `PlayerStatsByMap`, `PlayerStatsByFaction`, `PlayerHeadToHead`, `PlayerStatsOverview`.
+
+### Player Stats (`/player/:playerId/stats`) — `pages/PlayerStatsPage.tsx`
+- Aggregated stats for a player, calling `playerStatisticsService.*`.
+- `GET /api/player-statistics/player/:id/global`
+- `GET /api/player-statistics/player/:id/by-map`
+- `GET /api/player-statistics/player/:id/by-faction`
+
+### Rankings (`/rankings`) — `pages/Rankings.tsx`
+- `userService.getGlobalRanking(page, filters)` → `GET /api/users/ranking/global` — global ELO ranking.
+  - Filters: `page`, `nickname`, `min_elo`, `max_elo`.
+
+### Statistics (`/statistics`) — `pages/Statistics.tsx`
+Uses `statisticsService` from `services/statisticsService.ts`:
+- `GET /api/statistics/config` — faction/map config (active items).
+- `GET /api/statistics/faction-by-map` — faction win rates by map.
+- `GET /api/statistics/matchups` — faction vs faction matchup stats.
+- `GET /api/statistics/faction-global` — global faction win rates.
+- `GET /api/statistics/map-balance` — map balance overview.
+- `GET /api/statistics/history/events` — balance events list.
+- `GET /api/statistics/history/events/:eventId/impact` — impact of a balance event.
+- `GET /api/statistics/history/trend` — win rate trend over time.
+- `GET /api/statistics/history/snapshot` — historical snapshot.
+
+### Tournaments (`/tournaments`) — `pages/Tournaments.tsx`
+- `publicService.getTournaments(page, filters)` → `GET /api/public/tournaments` — public tournament list.
+  - Filters: `page`, `name`, `status`, `type`.
+
+### Tournament Detail (`/tournament/:id`) — `pages/TournamentDetail.tsx`
+On load:
+- `publicService.getTournamentById(id)` → `GET /api/public/tournaments/:id`.
+- `tournamentService.getTournamentStandings(id)` → `GET /api/tournaments/:id/standings`.
+- `tournamentService.getTournamentMatches(id)` → `GET /api/tournaments/:id/matches`.
+- `tournamentService.getTournamentRoundMatches(id)` → `GET /api/tournaments/:id/round-matches`.
+- `tournamentService.getTournamentRounds(id)` → `GET /api/tournaments/:id/rounds`.
+- `fetch /api/public/tournaments/:id/pending-replays` — confidence=1 replays for open matches.
+
+Actions:
+- Join → `POST /api/tournaments/:id/join`.
+- Request join → `POST /api/tournaments/:id/request-join`.
+- Accept/Reject participant → `POST /api/tournaments/:id/participants/:participantId/accept|reject`.
+- Confirm participation → `POST /api/tournaments/:id/participants/:participantId/confirm`.
+- Close registration → `POST /api/tournaments/:id/close-registration`.
+- Prepare → `POST /api/tournaments/:id/prepare`.
+- Start → `POST /api/tournaments/:id/start`.
+- Next round → `POST /api/tournaments/:id/next-round`.
+- Record match result → `POST /api/tournaments/:id/matches/:matchId/result`.
+- Determine winner (organizer) → `POST /api/tournaments/:id/matches/:matchId/determine-winner`.
+- Dispute match → `POST /api/tournaments/:id/matches/:matchId/dispute`.
+- Update tournament → `PUT /api/tournaments/:id`.
+- Report a match in context → `POST /api/matches/report`.
+- Report via confidence-1 replay → `POST /api/matches/report-confidence-1-replay`.
+
+### My Tournaments (`/my-tournaments`) — `pages/MyTournaments.tsx`
+- `tournamentService.getMyTournaments()` → `GET /api/tournaments/my`.
+- `tournamentService.createTournament(data)` → `POST /api/tournaments`.
+- `tournamentService.joinTournament(id)` → `POST /api/tournaments/:id/join`.
+
+### Matches (`/matches`) — `pages/Matches.tsx`
+- `publicService.getAllMatches(page, filters)` → `GET /api/public/matches` — public match list.
+  - Filters: `page`, `player`, `map`, `status`, `confirmed`, `faction`.
+- `publicService.getFactions()` → `GET /api/public/factions` — faction filter options.
+
+### My Matches (`/my-matches`) — `pages/MyMatches.tsx`
+- `matchService.getUserMatches(userId, page, filters)` → `GET /api/users/:id/matches`.
+- `matchService.getAllMatches(page, filters)` → `GET /api/matches`.
+
+### User Profile (`/user`) — `pages/User.tsx`
+- `userService.getProfile()` → `GET /api/users/profile`.
+- `userService.getRecentMatches(userId)` → `GET /api/users/:id/matches`.
+- `playerStatisticsService.getRecentOpponents(userId)` → `GET /api/player-statistics/player/:id/recent-opponents`.
+
+### Edit Profile (`/profile`) — `pages/Profile.tsx`
+- `userService.getProfile()` → `GET /api/users/profile`.
+- `userService.updateProfile(data)` → `PUT /api/users/profile/update` — avatar, country, language.
+- `userService.updateDiscordId(discordId)` → `PUT /api/users/profile/discord`.
+
+### My Stats (`/my-stats`) — `pages/MyStats.tsx`
+- `playerStatisticsService.*` — same endpoints as `/player/:id/stats` but scoped to current user.
+
+### FAQ (`/faq`) — `pages/FAQ.tsx`
+- `publicService.getFaq()` → `GET /api/public/faq` — all FAQ entries, frontend applies language fallback.
+
+### Login (`/login`) — `pages/Login.tsx`
+- `authService.login(nickname, password)` → `POST /api/auth/login`.
+- "Forgot password" link → `https://forum.wesnoth.org/ucp.php?mode=sendpassword` (external, no backend call).
+
+### Register (`/register`) — `pages/Register.tsx`
+- Static redirect page → `https://forum.wesnoth.org/ucp.php?mode=register` (no backend call).
+
+---
+
+## Admin Area (`/admin` and subpages)
+
+All admin routes require `is_admin = 1` in `users_extension`.
+
+### `/admin` — `pages/Admin.tsx` (User Management + Maintenance)
+- `adminService.getAllUsers()` → `GET /api/admin/users`.
+- `adminService.blockUser(id)` → `POST /api/admin/users/:id/block`.
+- `adminService.unlockAccount(id)` → `POST /api/admin/users/:id/unlock` — reset failed login attempts and unblock.
+- `adminService.makeAdmin(id)` → `POST /api/admin/users/:id/make-admin`.
+- `adminService.removeAdmin(id)` → `POST /api/admin/users/:id/remove-admin`.
+- `adminService.deleteUser(id)` → `DELETE /api/admin/users/:id`.
+- `adminService.recalculateAllStats()` → `POST /api/admin/recalculate-all-stats`.
+- `adminService.getMaintenanceStatus()` → `GET /api/admin/maintenance-status`.
+- `adminService.toggleMaintenance(enable, reason)` → `POST /api/admin/toggle-maintenance`.
+
+### `/admin/announcements` — `pages/AdminAnnouncements.tsx`
+- `adminService.getNews()` → `GET /api/admin/news`.
+- `adminService.createNews(data)` → `POST /api/admin/news`.
+- `adminService.updateNews(id, data)` → `PUT /api/admin/news/:id`.
+- `adminService.deleteNews(id)` → `DELETE /api/admin/news/:id`.
+
+### `/admin/faq` — `pages/AdminFAQ.tsx`
+- `adminService.getFaq()` → `GET /api/admin/faq`.
+- `adminService.createFaq(data)` → `POST /api/admin/faq`.
+- `adminService.updateFaq(id, data)` → `PUT /api/admin/faq/:id`.
+- `adminService.deleteFaq(id)` → `DELETE /api/admin/faq/:id`.
+
+### `/admin/tournaments` — `pages/AdminTournaments.tsx`
+- `publicService.getTournaments()` → `GET /api/public/tournaments` — list all tournaments.
+- `tournamentService.deleteTournament(id)` → `DELETE /api/tournaments/:id`.
+
+### `/admin/disputes` — `pages/AdminDisputes.tsx`
+- `matchService.getAllDisputedMatches()` → `GET /api/matches/disputed/all`.
+- `matchService.validateDispute(id)` → `POST /api/matches/admin/:id/dispute` `{action:'validate'}`.
+- `matchService.rejectDispute(id)` → `POST /api/matches/admin/:id/dispute` `{action:'reject'}`.
+
+### `/admin/audit` — `pages/AdminAudit.tsx`
+- `adminService.getAuditLogs(params)` → `GET /api/admin/audit-logs`.
+- `adminService.deleteAuditLogs(logIds)` → `DELETE /api/admin/audit-logs`.
+- `adminService.deleteOldAuditLogs(daysBack)` → `DELETE /api/admin/audit-logs/old`.
+
+### `/admin/maps-and-factions` — `pages/AdminMapsAndFactions.tsx`
+- `GET /api/admin/maps`, `POST /api/admin/maps`, `DELETE /api/admin/maps/:mapId`.
+- `GET /api/admin/factions`, `POST /api/admin/factions`, `DELETE /api/admin/factions/:factionId`.
+
+### `/admin/balance-events` — `pages/AdminBalanceEvents.tsx`
+- `statisticsService.*` from `services/statisticsService.ts`:
+  - `GET /api/statistics/history/events`, `POST /api/statistics/history/events`, `PUT /api/statistics/history/events/:id`.
+  - `GET /api/public/factions`, `GET /api/public/maps`.
+  - `POST /api/admin/recalculate-snapshots` — recalculate all statistics snapshots.
+
+---
+
+## Notes
+
+- All frontend service wrappers are in `frontend/src/services/api.ts` (main), `statisticsService.ts`, and `playerStatisticsService.ts`.
+- Pages with filters (Players, Rankings, Matches, Tournaments) use client-side debounce before sending query params.
+- User accounts are auto-created on first successful login (validated against `phpbb3_users` forum table) or when a ranked replay is processed. No manual registration flow exists in the app.
+- Account management (password reset, email change) is handled entirely by the Wesnoth forum at `https://forum.wesnoth.org`.

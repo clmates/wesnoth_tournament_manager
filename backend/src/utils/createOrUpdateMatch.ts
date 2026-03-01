@@ -267,26 +267,22 @@ async function ensurePlayerExists(playerName: string): Promise<string> {
       `INSERT INTO users_extension (
         id,
         nickname,
-        email,
         is_admin,
         is_active,
         is_blocked,
         elo_rating,
-        total_games,
         total_wins,
         total_losses,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         userId,
         playerName,
-        `${playerName.toLowerCase()}@forum.wesnoth.org`,
         false,
         true,
         false,
         1400, // Default starting elo_rating
-        0,
         0,
         0
       ]

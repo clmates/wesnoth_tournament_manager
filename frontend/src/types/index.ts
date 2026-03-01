@@ -1,7 +1,6 @@
 export interface User {
   id: string;
   nickname: string;
-  email: string;
   language: 'en' | 'es' | 'zh' | 'de' | 'ru';
   discord_id?: string;
   elo_rating: number;

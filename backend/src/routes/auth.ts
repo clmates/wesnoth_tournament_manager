@@ -55,9 +55,9 @@ router.post('/login', async (req, res) => {
       tournamentUserId = generateUUID();
       
       await queryTournament(
-        `INSERT INTO users_extension (id, nickname, email, is_active, is_blocked, locked_until)
-         VALUES (?, ?, ?, 1, 0, NULL)`,
-        [tournamentUserId, normalizedUsername, authResult.email]
+        `INSERT INTO users_extension (id, nickname, is_active, is_blocked, locked_until)
+         VALUES (?, ?, 1, 0, NULL)`,
+        [tournamentUserId, normalizedUsername]
       );
       
       console.log(`✅ [LOGIN] User created in users_extension: ${tournamentUserId}`);
@@ -83,7 +83,6 @@ router.post('/login', async (req, res) => {
       token, 
       username: normalizedUsername,
       userId: tournamentUserId,
-      email: authResult.email
     });
 
   } catch (error) {
@@ -127,7 +126,6 @@ router.get('/validate-token', async (req, res) => {
       valid: true,
       userId: decoded.userId,
       username: phpbbUser.username,
-      email: phpbbUser.user_email,
       nickname: tournamentUserResult.rows[0]?.nickname || phpbbUser.username,
       isAdmin: isAdmin
     });

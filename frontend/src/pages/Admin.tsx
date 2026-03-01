@@ -21,9 +21,6 @@ const AdminUsers: React.FC = () => {
   const [searchNIC, setSearchNIC] = useState('');
   const [recalculatingStats, setRecalculatingStats] = useState(false);
   const [userStatusFilter, setUserStatusFilter] = useState('all'); // 'all', 'active', 'blocked'
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [tempPassword, setTempPassword] = useState('');
-  const [passwordCopied, setPasswordCopied] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceReason, setMaintenanceReason] = useState('');
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
@@ -124,10 +121,6 @@ const AdminUsers: React.FC = () => {
       setMessage('');
 
       switch (actionType) {
-        case 'resendEmail':
-          await adminService.resendVerificationEmail(selectedUser.id);
-          setMessage(t('admin.verification_email_sent', 'Verification email sent successfully'));
-          break;
         case 'block':
           await adminService.blockUser(selectedUser.id);
           setMessage(t('admin.user_blocked', { nickname: selectedUser.nickname }));
@@ -148,14 +141,6 @@ const AdminUsers: React.FC = () => {
           await adminService.deleteUser(selectedUser.id);
           setMessage(t('admin.user_deleted', { nickname: selectedUser.nickname }));
           break;
-        case 'resetPassword':
-          const result = await adminService.forceResetPassword(selectedUser.id);
-          setTempPassword(result.data.tempPassword);
-          // DO NOT clear selectedUser here, we need it for the password modal
-          setShowPasswordModal(true);
-          setShowModal(false);
-          setActionType('');
-          return; // Exit early to skip the code below
       }
 
       setShowModal(false);
@@ -286,9 +271,6 @@ const AdminUsers: React.FC = () => {
             <thead>
               <tr className="bg-gray-200">
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_nickname')}</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_email')}</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Email Status</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Password Reset</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_elo')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_level')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_status')}</th>
@@ -298,35 +280,9 @@ const AdminUsers: React.FC = () => {
             </thead>
             <tbody>
               {filteredUsers.map((user) => {
-                const emailExpires = user.email_verification_expires ? new Date(user.email_verification_expires).toLocaleString() : '';
-                const pwResetExpires = user.password_reset_expires ? new Date(user.password_reset_expires).toLocaleString() : '';
-                
                 return (
                 <tr key={user.id} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-700">{user.nickname}</td>
-                  <td className="px-4 py-3 text-gray-700">{user.email}</td>
-                  <td className="px-4 py-3">
-                    {user.email_verified ? (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                        ✅ Verified
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                        ⏳ Pending {emailExpires && `(${emailExpires})`}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {user.password_reset_pending ? (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
-                        🔑 Pending {pwResetExpires && `(${pwResetExpires})`}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                        -
-                      </span>
-                    )}
-                  </td>
                   <td className="px-4 py-3 text-gray-700">{user.elo_rating || 1200}</td>
                   <td className="px-4 py-3 text-gray-700">{user.level || t('level_novice')}</td>
                   <td className="px-4 py-3">
@@ -345,14 +301,6 @@ const AdminUsers: React.FC = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {!user.email_verified && (
-                        <button
-                          className="px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600"
-                          onClick={() => handleAction(user, 'resendEmail')}
-                        >
-                          Resend Email
-                        </button>
-                      )}
                       {user.is_blocked ? (
                         <button
                           className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
@@ -384,12 +332,6 @@ const AdminUsers: React.FC = () => {
                         </button>
                       )}
                       <button
-                        className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-                        onClick={() => handleAction(user, 'resetPassword')}
-                      >
-                        {t('btn_reset_password')}
-                      </button>
-                      <button
                         className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
                         onClick={() => handleConfirmDelete(user)}
                       >
@@ -412,18 +354,14 @@ const AdminUsers: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              {actionType === 'resendEmail' && 'Resend Verification Email'}
               {actionType === 'delete' && t('admin.confirm_delete_title')}
               {actionType === 'block' && t('admin.confirm_block_title')}
               {actionType === 'unblock' && t('admin.confirm_unblock_title', 'Unblock User')}
-              {actionType === 'resetPassword' && t('admin.confirm_reset_password_title')}
             </h3>
             <p className="text-gray-700 mb-6">
-              {actionType === 'resendEmail' && `Resend verification email to ${selectedUser.nickname}?`}
               {actionType === 'delete' && t('admin.confirm_delete', { nickname: selectedUser.nickname })}
               {actionType === 'block' && t('admin.confirm_block', { nickname: selectedUser.nickname })}
               {actionType === 'unblock' && `Are you sure you want to unblock ${selectedUser.nickname}?`}
-              {actionType === 'resetPassword' && t('admin.confirm_reset_password', { nickname: selectedUser.nickname })}
             </p>
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
               <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600" onClick={() => setShowModal(false)}>
@@ -431,47 +369,6 @@ const AdminUsers: React.FC = () => {
               </button>
               <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" onClick={confirmAction}>
                 {t('btn_confirm')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPasswordModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Password Reset Successful</h3>
-            <p className="text-gray-700 mb-4">Temporary password for <strong>{selectedUser.nickname}</strong>:</p>
-            <div className="flex gap-2 mb-4">
-              <input 
-                type="text" 
-                value={tempPassword} 
-                readOnly 
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm"
-              />
-              <button 
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(tempPassword);
-                  setPasswordCopied(true);
-                  setTimeout(() => setPasswordCopied(false), 2000);
-                }}
-              >
-                {passwordCopied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">User must change this password on their next login.</p>
-            <div className="flex justify-end">
-              <button 
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setSelectedUser(null);
-                  setActionType('');
-                  fetchUsers();
-                }}
-              >
-                Done
               </button>
             </div>
           </div>

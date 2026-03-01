@@ -173,13 +173,6 @@ const Navbar: React.FC = () => {
             {t('navbar_faq')}
           </Link>
 
-          {/* Report Match Button - Hidden: reporting is now done via automatic replay detection */}
-          {/* isAuthenticated && (
-            <Link to="/report-match" className="bg-gradient-purple text-white px-3 py-2 rounded hover:opacity-90 hover:shadow-lg transition-all font-semibold min-h-[40px] flex items-center flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-nav:px-2.5 max-nav:py-1.5 max-nav:text-sm">
-              {t('report_match_link')}
-            </Link>
-          ) */}
-
           {/* User Menu */}
           {isAuthenticated && (
             <div className="user-menu relative self-center z-[2000] flex-shrink-0">

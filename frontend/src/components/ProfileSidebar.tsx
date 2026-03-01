@@ -60,15 +60,6 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
               <span>{t('sidebar.my_tournaments')}</span>
             </button>
           </li>
-          <li>
-            <button 
-              className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
-              onClick={() => handleNavigate('/report-match')}
-            >
-              <span>📝</span>
-              <span>{t('report_match_link')}</span>
-            </button>
-          </li>
         </ul>
 
         {isAdmin && (

@@ -9,11 +9,9 @@ import MaintenanceBanner from './components/MaintenanceBanner';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
 import User from './pages/User';
 import Profile from './pages/Profile';
 import PlayerProfile from './pages/PlayerProfile';
-import ForcePasswordChange from './pages/ForcePasswordChange';
 import Matches from './pages/Matches';
 import MyMatches from './pages/MyMatches';
 import Admin from './pages/Admin';
@@ -23,7 +21,6 @@ import Rankings from './pages/Rankings';
 import Statistics from './pages/Statistics';
 import Players from './pages/Players';
 import PlayerStatsPage from './pages/PlayerStatsPage';
-import ReportMatch from './pages/ReportMatch';
 import AdminAnnouncements from './pages/AdminAnnouncements';
 import AdminFAQ from './pages/AdminFAQ';
 import AdminTournaments from './pages/AdminTournaments';
@@ -34,7 +31,6 @@ import AdminBalanceEvents from './pages/AdminBalanceEvents';
 import FAQ from './pages/FAQ';
 import Tournaments from './pages/Tournaments';
 import TournamentDetail from './pages/TournamentDetail';
-import VerifyEmail from './pages/VerifyEmail';
 import { adminService } from './services/api';
 import './App.css';
 
@@ -95,13 +91,10 @@ const App: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/user" element={<User />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/player/:id" element={<PlayerProfile />} />
             <Route path="/player/:playerId/stats" element={<PlayerStatsPage />} />
-            <Route path="/force-password-change" element={<ForcePasswordChange />} />
-            <Route path="/reset-password" element={<ForcePasswordChange />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/my-matches" element={<MyMatches />} />
             <Route path="/players" element={<Players />} />
@@ -110,7 +103,6 @@ const App: React.FC = () => {
             <Route path="/faq" element={<FAQ />} />
             <Route path="/tournaments" element={<Tournaments />} />
             <Route path="/tournament/:id" element={<TournamentDetail />} />
-            <Route path="/report-match" element={<ReportMatch />} />
             <Route path="/my-stats" element={<MyStats />} />
             <Route path="/my-tournaments" element={<MyTournaments />} />
             <Route path="/admin" element={<Admin />} />
@@ -121,7 +113,6 @@ const App: React.FC = () => {
             <Route path="/admin/audit" element={<AdminAudit />} />
             <Route path="/admin/maps-and-factions" element={<AdminMapsAndFactions />} />
             <Route path="/admin/balance-events" element={<AdminBalanceEvents />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>

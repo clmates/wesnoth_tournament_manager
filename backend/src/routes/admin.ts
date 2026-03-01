@@ -1,16 +1,11 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { randomBytes } from 'crypto';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { hashPassword } from '../utils/auth.js';
-
 import { calculateNewRating, calculateTrend } from '../utils/elo.js';
 import { unlockAccount } from '../services/accountLockout.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
-import { notifyAdminUserApproved, notifyAdminUserRejected, notifyUserUnlocked } from '../services/discord.js';
-import { sendMailerSendEmail } from '../services/mailersend.js';
-import { getEmailTexts } from '../utils/emailTexts.js';
+import { notifyUserUnlocked } from '../services/discord.js';
 import { performGlobalStatsRecalculation } from './matches.js';
 
 const router = Router();
@@ -25,10 +20,7 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const result = await query(
-      `SELECT id, nickname, email, language, discord_id, is_admin, is_active, is_blocked, is_rated, elo_rating, matches_played, total_wins, total_losses, created_at, updated_at,
-              email_verified, email_verification_expires, 
-              (password_reset_token IS NOT NULL AND password_reset_expires > NOW()) as password_reset_pending,
-              password_reset_expires
+      `SELECT id, nickname, language, discord_id, is_admin, is_active, is_blocked, is_rated, elo_rating, matches_played, total_wins, total_losses, created_at, updated_at
        FROM users_extension 
        WHERE id != '00000000-0000-0000-0000-000000000000'
        ORDER BY created_at DESC`
@@ -40,70 +32,7 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// Get registration requests
-router.get('/registration-requests', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const result = await query(
-      `SELECT * FROM registration_requests 
-       WHERE status = 'pending'
-       ORDER BY created_at DESC`
-    );
-    res.json(result.rows);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch registration requests' });
-  }
-});
-
-// Approve registration
-router.post('/registration-requests/:id/approve', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    const { password } = req.body;
-
-    const regResult = await query('SELECT * FROM registration_requests WHERE id = ?', [id]);
-    if (regResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Registration request not found' });
-    }
-
-    const regRequest = regResult.rows[0];
-    const passwordHash = await hashPassword(password);
-
-    // New players start with elo_rating = 1400 (FIDE standard, unrated status)
-    const newUserId = uuidv4();
-    await query(
-      `INSERT INTO users_extension (id, nickname, email, language, discord_id, password_hash, is_active, is_rated, elo_rating, matches_played)
-       VALUES (?, ?, ?, ?, ?, ?, 1, 0, 1400, 0)`,
-      [newUserId, regRequest.nickname, regRequest.email, regRequest.language, regRequest.discord_id, passwordHash]
-    );
-
-    await query(
-      `UPDATE registration_requests SET status = 'approved', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE id = ?`,
-      [req.userId, id]
-    );
-
-    if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log(`New user created: ${regRequest.nickname} (unrated)`);
-    res.json({ message: 'Registration approved', userId: newUserId });
-  } catch (error) {
-    console.error('Error approving registration:', error);
-    res.status(500).json({ error: 'Failed to approve registration' });
-  }
-});
-
-// Reject registration
-router.post('/registration-requests/:id/reject', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    await query(
-      `UPDATE registration_requests SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ? WHERE id = ?`,
-      [req.userId, id]
-    );
-    res.json({ message: 'Registration rejected' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to reject registration' });
-  }
-});
-
-// Block user
+// Block user (early-register duplicate kept for compatibility — canonical is below)
 router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
@@ -130,8 +59,8 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
       return res.status(403).json({ error: 'Only admins can perform this action' });
     }
 
-    // Get user info for logging, email, and Discord notifications
-    const userInfo = await query('SELECT nickname, email, language, discord_id FROM users_extension WHERE id = ?', [id]);
+    // Get user info for logging and Discord notifications
+    const userInfo = await query('SELECT nickname, discord_id FROM users_extension WHERE id = ?', [id]);
     if (userInfo.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -146,37 +75,6 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
     );
     if (process.env.BACKEND_DEBUG_LOGS === 'true') {
       console.log('✅ User unlocked and unblocked:', user.nickname);
-    }
-
-    // Send account unlocked email notification
-    try {
-      const lang = user.language || 'en';
-      const emailTexts = getEmailTexts(lang);
-      
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') {
-        console.log('📧 Sending account unlocked email:', {
-          to: user.email,
-          subject: emailTexts.account_unlocked_subject,
-          nickname: user.nickname,
-          language: lang
-        });
-      }
-      
-      await sendMailerSendEmail({
-        to: user.email,
-        subject: emailTexts.account_unlocked_subject,
-        variables: {
-          greetings: `${emailTexts.greetings} ${user.nickname}`,
-          message: emailTexts.account_unlocked_message,
-          action_url: process.env.FRONTEND_URL || 'https://app.example.com',
-          action_label: 'Go to Site',
-        },
-      });
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') {
-        console.log('✅ Account unlocked email sent to:', user.email);
-      }
-    } catch (mailError) {
-      console.error('❌ MailerSend error (account unlocked):', mailError);
     }
 
     // Send Discord notification if enabled
@@ -208,93 +106,9 @@ router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) =
   }
 });
 
-// Resend email verification
-router.post('/users/:id/resend-verification-email', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    const ip = getUserIP(req);
-
-    // Verify user is admin
-    const adminCheck = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: 'Only admins can perform this action' });
-    }
-
-    // Get user info
-    const userInfo = await query('SELECT id, nickname, email, language FROM users_extension WHERE id = ?', [id]);
-    if (userInfo.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const user = userInfo.rows[0];
-
-    // Generate new verification token
-    const verificationToken = randomBytes(32).toString('hex');
-    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
-
-    // Update user with new token
-    await query(
-      'UPDATE users_extension SET email_verification_token = ?, email_verification_expires = ? WHERE id = ?',
-      [verificationToken, verificationExpires, id]
-    );
-
-    // Build verification URL
-    const verificationUrl = `${process.env.FRONTEND_URL || 'https://app.example.com'}/verify-email?token=${verificationToken}`;
-
-    // Get translated email texts
-    const emailTexts = getEmailTexts(user.language || 'en');
-
-    // Send verification email
-    try {
-      await sendMailerSendEmail({
-        to: user.email,
-        subject: emailTexts.verify_subject,
-        variables: {
-          message: emailTexts.verify_message,
-          greetings: `${emailTexts.greetings} ${user.nickname}`,
-          action_url: verificationUrl,
-          action_label: emailTexts.verify_action,
-        },
-      });
-    } catch (mailError) {
-      console.error('MailerSend error (admin resend):', mailError);
-      return res.status(500).json({ error: 'Failed to send verification email' });
-    }
-
-    // Log admin action
-    await logAuditEvent({
-      event_type: 'ADMIN_ACTION',
-      user_id: req.userId,
-      ip_address: ip,
-      user_agent: getUserAgent(req),
-      details: { action: 'resend_verification_email', target_user_id: id, target_username: user.nickname, email: user.email }
-    });
-
-    res.json({ message: 'Verification email sent successfully' });
-  } catch (error) {
-    console.error('Resend verification email error:', error);
-    res.status(500).json({ error: 'Failed to resend verification email' });
-  }
-});
-
-// Update password policy
-router.put('/password-policy', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { min_length, require_uppercase, require_lowercase, require_numbers, require_symbols, previous_passwords_count } = req.body;
-
-    await query(
-      `UPDATE password_policy 
-       SET min_length = ?, require_uppercase = ?, require_lowercase = ?, 
-           require_numbers = ?, require_symbols = ?, previous_passwords_count = ?
-       WHERE id = (SELECT id FROM password_policy LIMIT 1)`,
-      [min_length, require_uppercase, require_lowercase, require_numbers, require_symbols, previous_passwords_count]
-    );
-
-    res.json({ message: 'Password policy updated' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update password policy' });
-  }
-});
+// =============================
+// User management endpoints
+// =============================
 
 // Create news (multi-language)
 // Body: { en: {title, content}, es: {title, content}, zh: {title, content}, de: {title, content}, ru: {title, content} }
@@ -530,7 +344,7 @@ router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) =>
   try {
     const { id } = req.params;
     await query(`UPDATE users_extension SET is_blocked = 1 WHERE id = ?`, [id]);
-    const result = await query(`SELECT id, nickname, email, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
+    const result = await query(`SELECT id, nickname, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -547,7 +361,7 @@ router.post('/users/:id/make-admin', authMiddleware, async (req: AuthRequest, re
   try {
     const { id } = req.params;
     await query(`UPDATE users_extension SET is_admin = 1 WHERE id = ?`, [id]);
-    const result = await query(`SELECT id, nickname, email, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
+    const result = await query(`SELECT id, nickname, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -564,7 +378,7 @@ router.post('/users/:id/remove-admin', authMiddleware, async (req: AuthRequest, 
   try {
     const { id } = req.params;
     await query(`UPDATE users_extension SET is_admin = 0 WHERE id = ?`, [id]);
-    const result = await query(`SELECT id, nickname, email, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
+    const result = await query(`SELECT id, nickname, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -584,44 +398,6 @@ router.delete('/users/:id', authMiddleware, async (req: AuthRequest, res) => {
     res.json({ message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
-
-// Force password reset
-router.post('/users/:id/force-reset-password', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const passwordHash = await hashPassword(tempPassword);
-
-    // Get current password for history
-    const currentUserResult = await query('SELECT password_hash FROM users_extension WHERE id = ?', [id]);
-    if (currentUserResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Save current password to history before updating
-    await query(
-      'INSERT INTO password_history (user_id, password_hash) VALUES (?, ?)',
-      [id, currentUserResult.rows[0].password_hash]
-    );
-
-    await query(
-      `UPDATE users_extension SET password_hash = ?, password_must_change = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      [passwordHash, id]
-    );
-    const result = await query(
-      `SELECT id, nickname, email FROM users_extension WHERE id = ?`,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({ message: 'Password reset', tempPassword, user: result.rows[0] });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 

@@ -1,540 +1,363 @@
 # API Endpoints Reference
 
-**Última actualización:** 2025-12-24  
-*Actualiza este archivo cada vez que se añada, modifique o elimine un endpoint.*
+*Update this file whenever an endpoint is added, modified, or removed.*
 
-API Endpoints (summary)
+**Format:** `[METHOD] /path` — Auth — params/body — Description
 
-Format: [METHOD] /path  — (Public/Private) — params — Short description
-
-Source: canonical mapping is `frontend/src/services/api.ts` (the frontend service wrappers). Use that file for the exact query parameter names used by the UI.
-
-Auth
-- [POST] /api/auth/register — Public — body: {nickname, email, password, language?, discord_id?} — Register a new user.
-- [POST] /api/auth/login — Public — body: {nickname, password} — Authenticate and return token + userId.
-- [POST] /api/auth/change-password — Private — body: {oldPassword, newPassword} — Change current user's password.
-
-Public API (no auth)
-- [GET] /api/public/faq — Public — none — Retrieve all FAQ entries (all languages). Frontend applies user language with EN fallback.
-- [GET] /api/public/tournaments?page=1&name=&status=&type= — Public — query: page, name, status, type — List public tournaments (supports pagination and filters).
-- [GET] /api/public/tournaments/:id — Public — params: id — Get tournament details (public view).
-- [GET] /api/public/tournaments/:id/participants — Public — params: id — List participants for a tournament.
-- [GET] /api/public/tournaments/:id/matches — Public — params: id — List tournament matches (public view).
-- [GET] /api/public/news — Public — none — List all news/announcements (all languages). Frontend applies user language with EN fallback.
-- [GET] /api/public/matches/recent — Public — none — Recent confirmed matches.
-- [GET] /api/public/players?page=1&nickname=&min_elo=&max_elo=&min_matches=&rated_only= — Public — query: pagination + filters — Players directory (supports pagination and filter query params).
-- [GET] /api/public/matches?page=1 — Public — query: page — List public matches (paginated).
-- [GET] /api/public/maps — Public — List all active maps (is_active = true)
-- [GET] /api/public/factions — Public — List all active factions (is_active = true)
-
-User routes
-- [GET] /api/users/profile — Private — none — Get profile of current authenticated user.
-- [PUT] /api/users/profile/discord — Private — body: {discord_id} — Update current user's Discord ID.
-- [GET] /api/users/:id/stats — Public — params: id — Get aggregated stats for a user (wins/losses/elo).
-- [GET] /api/users/:id/matches — Public — params: id — Get recent matches for a user (limit 20).
-- [GET] /api/users/search/:searchQuery — Public — params: searchQuery — Search users by nickname (ILIKE).
-- [GET] /api/users/ranking/global?page=1&nickname=&min_elo=&max_elo= — Public — query: page + optional filters — Global ranking list (supports paging and basic filters used by UI).
-- [GET] /api/users/ranking/active?page=1 — Public — query: page — Active ranking (recently active players).
-- [GET] /api/users/all — Public — none — Get all active users (for opponent selection).
-
-Tournament routes
-- [POST] /api/tournaments — Private — body: tournament creation fields (name, description, tournament_type, max_participants, round_duration_days, auto_advance_round, general_rounds, final_rounds, general_rounds_format, final_rounds_format) — Create a tournament (organizer).
-- [GET] /api/tournaments/my — Private — none — Get tournaments created by current user.
-- [GET] /api/tournaments/:id — Public — params: id — Get tournament full details (organizer id, status, rounds counts etc.).
-- [PUT] /api/tournaments/:id — Private — body: fields to update — Update tournament configuration (organizer only).
-- [GET] /api/tournaments/:id/rounds — Public — params: id — Get tournament rounds (list).
-- [GET] /api/tournaments — Public — query: page — Get all tournaments (public view: approved/in_progress/finished), supports pagination.
-- [POST] /api/tournaments/:id/join — Private — none — Join a tournament (immediate accepted join).
-- [POST] /api/tournaments/:id/request-join — Private — none — Request to join tournament (creates pending participant).
-- [POST] /api/tournaments/:tournamentId/participants/:participantId/accept — Private — organizer only — Accept a pending participant.
-- [POST] /api/tournaments/:tournamentId/participants/:participantId/reject — Private — organizer only — Reject a pending participant.
-- [GET] /api/tournaments/:id/ranking — Public — params: id — Get tournament ranking (participants ordered by points/wins).
-- [POST] /api/tournaments/:id/close-registration — Private — organizer only — Close registration (moves status to registration_closed).
-- [POST] /api/tournaments/:id/prepare — Private — organizer only — Generate tournament rounds based on configuration (must be registration_closed).
-- [POST] /api/tournaments/:id/start — Private — organizer only — Start tournament (activate first round, create rounds if missing).
-- [GET] /api/tournaments/:tournamentId/rounds/:roundId/matches — Public — params: tournamentId, roundId — List individual tournament_matches for a specific round.
-- [GET] /api/tournaments/:tournamentId/round-matches — Public — params: tournamentId — List tournament_round_matches (Best-Of series summary), includes player1_wins/player2_wins, best_of, series_status.
-- [GET] /api/tournaments/:tournamentId/matches — Public — params: tournamentId — List all tournament_matches (individual matches) with player nicknames, reported status.
-- [POST] /api/tournaments/:tournamentId/matches/:matchId/result — Private — params: tournamentId, matchId — body: {winner_id, reported_match_id?} — Record result for a tournament match (used by UI organizer/player to mark tournament match completed and trigger round completion checks).
-- [POST] /api/tournaments/:tournamentId/matches/:matchId/determine-winner — Private — organizer only — body: {winner_id} — Organizer manually sets match winner (no ELO impact).
-- [POST] /api/tournaments/:id/next-round — Private — organizer only — Activate the next configured round (after previous completed).
-
-Match routes
-- [POST] /api/matches/report-json — Private — body: {opponent_id, map, winner_faction, loser_faction, comments?, rating?, tournament_id?, tournament_match_id?} — Report a match result (JSON, no file). If tournament_id & tournament_match_id provided, links to tournament match and updates Best-Of series and participants stats.
-- [POST] /api/matches/report — Private — multipart/form-data with optional replay file and same body fields as report-json — Report a match with replay upload.
-- [POST] /api/matches/:id/confirm — Private — params: id — body: {action: 'confirm'|'dispute', comments?, rating?} — Loser confirms or disputes a match result.
-- [GET] /api/matches/disputed/all — Private — admin only — List all disputed matches for admin review.
-- [GET] /api/matches/pending/all — Private — admin only — List all pending/unconfirmed matches.
-- [GET] /api/matches/pending/user — Private — Get pending matches for current user (as winner or loser).
-- [POST] /api/matches/admin/:id/dispute — Private — admin only — body: {action: 'validate'|'reject'} — Admin resolves disputed match (validate will cancel and rebuild stats globally).
-- [GET] /api/matches/:matchId/replay/download — Public/Private — params: matchId — Download replay file for a match (if exists).
-- [POST] /api/matches/:matchId/replay/download-count — Public — params: matchId — Increment replay download count for analytics.
-- [GET] /api/matches?page=1&winner=&loser=&map=&status=&confirmed= — Private — query: pagination + filters — List matches (supports pagination and filtering parameters used by the UI).
-- [GET] /api/matches/:id — Private — Get match details.
-
-Admin routes
-- [GET] /api/admin/registration-requests — Private — List pending registration requests
-- [POST] /api/admin/registration-requests/:id/approve — Private — Approve registration (requires password)
-- [POST] /api/admin/registration-requests/:id/reject — Private — Reject registration
-- [GET] /api/admin/users — Private — List all users
-- [POST] /api/admin/users/:id/block — Private — Block user
-- [POST] /api/admin/users/:id/unblock — Private — Unblock user
-- [POST] /api/admin/users/:id/unlock — Private — Unlock user account
-- [POST] /api/admin/users/:id/make-admin — Private — Grant admin role
-- [POST] /api/admin/users/:id/remove-admin — Private — Remove admin role
-- [DELETE] /api/admin/users/:id — Private — Delete user
-- [POST] /api/admin/users/:id/force-reset-password — Private — Force password reset
-- [POST] /api/admin/recalculate-all-stats — Private — Recalculate all stats
-- [GET] /api/admin/audit-logs — Private — Get audit logs (optional params)
-- [DELETE] /api/admin/audit-logs — Private — Delete audit logs (by logIds)
-- [DELETE] /api/admin/audit-logs/old — Private — Delete old audit logs (by daysBack)
-- [PUT] /api/admin/password-policy — Private — Update password policy
-- [GET] /api/admin/news — Private — List news
-- [POST] /api/admin/news — Private — Create news
-- [PUT] /api/admin/news/:id — Private — Update news
-- [DELETE] /api/admin/news/:id — Private — Delete news
-- [GET] /api/admin/faq — Private — List FAQ
-- [POST] /api/admin/faq — Private — Create FAQ
-- [PUT] /api/admin/faq/:id — Private — Update FAQ
-- [DELETE] /api/admin/faq/:id — Private — Delete FAQ
-
-## Maps & Factions Endpoints
-
-### Admin Maps
-- [GET] /api/admin/maps — Private — List all maps
-- [GET] /api/admin/maps/:mapId/translations — Private — Get translations for a map
-- [POST] /api/admin/maps — Private — Create new map
-- [POST] /api/admin/maps/:mapId/translations — Private — Add/update translation for a map
-- [DELETE] /api/admin/maps/:mapId — Private — Delete map (checks if used in matches)
-
-### Admin Factions
-- [GET] /api/admin/factions — Private — List all factions
-- [GET] /api/admin/factions/:factionId/translations — Private — Get translations for a faction
-- [POST] /api/admin/factions — Private — Create new faction
-- [POST] /api/admin/factions/:factionId/translations — Private — Add/update translation for a faction
-- [DELETE] /api/admin/factions/:factionId — Private — Delete faction (checks if used in matches)
+**Source:** Backend route files in `backend/src/routes/`. Frontend service wrappers in `frontend/src/services/api.ts`, `statisticsService.ts`, `playerStatisticsService.ts`.
 
 ---
 
-## Ejemplo de formato para cada endpoint
+## Auth
 
-- **[METHOD] /path** — (Public/Private) — params — Descripción
+- `[POST] /api/auth/login` — Public — body: `{nickname, password}` — Authenticate against `phpbb3_users` forum table and return JWT token + userId.
+- `[GET] /api/auth/validate-token` — Private — none — Validate JWT and return current user info.
 
-### Request
-```json
-{
-  // Ejemplo de body o parámetros
-}
-```
-### Response
-```json
-{
-  // Ejemplo de respuesta
-}
-```
+> Account creation (registration), password reset, and email verification are handled entirely by the **Wesnoth forum** at `https://forum.wesnoth.org`. Users are auto-created in `users_extension` on first successful login or when a ranked replay is processed.
 
 ---
 
-# Endpoints con ejemplos
+## Public API (no auth)
 
-### [POST] /api/auth/register — Public — body: {nickname, email, password, language?, discord_id?} — Register a new user.
-**Request:**
-```json
-{
-  "nickname": "player1",
-  "email": "player1@email.com",
-  "password": "securepass",
-  "language": "es",
-  "discord_id": "123456789"
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "userId": "abc123",
-  "token": "jwt-token-string"
-}
-```
+- `[GET] /api/public/faq` — Public — none — All FAQ entries (all languages). Frontend applies language fallback.
+- `[GET] /api/public/tournaments` — Public — query: `page, name, status, type` — List tournaments.
+- `[GET] /api/public/tournaments/:id` — Public — Tournament details.
+- `[GET] /api/public/tournaments/:id/participants` — Public — Tournament participant list.
+- `[GET] /api/public/tournaments/:id/matches` — Public — Tournament matches (public view).
+- `[GET] /api/public/tournaments/:id/unranked-assets` — Public — Unranked maps/factions for a tournament.
+- `[GET] /api/public/tournaments/:id/teams` — Public — Teams in a team tournament.
+- `[GET] /api/public/tournaments/:tournamentId/pending-replays` — Public — Confidence=1 replays matched to open tournament matches.
+- `[GET] /api/public/news` — Public — none — All news/announcements (all languages).
+- `[GET] /api/public/matches/recent` — Public — none — Recent confirmed matches.
+- `[GET] /api/public/players` — Public — query: `page, nickname, min_elo, max_elo, min_matches, rated_only` — Player directory.
+- `[GET] /api/public/matches` — Public — query: `page, player, map, status, confirmed, faction` — All matches.
+- `[GET] /api/public/maps` — Public — none — All active maps.
+- `[GET] /api/public/factions` — Public — query: `is_ranked` (optional) — All active factions.
+- `[GET] /api/public/player-of-month` — Public — none — Current player of the month.
+- `[GET] /api/public/debug` — Public — none — Debug info (shown to admins in UI only).
+- `[GET] /api/public/replay/download-url` — Public — query: `path` — Signed/direct download URL for a replay file.
+- `[POST] /api/public/tournament-matches/:matchId/replay/download-count` — Public — Increment download counter for a tournament match replay.
 
-### [POST] /api/auth/login — Public — body: {nickname, password} — Authenticate and return token + userId.
-**Request:**
-```json
-{
-  "nickname": "player1",
-  "password": "securepass"
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "userId": "abc123",
-  "token": "jwt-token-string"
-}
-```
+---
 
-### [GET] /api/public/tournaments?page=1&name=&status=&type= — Public — query: page, name, status, type — List public tournaments.
-**Request:**
-```http
-GET /api/public/tournaments?page=1&name=Summer&status=in_progress&type=elimination
-```
-**Response:**
-```json
-{
-  "data": [
-    {
-      "id": "t1",
-      "name": "Summer Cup",
-      "status": "in_progress",
-      "type": "elimination"
-    }
-  ],
-  "page": 1,
-  "total": 10
-}
-```
+## User Routes
 
-### [POST] /api/matches/report — Private — multipart/form-data — Report a match with replay upload.
-**Request:**
-```http
-POST /api/matches/report
-Content-Type: multipart/form-data
+- `[GET] /api/users/profile` — Private — none — Get current authenticated user's profile.
+- `[PUT] /api/users/profile/discord` — Private — body: `{discord_id}` — Update Discord ID.
+- `[PUT] /api/users/profile/update` — Private — body: `{avatar, country, language, ...}` — Update profile preferences.
+- `[GET] /api/users/:id/stats` — Public — Player aggregated stats (wins/losses/elo).
+- `[GET] /api/users/:id/stats/month` — Public — Player stats for the current month.
+- `[GET] /api/users/:id/matches` — Public — Recent matches for a player.
+- `[GET] /api/users/search/:searchQuery` — Public — Search users by nickname.
+- `[GET] /api/users/ranking/global` — Public — query: `page, nickname, min_elo, max_elo` — Global ELO ranking.
+- `[GET] /api/users/ranking/active` — Public — query: `page` — Active players ranking.
+- `[GET] /api/users/all` — Public — none — All active users (for opponent selector).
+- `[GET] /api/users/data/countries` — Public — none — Available country codes for profile.
+- `[GET] /api/users/data/avatars` — Public — none — Available avatar options.
 
-{
-  "opponent_id": "user2",
-  "map": "Weldyn Channel",
-  "winner_faction": "Drakes",
-  "loser_faction": "Undead",
-  "comments": "Good game!",
-  "rating": 5,
-  "replay": "file.wesnoth"
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "match_id": "m123"
-}
-```
+---
 
-### [POST] /api/matches/:id/confirm — Private — params: id — body: {action: 'confirm'|'dispute', comments?, rating?}
-**Request:**
-```json
-{
-  "action": "confirm",
-  "comments": "No issues",
-  "rating": 4
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "status": "confirmed"
-}
-```
+## Match Routes
 
-### [GET] /api/users/profile — Private — none — Get profile of current authenticated user.
-**Response:**
-```json
-{
-  "id": "abc123",
-  "nickname": "player1",
-  "email": "player1@email.com",
-  "language": "es",
-  "discord_id": "123456789"
-}
-```
+- `[POST] /api/matches/preview-replay-base64` — Private — body: `{replayData: base64string}` — Parse replay file and extract match data (no upload stored).
+- `[POST] /api/matches/preview-replay` — Private — multipart: `replay` file — Parse replay (multipart form version; base64 version preferred).
+- `[POST] /api/matches/:id/confirm` — Private — body: `{action: 'confirm'|'dispute', comments?, rating?}` — Loser confirms or disputes a match.
+- `[GET] /api/matches/disputed/all` — Private (admin) — All disputed matches.
+- `[GET] /api/matches/pending/all` — Private (admin) — All pending/unconfirmed matches.
+- `[GET] /api/matches/pending/user` — Private — Pending matches for current user.
+- `[POST] /api/matches/admin/:id/dispute` — Private (admin) — body: `{action: 'validate'|'reject'}` — Resolve a disputed match.
+- `[GET] /api/matches/:matchId/replay/download` — Public — Download replay file for a match.
+- `[POST] /api/matches/:matchId/replay/download-count` — Public — Increment replay download count.
+- `[GET] /api/matches` — Private — query: `page, winner, loser, map, status, confirmed, faction` — List matches.
+- `[POST] /api/matches/:id/cancel-own` — Private — Cancel own pending match report.
+- `[POST] /api/matches/report-confidence-1-replay` — Private — body: `{replayId, winner_choice, comments?, rating?, tournament_match_id?}` — Player confirms result of a confidence=1 auto-detected replay.
+- `[POST] /api/matches/cancel-confidence-1-replay` — Private — body: `{replayId}` — Cancel a confidence=1 replay before reporting.
+- `[POST] /api/matches/admin-discard-replay` — Private (admin) — body: `{replayId}` — Admin discards a replay from the confirmation queue.
+- `[GET] /api/matches/pending-reporting` — Private — Matches pending manual reporting (alternative flow).
+- `[POST] /api/matches/:matchId/confirm-report` — Private — Confirm a pending manual report.
+- `[POST] /api/matches/:matchId/reject-report` — Private — Reject a pending manual report.
 
-### [GET] /api/tournaments/:id — Public — params: id — Get tournament full details.
-**Response:**
-```json
-{
-  "id": "t1",
-  "name": "Summer Cup",
-  "status": "in_progress",
-  "rounds": 5,
-  "participants": ["player1", "player2"]
-}
-```
+---
 
-### [POST] /api/tournaments/:tournamentId/matches/:matchId/result — Private — body: {winner_id, reported_match_id?}
-**Request:**
-```json
-{
-  "winner_id": "player1",
-  "reported_match_id": "m123"
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "match_id": "m123",
-  "status": "completed"
-}
-```
+## Tournament Routes
 
-### [GET] /api/matches/disputed/all — Private — admin only — List all disputed matches for admin review.
-**Response:**
-```json
-{
-  "matches": [
-    {
-      "id": "m123",
-      "status": "disputed",
-      "players": ["player1", "player2"],
-      "map": "Weldyn Channel"
-    }
-  ]
-}
-```
+- `[POST] /api/tournaments` — Private — body: tournament config fields — Create a tournament.
+- `[GET] /api/tournaments/my` — Private — Tournaments created by current user.
+- `[GET] /api/tournaments/:id` — Public — Tournament full details.
+- `[PUT] /api/tournaments/:id` — Private (organizer) — body: fields to update — Update tournament config.
+- `[DELETE] /api/tournaments/:id` — Private (admin) — Delete a tournament.
+- `[GET] /api/tournaments/:id/rounds` — Public — Tournament rounds list.
+- `[GET] /api/tournaments` — Public — query: `page` — All tournaments.
+- `[POST] /api/tournaments/:id/join` — Private — Join tournament (immediate acceptance).
+- `[POST] /api/tournaments/:id/request-join` — Private — body: `{team_id?}` — Request to join (creates pending participant).
+- `[POST] /api/tournaments/:id/participants/:participantId/accept` — Private (organizer) — Accept participant.
+- `[POST] /api/tournaments/:id/participants/:participantId/confirm` — Private — Participant confirms join.
+- `[POST] /api/tournaments/:id/participants/:participantId/reject` — Private (organizer) — Reject participant.
+- `[GET] /api/tournaments/:id/ranking` — Public — Tournament ranking.
+- `[GET] /api/tournaments/:id/standings` — Public — query: `round_id?` — Tournament standings (with tiebreakers).
+- `[POST] /api/tournaments/:id/close-registration` — Private (organizer) — Close registration.
+- `[POST] /api/tournaments/:id/prepare` — Private (organizer) — Generate rounds.
+- `[POST] /api/tournaments/:id/start` — Private (organizer) — Start tournament.
+- `[GET] /api/tournaments/:id/rounds/:roundId/matches` — Public — Matches for a specific round.
+- `[GET] /api/tournaments/:id/round-matches` — Public — Best-Of series summaries.
+- `[GET] /api/tournaments/:id/matches` — Public — All individual matches.
+- `[POST] /api/tournaments/:id/matches/:matchId/result` — Private — body: `{winner_id, reported_match_id?}` — Record tournament match result.
+- `[POST] /api/tournaments/:id/matches/:matchId/determine-winner` — Private (organizer) — body: `{winner_id}` — Force match winner.
+- `[POST] /api/tournaments/:id/matches/:matchId/dispute` — Private — Dispute a tournament match.
+- `[POST] /api/tournaments/:id/next-round` — Private (organizer) — Activate next round.
+- `[GET] /api/tournaments/:id/config` — Private (organizer) — Tournament internal config.
+- `[GET] /api/tournaments/:id/swiss-pairings/:roundId` — Public — Swiss pairings for a round.
+- `[POST] /api/tournaments/:id/calculate-tiebreakers` — Private (organizer) — Calculate tiebreakers.
+- `[POST] /api/leagues/:id/calculate-tiebreakers` — Private (organizer) — Calculate league tiebreakers.
+- `[GET] /api/tournaments/suggestions/by-count` — Private — Tournament suggestions by participation count.
 
-### [GET] /api/public/faq — Public — none — Retrieve all FAQ entries.
-**Response:**
-```json
-{
-  "question": "¿Cómo reporto una partida?",
-  "answer": "Usa el botón Report Match en la página de partidas.",
-  "language": "es"
-}
-```
+---
 
-### [GET] /api/public/news — Public — none — List all news/announcements.
-**Response:**
-```json
-{
-  "id": "n1",
-  "title": "Nuevo torneo disponible",
-  "content": "Inscríbete ya!",
-  "language": "es"
-}
-```
+## Statistics Routes
 
-### [GET] /api/public/matches/recent — Public — none — Recent confirmed matches.
-**Response:**
-```json
-{
-  "id": "m123",
-  "winner": "player1",
-  "loser": "player2",
-  "map": "Weldyn Channel",
-  "date": "2025-12-23T18:00:00Z"
-}
-```
+- `[GET] /api/statistics/config` — Public — Faction/map configuration (active items, min games).
+- `[GET] /api/statistics/faction-by-map` — Public — Faction win rates per map.
+- `[GET] /api/statistics/matchups` — Public — query: `minGames` — Faction vs faction matchup stats.
+- `[GET] /api/statistics/faction-global` — Public — Global faction win rates.
+- `[GET] /api/statistics/map-balance` — Public — Map balance overview.
+- `[GET] /api/statistics/faction/:factionId` — Public — Stats for a specific faction.
+- `[GET] /api/statistics/map/:mapId` — Public — Stats for a specific map.
+- `[GET] /api/statistics/history/events` — Public — query: `factionId, mapId, eventType, limit, offset` — Balance events list.
+- `[POST] /api/statistics/history/events` — Private (admin) — body: event data — Create balance event.
+- `[PUT] /api/statistics/history/events/:eventId` — Private (admin) — body: event data — Update balance event.
+- `[GET] /api/statistics/history/events/:eventId/impact` — Public — Impact analysis for a balance event.
+- `[GET] /api/statistics/history/trend` — Public — query: `mapId, factionId, opponentFactionId, dateFrom, dateTo` — Win rate trend.
+- `[GET] /api/statistics/history/snapshot` — Public — query: `date, minGames` — Historical statistics snapshot.
+- `[POST] /api/statistics/history/snapshot` — Private (admin) — Create a snapshot.
+- `[POST] /api/statistics/history/recalculate-snapshots` — Private (admin) — Recalculate all snapshots.
 
-### [GET] /api/public/players — Public — query: pagination + filters — Players directory.
-**Response:**
-```json
-{
-  "players": [
-    {
-      "id": "abc123",
-      "nickname": "player1",
-      "elo": 1500,
-      "matches": 20
-    }
-  ],
-  "page": 1,
-  "total": 100
-}
-```
+---
 
-### [GET] /api/users/:id/stats — Public — params: id — Get aggregated stats for a user.
-**Response:**
-```json
-{
-  "id": "abc123",
-  "wins": 10,
-  "losses": 5,
-  "elo": 1500
-}
-```
+## Player Statistics Routes
 
-### [GET] /api/users/:id/matches — Public — params: id — Get recent matches for a user.
-**Response:**
-```json
-{
-  "id": "m123",
-  "winner": "player1",
-  "loser": "player2",
-  "map": "Weldyn Channel",
-  "date": "2025-12-23T18:00:00Z"
-}
-```
+- `[GET] /api/player-statistics/player/:playerId/global` — Public — Player global stats.
+- `[GET] /api/player-statistics/player/:playerId/by-map` — Public — query: `minGames` — Stats per map.
+- `[GET] /api/player-statistics/player/:playerId/by-faction` — Public — query: `minGames` — Stats per faction.
+- `[GET] /api/player-statistics/player/:playerId/vs-player/:opponentId` — Public — Head-to-head stats.
+- `[GET] /api/player-statistics/player/:playerId/map/:mapId` — Public — Stats on a specific map.
+- `[GET] /api/player-statistics/player/:playerId/faction/:factionId` — Public — Stats with a specific faction.
+- `[GET] /api/player-statistics/player/:playerId/map/:mapId/faction/:factionId` — Public — Stats on map+faction combo.
+- `[GET] /api/player-statistics/player/:playerId/recent-opponents` — Public — query: `limit` — Recent opponents list.
 
-### [GET] /api/tournaments/:id/participants — Public — params: id — List participants for a tournament.
-**Response:**
-```json
-{
-  "id": "abc123",
-  "nickname": "player1",
-  "status": "active"
-}
-```
+---
 
-### [GET] /api/tournaments/:id/matches — Public — params: id — List tournament matches.
-**Response:**
-```json
-{
-  "id": "tm1",
-  "player1": "player1",
-  "player2": "player2",
-  "status": "pending"
-}
-```
+## Replays Routes
 
-### [POST] /api/tournaments/:id/join — Private — none — Join a tournament.
-**Response:**
-```json
-{
-  "success": true,
-  "participant_id": "p123"
-}
-```
+> These endpoints are used internally for the admin replay confirmation workflow. Direct replay processing uses `POST /api/matches/admin-discard-replay` and `POST /api/matches/report-confidence-1-replay`.
 
-### [POST] /api/tournaments/:tournamentId/participants/:participantId/accept — Private — organizer only — Accept a pending participant.
-**Response:**
-```json
-{
-  "success": true,
-  "status": "approved"
-}
-```
+- `[GET] /api/replays/pending-confirmation` — Private (admin) — List replays pending manual confirmation.
+- `[POST] /api/replays/:replayId/confirm-winner` — Private (admin) — body: `{winner_id}` — Confirm winner of a replay.
+- `[POST] /api/replays/:replayId/discard` — Private (admin) — Discard a replay.
 
-### [POST] /api/tournaments/:id/close-registration — Private — organizer only — Close registration.
-**Response:**
-```json
-{
-  "success": true,
-  "status": "registration_closed"
-}
-```
+---
 
-### [POST] /api/tournaments/:id/prepare — Private — organizer only — Generate tournament rounds.
-**Response:**
-```json
-{
-  "success": true,
-  "rounds_created": 5
-}
-```
+## Admin Routes
 
-### [POST] /api/tournaments/:id/start — Private — organizer only — Start tournament.
-**Response:**
-```json
-{
-  "success": true,
-  "status": "in_progress"
-}
-```
+### User Management
+- `[GET] /api/admin/users` — Private (admin) — List all users with full profile.
+- `[POST] /api/admin/users/:id/block` — Private (admin) — Block user (`is_blocked = 1`).
+- `[POST] /api/admin/users/:id/unlock` — Private (admin) — Reset failed login attempts and unblock user. Sends Discord notification if configured.
+- `[POST] /api/admin/users/:id/make-admin` — Private (admin) — Grant site admin role (`is_admin = 1`).
+- `[POST] /api/admin/users/:id/remove-admin` — Private (admin) — Revoke site admin role.
+- `[DELETE] /api/admin/users/:id` — Private (admin) — Delete user account from `users_extension`.
 
-### [GET] /api/tournaments/:tournamentId/rounds/:roundId/matches — Public — params: tournamentId, roundId — List matches for a round.
-**Response:**
-```json
-{
-  "id": "tm1",
-  "player1": "player1",
-  "player2": "player2",
-  "status": "pending"
-}
-```
+### Maintenance Mode
+- `[GET] /api/admin/maintenance-status` — Private (admin) — Get current maintenance mode status.
+- `[POST] /api/admin/toggle-maintenance` — Private (admin) — body: `{enable: bool, reason?: string}` — Enable/disable maintenance mode.
+- `[GET] /api/admin/maintenance-logs` — Private (admin) — query: `limit` — Maintenance mode change history.
 
-### [POST] /api/matches/admin/:id/dispute — Private — Admin validates or rejects dispute.
-**Request:**
-```json
-{
-  "action": "validate"
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "status": "validated"
-}
-```
+### Audit Logs
+- `[GET] /api/admin/audit-logs` — Private (admin) — query: optional filters — List audit log entries.
+- `[DELETE] /api/admin/audit-logs` — Private (admin) — body: `{logIds: string[]}` — Delete specific audit logs.
+- `[DELETE] /api/admin/audit-logs/old` — Private (admin) — body: `{daysBack: number}` — Delete old audit logs.
 
-### [POST] /api/matches/:matchId/replay/download-count — Private — Increment replay download count.
-**Response:**
-```json
-{
-  "success": true,
-  "downloads": 11
-}
-```
+### Statistics & Debug
+- `[POST] /api/admin/recalculate-all-stats` — Private (admin) — Recalculate all player statistics.
+- `[POST] /api/admin/recalculate-snapshots` — Private (admin) — Recalculate all balance statistics snapshots.
+- `[GET] /api/admin/debug/faction-map-stats` — Private (admin) — Debug: raw faction/map stats data.
+- `[GET] /api/admin/player-of-month` — Private (admin) — Get player of the month data.
+- `[POST] /api/admin/calculate-player-of-month` — Private (admin) — Recalculate player of the month.
 
-### [GET] /api/matches/:id — Private — Get match details.
-**Response:**
-```json
-{
-  "id": "m123",
-  "winner": "player1",
-  "loser": "player2",
-  "map": "Weldyn Channel",
-  "status": "confirmed"
-}
-```
+### News & FAQ
+- `[GET] /api/admin/news` — Private (admin) — List all news items.
+- `[POST] /api/admin/news` — Private (admin) — body: `{title, content, language, ...}` — Create news item.
+- `[PUT] /api/admin/news/:id` — Private (admin) — Update news item.
+- `[DELETE] /api/admin/news/:id` — Private (admin) — Delete news item.
+- `[GET] /api/admin/faq` — Private (admin) — List all FAQ entries.
+- `[POST] /api/admin/faq` — Private (admin) — body: `{question, answer, language, ...}` — Create FAQ entry.
+- `[PUT] /api/admin/faq/:id` — Private (admin) — Update FAQ entry.
+- `[DELETE] /api/admin/faq/:id` — Private (admin) — Delete FAQ entry.
 
-### [GET] /api/admin/users — Private — List all users.
-**Response:**
-```json
-{
-  "id": "abc123",
-  "nickname": "player1",
-  "email": "player1@email.com",
-  "status": "active"
-}
-```
+### Maps & Factions
+- `[GET] /api/admin/maps` — Private (admin) — List all maps.
+- `[GET] /api/admin/maps/:mapId/translations` — Private (admin) — Map translations.
+- `[POST] /api/admin/maps` — Private (admin) — Create map.
+- `[POST] /api/admin/maps/:mapId/translations` — Private (admin) — Add/update map translation.
+- `[DELETE] /api/admin/maps/:mapId` — Private (admin) — Delete map (checks usage).
+- `[GET] /api/admin/factions` — Private (admin) — List all factions.
+- `[GET] /api/admin/factions/:factionId/translations` — Private (admin) — Faction translations.
+- `[POST] /api/admin/factions` — Private (admin) — Create faction.
+- `[POST] /api/admin/factions/:factionId/translations` — Private (admin) — Add/update faction translation.
+- `[DELETE] /api/admin/factions/:factionId` — Private (admin) — Delete faction (checks usage).
 
-### [POST] /api/admin/users/:id/block — Private — Block user.
-**Response:**
-```json
-{
-  "success": true,
-  "status": "blocked"
-}
-```
+### Unranked Assets
+- `[GET] /api/admin/unranked-factions` — Private (admin) — List unranked factions.
+- `[POST] /api/admin/unranked-factions` — Private (admin) — Add unranked faction.
+- `[GET] /api/admin/unranked-factions/:id/usage` — Private (admin) — Check usage of an unranked faction.
+- `[DELETE] /api/admin/unranked-factions/:id` — Private (admin) — Remove unranked faction.
+- `[GET] /api/admin/unranked-maps` — Private (admin) — List unranked maps.
+- `[POST] /api/admin/unranked-maps` — Private (admin) — Add unranked map.
+- `[GET] /api/admin/unranked-maps/:id/usage` — Private (admin) — Check usage.
+- `[DELETE] /api/admin/unranked-maps/:id` — Private (admin) — Remove unranked map.
+- `[PUT] /api/admin/tournaments/:id/unranked-assets` — Private (admin) — Assign unranked assets to a tournament.
 
-### [POST] /api/admin/news — Private — Create news.
-**Request:**
-```json
-{
-  "title": "Nuevo torneo disponible",
-  "content": "Inscríbete ya!",
-  "language": "es"
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "news_id": "n1"
-}
-```
+### Team Management (2v2 Tournaments)
+- `[GET] /api/admin/tournaments/:id/teams` — Private (admin) — List teams in a tournament.
+- `[POST] /api/admin/tournaments/:id/teams` — Private (admin) — Create team.
+- `[POST] /api/admin/tournaments/:id/teams/:teamId/members` — Private (admin) — Add member to team.
+- `[DELETE] /api/admin/tournaments/:id/teams/:teamId/members/:playerId` — Private (admin) — Remove member.
+- `[POST] /api/admin/tournaments/:id/teams/:teamId/substitutes` — Private (admin) — Add substitute.
+- `[DELETE] /api/admin/tournaments/:id/teams/:teamId` — Private (admin) — Delete team.
+- `[POST] /api/admin/tournaments/:id/calculate-tiebreakers` — Private (admin) — Calculate tiebreakers for a tournament.
 
-### [POST] /api/admin/faq — Private — Create FAQ.
-**Request:**
-```json
-{
-  "question": "¿Cómo reporto una partida?",
-  "answer": "Usa el botón Report Match en la página de partidas.",
-  "language": "es"
-}
-```
-**Response:**
-```json
-{
-  "success": true,
-  "faq_id": "f1"
-}
-```
+---
 
-Notes:
-- Many endpoints require authentication via Bearer token (middleware `authMiddleware`).
-- Admin routes additionally verify `is_admin` in DB.
-- Tournament and match endpoints interoperate: when reporting a match tied to a tournament match (tournament_id + tournament_match_id), the server updates tournament_matches, tournament_participants stats, and Best-Of series state.
+## Notes
 
-If you want, I can expand each endpoint with example requests and sample responses, or generate a machine-readable OpenAPI (Swagger) spec next.
+- All `Private` endpoints require `Authorization: Bearer <token>` header.
+- `Private (admin)` additionally requires `is_admin = 1` in `users_extension`.
+- Tournament and match results interoperate: reporting a match with `tournament_id` + `tournament_match_id` updates tournament_matches, tournament_participants stats, and Best-Of series state atomically.
+- Replays are never uploaded by users — they are read from the Wesnoth replay server filesystem by the backend's background jobs.
+
+
+---
+
+## Background Jobs (Scheduler)
+
+Initialized in `backend/src/jobs/scheduler.ts`, started automatically on server boot after migrations run.
+
+| Schedule | Job | What it does |
+|----------|-----|--------------|
+| Every 60s | `SyncGamesFromForumJob` | Queries `forum.wesnothd_game_info` (WHERE `END_TIME > lastCheckTimestamp` AND addon type `modification` AND `ADDON_ID='Ranked'`), inserts new rows into `tournament.replays` with `parse_status='new'`. Persists `lastCheckTimestamp` in `system_settings`. |
+| Every 30s | `ParseNewReplaysRefactored` | Reads `replays WHERE parse_status='new'`, loads `.bz2` file from replay server filesystem (`REPLAY_BASE_PATH/version/YYYY/MM/DD/filename`), parses WML via `replayRankedParser`. Calls `matchCreationService.createMatch()` for confidence=2 results (auto-confirm). For confidence=1 (ambiguous winner), saves parsed data and marks replay for player confirmation. |
+| Daily 00:30 UTC | Balance snapshot cron | Calls `createFactionMapStatisticsSnapshot()` → saves a point-in-time row into `faction_map_statistics_history`. |
+| Daily 00:45 UTC | Player stats recalculation | Calls `recalculatePlayerMatchStatistics()` → rebuilds `player_match_statistics` table from all non-cancelled matches. |
+| Daily 01:00 UTC | Inactive player check | Direct DB `UPDATE users_extension SET is_active=0` for players with no matches in the last 30 days. |
+| 1st of month 01:30 UTC | Player of month | Calls `calculatePlayerOfMonth()` → writes result to `player_of_month` table. |
+
+---
+
+## Server Startup Sequence
+
+`backend/src/server.ts` → `app.ts`:
+1. Connect to MariaDB.
+2. Run `migrationRunner.runMigrations()` → scans `backend/migrations/*.sql`, applies any not yet recorded in `migrations` table. Idempotent (each migration is only applied once).
+3. Mount route files (`auth`, `users`, `matches`, `tournaments`, `statistics`, `player-statistics`, `replays`, `public`, `admin`).
+4. Call `initializeScheduledJobs()` → starts all cron/interval jobs above.
+
+---
+
+## Internal Call Chains
+
+These are the backend-internal service calls triggered by key endpoints (not visible from the frontend API surface).
+
+### Match creation (auto, via replay pipeline)
+`ParseNewReplaysRefactored.execute()` → `createMatch()` in `matchCreationService`:
+- Reads ELO for both players from `users_extension`.
+- Calculates new ELO via `calculateNewRating()` (FIDE formula in `utils/elo.ts`).
+- Inserts row into `matches` table.
+- Updates `users_extension` for winner: `elo_rating`, `matches_played`, `total_wins`, `trend`, `level`.
+- Updates `users_extension` for loser: `elo_rating`, `matches_played`, `total_losses`, `trend`, `level`.
+- If `linkedTournamentRoundMatchId` is set: calls `updateTournamentRoundMatch()` → updates `tournament_round_matches.player1_wins/player2_wins/status/winner_id`.
+- **Does NOT** call `updateFactionMapStatistics` — faction/map stats are rebuilt by the nightly cron or by explicit admin recalculation.
+
+### `POST /api/matches/report-confidence-1-replay`
+Player confirms winner of a confidence=1 replay:
+- Validates replay exists and caller is a participant.
+- Reads ELO, calculates new ratings inline.
+- Inserts into `matches`, updates both players' `users_extension` rows.
+- Calls `updateFactionMapStatistics(map, winnerFaction, loserFaction, side)` → increments counters in `faction_map_statistics`.
+- If `tournament_match_id` provided: updates `tournament_round_matches` and checks `checkAndCompleteRound()`.
+
+### `POST /api/matches/:id/confirm` (action: 'confirm')
+Loser (or winner) rates and acknowledges the match:
+- **No ELO recalculation** — ELO was already applied when the match was first created.
+- Updates `matches.loser_rating/winner_rating/loser_comments/winner_comments`.
+- If both players have now rated: sets `matches.status = 'confirmed'`.
+- If tournament match: mirrors comments/rating into `tournament_matches`.
+
+### `POST /api/matches/admin/:id/dispute` (action: 'validate')
+Admin validates a dispute (cancels the match and reverses ELO):
+- Marks match as `cancelled`.
+- **Full ELO cascade**: replays ALL non-cancelled matches from scratch → recalculates every player's ELO in chronological order → writes updated values back to `users_extension`.
+- Calls `recalculatePlayerMatchStatistics()` → rebuilds `player_match_statistics`.
+- Calls `recalculateFactionMapStatistics()` → rebuilds `faction_map_statistics`.
+- Attempts to call `calculatePlayerOfMonth()` to refresh player-of-month data.
+- Match is re-opened for re-reporting.
+
+### `POST /api/matches/:id/cancel-own`
+Reporter cancels their own pending match:
+- Sets match status to `cancelled`.
+- Same full ELO cascade and `recalculatePlayerMatchStatistics()` as dispute validate.
+
+### `POST /api/admin/recalculate-all-stats`
+Admin triggers manual full recalculation:
+- Full ELO cascade (same as dispute validate).
+- `recalculatePlayerMatchStatistics()`.
+- `recalculateFactionMapStatistics()`.
+- `calculatePlayerOfMonth()`.
+
+### `POST /api/admin/recalculate-snapshots`
+- Calls `recalculateBalanceEventSnapshots(recreateAll?)` from `statisticsCalculator`.
+- Rebuilds `faction_map_statistics_history` snapshots anchored to balance events.
+
+### `POST /api/tournaments` (create tournament)
+- Inserts tournament into DB.
+- **Discord side effect** (if Discord configured): calls `discordService.createTournamentThread()` → creates a forum thread in the configured Discord server, stores `discord_thread_id` in `tournaments` table. Posts `postTournamentCreated()` message to the thread.
+
+### Tournament lifecycle Discord notifications
+Triggered by organizer actions on the tournament:
+- `POST .../request-join` → `discordService.postPlayerRegistered()`.
+- `POST .../participants/:id/accept` → `discordService.postPlayerAccepted()`.
+- `POST .../close-registration` → `discordService.postRegistrationClosed()`.
+- `POST .../start` → `discordService.postTournamentStarted()` + `postRoundStarted()` + `postMatchups()`.
+- `POST .../next-round` → `discordService.postRoundStarted()` + `postMatchups()`.
+
+### `POST /api/admin/users/:id/unlock`
+- Resets `failed_login_attempts = 0`, `locked_until = NULL`.
+- Sets `is_blocked = 0`.
+- **Discord side effect**: calls `notifyUserUnlocked()` from `services/discord.ts` → sends DM to user's Discord account (if `discord_id` set and Discord enabled).
+
+---
+
+## Replay Data Flow (Full Picture)
+
+```
+Wesnoth game server
+        │ uploads replay file to filesystem
+        ▼
+forum.wesnothd_game_info table
+        │ (every 60s) SyncGamesFromForumJob
+        ▼
+tournament.replays (parse_status='new')
+        │ (every 30s) ParseNewReplaysRefactored
+        ▼
+    replayRankedParser (WML parse, bz2 decompress)
+        │
+        ├── confidence=2 → matchCreationService.createMatch()
+        │         → INSERT matches + UPDATE users_extension (ELO)
+        │         → UPDATE tournament_round_matches (if tournament)
+        │
+        └── confidence=1 → replay marked as pending
+                  │ (player sees it in Matches / TournamentDetail UI)
+                  ▼
+        POST /api/matches/report-confidence-1-replay
+                  → INSERT matches + UPDATE users_extension (ELO)
+                  → updateFactionMapStatistics()
+                  → UPDATE tournament_round_matches (if tournament)
+```

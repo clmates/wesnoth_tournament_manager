@@ -131,10 +131,6 @@ export const userService = {
 };
 
 export const matchService = {
-  reportMatch: (data: any) => api.post('/matches/report', data, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
-  reportMatchJson: (data: any) => api.post('/matches/report-json', data),
   confirmMatch: (id: string, data: any) => api.post(`/matches/${id}/confirm`, data),
   getAllMatches: (page: number = 1, filters?: any) => {
     const params: any = { page };
@@ -215,11 +211,6 @@ export const tournamentService = {
 };
 
 export const adminService = {
-  getRegistrationRequests: () => api.get('/admin/registration-requests'),
-  approveRegistration: (id: string, password: string) =>
-    api.post(`/admin/registration-requests/${id}/approve`, { password }),
-  rejectRegistration: (id: string) => api.post(`/admin/registration-requests/${id}/reject`),
-  
   // User management
   getAllUsers: () => api.get('/admin/users'),
   blockUser: (id: string) => api.post(`/admin/users/${id}/block`),
@@ -235,17 +226,12 @@ export const adminService = {
   getMaintenanceLogs: (limit?: number) =>
     api.get('/admin/maintenance-logs', { params: limit ? { limit } : {} }),
   deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
-  forceResetPassword: (id: string) => api.post(`/admin/users/${id}/force-reset-password`),
-  resendVerificationEmail: (id: string) => api.post(`/admin/users/${id}/resend-verification-email`),
   recalculateAllStats: () => api.post('/admin/recalculate-all-stats'),
   
   // Audit logs
   getAuditLogs: (params?: any) => api.get('/admin/audit-logs', { params }),
   deleteAuditLogs: (logIds: string[]) => api.delete('/admin/audit-logs', { data: { logIds } }),
   deleteOldAuditLogs: (daysBack: number) => api.delete('/admin/audit-logs/old', { data: { daysBack } }),
-  
-  // Password policy
-  updatePasswordPolicy: (data: any) => api.put('/admin/password-policy', data),
   
   // News/Announcements
   getNews: () => api.get('/admin/news'),

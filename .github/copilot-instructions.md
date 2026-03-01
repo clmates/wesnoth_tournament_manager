@@ -5,9 +5,10 @@ Advanced web manager for competitive Wesnoth tournaments. Features:
 - Player registration and authentication (integrated with wesnoth.org phpBB forum)
 - Tournament creation and management (Elimination, League, Swiss, Mixed; ranked and unranked; 1v1 and 2v2)
 - Match reporting, confirmation and dispute handling with dynamic ELO
-- Multi-language admin panel (EN, ES, DE, ZH)
+- Multi-language admin panel (EN, ES, DE, RU, ZH) 
 - Discord integration for notifications
 - Automatic replay processing from the Wesnoth forum/game-server database
+- Default language for all documentation, code and commit comments is english.
 
 ---
 
@@ -50,7 +51,7 @@ Advanced web manager for competitive Wesnoth tournaments. Features:
 ### `tournament` schema (app data)
 - `users_extension` — extended player profile (ELO, stats, roles)
 - `matches` — direct matches (ranked/unranked)
-- `tournaments`, `tournament_participants`, `tournament_rounds`, `tournament_matches`
+- `tournaments`, `tournament_participants`, `tournament_rounds`, `tournament_matches`, 'tournament_teams', 'tournament_round_matches'
 - `replays` — discovered replays registry + parse status
 - `game_maps`, `factions`, `balance_events`, `player_match_statistics`
 - `system_settings` — dynamic config (e.g. `replay_last_check_timestamp`)
@@ -120,7 +121,7 @@ Advanced web manager for competitive Wesnoth tournaments. Features:
 ---
 
 ## Internationalisation (i18n)
-- Translations in `frontend/src/i18n/` (EN, ES, DE, ZH)
+- Translations in `frontend/src/i18n/` (EN, ES, DE, RU, ZH)
 - Adding a language: create JSON file and register it in `i18n.ts`
 - Fallback support and in-app editing via admin panel
 
@@ -162,6 +163,7 @@ cd frontend && npm install && npm run dev
 ## Copilot-Specific Instructions
 
 ### Workflow
+- **Use the best AI model for each task.**, for example GPT 4.1 or GPT 5-mini for git commands. Claude Haiku for simple tasks or corrections, Claude Sonnet for complex requirements.
 - **Never execute code without prior confirmation.** First evaluate the request, clearly explain the proposed change, and wait for confirmation before executing.
 - **Ask about any doubts before proceeding.** Clarify all open questions before proposing a plan.
 - **Do not create analysis files or documentation unless explicitly requested.** Propose any files you plan to create and wait for confirmation.

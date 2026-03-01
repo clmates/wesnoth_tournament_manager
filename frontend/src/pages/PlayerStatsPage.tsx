@@ -13,7 +13,6 @@ type StatsTab = 'overview' | 'by-map' | 'by-faction' | 'recent-opponents';
 interface Player {
   id: string;
   username: string;
-  email: string;
   elo_rating: number;
 }
 

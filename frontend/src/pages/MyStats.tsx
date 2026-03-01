@@ -72,10 +72,6 @@ const MyStats: React.FC = () => {
           <p>{stats.nickname}</p>
         </div>
         <div className="info-group">
-          <label>Email:</label>
-          <p>{stats.email}</p>
-        </div>
-        <div className="info-group">
           <label>ELO Rating:</label>
           <p>{stats.elo_rating || 1200}</p>
         </div>

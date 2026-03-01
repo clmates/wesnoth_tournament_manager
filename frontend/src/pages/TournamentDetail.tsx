@@ -4,7 +4,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { publicService, tournamentService, api } from '../services/api';
 import TournamentForm from '../components/TournamentForm';
-import TournamentMatchReportModal from '../components/TournamentMatchReportModal';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import MatchDetailsModal from '../components/MatchDetailsModal';
 import { TeamJoinModal } from '../components/TeamJoinModal';
@@ -136,8 +135,6 @@ const TournamentDetail: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'participants' | 'matches' | 'rounds' | 'roundMatches' | 'ranking' | 'teams'>('participants');
   const [userParticipationStatus, setUserParticipationStatus] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
-  const [reportMatchData, setReportMatchData] = useState<any>(null);
-  const [showReportModal, setShowReportModal] = useState(false);
   const [confirmMatchData, setConfirmMatchData] = useState<any>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [matchDetailsModal, setMatchDetailsModal] = useState<{ isOpen: boolean; match: TournamentMatch | null }>({ isOpen: false, match: null });
@@ -609,30 +606,6 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     setSuccess(t('success_match_reported'));
     fetchTournamentData();
     fetchPendingTournamentReplays();
-    setTimeout(() => setSuccess(''), 3000);
-  };
-
-  const handleOpenReportMatch = (match: TournamentMatch) => {
-    setReportMatchData({
-      tournamentMatchId: match.id,
-      tournamentId: id,
-      tournamentName: tournament?.name,
-      player1Id: match.player1_id,
-      player1Name: match.player1_nickname,
-      player2Id: match.player2_id,
-      player2Name: match.player2_nickname,
-    });
-    setShowReportModal(true);
-  };
-
-  const handleCloseReportModal = () => {
-    setShowReportModal(false);
-    setReportMatchData(null);
-  };
-
-  const handleReportMatchSuccess = () => {
-    setSuccess(t('success_match_reported'));
-    fetchTournamentData();
     setTimeout(() => setSuccess(''), 3000);
   };
 
@@ -1409,18 +1382,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                            match.match_status_from_matches === 'cancelled' ? t('match_status_cancelled') :
                                            t('option_pending')}
                                         </span>
-                                        {/* Report Match button hidden: done via automatic replay detection
-                                        isPlayer && (round.round_status === 'pending' || round.round_status === 'in_progress') && (
-                                          <button
-                                            className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
-                                            onClick={() => handleOpenReportMatch(match)}
-                                            title={t('report_match_link')}
-                                          >
-                                            {t('report_match_link')}
-                                          </button>
-                                        )
-                                        */}
-                                        {isCreator && (round.round_status === 'completed' || round.round_status === 'in_progress') && !match.winner_id && (
+                                                                                {isCreator && (round.round_status === 'completed' || round.round_status === 'in_progress') && !match.winner_id && (
                                           <button
                                             className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                             onClick={() => {
@@ -1916,22 +1878,6 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           tournament_match_id={selectedTournamentReplay.tournament_match_id}
           onClose={() => { setShowReplayConfirmModal(false); setSelectedTournamentReplay(null); }}
           onSuccess={handleReplayConfirmSuccess}
-        />
-      )}
-
-      {showReportModal && reportMatchData && tournament && (
-        <TournamentMatchReportModal
-          tournamentMatchId={reportMatchData.tournamentMatchId}
-          tournamentId={reportMatchData.tournamentId}
-          tournamentName={reportMatchData.tournamentName}
-          tournamentMode={tournament.tournament_mode || 'ranked'}
-          player1Id={reportMatchData.player1Id}
-          player1Name={reportMatchData.player1Name}
-          player2Id={reportMatchData.player2Id}
-          player2Name={reportMatchData.player2Name}
-          currentUserId={userId!}
-          onClose={handleCloseReportModal}
-          onSuccess={handleReportMatchSuccess}
         />
       )}
 

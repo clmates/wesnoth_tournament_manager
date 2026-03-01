@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { authService, userService } from '../services/api';
+import { userService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import MainLayout from '../components/MainLayout';
 import ProfileStats from '../components/ProfileStats';
@@ -19,17 +19,10 @@ const Profile: React.FC = () => {
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [discordId, setDiscordId] = useState('');
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [discordMessage, setDiscordMessage] = useState('');
   const [discordError, setDiscordError] = useState('');
-  const [passwordMessage, setPasswordMessage] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [changingPassword, setChangingPassword] = useState(false);
   const [updatingDiscord, setUpdatingDiscord] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
-  const [showPasswordHints, setShowPasswordHints] = useState(false);
   const [preferencesCollapsed, setPreferencesCollapsed] = useState(false);
   const [avatarSectionCollapsed, setAvatarSectionCollapsed] = useState(true);
 
@@ -45,24 +38,6 @@ const Profile: React.FC = () => {
     languages.find(l => l.code === selectedLanguage) || languages[0],
     [selectedLanguage, languages]
   );
-
-  const passwordRules = useMemo(() => [
-    { regex: /.{8,}/, label: 'At least 8 characters' },
-    { regex: /[A-Z]/, label: 'At least one uppercase letter' },
-    { regex: /[a-z]/, label: 'At least one lowercase letter' },
-    { regex: /[0-9]/, label: 'At least one number' },
-    { regex: /[!@#$%^&*(),.?":{}|<>]/, label: 'At least one special character' },
-  ], []);
-
-  const getPasswordValidation = useCallback(() => {
-    return passwordRules.map(rule => ({
-      ...rule,
-      satisfied: rule.regex.test(newPassword)
-    }));
-  }, [newPassword, passwordRules]);
-
-  const passwordValidation = useMemo(() => getPasswordValidation(), [getPasswordValidation]);
-  const isNewPasswordValid = useMemo(() => passwordValidation.every(rule => rule.satisfied), [passwordValidation]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -177,44 +152,6 @@ const Profile: React.FC = () => {
     }
   }, [discordId, t]);
 
-  const handleChangePassword = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!oldPassword || !newPassword || !confirmPassword) {
-      setPasswordError(t('profile.error_all_fields_required'));
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError(t('profile.error_passwords_not_match'));
-      return;
-    }
-
-    // Validate against all password rules
-    const failedRules = passwordValidation.filter(rule => !rule.satisfied);
-    if (failedRules.length > 0) {
-      setPasswordError(`Password requirements not met: ${failedRules.map(r => r.label).join(', ')}`);
-      return;
-    }
-
-    setChangingPassword(true);
-    setPasswordError('');
-    setPasswordMessage('');
-
-    try {
-      await authService.changePassword(oldPassword, newPassword);
-      setPasswordMessage(t('profile.password_changed_success'));
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setTimeout(() => setPasswordMessage(''), 3000);
-    } catch (err: any) {
-      setPasswordError(err.response?.data?.error || t('profile.error_change_password_failed'));
-    } finally {
-      setChangingPassword(false);
-    }
-  }, [oldPassword, newPassword, confirmPassword, passwordValidation, t]);
-
   if (loading) {
     return <div className="auth-container"><p>{t('loading')}</p></div>;
   }
@@ -232,14 +169,6 @@ const Profile: React.FC = () => {
           {profile && (
             <>
               <ProfileStats player={profile} />
-
-              <section className="bg-white rounded-lg shadow-md p-8 mb-8">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.info_title')}</h2>
-                <div className="mb-6">
-                  <label className="font-semibold text-gray-800 mb-2 block">{t('profile.label_email')}</label>
-                  <p className="text-gray-600 px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">{profile?.email}</p>
-                </div>
-              </section>
 
               <section className="bg-white rounded-lg shadow-md p-8 mb-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.discord_title')}</h2>
@@ -354,57 +283,15 @@ const Profile: React.FC = () => {
 
               <section className="bg-white rounded-lg shadow-md p-8 mb-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('password_change_title')}</h2>
-                {passwordMessage && <p className="bg-green-100 text-green-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-green-600">{passwordMessage}</p>}
-                {passwordError && <p className="bg-red-100 text-red-800 px-4 py-3 rounded-lg mb-4 border-l-4 border-red-600">{passwordError}</p>}
-                <form onSubmit={handleChangePassword} className="space-y-4">
-                  <input
-                    type="password"
-                    placeholder={t('password_current')}
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                    required
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
-                  />
-                  <input
-                    type="password"
-                    placeholder={t('password_new')}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    onFocus={() => setShowPasswordHints(true)}
-                    onBlur={() => setShowPasswordHints(false)}
-                    required
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all ${newPassword && !isNewPasswordValid ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'}`}
-                  />
-                  {showPasswordHints && newPassword && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                      <div className="text-sm font-semibold text-gray-800 mb-3">Password requirements:</div>
-                      {passwordValidation.map((rule, idx) => (
-                        <div
-                          key={idx}
-                          className={`text-sm flex items-center gap-2 mb-2 ${rule.satisfied ? 'text-green-700' : 'text-gray-600'}`}
-                        >
-                          <span className={`${rule.satisfied ? 'text-green-500' : 'text-red-500'}`}>{rule.satisfied ? '✓' : '✗'}</span>
-                          <span>{rule.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <input
-                    type="password"
-                    placeholder={t('password_confirm')}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all ${newPassword && confirmPassword && newPassword !== confirmPassword ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'}`}
-                  />
-                  <button 
-                    type="submit" 
-                    disabled={changingPassword || !isNewPasswordValid}
-                    className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {changingPassword ? t('profile.changing') : t('password_change_button')}
-                  </button>
-                </form>
+                <p className="text-gray-600 mb-4">{t('profile.password_managed_by_forum', 'Your password is managed by the official Wesnoth website.')}</p>
+                <a
+                  href="https://forums.wesnoth.org/ucp.php?mode=sendpassword"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+                >
+                  {t('profile.change_password_on_forum', 'Change Password on Wesnoth Forum')}
+                </a>
               </section>
             </>
           )}
