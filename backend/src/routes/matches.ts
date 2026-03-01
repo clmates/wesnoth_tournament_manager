@@ -1905,9 +1905,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
        FROM replays r
        WHERE r.integration_confidence = 1 
          AND r.parsed = 1
-         AND r.tournament_round_match_id IS NULL
-         AND r.tournament_id IS NULL
          AND r.match_id IS NULL
+         AND (r.tournament_round_match_id IS NULL AND (r.parse_summary IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(r.parse_summary, '$.linkedTournamentRoundMatchId')) IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(r.parse_summary, '$.linkedTournamentRoundMatchId')) = 'null'))
        ORDER BY r.created_at DESC
        LIMIT ? OFFSET ?`,
       [limit, offset]
