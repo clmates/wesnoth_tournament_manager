@@ -1382,7 +1382,44 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                            match.match_status_from_matches === 'cancelled' ? t('match_status_cancelled') :
                                            t('option_pending')}
                                         </span>
-                                                                                {isCreator && (round.round_status === 'completed' || round.round_status === 'in_progress') && !match.winner_id && (
+                                                                                {/* Inline replay confirmation for auto-detected matches */}
+                                        {match.pending_replay_id && match.pending_replay_need_integration === 1 && !match.winner_id && (() => {
+                                          const summary = (() => { try { return JSON.parse(match.pending_replay_summary); } catch { return null; } })();
+                                          const replayObj = {
+                                            id: match.pending_replay_id,
+                                            player1_nickname: match.player1_nickname,
+                                            player2_nickname: match.player2_nickname,
+                                            map: summary?.finalMap || summary?.resolvedMap || '',
+                                            winner_faction: summary?.finalFactions?.side1 || '',
+                                            loser_faction: summary?.finalFactions?.side2 || '',
+                                            tournament_match_id: null,
+                                            tournament_round_match_id: match.id,
+                                          };
+                                          const isInvolved = currentUser && (currentUser.id === match.player1_id || currentUser.id === match.player2_id);
+                                          return (
+                                            <div className="flex flex-col gap-1 mt-1">
+                                              <span className="text-xs text-blue-600 font-semibold">🎬 {t('replay_auto_detected') || 'Replay detected'}</span>
+                                              {match.pending_replay_confidence === 2 ? (
+                                                <span className="text-xs text-green-600">✅ {t('auto_confirmed') || 'Auto-confirmed'}</span>
+                                              ) : isInvolved ? (
+                                                <div className="flex gap-1">
+                                                  <button
+                                                    className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
+                                                    onClick={() => handleOpenReplayModal(replayObj, 'I won')}
+                                                  >{t('replay_i_won') || 'I won'}</button>
+                                                  <button
+                                                    className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                                                    onClick={() => handleOpenReplayModal(replayObj, 'I lost')}
+                                                  >{t('replay_i_lost') || 'I lost'}</button>
+                                                </div>
+                                              ) : (
+                                                <span className="text-xs text-gray-500">{t('pending_player_confirmation') || 'Pending confirmation'}</span>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+
+                                        {isCreator && (round.round_status === 'completed' || round.round_status === 'in_progress') && !match.winner_id && (
                                           <button
                                             className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                             onClick={() => {

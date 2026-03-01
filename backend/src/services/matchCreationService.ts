@@ -151,9 +151,12 @@ function resolveRated(currentlyRated: boolean, newElo: number, matchesPlayed: nu
  * Increment win counters in tournament_round_matches.
  * Closes the series if wins_required is reached.
  */
-export async function updateTournamentRoundMatch(roundMatchId: string, winnerId: string): Promise<void> {
+export async function updateTournamentRoundMatch(
+  roundMatchId: string,
+  winnerId: string
+): Promise<{ seriesCompleted: boolean; tournamentId: string | null; roundId: string | null }> {
   const rmResult = await query(
-    `SELECT id, player1_id, player2_id, player1_wins, player2_wins, wins_required
+    `SELECT id, tournament_id, round_id, player1_id, player2_id, player1_wins, player2_wins, wins_required
      FROM tournament_round_matches WHERE id = ?`,
     [roundMatchId]
   );
@@ -161,7 +164,7 @@ export async function updateTournamentRoundMatch(roundMatchId: string, winnerId:
   const rows = (rmResult as any).rows || [];
   if (rows.length === 0) {
     console.warn(`⚠️  [TOURNAMENT LINK] tournament_round_match not found: ${roundMatchId}`);
-    return;
+    return { seriesCompleted: false, tournamentId: null, roundId: null };
   }
 
   const rm = rows[0];
@@ -181,4 +184,29 @@ export async function updateTournamentRoundMatch(roundMatchId: string, winnerId:
   );
 
   console.log(`   ✅ [TOURNAMENT LINK] Round match updated: p1_wins=${newP1Wins} p2_wins=${newP2Wins} status=${newStatus}`);
+
+  // When the series ends, update tournament_participants win/loss/points
+  if (seriesOver && rm.tournament_id) {
+    const loserId = winnerIsPlayer1 ? rm.player2_id : rm.player1_id;
+
+    await query(
+      `UPDATE tournament_participants
+       SET tournament_wins   = COALESCE(tournament_wins, 0) + 1,
+           tournament_points = COALESCE(tournament_points, 0) + 1,
+           updated_at        = NOW()
+       WHERE tournament_id = ? AND user_id = ?`,
+      [rm.tournament_id, winnerId]
+    );
+    await query(
+      `UPDATE tournament_participants
+       SET tournament_losses = COALESCE(tournament_losses, 0) + 1,
+           updated_at        = NOW()
+       WHERE tournament_id = ? AND user_id = ?`,
+      [rm.tournament_id, loserId]
+    );
+
+    console.log(`   ✅ [TOURNAMENT LINK] Participant stats: winner(${winnerId}) +1W+1P, loser(${loserId}) +1L`);
+  }
+
+  return { seriesCompleted: seriesOver, tournamentId: rm.tournament_id || null, roundId: rm.round_id || null };
 }

@@ -1104,111 +1104,59 @@ router.post('/tournament-matches/:matchId/replay/download-count', async (req, re
 
 // ============================================================================
 // GET /public/tournaments/:tournamentId/pending-replays
-// Returns confidence=1 replays where both players are tournament participants
-// and the corresponding tournament_match exists without a match_id yet
+// Returns confidence=1 replays linked to this tournament's round matches
+// that still need player confirmation (match_id IS NULL, need_integration=1)
 // ============================================================================
 router.get('/tournaments/:tournamentId/pending-replays', async (req, res) => {
   try {
     const { tournamentId } = req.params;
 
-    // Get tournament participants
-    const participantsResult = await query(
-      `SELECT tp.user_id, ue.nickname
-       FROM tournament_participants tp
-       JOIN users_extension ue ON tp.user_id = ue.id
-       WHERE tp.tournament_id = ? AND tp.participation_status = 'approved'`,
+    // Query replays directly via tournament_round_match_id relationship
+    const replayResult = await query(
+      `SELECT r.id, r.replay_url, r.replay_filename, r.game_name, r.parse_summary,
+              r.cancel_requested_by, r.created_at,
+              trm.player1_id, trm.player2_id,
+              u1.nickname AS player1_nickname, u2.nickname AS player2_nickname
+       FROM replays r
+       JOIN tournament_round_matches trm ON r.tournament_round_match_id = trm.id
+       JOIN tournament_rounds tr ON trm.round_id = tr.id
+       JOIN users_extension u1 ON trm.player1_id = u1.id
+       JOIN users_extension u2 ON trm.player2_id = u2.id
+       WHERE tr.tournament_id = ?
+         AND r.need_integration = 1
+         AND r.match_id IS NULL
+         AND r.deleted_at IS NULL
+       ORDER BY r.created_at DESC`,
       [tournamentId]
     );
 
-    const participants = participantsResult.rows as any[];
-    if (participants.length < 2) {
-      return res.json({ success: true, replays: [] });
-    }
+    const pendingReplays = (replayResult.rows as any[]).map((r: any) => {
+      const parseSummary = typeof r.parse_summary === 'string'
+        ? JSON.parse(r.parse_summary)
+        : (r.parse_summary || {});
 
-    const participantMap = new Map<string, string>(
-      participants.map((p: any) => [p.nickname.toLowerCase(), p.user_id])
-    );
-    const participantNicknames = new Set<string>(participants.map((p: any) => p.nickname.toLowerCase()));
+      const map = parseSummary.finalMap || parseSummary.resolvedMap || parseSummary.forumMap || 'Unknown Map';
+      const resolvedFactions = parseSummary.resolvedFactions || {};
 
-    // Get recent unmatched confidence=1 replays
-    const replayResult = await query(
-      `SELECT r.id, r.replay_url, r.replay_filename, r.game_name, r.parse_summary, r.created_at, r.wesnoth_version,
-              r.cancel_requested_by
-       FROM replays r
-       WHERE r.integration_confidence = 1
-         AND r.parsed = 1
-         AND r.match_id IS NULL
-         AND r.deleted_at IS NULL
-       ORDER BY r.created_at DESC
-       LIMIT 200`,
-      []
-    );
-
-    const pendingReplays: any[] = [];
-
-    for (const r of replayResult.rows as any[]) {
-      try {
-        const parseSummary = typeof r.parse_summary === 'string'
-          ? JSON.parse(r.parse_summary)
-          : r.parse_summary;
-
-        const players = parseSummary?.forumPlayers || [];
-        if (players.length < 2) continue;
-
-        const p1Name = (players[0]?.user_name || '').toLowerCase();
-        const p2Name = (players[1]?.user_name || '').toLowerCase();
-
-        // Both players must be tournament participants
-        if (!participantNicknames.has(p1Name) || !participantNicknames.has(p2Name)) continue;
-
-        const player1UserId = participantMap.get(p1Name);
-        const player2UserId = participantMap.get(p2Name);
-
-        // Find a pending tournament_match linking these two players (unmatched)
-        const tmResult = await query(
-          `SELECT id, player1_id, player2_id FROM tournament_matches
-           WHERE tournament_id = ?
-             AND match_id IS NULL
-             AND match_status = 'pending'
-             AND (
-               (player1_id = ? AND player2_id = ?) OR
-               (player1_id = ? AND player2_id = ?)
-             )
-           LIMIT 1`,
-          [tournamentId, player1UserId, player2UserId, player2UserId, player1UserId]
-        );
-
-        if ((tmResult.rows as any[]).length === 0) continue;
-
-        const tm = (tmResult.rows as any[])[0];
-
-        const map = parseSummary.resolvedMap || parseSummary.parsedMap || parseSummary.map || parseSummary.scenario || 'Unknown Map';
-        const resolvedFactions = parseSummary.resolvedFactions || {};
-
-        pendingReplays.push({
-          id: r.id,
-          tournament_match_id: tm.id,
-          tournament_match_player1_id: tm.player1_id,
-          tournament_match_player2_id: tm.player2_id,
-          player1_nickname: players[0]?.user_name || 'Unknown',
-          player2_nickname: players[1]?.user_name || 'Unknown',
-          winner_nickname: parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown',
-          loser_nickname: parseSummary.replayVictory?.loser_name || players[1]?.user_name || 'Unknown',
-          winner_faction: resolvedFactions.side1 || 'Unknown',
-          loser_faction: resolvedFactions.side2 || 'Unknown',
-          map,
-          replay_url: r.replay_url,
-          replay_filename: r.replay_filename,
-          game_name: r.game_name,
-          cancel_requested_by: r.cancel_requested_by || null,
-          created_at: r.created_at,
-          source_type: 'replay_confidence_1',
-          confidence_level: 1,
-        });
-      } catch (err) {
-        console.error('Error processing replay for tournament:', err);
-      }
-    }
+      return {
+        id: r.id,
+        tournament_match_id: null, // tournament replays use tournament_round_match_id on the replay
+        player1_nickname: r.player1_nickname,
+        player2_nickname: r.player2_nickname,
+        winner_nickname: parseSummary.replayVictory?.winner_name || r.player1_nickname,
+        loser_nickname: parseSummary.replayVictory?.loser_name || r.player2_nickname,
+        winner_faction: resolvedFactions.side1 || 'Unknown',
+        loser_faction: resolvedFactions.side2 || 'Unknown',
+        map,
+        replay_url: r.replay_url,
+        replay_filename: r.replay_filename,
+        game_name: r.game_name,
+        cancel_requested_by: r.cancel_requested_by || null,
+        created_at: r.created_at,
+        source_type: 'replay_confidence_1',
+        confidence_level: 1,
+      };
+    });
 
     res.json({ success: true, replays: pendingReplays });
   } catch (error) {

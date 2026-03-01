@@ -18,6 +18,7 @@ import {
   recalculateFactionMapStatistics,
   updatePlayerElo
 } from '../services/statisticsCalculator.js';
+import { updateTournamentRoundMatch } from '../services/matchCreationService.js';
 // NOTE: Supabase replay storage temporarily disabled - using /uploads/replays instead
 import multer from 'multer';
 import path from 'path';
@@ -1359,7 +1360,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     // Get the replay from database
     const replayResult = await query(
       `SELECT id, parse_summary, integration_confidence, parsed,
-              game_id, wesnoth_version, instance_uuid
+              game_id, wesnoth_version, instance_uuid, tournament_round_match_id
        FROM replays WHERE id = ? AND integration_confidence = 1 AND parsed = 1`,
       [replayId]
     );
@@ -1657,6 +1658,26 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       console.log(`✅ [CONFIDENCE-1] Tournament match ${tournament_match_id} updated with match_id ${matchId}`);
     }
 
+    // If this replay is linked to a tournament_round_match, update series + participant stats
+    if (replay.tournament_round_match_id) {
+      const seriesResult = await updateTournamentRoundMatch(replay.tournament_round_match_id, winnerId);
+      if (seriesResult.seriesCompleted && seriesResult.tournamentId) {
+        try {
+          const rnResult = await query(
+            `SELECT round_number FROM tournament_rounds WHERE id = ?`,
+            [seriesResult.roundId]
+          );
+          const roundNumber = (rnResult as any).rows?.[0]?.round_number;
+          if (roundNumber) {
+            const { checkAndCompleteRound } = await import('../utils/tournament.js');
+            await checkAndCompleteRound(seriesResult.tournamentId, roundNumber);
+          }
+        } catch (roundErr) {
+          console.error('⚠️  [CONFIDENCE-1] Error checking round completion:', roundErr);
+        }
+      }
+    }
+
     console.log(`✅ [CONFIDENCE-1] Match reported successfully: ${winnerId} (+${eloChange} ELO) vs ${loserId}`);
     res.status(201).json({ 
       success: true,
@@ -1884,6 +1905,7 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
        FROM replays r
        WHERE r.integration_confidence = 1 
          AND r.parsed = 1
+         AND r.tournament_round_match_id IS NULL
          AND r.match_id IS NULL
        ORDER BY r.created_at DESC
        LIMIT ? OFFSET ?`,

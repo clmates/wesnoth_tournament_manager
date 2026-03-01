@@ -816,83 +816,76 @@ export class ParseNewReplaysRefactorized {
   }
 
   /**
-   * Resolve map name against game_maps table
-   * Searches with: exact match → without prefix → canonical match
+   * Resolve map name against game_maps table.
+   * Tries multiple strategies (exact, prefix-stripped, LIKE, fuzzy with \ufffd→%).
+   * Prefers ranked results: never stops early on an unranked match — saves it as
+   * fallback and keeps searching for a ranked entry.
    */
   private async resolveMap(mapName: string | null): Promise<{ name: string | null; isRanked: boolean }> {
     if (!mapName) {
       return { name: null, isRanked: false };
     }
 
+    // Helper: run a query and return ranked result immediately, or save as fallback
+    let unrankedFallback: { name: string; isRanked: boolean } | null = null;
+    const tryQuery = async (sql: string, params: any[]): Promise<{ name: string; isRanked: boolean } | null> => {
+      const result = await query(sql, params);
+      const rows = (result as any).rows || [];
+      if (rows.length === 0) return null;
+      const map = rows[0];
+      const entry = { name: map.name as string, isRanked: map.is_ranked === 1 };
+      if (entry.isRanked) return entry;           // ranked → use immediately
+      if (!unrankedFallback) unrankedFallback = entry; // save first unranked hit
+      return null;
+    };
+
     try {
-      // Try exact match first
-      let result = await query(
-        `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) LIMIT 1`,
+      // 1. Exact match (ORDER BY is_ranked DESC so ranked rows come first)
+      let hit = await tryQuery(
+        `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
         [mapName]
       );
+      if (hit) return hit;
 
-      if ((result as any).rows?.length > 0) {
-        const map = (result as any).rows[0];
-        return { name: map.name, isRanked: map.is_ranked === 1 };
-      }
-
-      // Try without prefix (e.g., "2p — Tombs of Kesorak" -> "Tombs of Kesorak")
-      // Strip patterns like "2p —", "3p —", "4p —", etc. and whitespace
-      // Also accept \ufffd (replacement char) as prefix separator (encoding issue from forum DB)
+      // 2. Strip "Np —" / "Np \ufffd" prefix, then exact match
       const cleaned = mapName.replace(/^\d+[a-z]?\s*[—\-–\ufffd]\s*/i, '').trim();
       if (cleaned !== mapName) {
-        result = await query(
-          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) LIMIT 1`,
+        hit = await tryQuery(
+          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
           [cleaned]
         );
-
-        if ((result as any).rows?.length > 0) {
-          const map = (result as any).rows[0];
-          return { name: map.name, isRanked: map.is_ranked === 1 };
-        }
+        if (hit) return hit;
       }
 
-      // Try LIKE match (partial)
-      result = await query(
-        `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) LIMIT 1`,
+      // 3. LIKE on raw map name
+      hit = await tryQuery(
+        `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
         [`%${mapName}%`]
       );
+      if (hit) return hit;
 
-      if ((result as any).rows?.length > 0) {
-        const map = (result as any).rows[0];
-        return { name: map.name, isRanked: map.is_ranked === 1 };
-      }
-
-      // Fuzzy match: replace \ufffd (encoding replacement chars) with SQL % wildcard
-      // This handles cases like "Sulla\ufffds Ruins" matching "Sulla's Ruins"
+      // 4. Fuzzy on prefix-stripped name (replace \ufffd with % wildcard)
       const fuzzyClean = cleaned.replace(/\ufffd/g, '%');
       if (fuzzyClean !== cleaned) {
-        result = await query(
-          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) LIMIT 1`,
+        hit = await tryQuery(
+          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
           [fuzzyClean]
         );
-
-        if ((result as any).rows?.length > 0) {
-          const map = (result as any).rows[0];
-          return { name: map.name, isRanked: map.is_ranked === 1 };
-        }
+        if (hit) return hit;
       }
 
-      // Also try fuzzy on the raw map name (in case prefix strip produced same string)
+      // 5. Fuzzy on raw map name
       const fuzzyRaw = mapName.replace(/\ufffd/g, '%');
       if (fuzzyRaw !== mapName && fuzzyRaw !== fuzzyClean) {
-        result = await query(
-          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) LIMIT 1`,
+        hit = await tryQuery(
+          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
           [fuzzyRaw]
         );
-
-        if ((result as any).rows?.length > 0) {
-          const map = (result as any).rows[0];
-          return { name: map.name, isRanked: map.is_ranked === 1 };
-        }
+        if (hit) return hit;
       }
 
-      return { name: mapName, isRanked: false };
+      // No ranked result found — return best unranked match or the raw input
+      return unrankedFallback || { name: mapName, isRanked: false };
     } catch (err) {
       console.warn(`⚠️  Could not resolve map "${mapName}":`, err);
       return { name: mapName, isRanked: false };
