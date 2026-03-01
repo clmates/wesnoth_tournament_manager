@@ -1914,6 +1914,20 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 
     console.log(`📊 [MATCHES] Found ${result.rows.length} matches and ${replayResult.rows?.length || 0} confidence=1 replays`);
 
+    // DEBUG: log raw replay rows before filtering
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+      const debugReplays = await query(
+        `SELECT r.id, r.tournament_round_match_id, r.integration_confidence, r.parsed, r.match_id,
+                JSON_UNQUOTE(JSON_EXTRACT(r.parse_summary, '$.linkedTournamentRoundMatchId')) as json_linked
+         FROM replays r
+         WHERE r.integration_confidence = 1 AND r.parsed = 1 AND r.match_id IS NULL
+         ORDER BY r.created_at DESC LIMIT 10`,
+        []
+      );
+      console.log(`🔍 [MATCHES DEBUG] All confidence=1 parsed replays (before tournament filter):`, JSON.stringify(debugReplays.rows));
+      console.log(`🔍 [MATCHES DEBUG] Filtered replay rows returned:`, JSON.stringify(replayResult.rows?.map((r: any) => r.id)));
+    }
+
     // Get current user's nickname and admin status once (for security check)
     const currentUserResult = await query(
       `SELECT nickname, is_admin FROM users_extension WHERE id = ?`,
