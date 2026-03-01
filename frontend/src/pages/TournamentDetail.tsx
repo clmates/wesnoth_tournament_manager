@@ -133,9 +133,7 @@ const TournamentDetail: React.FC = () => {
   const [showDetermineWinnerModal, setShowDetermineWinnerModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
 
-  // Confidence=1 replay detection for tournament matches
-  const [pendingTournamentReplays, setPendingTournamentReplays] = useState<any[]>([]);
-  const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
+    const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
   const [selectedTournamentReplay, setSelectedTournamentReplay] = useState<any>(null);
   const [replayModalChoice, setReplayModalChoice] = useState<'I won' | 'I lost' | 'cancel'>('I won');
   const [editData, setEditData] = useState<TournamentFormData>({
@@ -152,13 +150,6 @@ const TournamentDetail: React.FC = () => {
     general_rounds_format: 'bo3' as 'bo1' | 'bo3' | 'bo5',
     final_rounds_format: 'bo5' as 'bo1' | 'bo3' | 'bo5'
   });
-
-  // Load pending replays when the matches tab is activated or tournament data refreshes
-  useEffect(() => {
-    if (activeTab === 'matches' && id && (tournament?.status === 'in_progress' || tournament?.status === 'finished')) {
-      fetchPendingTournamentReplays();
-    }
-  }, [activeTab, id, tournament?.status]);
 
   // Get the origin page from location state
   const originPage = (location.state as any)?.from || 'tournaments';
@@ -568,18 +559,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   };
 
   // Fetch confidence=1 replays matching open tournament matches
-  const fetchPendingTournamentReplays = async () => {
-    if (!id) return;
-    try {
-      const res = await api.get(`/public/tournaments/${id}/pending-replays`);
-      setPendingTournamentReplays(res.data.replays || []);
-      console.log(`🎮 [TOURNAMENT-REPLAYS] Found ${res.data.replays?.length || 0} confidence=1 replays`);
-    } catch (err) {
-      console.error('Error fetching pending tournament replays:', err);
-    }
-  };
-
-  const handleOpenReplayModal = (replay: any, choice: 'I won' | 'I lost' | 'cancel') => {
+    const handleOpenReplayModal = (replay: any, choice: 'I won' | 'I lost' | 'cancel') => {
     setSelectedTournamentReplay(replay);
     setReplayModalChoice(choice);
     setShowReplayConfirmModal(true);
@@ -590,7 +570,6 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     setSelectedTournamentReplay(null);
     setSuccess(t('success_match_reported'));
     fetchTournamentData();
-    fetchPendingTournamentReplays();
     setTimeout(() => setSuccess(''), 3000);
   };
 
@@ -1175,104 +1154,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           {tournament?.status !== 'in_progress' && tournament?.status !== 'finished' ? (
             <p className="bg-gray-100 text-gray-700 text-center py-8 px-4 rounded">{t('matches_will_be_generated')}</p>
           ) : (
-          <>
-            {/* Detected Replays Section - confidence=1 replays linked to pending tournament matches */}
-            {pendingTournamentReplays.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-yellow-400">⚠️ Auto-detected Replays</h3>
-                <p className="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
-                  These replays were automatically detected from the game server and matched to pending tournament matches. Confirm the result to report the match.
-                </p>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse">
-                    <thead className="bg-yellow-100">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_player1')}</th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-700">vs</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_player2')}</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_map')}</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_status_actions') || 'Status / Actions'}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pendingTournamentReplays.map((replay) => {
-                        const isInvolved =
-                          user?.nickname?.toLowerCase() === replay.player1_nickname?.toLowerCase() ||
-                          user?.nickname?.toLowerCase() === replay.player2_nickname?.toLowerCase();
-                        return (
-                          <tr key={replay.id} className="border-b border-yellow-200 bg-yellow-50 hover:bg-yellow-100 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="font-semibold text-yellow-900">{replay.player1_nickname}</div>
-                              <div className="text-xs text-yellow-700 mt-1">{replay.winner_faction}</div>
-                              <div className="text-xs text-yellow-600 italic mt-1">⚠️ confidence=1</div>
-                            </td>
-                            <td className="px-4 py-3 text-center font-bold text-gray-500">vs</td>
-                            <td className="px-4 py-3">
-                              <div className="font-semibold text-yellow-900">{replay.player2_nickname}</div>
-                              <div className="text-xs text-yellow-700 mt-1">{replay.loser_faction}</div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="font-semibold text-yellow-900">{replay.map}</div>
-                              <div className="text-xs text-yellow-600 mt-1">🎮 Detected Replay</div>
-                              {(replay.replay_filename || replay.game_name) && (
-                                <div className="text-xs text-yellow-700 mt-1 font-mono bg-yellow-100 px-2 py-1 rounded truncate max-w-[180px]" title={replay.replay_filename || replay.game_name}>
-                                  📄 {replay.replay_filename || replay.game_name}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="space-y-2">
-                                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">🔍 Need Confirmation</span>
-                                {isInvolved ? (
-                                  <>
-                                    <div className="text-xs text-yellow-700 font-semibold">Who won?</div>
-                                    {replay.cancel_requested_by && (
-                                      <div className="text-xs text-gray-600 bg-gray-100 border border-gray-300 rounded px-2 py-1">
-                                        🚫 Cancel requested — waiting for other player
-                                      </div>
-                                    )}
-                                    <div className="flex gap-2 flex-wrap">
-                                      <button
-                                        className="px-3 py-1 rounded text-xs font-semibold bg-green-500 text-white hover:bg-green-600 transition"
-                                        onClick={() => handleOpenReplayModal(replay, 'I won')}
-                                      >
-                                        ✓ I won
-                                      </button>
-                                      <button
-                                        className="px-3 py-1 rounded text-xs font-semibold bg-red-500 text-white hover:bg-red-600 transition"
-                                        onClick={() => handleOpenReplayModal(replay, 'I lost')}
-                                      >
-                                        ✗ I lost
-                                      </button>
-                                      <button
-                                        className="px-3 py-1 rounded text-xs font-semibold bg-gray-500 text-white hover:bg-gray-600 transition"
-                                        onClick={() => handleOpenReplayModal(replay, 'cancel')}
-                                        title="Game not finished (Save & Exit)"
-                                      >
-                                        🚫 {t('button_cancel_replay') || 'Discard Match'}
-                                      </button>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="text-xs text-yellow-600 italic">Waiting for player confirmation</div>
-                                )}
-                                {replay.replay_url && (
-                                  <a href={replay.replay_url} target="_blank" rel="noopener noreferrer"
-                                     className="inline-block px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 transition mt-1">
-                                    ⬇️ Download Replay
-                                  </a>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
+            <>
             {/* Scheduled Matches Section */}
             <div className="mb-8">
               <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-500">{t('matches.scheduled')}</h3>
@@ -1379,24 +1261,46 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                             loser_faction: summary?.finalFactions?.side2 || '',
                                             tournament_match_id: null,
                                             tournament_round_match_id: match.id,
+                                            replay_url: match.pending_replay_url || null,
+                                            replay_filename: match.pending_replay_filename || null,
+                                            game_name: match.pending_replay_game_name || null,
+                                            cancel_requested_by: match.pending_replay_cancel_requested_by || null,
                                           };
                                           const isInvolved = currentUser && (currentUser.id === match.player1_id || currentUser.id === match.player2_id);
                                           return (
                                             <div className="flex flex-col gap-1 mt-1">
                                               <span className="text-xs text-blue-600 font-semibold">🎬 {t('replay_auto_detected') || 'Replay detected'}</span>
+                                              {match.pending_replay_url && (
+                                                <a href={match.pending_replay_url} target="_blank" rel="noopener noreferrer"
+                                                  className="text-xs text-blue-500 underline truncate max-w-[180px]" title={match.pending_replay_filename || ''}>
+                                                  📥 {t('download_replay') || 'Download replay'}
+                                                </a>
+                                              )}
                                               {match.pending_replay_confidence === 2 ? (
                                                 <span className="text-xs text-green-600">✅ {t('auto_confirmed') || 'Auto-confirmed'}</span>
                                               ) : isInvolved ? (
-                                                <div className="flex gap-1">
-                                                  <button
-                                                    className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
-                                                    onClick={() => handleOpenReplayModal(replayObj, 'I won')}
-                                                  >{t('replay_i_won') || 'I won'}</button>
-                                                  <button
-                                                    className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                                                    onClick={() => handleOpenReplayModal(replayObj, 'I lost')}
-                                                  >{t('replay_i_lost') || 'I lost'}</button>
-                                                </div>
+                                                <>
+                                                  {replayObj.cancel_requested_by && (
+                                                    <div className="text-xs text-gray-600 bg-gray-100 border border-gray-300 rounded px-2 py-1">
+                                                      🚫 {t('cancel_requested_waiting') || 'Cancel requested — waiting for other player'}
+                                                    </div>
+                                                  )}
+                                                  <div className="flex gap-1 flex-wrap">
+                                                    <button
+                                                      className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
+                                                      onClick={() => handleOpenReplayModal(replayObj, 'I won')}
+                                                    >{t('replay_i_won') || 'I won'}</button>
+                                                    <button
+                                                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                                                      onClick={() => handleOpenReplayModal(replayObj, 'I lost')}
+                                                    >{t('replay_i_lost') || 'I lost'}</button>
+                                                    <button
+                                                      className="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
+                                                      onClick={() => handleOpenReplayModal(replayObj, 'cancel')}
+                                                      title={t('button_cancel_replay') || 'Discard Match'}
+                                                    >🚫 {t('button_cancel_replay') || 'Discard'}</button>
+                                                  </div>
+                                                </>
                                               ) : (
                                                 <span className="text-xs text-gray-500">{t('pending_player_confirmation') || 'Pending confirmation'}</span>
                                               )}

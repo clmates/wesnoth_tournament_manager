@@ -38,6 +38,10 @@ export interface SurrenderEvent {
   confirmed: boolean;
 }
 
+export interface LeaderkillEvent {
+  winner_side: number; // side that won by killing the leader
+}
+
 export interface ParsedRankedReplay {
   // Addon configuration
   addon: RankedAddonConfig;
@@ -633,10 +637,59 @@ function extractSurrenders(wml: WmlNode): SurrenderEvent[] {
 }
 
 /**
+ * Extract leaderkill victories from replay commands.
+ * Pattern: [command] dependent=yes from_side=N [input][variable] name="Winner_N" value=N [/variable][/input] [/command]
+ * This is emitted near the end of the replay when a player's leader is killed.
+ */
+function extractLeaderkills(wml: WmlNode): LeaderkillEvent[] {
+  try {
+    const replayNode = wml.replay as WmlNode | WmlNode[] | undefined;
+    if (!replayNode) return [];
+
+    const replay = Array.isArray(replayNode) ? replayNode[replayNode.length - 1] : replayNode;
+    if (!replay) return [];
+
+    const commands = replay.command as WmlNode | WmlNode[] | undefined;
+    if (!commands) return [];
+
+    const commandArray = Array.isArray(commands) ? commands : [commands];
+    const leaderkills: LeaderkillEvent[] = [];
+
+    // Scan from the end — leaderkill commands appear near the final turns
+    for (let i = commandArray.length - 1; i >= Math.max(0, commandArray.length - 50); i--) {
+      const command = commandArray[i];
+      if (command.dependent !== 'yes') continue;
+
+      const fromSide = parseInt(command.from_side as string);
+      if (!fromSide || fromSide < 1) continue;
+
+      const inputNode = command.input as WmlNode | undefined;
+      if (!inputNode) continue;
+
+      const varNode = inputNode.variable as WmlNode | undefined;
+      if (!varNode) continue;
+
+      const varName = varNode.name as string | undefined;
+      const varValue = parseInt(varNode.value as string);
+
+      if (varName === `Winner_${fromSide}` && varValue === fromSide) {
+        console.log(`✅ [EXTRACT LEADERKILLS] Leaderkill detected: side ${fromSide} wins (command ${i})`);
+        leaderkills.push({ winner_side: fromSide });
+      }
+    }
+
+    return leaderkills;
+  } catch (error) {
+    console.warn('⚠️  [RANKED PARSE] Could not extract leaderkills:', error);
+    return [];
+  }
+}
+
+/**
  * Determine victory from WML data
  * Checks for:
  * 1. Confirmed surrenders (clarity dictates surrender = loss)
- * 2. Victory conditions in WML
+ * 2. Leaderkill (Winner_N variable command near end of replay)
  * 3. Timeout/other conditions
  */
 async function determineVictory(
@@ -718,6 +771,35 @@ async function determineVictory(
     }
 
     // No clear victory found (no surrenders)
+    // Check for leaderkill victory pattern
+    const leaderkills = extractLeaderkills(wml);
+    if (leaderkills.length > 0) {
+      const winnerSide = leaderkills[leaderkills.length - 1].winner_side; // use last one
+      const loserSide = winnerSide === 1 ? 2 : 1;
+
+      const winnerData = forumPlayers?.find(p => p.side_number === winnerSide);
+      const loserData  = forumPlayers?.find(p => p.side_number === loserSide);
+      const winnerWml  = players.find(p => p.side === winnerSide);
+      const loserWml   = players.find(p => p.side === loserSide);
+
+      const winnerName    = winnerData?.user_name || winnerWml?.name || `Player${winnerSide}`;
+      const loserName     = loserData?.user_name  || loserWml?.name  || `Player${loserSide}`;
+      const winnerFaction = (winnerData?.faction && winnerData.faction !== 'Custom') ? winnerData.faction : winnerWml?.faction;
+      const loserFaction  = (loserData?.faction  && loserData.faction  !== 'Custom') ? loserData.faction  : loserWml?.faction;
+
+      console.log(`✅ [VICTORY] Leaderkill: ${winnerName} (side ${winnerSide}) def ${loserName} (side ${loserSide})`);
+      return {
+        winner_side: winnerSide,
+        loser_side: loserSide,
+        winner_name: winnerName,
+        loser_name: loserName,
+        winner_faction: winnerFaction,
+        loser_faction: loserFaction,
+        reason: 'victory_conditions',
+        confidence_level: 2  // Clear victory by leaderkill
+      };
+    }
+
     // Return unknown reason with confidence=1 (needs player confirmation)
     const player1 = players[0] || { side: 1, name: 'Player1' };
     const player2 = players[1] || { side: 2, name: 'Player2' };
