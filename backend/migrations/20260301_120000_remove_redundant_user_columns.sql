@@ -2,7 +2,7 @@
 -- Removes columns from users_extension that are no longer needed.
 -- Authentication (password, email) is managed exclusively by the Wesnoth forum
 -- (phpbb3_users table). Password reset and email verification are handled
--- by the Wesnoth forum; this application does not manage them.
+-- by the Wesnoth forum. This application does not manage them.
 -- Brute-force protection fields (failed_login_attempts, locked_until,
 -- last_login_attempt) are intentionally kept.
 
