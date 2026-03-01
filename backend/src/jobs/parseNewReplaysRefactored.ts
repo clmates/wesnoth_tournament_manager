@@ -418,6 +418,20 @@ export class ParseNewReplaysRefactorized {
       console.log(`   ⚠️  No clear victory (${parseSummary.replayVictory?.reason}) → confidence=1`);
     }
 
+    // ======== TOURNAMENT DETECTION VIA GAME_NAME ========
+    // If WML has no tournament field, check if game_name matches an in-progress tournament
+    let gameNameMatchesTournament = false;
+    if (!parseSummary.replayTournament && replay.game_name) {
+      const tournResult = await query(
+        `SELECT id FROM tournaments WHERE status = 'in_progress' AND LOCATE(LOWER(name), LOWER(?)) > 0 LIMIT 1`,
+        [replay.game_name]
+      );
+      gameNameMatchesTournament = ((tournResult as any).rows || []).length > 0;
+      if (gameNameMatchesTournament) {
+        console.log(`   ✅ Game name "${replay.game_name}" matches an in-progress tournament`);
+      }
+    }
+
     // ======== DETERMINE MATCH TYPE ========
     console.log(`📊 [PARSE] Determining match type...`);
     if (!parseSummary.forumAddon) {
@@ -427,12 +441,8 @@ export class ParseNewReplaysRefactorized {
       // Ranked assets
       parseSummary.matchType = 'ranked';
       console.log(`   ✅ ranked_mode=true, factions ranked, map ranked → RANKED`);
-    } else if (parseSummary.replayRankedMode && !parseSummary.factionsAreRanked && !parseSummary.mapIsRanked) {
-      // Non-ranked assets with ranked addon
-      parseSummary.matchType = 'rejected';
-      console.log(`   ❌ Assets not ranked (factions or map) → REJECTED`);
-    } else if (parseSummary.replayTournament) {
-      // Tournament match
+    } else if (parseSummary.replayTournament || gameNameMatchesTournament) {
+      // Tournament match (detected via WML tournament field OR game_name matching)
       if (parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
         parseSummary.matchType = 'tournament_ranked';
         console.log(`   ✅ Tournament with ranked assets → TOURNAMENT_RANKED`);
@@ -440,6 +450,10 @@ export class ParseNewReplaysRefactorized {
         parseSummary.matchType = 'tournament_unranked';
         console.log(`   ⚠️  Tournament with non-ranked assets → TOURNAMENT_UNRANKED`);
       }
+    } else if (parseSummary.replayRankedMode && !parseSummary.factionsAreRanked && !parseSummary.mapIsRanked) {
+      // Non-ranked assets with ranked addon and no tournament
+      parseSummary.matchType = 'rejected';
+      console.log(`   ❌ Assets not ranked (factions or map) and no tournament → REJECTED`);
     } else {
       parseSummary.matchType = 'rejected';
       console.log(`   ❌ Cannot determine match type → REJECTED`);
@@ -824,7 +838,8 @@ export class ParseNewReplaysRefactorized {
 
       // Try without prefix (e.g., "2p — Tombs of Kesorak" -> "Tombs of Kesorak")
       // Strip patterns like "2p —", "3p —", "4p —", etc. and whitespace
-      const cleaned = mapName.replace(/^\d+[a-z]?\s*[—\-–]\s*/i, '').trim();
+      // Also accept \ufffd (replacement char) as prefix separator (encoding issue from forum DB)
+      const cleaned = mapName.replace(/^\d+[a-z]?\s*[—\-–\ufffd]\s*/i, '').trim();
       if (cleaned !== mapName) {
         result = await query(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) LIMIT 1`,
@@ -846,6 +861,35 @@ export class ParseNewReplaysRefactorized {
       if ((result as any).rows?.length > 0) {
         const map = (result as any).rows[0];
         return { name: map.name, isRanked: map.is_ranked === 1 };
+      }
+
+      // Fuzzy match: replace \ufffd (encoding replacement chars) with SQL % wildcard
+      // This handles cases like "Sulla\ufffds Ruins" matching "Sulla's Ruins"
+      const fuzzyClean = cleaned.replace(/\ufffd/g, '%');
+      if (fuzzyClean !== cleaned) {
+        result = await query(
+          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) LIMIT 1`,
+          [fuzzyClean]
+        );
+
+        if ((result as any).rows?.length > 0) {
+          const map = (result as any).rows[0];
+          return { name: map.name, isRanked: map.is_ranked === 1 };
+        }
+      }
+
+      // Also try fuzzy on the raw map name (in case prefix strip produced same string)
+      const fuzzyRaw = mapName.replace(/\ufffd/g, '%');
+      if (fuzzyRaw !== mapName && fuzzyRaw !== fuzzyClean) {
+        result = await query(
+          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) LIMIT 1`,
+          [fuzzyRaw]
+        );
+
+        if ((result as any).rows?.length > 0) {
+          const map = (result as any).rows[0];
+          return { name: map.name, isRanked: map.is_ranked === 1 };
+        }
       }
 
       return { name: mapName, isRanked: false };
