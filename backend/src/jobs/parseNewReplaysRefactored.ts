@@ -351,6 +351,11 @@ export class ParseNewReplaysRefactorized {
         }
       }
     } catch (err) {
+      const errMsg = (err as any)?.message || String(err);
+      // Re-throw file-not-found so the outer catch can handle retry logic
+      if (errMsg.includes('Replay file not found')) {
+        throw err;
+      }
       console.warn(`⚠️  Could not parse replay file:`, err);
     }
 
