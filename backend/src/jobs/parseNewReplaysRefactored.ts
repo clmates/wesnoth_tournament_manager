@@ -31,6 +31,7 @@ interface UnparsedReplay {
   start_time: string;
   end_time: string;
   created_at: string;
+  oos: number;
 }
 
 interface ParseSummary {
@@ -102,20 +103,38 @@ export class ParseNewReplaysRefactorized {
         try {
           console.log(`\n🎬 [PARSE] Processing: ${replay.game_name} (Replay ${replay.game_id})`);
 
+          // Early exit: OOS replays are unreliable — delete Turn_1, reject others
+          if (replay.oos === 1) {
+            if (replay.replay_filename.includes('Turn_1_')) {
+              console.log(`🗑️  [PARSE] OOS Turn_1 replay → Deleting`);
+              await query(`DELETE FROM replays WHERE id = ?`, [replay.id]);
+            } else {
+              console.log(`❌ [PARSE] OOS replay → Rejecting`);
+              await query(
+                `UPDATE replays SET parse_status = 'rejected', need_integration = 0, parsed = 1, parse_summary = ? WHERE id = ?`,
+                [JSON.stringify({ matchType: 'rejected', reason: 'oos' }), replay.id]
+              );
+            }
+            errorCount++;
+            continue;
+          }
+
+          // Early exit: Turn_1 replays are too short to be valid — always delete
+          if (replay.replay_filename.includes('Turn_1_')) {
+            console.log(`🗑️  [PARSE] Turn_1 replay → Deleting (game too short)`);
+            await query(`DELETE FROM replays WHERE id = ?`, [replay.id]);
+            errorCount++;
+            continue;
+          }
+
           const parseSummary = await this.parseReplayForumFirst(replay);
 
           if (parseSummary.matchType === 'rejected') {
-            // Turn_1 replays that are rejected have no value — delete them entirely
-            if (replay.replay_filename.includes('Turn_1_')) {
-              console.log(`🗑️  [PARSE] Turn_1 replay rejected → Deleting from replays table`);
-              await query(`DELETE FROM replays WHERE id = ?`, [replay.id]);
-            } else {
-              console.log(`❌ [PARSE] Match rejected → Update replay as rejected`);
-              await query(
-                `UPDATE replays SET parse_status = 'rejected', need_integration = 0, parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
-                [parseSummary.confidenceLevel, JSON.stringify(parseSummary), replay.id]
-              );
-            }
+            console.log(`❌ [PARSE] Match rejected → Update replay as rejected`);
+            await query(
+              `UPDATE replays SET parse_status = 'rejected', need_integration = 0, parsed = 1, integration_confidence = ?, parse_summary = ? WHERE id = ?`,
+              [parseSummary.confidenceLevel, JSON.stringify(parseSummary), replay.id]
+            );
             errorCount++;
             continue;
           }
@@ -141,7 +160,7 @@ export class ParseNewReplaysRefactorized {
           if (parseSummary.confidenceLevel === 1) {
             console.log(`⏳ [PARSE] Confidence=1 → Parsed but no match created (awaiting player confirmation)`);
             await query(
-              `UPDATE replays SET parse_status = 'parsed', parsed = 1, integration_confidence = ?,
+              `UPDATE replays SET parse_status = 'parsed', parsed = 1, need_integration = 1, integration_confidence = ?,
                tournament_round_match_id = ?, parse_summary = ? WHERE id = ?`,
               [parseSummary.confidenceLevel, parseSummary.linkedTournamentRoundMatchId, JSON.stringify(parseSummary), replay.id]
             );
@@ -615,6 +634,12 @@ export class ParseNewReplaysRefactorized {
     const tournament = tournaments[0];
     console.log(`   ✅ [TOURNAMENT LINK] Matched tournament: "${tournament.name}" (id=${tournament.id})`);
 
+    // Reject: ranked tournament requires ranked replay assets
+    if (tournament.tournament_mode === 'ranked' && parseSummary.matchType !== 'tournament_ranked') {
+      console.log(`   ❌ [TOURNAMENT LINK] Tournament is ranked but replay assets are not ranked (matchType=${parseSummary.matchType}) → reject`);
+      return false;
+    }
+
     // Resolve winner and loser user IDs from parseSummary
     const winnerName = parseSummary.replayVictory?.winner_name;
     const loserName  = parseSummary.replayVictory?.loser_name;
@@ -685,7 +710,7 @@ export class ParseNewReplaysRefactorized {
   private async getUnparsedReplays(): Promise<UnparsedReplay[]> {
     const result = await query(
       `SELECT id, instance_uuid, game_id, replay_filename, replay_url, 
-              wesnoth_version, game_name, start_time, end_time, created_at
+              wesnoth_version, game_name, start_time, end_time, created_at, oos
        FROM replays
        WHERE parse_status = 'new' AND parsed = 0
        ORDER BY created_at ASC
@@ -826,6 +851,14 @@ export class ParseNewReplaysRefactorized {
       return { name: null, isRanked: false };
     }
 
+    // Normalize typographic/smart quotes to plain ASCII equivalents so forum
+    // strings like "Sulla\u2019s Ruins" match DB entries stored as "Sulla's Ruins".
+    const normalizeQuotes = (s: string) =>
+      s.replace(/[\u2018\u2019\u201a\u201b\u2032\u2035]/g, "'")
+       .replace(/[\u201c\u201d]/g, '"');
+
+    const mapNameNorm = normalizeQuotes(mapName);
+
     // Helper: run a query and return ranked result immediately, or save as fallback
     let unrankedFallback: { name: string; isRanked: boolean } | null = null;
     const tryQuery = async (sql: string, params: any[]): Promise<{ name: string; isRanked: boolean } | null> => {
@@ -840,33 +873,53 @@ export class ParseNewReplaysRefactorized {
     };
 
     try {
-      // 1. Exact match (ORDER BY is_ranked DESC so ranked rows come first)
+      // 1. Exact match on original name (ORDER BY is_ranked DESC so ranked rows come first)
       let hit = await tryQuery(
         `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
         [mapName]
       );
       if (hit) return hit;
 
-      // 2. Strip "Np —" / "Np \ufffd" prefix, then exact match
-      const cleaned = mapName.replace(/^\d+[a-z]?\s*[—\-–\ufffd]\s*/i, '').trim();
-      if (cleaned !== mapName) {
+      // 1b. Exact match with normalized quotes (handles forum U+2019 vs DB U+0027)
+      if (mapNameNorm !== mapName) {
         hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-          [cleaned]
+          [mapNameNorm]
         );
         if (hit) return hit;
       }
 
-      // 3. LIKE on raw map name
+      // 2. Strip "Np —" / "Np \ufffd" prefix, then exact match
+      const cleaned = mapName.replace(/^\d+[a-z]?\s*[—\-–\ufffd]\s*/i, '').trim();
+      const cleanedNorm = normalizeQuotes(cleaned);
+      if (cleaned !== mapName) {
+        // 2a. Exact match on normalized stripped name
+        hit = await tryQuery(
+          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+          [cleanedNorm]
+        );
+        if (hit) return hit;
+
+        // 2b. Exact match on raw stripped name (if different from normalized)
+        if (cleanedNorm !== cleaned) {
+          hit = await tryQuery(
+            `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+            [cleaned]
+          );
+          if (hit) return hit;
+        }
+      }
+
+      // 3. LIKE on normalized map name
       hit = await tryQuery(
         `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-        [`%${mapName}%`]
+        [`%${mapNameNorm}%`]
       );
       if (hit) return hit;
 
       // 4. Fuzzy on prefix-stripped name (replace \ufffd with % wildcard)
-      const fuzzyClean = cleaned.replace(/\ufffd/g, '%');
-      if (fuzzyClean !== cleaned) {
+      const fuzzyClean = cleanedNorm.replace(/\s*\ufffd\s*/g, '%').replace(/%+/g, '%');
+      if (fuzzyClean !== cleanedNorm && cleaned !== mapName) {
         hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
           [fuzzyClean]
@@ -874,9 +927,9 @@ export class ParseNewReplaysRefactorized {
         if (hit) return hit;
       }
 
-      // 5. Fuzzy on raw map name
-      const fuzzyRaw = mapName.replace(/\ufffd/g, '%');
-      if (fuzzyRaw !== mapName && fuzzyRaw !== fuzzyClean) {
+      // 5. Fuzzy on raw map name (replace \ufffd with %)
+      const fuzzyRaw = mapNameNorm.replace(/\s*\ufffd\s*/g, '%').replace(/%+/g, '%');
+      if (fuzzyRaw !== mapNameNorm) {
         hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
           [fuzzyRaw]
