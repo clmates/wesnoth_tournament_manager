@@ -129,7 +129,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
   };
 
   const handleAdminDiscardReplay = async (replayId: string) => {
-    if (!window.confirm('⚠️ Admin discard: this replay will be permanently rejected. Players will NOT be asked for confirmation. Continue?')) return;
+    if (!window.confirm(t('replay_discard_confirm'))) return;
     try {
       await matchService.adminDiscardReplay(replayId);
       if (onReplayReported) onReplayReported(replayId);
@@ -245,7 +245,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                         <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction1}</span>
                       </div>
                       <div className="text-xs text-yellow-600 italic">
-                        ⚠️ Auto-detected (confidence=1)
+                        {t('replay_auto_detected')}
                       </div>
                     </div>
                   </td>
@@ -259,14 +259,14 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                         <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction2}</span>
                       </div>
                       <div className="text-xs text-yellow-600 italic">
-                        ⚠️ Auto-detected (confidence=1)
+                        {t('replay_auto_detected')}
                       </div>
                     </div>
                   </td>
 
                   <td className="px-4 py-3 text-sm">
                     <div className="font-semibold text-yellow-900">{map}</div>
-                    <div className="text-xs text-yellow-600 mt-1">🎮 Unparsed Replay</div>
+                    <div className="text-xs text-yellow-600 mt-1">{t('replay_unparsed')}</div>
                     {(match.replay_filename || match.game_name) && (
                       <div className="text-xs text-yellow-700 mt-1 font-mono bg-yellow-100 px-2 py-1 rounded truncate max-w-[200px]" title={match.replay_filename || match.game_name}>
                         📄 {match.replay_filename || match.game_name}
@@ -278,31 +278,31 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     <div className="space-y-2">
                       <div>
                         <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-                          🔍 Need Confirmation
+                          {t('replay_need_confirmation')}
                         </span>
                       </div>
                       {match.cancel_requested_by && (
                         <div className="text-xs text-gray-600 bg-gray-100 border border-gray-300 rounded px-2 py-1">
-                          🚫 {t('label_cancel_requested') || 'Cancel requested'} — {t('label_waiting_other_player') || 'waiting for other player'}
+                          🚫 {t('label_cancel_requested')} — {t('label_waiting_other_player')}
                         </div>
                       )}
                       {match.is_admin_view ? (
                         // Admin view: only discard
                         <div className="space-y-1">
-                          <div className="text-xs text-orange-700 font-semibold">👁️ Admin view</div>
+                          <div className="text-xs text-orange-700 font-semibold">{t('replay_admin_view')}</div>
                           <button
                             className="px-3 py-1 rounded text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition"
                             onClick={() => handleAdminDiscardReplay(match.id)}
-                            title="Discard this replay (admin action, no player confirmation required)"
+                            title={t('replay_discard')}
                           >
-                            🗑️ Discard
+                            {t('replay_discard')}
                           </button>
                         </div>
                       ) : (
                         // Player view: I won / I lost / Discard
                         <>
                           <div className="text-xs text-yellow-700 mb-2 font-semibold">
-                            Who won this match?
+                            {t('replay_who_won')}
                           </div>
                           <div className="flex gap-2 flex-wrap">
                             <button
@@ -313,9 +313,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                               }`}
                               onClick={() => handleReportConfidence1Replay(match, 'I won')}
                               disabled={showConfirmationModal}
-                              title={`I won: ${player1Name} beats ${player2Name}`}
+                              title={`${t('replay_i_won')}: ${player1Name} beats ${player2Name}`}
                             >
-                              ✓ I won
+                              {t('replay_i_won')}
                             </button>
                             <button
                               className={`px-3 py-1 rounded text-xs font-semibold transition ${
@@ -325,9 +325,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                               }`}
                               onClick={() => handleReportConfidence1Replay(match, 'I lost')}
                               disabled={showConfirmationModal}
-                              title={`I lost: ${player2Name} beats ${player1Name}`}
+                              title={`${t('replay_i_lost')}: ${player2Name} beats ${player1Name}`}
                             >
-                              ✗ I lost
+                              {t('replay_i_lost')}
                             </button>
                             <button
                               className={`px-3 py-1 rounded text-xs font-semibold transition ${
@@ -337,9 +337,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                               }`}
                               onClick={() => handleReportConfidence1Replay(match, 'cancel')}
                               disabled={showConfirmationModal}
-                              title="Game not finished (Save & Exit)"
+                              title={t('button_cancel_replay')}
                             >
-                              🚫 {t('button_cancel_replay') || 'Discard Match'}
+                              🚫 {t('button_cancel_replay')}
                             </button>
                           </div>
                         </>
@@ -350,9 +350,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-block px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 transition"
-                          title="Download replay file"
+                          title={t('replay_download')}
                         >
-                          ⬇️ Download Replay
+                          {t('replay_download')}
                         </a>
                       </div>
                     </div>
@@ -445,7 +445,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                       'bg-blue-100 text-blue-700'
                     }`}>
                       {match.status === 'confirmed' && t('match_status_confirmed')}
-                      {match.status === 'reported' && '📋 Reported'}
+                      {match.status === 'reported' && t('match_status_reported')}
                       {match.status === 'unconfirmed' && t('match_status_unconfirmed')}
                       {match.status === 'disputed' && t('match_status_disputed')}
                       {match.status === 'cancelled' && t('match_status_cancelled')}
@@ -457,9 +457,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                       <button
                         className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition"
                         onClick={() => onOpenConfirmation && onOpenConfirmation(match)}
-                        title={currentPlayerId === match.winner_id && match.status === 'reported' ? 'Inform Match' : t('report_match_link')}
+                        title={currentPlayerId === match.winner_id && match.status === 'reported' ? t('match_inform') : t('report_match_link')}
                       >
-                        {currentPlayerId === match.winner_id && match.status === 'reported' ? '📋 Inform Match' : t('report_match_link')}
+                        {currentPlayerId === match.winner_id && match.status === 'reported' ? t('match_inform') : t('report_match_link')}
                       </button>
                     )}
                     <button

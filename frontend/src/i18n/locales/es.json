@@ -313,7 +313,7 @@
     "preliminary_rounds_format": "Formato de partida - Rondas preliminares",
     "preliminary_format_help": "Formato de mejor de para todas las rondas preliminares de eliminación",
     "final_match_format": "Formato de la partida final",
-    "final_format_help": "Formato de mejor de para la partida final",
+    "final_format_help": "Usado solo para la partida de la gran final",
     "league_configuration": "Configuración del formato de liga",
     "league_description": "Configura el formato del torneo de liga",
     "league_format": "Formato de liga",
@@ -339,7 +339,6 @@
     "general_format": "Formato general (rondas suizas + eliminación excepto final)",
     "general_format_help": "Usado para rondas suizas y todas las rondas de eliminación excepto la gran final",
     "final_format": "Formato final (Gran final)",
-    "final_format_help": "Usado solo para la partida de la gran final",
     "tournament_structure": "Estructura del torneo",
     "swiss_phase": "Fase suiza",
     "rounds": "rondas",
@@ -607,5 +606,19 @@
   "footer": {
     "disclaimer_affiliation": "wesnoth.playranked.org y la aplicación Wesnoth Tournament Manager son proyectos independientes y no están afiliados, respaldados o patrocinados por wesnoth.org, los foros de Wesnoth, los servidores de Discord de Wesnoth o ningún proyecto oficial de Wesnoth.\n\nEste proyecto está licenciado bajo la Licencia Pública General Affero GNU v3 (AGPL-3.0-or-later) y tiene como objetivo proporcionar una plataforma independiente y de código abierto para organizar y gestionar torneos competitivos de Wesnoth. Los usuarios que accedan a este servicio a través de la red tienen derecho a acceder al código fuente completo.\n\nTodas las marcas registradas, logotipos e imágenes asociadas con Battle for Wesnoth son propiedad de sus respectivos propietarios. Este sitio y aplicación están destinados solo para uso de la comunidad y aficionados, y no reclaman propiedad ni asociación oficial con el juego original.",
     "disclaimer_assets": "Iconos de unidades y gráficos © Proyecto Battle for Wesnoth, utilizados bajo CC BY-SA 3.0."
-  }
+  },
+  "match_status_reported": "📋 Reportado",
+  "replay_auto_detected": "⚠️ Auto-detectado (confianza=1)",
+  "replay_unparsed": "🎮 Repetición sin analizar",
+  "replay_need_confirmation": "🔍 Necesita confirmación",
+  "replay_who_won": "¿Quién ganó este partido?",
+  "replay_i_won": "✓ Yo gané",
+  "replay_i_lost": "✗ Yo perdí",
+  "replay_discard": "🗑️ Descartar",
+  "replay_download": "⬇️ Descargar Repetición",
+  "replay_admin_view": "👁️ Vista de admin",
+  "replay_discard_confirm": "⚠️ Descartar como admin: este replay será rechazado permanentemente. NO se pedirá confirmación a los jugadores. ¿Continuar?",
+  "label_cancel_requested": "Cancelación solicitada",
+  "label_waiting_other_player": "esperando al otro jugador",
+  "match_inform": "📋 Informar partido"
 }

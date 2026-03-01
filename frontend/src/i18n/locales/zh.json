@@ -1,5 +1,7 @@
 {
-  "app_name": "Wesnoth锦标赛管理器",  "footer_disclaimer": "法律声明",  "navbar_home": "首页",
+  "app_name": "Wesnoth锦标赛管理器",
+  "footer_disclaimer": "法律声明",
+  "navbar_home": "首页",
   "navbar_ranking": "排名",
   "navbar_tournaments": "锦标赛",
   "navbar_matches": "比赛",
@@ -120,8 +122,10 @@
   "filter_loser": "失败者",
   "filter_by_loser": "按失败者过滤...",
   "filter_map": "地图",
-  "filter_by_map": "按地图过滤...",  "filter_faction": "阵营",
-  "filter_by_faction": "按阵营筛选...",  "filter_match_status": "比赛状态",
+  "filter_by_map": "按地图过滤...",
+  "filter_faction": "阵营",
+  "filter_by_faction": "按阵营筛选...",
+  "filter_match_status": "比赛状态",
   "filter_confirmation_status": "确认状态",
   "all": "全部",
   "match_status_confirmed": "✓ 已确认",
@@ -584,8 +588,10 @@
   "ranking_criteria_title": "排名标准",
   "ranking_criteria_description": "玩家必须拥有1400的最低ELO，至少玩过10场比赛，且在过去30天内有活动。",
   "status_inactive": "不活跃",
-  "last_activity": "最后活动",  "faction_vs_faction": "阵营对阵",
-  "faction_vs_faction_analysis": "阵营对阵分析",  "common": {
+  "last_activity": "最后活动",
+  "faction_vs_faction": "阵营对阵",
+  "faction_vs_faction_analysis": "阵营对阵分析",
+  "common": {
     "select": "选择...",
     "search": "搜索...",
     "loading": "加载中...",
@@ -599,5 +605,19 @@
   "footer": {
     "disclaimer_affiliation": "wesnoth.playranked.org 和 Wesnoth 锦标赛管理器应用程序是独立项目，与 wesnoth.org、Wesnoth 论坛、Wesnoth Discord 服务器或任何官方 Wesnoth 项目无关联、未获得认可或赞助。\n\n该项目在 GNU Affero 通用公共许可证 v3 (AGPL-3.0-or-later) 下获得许可，是一个独立的开源平台，旨在组织和管理竞争性的 Wesnoth 锦标赛。通过网络访问此服务的用户有权访问完整源代码。\n\n与 Battle for Wesnoth 相关的所有商标、徽标和图像均为其各自所有者的财产。本网站和应用程序仅供粉丝和社区使用，不声称与原始游戏有任何所有权或官方关联。",
     "disclaimer_assets": "单位图标和图形 © Battle for Wesnoth 项目，在 CC BY-SA 3.0 下使用。"
-  }
+  },
+  "match_status_reported": "📋 已报告",
+  "replay_auto_detected": "⚠️ 自动检测（可信度=1）",
+  "replay_unparsed": "🎮 未解析回放",
+  "replay_need_confirmation": "🔍 需要确认",
+  "replay_who_won": "谁赢了这场比赛？",
+  "replay_i_won": "✓ 我赢了",
+  "replay_i_lost": "✗ 我输了",
+  "replay_discard": "🗑️ 丢弃",
+  "replay_download": "⬇️ 下载回放",
+  "replay_admin_view": "👁️ 管理员视图",
+  "replay_discard_confirm": "⚠️ 管理员丢弃：此回放将被永久拒绝，不会要求玩家确认。是否继续？",
+  "label_cancel_requested": "已请求取消",
+  "label_waiting_other_player": "等待其他玩家",
+  "match_inform": "📋 通报比赛"
 }
