@@ -1161,11 +1161,11 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               {rounds.length > 0 ? (
                   <>
                     {rounds.map((round) => {
-                      const roundMatches = matches.filter(
-                        (m) => m.round_id === round.id && m.match_status === 'pending'
+                      const roundMatchesForRound = roundMatches.filter(
+                        (m) => m.round_id === round.id
                       );
                       
-                      if (roundMatches.length === 0) return null;
+                      if (roundMatchesForRound.length === 0) return null;
                       
                       return (
                         <div key={round.id} className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
@@ -1180,15 +1180,15 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           <table className="w-full text-sm">
                             <thead className="bg-gray-200">
                               <tr>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{roundMatchesForRound.length > 0 && roundMatchesForRound[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
                                 <th className="px-4 py-3 text-center font-semibold text-gray-700">vs</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{roundMatches.length > 0 && roundMatches[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{roundMatchesForRound.length > 0 && roundMatchesForRound[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_play_before')}</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_status')}</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {roundMatches.map((match) => {
+                              {roundMatchesForRound.map((match) => {
                                 // Calculate play before date: round_start_date + round_duration_days
                                 let playBeforeDate = '-';
                                 if (round.round_start_date && tournament?.round_duration_days) {
