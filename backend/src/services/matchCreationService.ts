@@ -192,15 +192,13 @@ export async function updateTournamentRoundMatch(
     await query(
       `UPDATE tournament_participants
        SET tournament_wins   = COALESCE(tournament_wins, 0) + 1,
-           tournament_points = COALESCE(tournament_points, 0) + 1,
-           updated_at        = NOW()
+           tournament_points = COALESCE(tournament_points, 0) + 1
        WHERE tournament_id = ? AND user_id = ?`,
       [rm.tournament_id, winnerId]
     );
     await query(
       `UPDATE tournament_participants
-       SET tournament_losses = COALESCE(tournament_losses, 0) + 1,
-           updated_at        = NOW()
+       SET tournament_losses = COALESCE(tournament_losses, 0) + 1
        WHERE tournament_id = ? AND user_id = ?`,
       [rm.tournament_id, loserId]
     );
