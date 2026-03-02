@@ -183,6 +183,24 @@ const TournamentDetail: React.FC = () => {
       setRoundMatches(roundMaturesRes.data || []);
       setRounds(roundsRes.data || []);
       
+      // DEBUG: Log roundMatches with replay info
+      console.log('🎬 [ROUND-MATCHES] Received roundMatches:', roundMaturesRes.data);
+      console.log('🎬 [ROUND-MATCHES] roundMatches with replay fields:', roundMaturesRes.data?.map((m: any) => ({
+        id: m.id,
+        player1: m.player1_nickname,
+        player2: m.player2_nickname,
+        has_pending_replay_id: !!m.pending_replay_id,
+        pending_replay_id: m.pending_replay_id,
+        pending_replay_need_integration: m.pending_replay_need_integration,
+        pending_replay_summary_keys: m.pending_replay_summary ? (() => {
+          try {
+            return Object.keys(JSON.parse(m.pending_replay_summary)).slice(0, 5);
+          } catch {
+            return 'PARSE_ERROR';
+          }
+        })() : null
+      })));
+      
       // For team mode, extract user's team_id from standings
       if (tournamentRes.data.tournament_mode === 'team' && userId) {
         const userTeam = (participantsRes.data?.standings || []).find((p: any) => 
@@ -1251,6 +1269,12 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         </span>
                                                                                 {/* Inline replay confirmation for auto-detected matches */}
                                         {match.pending_replay_id && !!match.pending_replay_need_integration && !match.winner_id && (() => {
+                                          console.log(`🎬 [RENDER] Match ${match.id} has replay:`, {
+                                            pending_replay_id: match.pending_replay_id,
+                                            pending_replay_need_integration: match.pending_replay_need_integration,
+                                            winner_id: match.winner_id,
+                                            summary_snippet: match.pending_replay_summary ? match.pending_replay_summary.substring(0, 100) : null
+                                          });
                                           const summary = (() => { try { return JSON.parse(match.pending_replay_summary); } catch { return null; } })();
                                           const replayObj = {
                                             id: match.pending_replay_id,

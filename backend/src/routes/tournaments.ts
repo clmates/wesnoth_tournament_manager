@@ -2100,6 +2100,21 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
       [tournamentId]
     );
 
+    console.log(`🔍 [ROUND-MATCHES] Query returned ${result.rows.length} rows for tournament ${tournamentId}`);
+    
+    // Log details of each row - especially replay fields
+    result.rows.forEach((row: any, idx: number) => {
+      console.log(`🔍 [ROUND-MATCHES] Row ${idx}:`, {
+        match_id: row.id,
+        player1: row.player1_nickname,
+        player2: row.player2_nickname,
+        has_replay: !!row.pending_replay_id,
+        replay_id: row.pending_replay_id,
+        replay_summary_keys: row.pending_replay_summary ? Object.keys(JSON.parse(row.pending_replay_summary)).slice(0, 5) : null,
+        replay_need_integration: row.pending_replay_need_integration
+      });
+    });
+
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching tournament round matches:', error);
