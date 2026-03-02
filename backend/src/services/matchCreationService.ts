@@ -168,11 +168,24 @@ export async function updateTournamentRoundMatch(
   }
 
   const rm = rows[0];
+  console.log(`🔍 [TOURNAMENT LINK] Round match details:`, {
+    roundMatchId,
+    tournamentId: rm.tournament_id,
+    p1Id: rm.player1_id,
+    p2Id: rm.player2_id,
+    p1Wins: rm.player1_wins,
+    p2Wins: rm.player2_wins,
+    winsRequired: rm.wins_required,
+    winnerId
+  });
+  
   const winnerIsPlayer1 = rm.player1_id === winnerId;
   const newP1Wins = rm.player1_wins + (winnerIsPlayer1 ? 1 : 0);
   const newP2Wins = rm.player2_wins + (winnerIsPlayer1 ? 0 : 1);
 
   const seriesOver = newP1Wins >= rm.wins_required || newP2Wins >= rm.wins_required;
+  console.log(`🔍 [TOURNAMENT LINK] Series check: newP1Wins=${newP1Wins} newP2Wins=${newP2Wins} winsRequired=${rm.wins_required} seriesOver=${seriesOver}`);
+  
   const newStatus  = seriesOver ? 'completed' : 'in_progress';
   const newWinnerId = seriesOver ? winnerId : null;
 

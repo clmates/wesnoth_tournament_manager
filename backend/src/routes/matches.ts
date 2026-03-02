@@ -1370,6 +1370,12 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     }
 
     const replay = replayResult.rows[0];
+    console.log(`🎯 [CONFIDENCE-1] Replay loaded:`, {
+      replayId: replay.id,
+      tournament_round_match_id: replay.tournament_round_match_id,
+      has_tournament_round_match: !!replay.tournament_round_match_id
+    });
+    
     let parseSummary: any;
 
     try {
@@ -1659,8 +1665,19 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     }
 
     // If this replay is linked to a tournament_round_match, update series + participant stats
+    console.log(`🎯 [CONFIDENCE-1] Checking tournament_round_match:`, {
+      tournament_round_match_id: replay.tournament_round_match_id,
+      will_update: !!replay.tournament_round_match_id
+    });
+    
     if (replay.tournament_round_match_id) {
+      console.log(`🎯 [CONFIDENCE-1] Calling updateTournamentRoundMatch with:`, {
+        roundMatchId: replay.tournament_round_match_id,
+        winnerId
+      });
       const seriesResult = await updateTournamentRoundMatch(replay.tournament_round_match_id, winnerId);
+      console.log(`🎯 [CONFIDENCE-1] updateTournamentRoundMatch returned:`, seriesResult);
+      
       if (seriesResult.seriesCompleted && seriesResult.tournamentId) {
         try {
           const rnResult = await query(
