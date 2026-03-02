@@ -279,7 +279,8 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tm.loser_rating,
         tm.replay_file_path,
         tm.replay_downloads as replay_downloads,
-        tm.organizer_action
+        tm.organizer_action,
+        tm.match_status as match_status_from_matches
       `;
       joinClause = `
         FROM tournament_matches tm
@@ -319,7 +320,8 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         tm.loser_rating,
         tm.replay_file_path,
         tm.replay_downloads as replay_downloads,
-        tm.organizer_action
+        tm.organizer_action,
+        tm.match_status as match_status_from_matches
       `;
       joinClause = `
         FROM tournament_matches tm
@@ -330,7 +332,7 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         LEFT JOIN users_extension ul ON tm.loser_id = ul.id
       `;
     } else {
-      // Ranked 1v1: get player names from users (matches data already shown, though not included here for public API)
+      // Ranked 1v1: get player names from users, match details from both tables
       selectClause = `
         tm.id,
         tm.tournament_id,
@@ -359,7 +361,8 @@ router.get('/tournaments/:id/matches', async (req, res) => {
         m.loser_rating,
         m.replay_file_path,
         m.replay_downloads as replay_downloads,
-        tm.organizer_action
+        tm.organizer_action,
+        tm.match_status as match_status_from_matches
       `;
       joinClause = `
         FROM tournament_matches tm
