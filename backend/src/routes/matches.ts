@@ -1496,6 +1496,23 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
 
     console.log(`📋 [CONFIDENCE-1] Map: ${map}, Factions: ${winner_faction} vs ${loser_faction}`);
 
+    // Get tournament info if this is a tournament match
+    let tournamentMode = 'ranked'; // default for direct matches
+    if (replay.tournament_round_match_id) {
+      const tournamentResult = await query(
+        `SELECT t.tournament_mode FROM tournaments t 
+         JOIN tournament_rounds tr ON tr.tournament_id = t.id 
+         JOIN tournament_round_matches trm ON trm.round_id = tr.id
+         WHERE trm.id = ?`,
+        [replay.tournament_round_match_id]
+      );
+      if (tournamentResult.rows.length > 0) {
+        tournamentMode = tournamentResult.rows[0].tournament_mode || 'ranked';
+      }
+    }
+    
+    console.log(`🎯 [CONFIDENCE-1] Tournament mode: ${tournamentMode}`);
+
     // Calculate FIDE ELO ratings
     const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
     const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
@@ -1521,136 +1538,178 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     const winnerComments = comments ? String(comments).substring(0, 500) : null;
     const winnerRating = rating ? parseInt(rating, 10) : null;
 
-    // Create match record with all necessary fields
-    await query(
-      `INSERT INTO matches (
-        id,
-        replay_id,
-        winner_id,
-        loser_id,
-        map,
-        winner_faction,
-        loser_faction,
-        winner_elo_before,
-        loser_elo_before,
-        winner_elo_after,
-        loser_elo_after,
-        winner_level_before,
-        loser_level_before,
-        winner_level_after,
-        loser_level_after,
-        winner_comments,
-        winner_rating,
-        elo_change,
-        tournament_mode,
-        status,
-        replay_file_path,
-        auto_reported,
-        winner_side,
-        game_id,
-        wesnoth_version,
-        instance_uuid
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        matchId,
-        replayId,
-        winnerId,
-        loserId,
-        map,
-        winner_faction,
-        loser_faction,
-        winner.elo_rating,
-        loser.elo_rating,
-        winnerNewRating,
-        loserNewRating,
-        winnerLevelBefore,
-        loserLevelBefore,
-        winnerLevelAfter,
-        loserLevelAfter,
-        winnerComments,
-        winnerRating,
-        eloChange,
-        'ranked',
-        'reported',
-        replayUrl,
-        1,
-        winnerSide,                  // winner_side (1 or 2)
-        replay.game_id ?? null,      // game_id from forum
-        replay.wesnoth_version ?? null,  // wesnoth_version
-        replay.instance_uuid ?? null     // instance_uuid
-      ]
-    );
+    // Only create in global matches table for RANKED tournaments/matches
+    if (tournamentMode === 'ranked') {
+      // Create match record with all necessary fields
+      await query(
+        `INSERT INTO matches (
+          id,
+          replay_id,
+          winner_id,
+          loser_id,
+          map,
+          winner_faction,
+          loser_faction,
+          winner_elo_before,
+          loser_elo_before,
+          winner_elo_after,
+          loser_elo_after,
+          winner_level_before,
+          loser_level_before,
+          winner_level_after,
+          loser_level_after,
+          winner_comments,
+          winner_rating,
+          elo_change,
+          tournament_mode,
+          status,
+          replay_file_path,
+          auto_reported,
+          winner_side,
+          game_id,
+          wesnoth_version,
+          instance_uuid
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          matchId,
+          replayId,
+          winnerId,
+          loserId,
+          map,
+          winner_faction,
+          loser_faction,
+          winner.elo_rating,
+          loser.elo_rating,
+          winnerNewRating,
+          loserNewRating,
+          winnerLevelBefore,
+          loserLevelBefore,
+          winnerLevelAfter,
+          loserLevelAfter,
+          winnerComments,
+          winnerRating,
+          eloChange,
+          tournamentMode,
+          'reported',
+          replayUrl,
+          1,
+          winnerSide,                  // winner_side (1 or 2)
+          replay.game_id ?? null,      // game_id from forum
+          replay.wesnoth_version ?? null,  // wesnoth_version
+          replay.instance_uuid ?? null     // instance_uuid
+        ]
+      );
 
-    console.log(`✅ [CONFIDENCE-1] Match created: ${matchId}`);
+      console.log(`✅ [CONFIDENCE-1] Match created in global table: ${matchId}`);
 
-    // Calculate new trends
-    const winnerTrend = calculateTrend(winner.trend || '-', true);
-    const loserTrend = calculateTrend(loser.trend || '-', false);
+      // Calculate new trends
+      const winnerTrend = calculateTrend(winner.trend || '-', true);
+      const loserTrend = calculateTrend(loser.trend || '-', false);
 
-    // Update winner stats
-    const newWinnerMatches = winner.matches_played + 1;
-    let winnerIsNowRated = winner.is_rated;
-    let finalWinnerRating = winnerNewRating;
+      // Update winner stats
+      const newWinnerMatches = winner.matches_played + 1;
+      let winnerIsNowRated = winner.is_rated;
+      let finalWinnerRating = winnerNewRating;
 
-    if (winner.is_rated && finalWinnerRating < 1400) {
-      winnerIsNowRated = false;
-    } else if (!winner.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
-      winnerIsNowRated = true;
+      if (winner.is_rated && finalWinnerRating < 1400) {
+        winnerIsNowRated = false;
+      } else if (!winner.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
+        winnerIsNowRated = true;
+      }
+
+      await query(
+        `UPDATE users_extension 
+         SET elo_rating = ?, 
+             is_rated = ?, 
+             matches_played = ?,
+             total_wins = total_wins + 1,
+             trend = ?,
+             level = ?,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [finalWinnerRating, winnerIsNowRated, newWinnerMatches, winnerTrend, getUserLevel(finalWinnerRating), winnerId]
+      );
+
+      // Update loser stats
+      const newLoserMatches = loser.matches_played + 1;
+      let loserIsNowRated = loser.is_rated;
+      let finalLoserRating = loserNewRating;
+
+      if (loser.is_rated && finalLoserRating < 1400) {
+        loserIsNowRated = false;
+      } else if (!loser.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
+        loserIsNowRated = true;
+      }
+
+      await query(
+        `UPDATE users_extension 
+         SET elo_rating = ?, 
+             is_rated = ?, 
+             matches_played = ?,
+             total_losses = total_losses + 1,
+             trend = ?,
+             level = ?,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [finalLoserRating, loserIsNowRated, newLoserMatches, loserTrend, getUserLevel(finalLoserRating), loserId]
+      );
+
+      // Update faction/map statistics for this match (incremental update)
+      try {
+        if (map && winner_faction && loser_faction) {
+          await updateFactionMapStatistics(map, winner_faction, loser_faction, winnerSide);
+        }
+      } catch (statsError) {
+        console.error('Warning: Error updating faction/map statistics:', statsError);
+      }
+    } else {
+      // UNRANKED tournament - don't update global ELO
+      console.log(`🎯 [CONFIDENCE-1] Unranked tournament - skipping global ELO updates`);
+      
+      // Still need to mark the replay as having a match (but with null match_id for unranked)
     }
-
-    await query(
-      `UPDATE users_extension 
-       SET elo_rating = ?, 
-           is_rated = ?, 
-           matches_played = ?,
-           total_wins = total_wins + 1,
-           trend = ?,
-           level = ?,
-           updated_at = CURRENT_TIMESTAMP 
-       WHERE id = ?`,
-      [finalWinnerRating, winnerIsNowRated, newWinnerMatches, winnerTrend, getUserLevel(finalWinnerRating), winnerId]
-    );
-
-    // Update loser stats
-    const newLoserMatches = loser.matches_played + 1;
-    let loserIsNowRated = loser.is_rated;
-    let finalLoserRating = loserNewRating;
-
-    if (loser.is_rated && finalLoserRating < 1400) {
-      loserIsNowRated = false;
-    } else if (!loser.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
-      loserIsNowRated = true;
-    }
-
-    await query(
-      `UPDATE users_extension 
-       SET elo_rating = ?, 
-           is_rated = ?, 
-           matches_played = ?,
-           total_losses = total_losses + 1,
-           trend = ?,
-           level = ?,
-           updated_at = CURRENT_TIMESTAMP 
-       WHERE id = ?`,
-      [finalLoserRating, loserIsNowRated, newLoserMatches, loserTrend, getUserLevel(finalLoserRating), loserId]
-    );
 
     // Mark the replay as having a match
     await query(
       `UPDATE replays SET match_id = ? WHERE id = ?`,
-      [matchId, replayId]
+      [tournamentMode === 'ranked' ? matchId : null, replayId]
     );
 
-    // Update faction/map statistics for this match (incremental update)
-    try {
-      if (map && winner_faction && loser_faction) {
-        await updateFactionMapStatistics(map, winner_faction, loser_faction, winnerSide);
+    // If this replay is linked to a tournament_round_match, create/update tournament_matches entry
+    if (replay.tournament_round_match_id) {
+      console.log(`🎯 [CONFIDENCE-1] Creating tournament_matches entry for round match ${replay.tournament_round_match_id}`);
+      
+      // Get tournament_round_match details
+      const roundMatchResult = await query(
+        `SELECT tournament_id, round_id, player1_id, player2_id FROM tournament_round_matches WHERE id = ?`,
+        [replay.tournament_round_match_id]
+      );
+      
+      if (roundMatchResult.rows.length > 0) {
+        const roundMatch = roundMatchResult.rows[0];
+        
+        // Create tournament_matches entry
+        const tournamentMatchId = uuidv4();
+        await query(
+          `INSERT INTO tournament_matches 
+           (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?)`,
+          [
+            tournamentMatchId,
+            roundMatch.tournament_id,
+            roundMatch.round_id,
+            roundMatch.player1_id,
+            roundMatch.player2_id,
+            matchId,
+            winnerId,
+            replay.tournament_round_match_id
+          ]
+        );
+        console.log(`✅ [CONFIDENCE-1] Created tournament_matches entry: ${tournamentMatchId}`);
       }
-    } catch (statsError) {
-      console.error('Warning: Error updating faction/map statistics:', statsError);
     }
 
-    // If this replay belongs to a tournament match, associate and close it
+    // If this replay belongs to a tournament match (old flow), associate and close it
     if (tournament_match_id) {
       await query(
         `UPDATE tournament_matches

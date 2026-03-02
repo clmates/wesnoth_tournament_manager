@@ -1412,10 +1412,12 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
     // 1. ALL series must be completed (series_status = 'completed')
     // 2. Each series must have a winner (winner_id IS NOT NULL)
     // 3. NO pending matches in any series (all tournament_matches must be completed or not exist)
+    console.log(`🔍 [CHECK_COMPLETE_ROUND] Checking ${updatedMatchesResult.rows.length} matches:`);
     const allComplete = updatedMatchesResult.rows.every((match: any) => {
       const seriesComplete = match.series_status === 'completed';
       const hasWinner = match.winner_id !== null;
       const noPendingMatches = parseInt(match.pending_matches) === 0;
+      console.log(`   Match ${match.id}: series=${seriesComplete}, winner=${hasWinner}, noPending=${noPendingMatches} → ${seriesComplete && hasWinner && noPendingMatches ? '✅' : '❌'}`);
       
       return seriesComplete && hasWinner && noPendingMatches;
     });
