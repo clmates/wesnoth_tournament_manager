@@ -638,6 +638,7 @@ router.get('/matches', async (req, res) => {
            WHERE r.integration_confidence = 1 
              AND r.parsed = 1
              AND r.match_id IS NULL
+             AND r.tournament_id IS NULL
            ORDER BY r.created_at DESC
            LIMIT ? OFFSET ?`,
           [pageSize, offset]
