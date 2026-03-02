@@ -1266,7 +1266,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                             game_name: match.pending_replay_game_name || null,
                                             cancel_requested_by: match.pending_replay_cancel_requested_by || null,
                                           };
-                                          const isInvolved = currentUser && (currentUser.id === match.player1_id || currentUser.id === match.player2_id);
+                                          const isInvolved = user && (user.id === match.player1_id || user.id === match.player2_id);
                                           return (
                                             <div className="flex flex-col gap-1 mt-1">
                                               <span className="text-xs text-blue-600 font-semibold">🎬 {t('replay_auto_detected') || 'Replay detected'}</span>
