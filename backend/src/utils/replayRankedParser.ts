@@ -698,9 +698,14 @@ function extractLeaderkills(wml: WmlNode): LeaderkillEvent[] {
       const varName = varNode.name as string | undefined;
       const varValue = parseInt(varNode.value as string);
 
-      if (varName === `Winner_${fromSide}` && varValue === fromSide) {
-        console.log(`✅ [EXTRACT LEADERKILLS] Leaderkill detected: side ${fromSide} wins (command ${i})`);
-        leaderkills.push({ winner_side: fromSide });
+      // Pattern: Winner_N variable where value equals the winning side
+      // Example: Winner_2 with value=2 means side 2 won
+      if (varName && varName.startsWith('Winner_')) {
+        const winnerSideFromVar = parseInt(varName.split('_')[1]);
+        if (winnerSideFromVar && varValue === winnerSideFromVar && varValue > 0) {
+          console.log(`✅ [EXTRACT LEADERKILLS] Leaderkill detected: side ${varValue} wins (command ${i}, from_side=${fromSide})`);
+          leaderkills.push({ winner_side: varValue });
+        }
       }
     }
 
