@@ -134,7 +134,7 @@ export async function parseRankedReplay(
     }
 
     // Extract surrenders if any
-    const surrenders = extractSurrenders(parsed);
+    const surrenders = extractSurrenders(parsed, options?.forumPlayers);
 
     // Determine victory
     // Pass forumPlayers as source of truth for side mapping
@@ -566,7 +566,10 @@ function extractPlayers(wml: WmlNode): Array<{ side: number; name: string; facti
  * Extract surrender events from replay commands
  * Looks for fire_event with "menu item surrender" and subsequent input
  */
-function extractSurrenders(wml: WmlNode): SurrenderEvent[] {
+function extractSurrenders(
+  wml: WmlNode,
+  forumPlayers?: Array<{ side_number: number; user_name: string; faction: string }>
+): SurrenderEvent[] {
   try {
     const surrenders: SurrenderEvent[] = [];
     
@@ -602,9 +605,10 @@ function extractSurrenders(wml: WmlNode): SurrenderEvent[] {
         console.log(`   [Command ${i}] Has fire_event, raise="${fireEvent.raise}"`);
       }
 
+      // PATTERN 1: Old surrender pattern with fire_event + input
       if (fireEvent && fireEvent.raise === 'menu item surrender') {
         const fromSide = parseInt(command.from_side as string) || 0;
-        console.log(`   >>> SURRENDER DETECTED: from_side=${fromSide}`);
+        console.log(`   >>> SURRENDER DETECTED (old pattern): from_side=${fromSide}`);
 
         // Look for next command with input value=2 (confirmed) or value=1 (rejected)
         const nextCommand = commandArray[i + 1];
@@ -619,6 +623,28 @@ function extractSurrenders(wml: WmlNode): SurrenderEvent[] {
           });
         } else {
           console.log(`   >>> No input confirmation found in next command`);
+        }
+      }
+
+      // PATTERN 2: New surrender pattern with server speak message
+      // Message: "PlayerName has surrendered."
+      const speak = command.speak as WmlNode | undefined;
+      if (speak && typeof speak === 'object') {
+        const message = speak.message as string | undefined;
+        if (message && message.includes('has surrendered.')) {
+          const surrenderMatch = message.match(/^(.+)\s+has\s+surrendered\.$/);
+          if (surrenderMatch && forumPlayers) {
+            const surrenderingPlayerName = surrenderMatch[1].trim();
+            const surrenderingPlayer = forumPlayers.find(p => p.user_name === surrenderingPlayerName);
+            
+            if (surrenderingPlayer) {
+              console.log(`   >>> SURRENDER DETECTED (server message): ${surrenderingPlayerName} (side ${surrenderingPlayer.side_number})`);
+              surrenders.push({
+                side: surrenderingPlayer.side_number,
+                confirmed: true  // Server message is always confirmed
+              });
+            }
+          }
         }
       }
     }
