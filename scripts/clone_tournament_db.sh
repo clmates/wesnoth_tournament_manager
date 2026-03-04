@@ -3,8 +3,9 @@
 # Script to clone tournament database to tournament-test
 # IMPORTANT: Backend services MUST be stopped before running this script
 #
-# Usage: ./clone_tournament_db.sh [source_db] [target_db] [mysql_user] [mysql_host]
+# Usage: ./clone_tournament_db.sh [source_db] [target_db] [mysql_user] [mysql_host] [--skip-ssl]
 # Example: ./clone_tournament_db.sh tournament tournament-test root localhost
+# Example with --skip-ssl: ./clone_tournament_db.sh tournament tournament-test root localhost --skip-ssl
 #
 
 set -e  # Exit on error
@@ -15,6 +16,12 @@ TARGET_DB="${2:-tournament-test}"
 MYSQL_USER="${3:-root}"
 MYSQL_HOST="${4:-localhost}"
 MYSQL_PASSWORD=""
+SKIP_SSL=""
+
+# Check for --skip-ssl flag
+if [ "$5" = "--skip-ssl" ]; then
+    SKIP_SSL="--skip-ssl"
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -48,13 +55,13 @@ read -s MYSQL_PASSWORD
 echo ""
 echo ""
 
-# Build MySQL command with optional password
+# Build MySQL command with optional password and --skip-ssl
 if [ -z "$MYSQL_PASSWORD" ]; then
-    MYSQL_CMD="mysql -h $MYSQL_HOST -u $MYSQL_USER"
-    MYSQLDUMP_CMD="mysqldump -h $MYSQL_HOST -u $MYSQL_USER"
+    MYSQL_CMD="mysql -h $MYSQL_HOST -u $MYSQL_USER $SKIP_SSL"
+    MYSQLDUMP_CMD="mysqldump -h $MYSQL_HOST -u $MYSQL_USER $SKIP_SSL"
 else
-    MYSQL_CMD="mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD"
-    MYSQLDUMP_CMD="mysqldump -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD"
+    MYSQL_CMD="mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $SKIP_SSL"
+    MYSQLDUMP_CMD="mysqldump -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $SKIP_SSL"
 fi
 
 # Step 3: Verify connectivity

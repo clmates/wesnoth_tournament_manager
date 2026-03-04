@@ -33,6 +33,9 @@ mysql -u root -p -e "CREATE DATABASE tournament-test;"
 
 # Or specify custom values
 ./scripts/clone_tournament_db.sh tournament tournament-test root localhost
+
+# With --skip-ssl flag (if your MySQL requires it)
+./scripts/clone_tournament_db.sh tournament tournament-test root localhost --skip-ssl
 ```
 
 #### Option 2: One-liner with password
