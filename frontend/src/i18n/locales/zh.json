@@ -513,6 +513,8 @@
   "faction": "派系",
   "map": "地图",
   "winrate": "胜率",
+  "side1_winrate": "方1胜率",
+  "side2_winrate": "方2胜率",
   "balance_indicator": "平衡",
   "maps_played": "地图",
   "factions_used": "派系",

@@ -10,6 +10,12 @@ interface FactionStats {
   losses: number;
   global_winrate: number;
   maps_played: number;
+  side1_games: number;
+  side1_wins: number;
+  side1_winrate: number | null;
+  side2_games: number;
+  side2_wins: number;
+  side2_winrate: number | null;
 }
 
 interface ComparisonData {
@@ -70,6 +76,12 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
             global_winrate: winrate,
             wins,
             losses,
+            side1_games: item.side1_games || 0,
+            side1_wins: item.side1_wins || 0,
+            side1_winrate: item.side1_winrate != null ? (typeof item.side1_winrate === 'string' ? parseFloat(item.side1_winrate) : item.side1_winrate) : null,
+            side2_games: item.side2_games || 0,
+            side2_wins: item.side2_wins || 0,
+            side2_winrate: item.side2_winrate != null ? (typeof item.side2_winrate === 'string' ? parseFloat(item.side2_winrate) : item.side2_winrate) : null,
           };
         });
         setStats(converted);
@@ -292,6 +304,8 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('wins') || 'Wins'}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('losses') || 'Losses'}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('winrate') || 'Win Rate'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('side1_winrate') || 'Side 1 WR'}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('side2_winrate') || 'Side 2 WR'}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('maps_played') || 'Maps'}</th>
               <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('balance_indicator') || 'Balance'}</th>
             </tr>
@@ -311,6 +325,34 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
                   }`}>
                     {stat.global_winrate.toFixed(1)}%
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  {stat.side1_winrate != null ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span className={`px-2 py-0.5 rounded font-semibold text-sm inline-block min-w-fit ${
+                        stat.side1_winrate > 55 ? 'bg-green-100 text-green-700' :
+                        stat.side1_winrate < 45 ? 'bg-red-100 text-red-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {stat.side1_winrate.toFixed(1)}%
+                      </span>
+                      <span className="text-xs text-gray-400">{stat.side1_games}g</span>
+                    </div>
+                  ) : <span className="text-gray-400">—</span>}
+                </td>
+                <td className="px-4 py-3">
+                  {stat.side2_winrate != null ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span className={`px-2 py-0.5 rounded font-semibold text-sm inline-block min-w-fit ${
+                        stat.side2_winrate > 55 ? 'bg-green-100 text-green-700' :
+                        stat.side2_winrate < 45 ? 'bg-red-100 text-red-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {stat.side2_winrate.toFixed(1)}%
+                      </span>
+                      <span className="text-xs text-gray-400">{stat.side2_games}g</span>
+                    </div>
+                  ) : <span className="text-gray-400">—</span>}
                 </td>
                 <td className="px-4 py-3 text-gray-700">{stat.maps_played}</td>
                 <td className="px-4 py-3">

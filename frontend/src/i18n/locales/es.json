@@ -514,6 +514,8 @@
   "faction": "Facción",
   "map": "Mapa",
   "winrate": "Tasa de Victorias",
+  "side1_winrate": "WR Lado 1",
+  "side2_winrate": "WR Lado 2",
   "balance_indicator": "Balance",
   "maps_played": "Mapas",
   "factions_used": "Facciones",

@@ -513,6 +513,8 @@
   "faction": "Фракция",
   "map": "Карта",
   "winrate": "Процент побед",
+  "side1_winrate": "WR стор. 1",
+  "side2_winrate": "WR стор. 2",
   "balance_indicator": "Баланс",
   "maps_played": "Карты",
   "factions_used": "Фракции",

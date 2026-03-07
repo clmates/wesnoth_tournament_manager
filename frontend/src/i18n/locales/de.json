@@ -513,6 +513,8 @@
   "faction": "Fraktion",
   "map": "Karte",
   "winrate": "Gewinnquote",
+  "side1_winrate": "Seite 1 GQ",
+  "side2_winrate": "Seite 2 GQ",
   "balance_indicator": "Balance",
   "maps_played": "Karten",
   "factions_used": "Fraktionen",

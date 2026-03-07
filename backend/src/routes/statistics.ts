@@ -145,6 +145,18 @@ router.get('/faction-global', async (req, res) => {
         SUM(fms.losses) as total_losses,
         ROUND(100.0 * SUM(fms.wins) / SUM(fms.total_games), 2) as global_winrate,
         COUNT(DISTINCT fms.map_id) as maps_played,
+        SUM(CASE WHEN fms.faction_side = 1 THEN fms.total_games ELSE 0 END) as side1_games,
+        SUM(CASE WHEN fms.faction_side = 1 THEN fms.wins ELSE 0 END) as side1_wins,
+        CASE WHEN SUM(CASE WHEN fms.faction_side = 1 THEN fms.total_games ELSE 0 END) > 0
+          THEN ROUND(100.0 * SUM(CASE WHEN fms.faction_side = 1 THEN fms.wins ELSE 0 END)
+            / SUM(CASE WHEN fms.faction_side = 1 THEN fms.total_games ELSE 0 END), 2)
+          ELSE NULL END as side1_winrate,
+        SUM(CASE WHEN fms.faction_side = 2 THEN fms.total_games ELSE 0 END) as side2_games,
+        SUM(CASE WHEN fms.faction_side = 2 THEN fms.wins ELSE 0 END) as side2_wins,
+        CASE WHEN SUM(CASE WHEN fms.faction_side = 2 THEN fms.total_games ELSE 0 END) > 0
+          THEN ROUND(100.0 * SUM(CASE WHEN fms.faction_side = 2 THEN fms.wins ELSE 0 END)
+            / SUM(CASE WHEN fms.faction_side = 2 THEN fms.total_games ELSE 0 END), 2)
+          ELSE NULL END as side2_winrate,
         MAX(fms.last_updated) as last_updated
       FROM faction_map_statistics fms
       JOIN factions f ON fms.faction_id = f.id

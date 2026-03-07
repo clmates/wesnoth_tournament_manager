@@ -531,6 +531,8 @@
   "faction": "Faction",
   "map": "Map",
   "winrate": "Win Rate",
+  "side1_winrate": "Side 1 WR",
+  "side2_winrate": "Side 2 WR",
   "balance_indicator": "Balance",
   "maps_played": "Maps",
   "factions_used": "Factions",
