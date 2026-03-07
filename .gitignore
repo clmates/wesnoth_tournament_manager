@@ -15,12 +15,15 @@ frontend/build/
 backend/.env
 backend/.env.local
 backend/.env.migration
+backend/.env.test
+backend/.env.production
 frontend/.env
 frontend/.env.local
 frontend/.env.migration
 frontend/.env.development
 frontend/.env.staging
 frontend/.env.main
+frontend/.env.test
 frontend/.env.production
 
 # Migration data files (CSV exports, sensitive data)
