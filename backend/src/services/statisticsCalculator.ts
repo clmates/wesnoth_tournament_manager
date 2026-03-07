@@ -864,93 +864,86 @@ export async function recalculatePlayerMatchStatistics(): Promise<{ records_upda
  */
 export async function recalculateFactionMapStatistics(): Promise<{ records_updated: number }> {
   try {
-    // Truncate the stats table
     await query('TRUNCATE TABLE faction_map_statistics');
 
-    // Get all faction/map combinations from matches (split by winner_side for side analysis)
-    const statsResult = await query(
+    // Fetch each non-cancelled match once, resolving map and faction IDs via JOIN.
+    // winner_side is now stored on every match (1 = winner played side 1, 2 = side 2).
+    // We process each row twice in JS (winner perspective + loser perspective) instead of
+    // using a UNION ALL, which avoids SQL aggregation returning mixed types (COUNT→number,
+    // SUM→string) that caused JS string-concatenation bugs.
+    const matchesResult = await query(
       `SELECT
-         gm.id as map_id,
-         f_w.id as faction_id,
-         f_l.id as opponent_faction_id,
-         COALESCE(m.winner_side, 0) as faction_side,
-         COUNT(*) as total_games,
-         SUM(CASE WHEN 1=1 THEN 1 ELSE 0 END) as wins,
-         0 as losses
+         gm.id  AS map_id,
+         f_w.id AS winner_faction_id,
+         f_l.id AS loser_faction_id,
+         m.winner_side
        FROM matches m
        JOIN game_maps gm ON gm.name = m.map
        JOIN factions f_w ON f_w.name = m.winner_faction
        JOIN factions f_l ON f_l.name = m.loser_faction
-       WHERE m.status != 'cancelled'
-       GROUP BY gm.id, f_w.id, f_l.id, COALESCE(m.winner_side, 0)
-       
-       UNION ALL
-       
-       SELECT
-         gm.id as map_id,
-         f_l.id as faction_id,
-         f_w.id as opponent_faction_id,
-         CASE
-           WHEN m.winner_side = 1 THEN 2
-           WHEN m.winner_side = 2 THEN 1
-           ELSE 0
-         END as faction_side,
-         COUNT(*) as total_games,
-         0 as wins,
-         SUM(CASE WHEN 1=1 THEN 1 ELSE 0 END) as losses
-       FROM matches m
-       JOIN game_maps gm ON gm.name = m.map
-       JOIN factions f_w ON f_w.name = m.winner_faction
-       JOIN factions f_l ON f_l.name = m.loser_faction
-       WHERE m.status != 'cancelled'
-       GROUP BY gm.id, f_l.id, f_w.id, CASE WHEN m.winner_side = 1 THEN 2 WHEN m.winner_side = 2 THEN 1 ELSE 0 END`
+       WHERE m.status != 'cancelled'`
     );
 
-    // Aggregate by map/faction/opponent_faction/faction_side
-    const aggregated = new Map<string, any>();
+    type Entry = {
+      map_id: string;
+      faction_id: string;
+      opponent_faction_id: string;
+      faction_side: number;
+      total_games: number;
+      wins: number;
+      losses: number;
+    };
 
-    for (const row of statsResult.rows) {
-      const key = `${row.map_id}|${row.faction_id}|${row.opponent_faction_id}|${row.faction_side}`;
-      const existing = aggregated.get(key);
+    const aggregated = new Map<string, Entry>();
 
-      // Parse as integers — mysql2 returns SUM() as strings and COUNT() as numbers,
-      // mixing types causes JS string concatenation ("1" + 0 = "10") instead of addition.
-      const tg = parseInt(row.total_games) || 0;
-      const w  = parseInt(row.wins)        || 0;
-      const l  = parseInt(row.losses)      || 0;
-
-      if (existing) {
-        existing.total_games += tg;
-        existing.wins        += w;
-        existing.losses      += l;
+    const addEntry = (
+      map_id: string,
+      faction_id: string,
+      opponent_faction_id: string,
+      faction_side: number,
+      isWin: boolean
+    ) => {
+      const key = `${map_id}|${faction_id}|${opponent_faction_id}|${faction_side}`;
+      const entry = aggregated.get(key);
+      if (entry) {
+        entry.total_games++;
+        if (isWin) entry.wins++;
+        else entry.losses++;
       } else {
         aggregated.set(key, {
-          map_id: row.map_id,
-          faction_id: row.faction_id,
-          opponent_faction_id: row.opponent_faction_id,
-          faction_side: row.faction_side,
-          total_games: tg,
-          wins: w,
-          losses: l
+          map_id,
+          faction_id,
+          opponent_faction_id,
+          faction_side,
+          total_games: 1,
+          wins: isWin ? 1 : 0,
+          losses: isWin ? 0 : 1
         });
       }
+    };
+
+    for (const row of matchesResult.rows) {
+      const winnerSide: number = row.winner_side ?? 1;
+      const loserSide: number  = winnerSide === 1 ? 2 : winnerSide === 2 ? 1 : 0;
+
+      // Winner perspective: faction that won, playing as winnerSide
+      addEntry(row.map_id, row.winner_faction_id, row.loser_faction_id, winnerSide, true);
+      // Loser perspective: faction that lost, playing as loserSide
+      addEntry(row.map_id, row.loser_faction_id, row.winner_faction_id, loserSide, false);
     }
 
-    // Insert with calculated winrate
-    let recordsInserted = 0;
-    
-    // Import randomUUID for ID generation
     const { randomUUID } = await import('crypto');
-    
+    let recordsInserted = 0;
+
     for (const stats of aggregated.values()) {
-      stats.winrate = stats.total_games > 0 ? (stats.wins / stats.total_games) * 100 : 0;
+      const winrate = stats.total_games > 0 ? (stats.wins / stats.total_games) * 100 : 0;
 
       await query(
         `INSERT INTO faction_map_statistics
          (id, map_id, faction_id, opponent_faction_id, faction_side, total_games, wins, losses, winrate)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [randomUUID(), stats.map_id, stats.faction_id, stats.opponent_faction_id, stats.faction_side,
-         stats.total_games, stats.wins, stats.losses, Math.round(stats.winrate * 100) / 100]
+         stats.total_games, stats.wins, stats.losses, Math.round(winrate * 100) / 100]
       );
       recordsInserted++;
     }
