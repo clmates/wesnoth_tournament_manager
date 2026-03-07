@@ -1,21 +1,11 @@
 import axios, { AxiosError } from 'axios';
 
 // Determine API URL based on environment
-let API_URL: string;
+// In production/test: loaded from .env file (VITE_API_BASE_URL)
+// In development: defaults to localhost
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
 
-// Check environment variables first (from Cloudflare or deployment)
-if (import.meta.env.VITE_API_BASE_URL) {
-  // Primary: VITE_API_BASE_URL (used in .env.test and other deployments)
-  API_URL = import.meta.env.VITE_API_BASE_URL;
-} else if (import.meta.env.VITE_API_URL) {
-  // Fallback: VITE_API_URL from Cloudflare
-  API_URL = import.meta.env.VITE_API_URL.endsWith('/api') 
-    ? import.meta.env.VITE_API_URL 
-    : `${import.meta.env.VITE_API_URL}/api`;
-} else {
-  // Development/local default
-  API_URL = 'http://localhost:3000/api';
-}
+console.log('[API Config] Using API_URL:', API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
