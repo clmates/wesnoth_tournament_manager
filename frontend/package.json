@@ -1,0 +1,35 @@
+{
+  "name": "wesnoth-tournament-frontend",
+  "version": "1.0.1-rebuild-css-cloudflare",
+  "license": "AGPL-3.0-or-later",
+  "description": "Frontend for Wesnoth Tournament Management",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:test": "vite --mode test",
+    "build": "vite build",
+    "build:test": "vite build --mode test",
+    "build:production": "vite build --mode production",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.6.5",
+    "i18next": "^23.7.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-i18next": "^13.5.0",
+    "react-router-dom": "^6.20.1",
+    "recharts": "^3.5.1",
+    "zustand": "^4.4.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.3.3",
+    "vite": "^7.3.1"
+  }
+}

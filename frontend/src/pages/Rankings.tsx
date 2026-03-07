@@ -1,0 +1,440 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { userService } from '../services/api';
+import { useAuthStore } from '../store/authStore';
+import PlayerLink from '../components/PlayerLink';
+import UserBadge from '../components/UserBadge';
+
+interface PlayerStats {
+  id: string;
+  nickname: string;
+  elo_rating: number;
+  is_rated: boolean;
+  matches_played: number;
+  total_wins: number;
+  total_losses: number;
+  winPercentage: number;
+  trend: string;
+  country?: string;
+  avatar?: string;
+}
+
+interface FilterState {
+  nickname: string;
+  min_elo: string;
+  max_elo: string;
+}
+
+type SortColumn = 'nickname' | 'elo_rating' | 'matches_played' | 'total_wins' | 'total_losses' | 'winPercentage' | 'trend' | '';
+type SortDirection = 'asc' | 'desc';
+
+const Rankings: React.FC = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { isAuthenticated, userId } = useAuthStore();
+  const [players, setPlayers] = useState<PlayerStats[]>([]);
+  const [sortColumn, setSortColumn] = useState<SortColumn>('');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+    // Sorting logic
+    const handleSort = (column: SortColumn) => {
+      if (sortColumn === column) {
+        setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
+      } else {
+        setSortColumn(column);
+        setSortDirection('desc');
+      }
+    };
+
+    // Sort players before rendering
+    const sortedPlayers = React.useMemo(() => {
+      if (!sortColumn) return players;
+      const sorted = [...players].sort((a, b) => {
+        let aValue: any = a[sortColumn as keyof PlayerStats];
+        let bValue: any = b[sortColumn as keyof PlayerStats];
+        // For nickname, sort as string
+        if (sortColumn === 'nickname' || sortColumn === 'trend') {
+          aValue = aValue?.toLowerCase?.() || '';
+          bValue = bValue?.toLowerCase?.() || '';
+          if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+          return 0;
+        }
+        // For numbers
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        }
+        return 0;
+      });
+      return sorted;
+    }, [players, sortColumn, sortDirection]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  
+  // Input state (updates immediately as user types)
+  const [inputFilters, setInputFilters] = useState<FilterState>({
+    nickname: '',
+    min_elo: '',
+    max_elo: '',
+  });
+  
+  // Applied filters state (updates with debounce)
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>({
+    nickname: '',
+    min_elo: '',
+    max_elo: '',
+  });
+  
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce filter changes
+  const handleFilterInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    setInputFilters(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+    
+    // Clear previous timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    // Set new timer to apply filters after 500ms
+    debounceTimer.current = setTimeout(() => {
+      setAppliedFilters(prev => ({
+        ...prev,
+        [name]: value,
+      }));
+      setCurrentPage(1);
+    }, 500);
+  };
+
+  useEffect(() => {
+    const fetchRankings = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        // Fetch global ranking with pagination and filters
+        const rankingRes = await userService.getGlobalRanking(currentPage, appliedFilters);
+        const ratedPlayers = rankingRes.data?.data || [];
+
+        // Calculate stats for each player
+        const playersWithStats: PlayerStats[] = ratedPlayers.map((player: any) => {
+          const totalMatches = player.matches_played || 0;
+          const wins = player.total_wins || 0;
+          const losses = player.total_losses || 0;
+
+          // Calculate win percentage
+          const decidedMatches = wins + losses;
+          const winPercentage = decidedMatches > 0 ? Math.round((wins / decidedMatches) * 100) : 0;
+
+          // Trend is stored in the database
+          const trend = player.trend || '-';
+
+          return {
+            id: player.id,
+            nickname: player.nickname,
+            elo_rating: player.elo_rating,
+            is_rated: player.is_rated,
+            matches_played: totalMatches,
+            total_wins: wins,
+            total_losses: losses,
+            winPercentage,
+            trend,
+            country: player.country,
+            avatar: player.avatar,
+          };
+        });
+
+        setPlayers(playersWithStats);
+
+        // Set pagination info
+        if (rankingRes.data?.pagination) {
+          setTotalPages(rankingRes.data.pagination.totalPages);
+          setTotal(rankingRes.data.pagination.total);
+        }
+      } catch (err) {
+        console.error('Error fetching rankings:', err);
+        setError('Error loading rankings');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRankings();
+  }, [currentPage, appliedFilters]);
+
+  const handleResetFilters = () => {
+    const emptyFilters = {
+      nickname: '',
+      min_elo: '',
+      max_elo: '',
+    };
+    setInputFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  if (loading) {
+    return <div className="w-full max-w-6xl mx-auto px-4 py-8"><p>{t('loading')}</p></div>;
+  }
+
+  return (
+    <div className="w-full max-w-6xl mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">{t('navbar_rankings') || 'Rankings'}</h1>
+
+      {/* Ranking Criteria Info */}
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold text-gray-700 mb-2">{t('ranking_criteria_title') || 'Ranking Criteria'}</h3>
+        <p className="text-gray-600">{t('ranking_criteria_description') || 'Players must have a minimum ELO of 1400, have played a minimum of 10 games and have activity in the last 30 days.'}</p>
+      </div>
+
+      {/* Rankings Content */}
+      <div className="w-full">
+          {error && <p className="bg-red-100 border border-red-300 text-red-700 p-4 rounded-lg mb-6">{error}</p>}
+
+          {/* Pagination Controls - Top */}
+          {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mb-6 flex-wrap">
+          <button 
+            className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+          >
+            {t('pagination_first')}
+          </button>
+          <button 
+            className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            {t('pagination_prev')}
+          </button>
+          
+          <div className="text-sm text-gray-600">
+            {t('pagination_page_info', { page: currentPage, totalPages })}
+          </div>
+          
+          <button 
+            className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            {t('pagination_next')}
+          </button>
+          <button 
+            className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {t('pagination_last')}
+          </button>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="overflow-x-auto -webkit-overflow-scrolling-touch mb-6">
+        <div className="flex gap-4 min-w-min">
+          <div className="flex flex-col flex-shrink-0 min-w-[200px]">
+            <label htmlFor="nickname" className="text-sm font-semibold text-gray-700 mb-1">{t('filter_nickname')}</label>
+            <input
+              type="text"
+              id="nickname"
+              name="nickname"
+              placeholder={t('filter_by_nickname')}
+              value={inputFilters.nickname}
+              onChange={handleFilterInputChange}
+              className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex flex-col flex-shrink-0 min-w-[180px]">
+            <label htmlFor="min_elo" className="text-sm font-semibold text-gray-700 mb-1">{t('filter_min_elo')}</label>
+            <input
+              type="number"
+              id="min_elo"
+              name="min_elo"
+              placeholder={t('filter_min_elo_placeholder')}
+              value={inputFilters.min_elo}
+              onChange={handleFilterInputChange}
+              className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex flex-col flex-shrink-0 min-w-[180px]">
+            <label htmlFor="max_elo" className="text-sm font-semibold text-gray-700 mb-1">{t('filter_max_elo')}</label>
+            <input
+              type="number"
+              id="max_elo"
+              name="max_elo"
+              placeholder={t('filter_max_elo_placeholder')}
+              value={inputFilters.max_elo}
+              onChange={handleFilterInputChange}
+              className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex flex-col justify-end flex-shrink-0">
+            <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-semibold self-end" onClick={handleResetFilters}>
+              {t('reset_filters')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="text-sm text-gray-600 mb-4">
+        <p>{t('showing_count', { count: players.length, total, page: currentPage, totalPages })}</p>
+      </div>
+
+      {players.length > 0 ? (
+        <div className="w-full overflow-x-auto mb-8">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-200">
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-300 transition-colors">#</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-300 transition-colors" onClick={() => handleSort('nickname')}>
+                  {t('label_nickname')}
+                  {sortColumn === 'nickname' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-300 transition-colors" onClick={() => handleSort('elo_rating')}>
+                  {t('label_elo')}
+                  {sortColumn === 'elo_rating' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-300 transition-colors" onClick={() => handleSort('matches_played')}>
+                  {t('label_total')}
+                  {sortColumn === 'matches_played' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-300 transition-colors" onClick={() => handleSort('total_wins')}>
+                  {t('label_wins')}
+                  {sortColumn === 'total_wins' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-300 transition-colors" onClick={() => handleSort('total_losses')}>
+                  {t('label_losses')}
+                  {sortColumn === 'total_losses' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-300 transition-colors" onClick={() => handleSort('winPercentage')}>
+                  {t('label_win_pct')}
+                  {sortColumn === 'winPercentage' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-300 transition-colors" onClick={() => handleSort('trend')}>
+                  {t('label_trend')}
+                  {sortColumn === 'trend' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedPlayers.map((player, index) => (
+                <tr key={player.id} className={`border-b border-gray-200 hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                  <td className="px-4 py-3 text-gray-700">
+                    <span className="font-bold text-lg text-center">#{(currentPage - 1) * 20 + index + 1}</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    <div className="flex items-center gap-2">
+                      <UserBadge
+                        country={player.country}
+                        avatar={player.avatar}
+                        username={player.nickname}
+                        size="medium-small"
+                      />
+                      <a 
+                        href="#" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (userId === player.id) {
+                            navigate('/user');
+                          } else {
+                            navigate(`/player/${player.id}`);
+                          }
+                        }}
+                        className="font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
+                      >
+                        {player.nickname}
+                      </a>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    <span className="font-bold">{player.elo_rating}</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">{player.matches_played}</td>
+                  <td className="px-4 py-3 text-gray-700">
+                    <span className="text-green-600 font-semibold">{player.total_wins}</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    <span className="text-red-600 font-semibold">{player.total_losses}</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    <span className="font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">{player.winPercentage}%</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700">
+                    <span className={`font-semibold px-2 py-1 rounded-full text-sm ${
+                      player.trend === '↑' ? 'bg-green-100 text-green-800' :
+                      player.trend === '↓' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {player.trend}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-center text-gray-500 py-8">{t('no_data') || 'No ranking data available'}</p>
+      )}
+
+      {/* Pagination Controls - Bottom */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-8 flex-wrap">
+          <button 
+            className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+          >
+            {t('pagination_first')}
+          </button>
+          <button 
+            className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            {t('pagination_prev')}
+          </button>
+          
+          <div className="text-sm text-gray-600">
+            {t('pagination_page_info', { page: currentPage, totalPages })}
+          </div>
+          
+          <button 
+            className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            {t('pagination_next')}
+          </button>
+          <button 
+            className="px-3 py-2 border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            {t('pagination_last')}
+          </button>
+        </div>
+      )}
+        </div>
+    </div>
+  );
+};
+
+export default Rankings;

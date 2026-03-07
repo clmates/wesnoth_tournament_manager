@@ -1,0 +1,626 @@
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate, useParams } from 'react-router-dom';
+import { userService, publicService } from '../services/api';
+import { playerStatisticsService } from '../services/playerStatisticsService';
+import ProfileStats from '../components/ProfileStats';
+import EloChart from '../components/EloChart';
+import MatchesTable from '../components/MatchesTable';
+import MatchDetailsModal from '../components/MatchDetailsModal';
+import PlayerStatsByMap from '../components/PlayerStatsByMap';
+import PlayerStatsByFaction from '../components/PlayerStatsByFaction';
+import PlayerLink from '../components/PlayerLink';
+
+
+type ProfileTab = 'overall' | 'matches' | 'opponents' | 'by-map' | 'by-faction';
+
+interface FilterState {
+  player: string;
+  map: string;
+  status: string;
+  faction: string;
+}
+
+const PlayerProfile: React.FC = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  
+  const [profile, setProfile] = useState<any>(null);
+  const [matches, setMatches] = useState<any[]>([]);
+  const [opponentStats, setOpponentStats] = useState<any[]>([]);
+  const [opponentStatsLoading, setOpponentStatsLoading] = useState(false);
+  const [opponentStatsError, setOpponentStatsError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [matchDetailsModal, setMatchDetailsModal] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<ProfileTab>('overall');
+  const [sortColumn, setSortColumn] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [filterOpponent, setFilterOpponent] = useState<string>('');
+  const [availableFactions, setAvailableFactions] = useState<any[]>([]);
+  const [filters, setFilters] = useState<FilterState>({
+    player: '',
+    map: '',
+    status: '',
+    faction: '',
+  });
+
+  useEffect(() => {
+    if (!id) {
+      navigate('/players');
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        // Fetch player profile
+        const profileRes = await publicService.getPlayerProfile(id);
+        console.log('Player profile response:', profileRes.data);
+        setProfile(profileRes.data);
+
+        // Fetch recent matches for the user
+        const matchesRes = await userService.getRecentMatches(id);
+        const matchesData = matchesRes.data?.data || matchesRes.data || [];
+        setMatches(matchesData);
+
+        // Fetch factions
+        const factionsRes = await publicService.getFactions();
+        setAvailableFactions(factionsRes.data || []);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Error loading profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id, navigate]);
+
+  // Fetch opponent stats when opponents tab is selected
+  useEffect(() => {
+    if (activeTab === 'opponents' && opponentStats.length === 0 && !opponentStatsLoading) {
+      const fetchOpponents = async () => {
+        try {
+          setOpponentStatsLoading(true);
+          setOpponentStatsError('');
+          console.log('Fetching recent opponents for player:', id);
+          const opponentsRes = await playerStatisticsService.getRecentOpponents(id || '', 100);
+          console.log('Opponents data received:', opponentsRes);
+          
+          // Normalize API response to match expected format
+          const normalized = opponentsRes?.map((opponent: any) => ({
+            opponent_id: opponent.opponent_id,
+            opponent_name: opponent.opponent_name,
+            total_matches: opponent.total_games,
+            total_games: opponent.total_games,
+            wins: opponent.wins,
+            losses: opponent.losses,
+            winrate: typeof opponent.winrate === 'string' ? parseFloat(opponent.winrate) : opponent.winrate,
+            current_elo: opponent.current_elo,
+            elo_gained: typeof opponent.elo_gained === 'string' ? parseFloat(opponent.elo_gained) : opponent.elo_gained,
+            elo_lost: typeof opponent.elo_lost === 'string' ? parseFloat(opponent.elo_lost) : opponent.elo_lost,
+            last_elo_against_me: typeof opponent.last_elo_against_me === 'string' ? parseFloat(opponent.last_elo_against_me) : opponent.last_elo_against_me,
+            last_match_date: opponent.last_match_date
+          })) || [];
+          
+          console.log('Normalized opponents data:', normalized);
+          setOpponentStats(normalized);
+        } catch (err) {
+          console.error('Error fetching opponents:', err);
+          setOpponentStatsError('Error loading opponent data');
+        } finally {
+          setOpponentStatsLoading(false);
+        }
+      };
+
+      fetchOpponents();
+    }
+  }, [activeTab, id]);
+
+  const openMatchDetails = (match: any) => {
+    setMatchDetailsModal(match);
+  };
+
+  const closeMatchDetails = () => {
+    setMatchDetailsModal(null);
+  };
+
+  const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
+    try {
+      if (!matchId || !replayFilePath) return;
+      
+      // Increment download count in the database
+      await matchService.incrementReplayDownloads(matchId);
+      
+      // Extract filename from path
+      const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
+      
+      // Use the replay_file_path HTTPS URL directly
+      const link = document.createElement('a');
+      link.href = replayFilePath;
+      link.download = filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error downloading replay:', err);
+    }
+  };
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      player: '',
+      map: '',
+      status: '',
+      faction: '',
+    });
+  };
+
+  // Filter matches based on active filters
+  const filteredMatches = matches.filter(match => {
+    if (filters.player && !match.winner_nickname?.toLowerCase().includes(filters.player.toLowerCase()) && 
+        !match.loser_nickname?.toLowerCase().includes(filters.player.toLowerCase())) {
+      return false;
+    }
+    if (filters.map && !match.map?.toLowerCase().includes(filters.map.toLowerCase())) {
+      return false;
+    }
+    if (filters.status && match.status !== filters.status) {
+      return false;
+    }
+    if (filters.faction && match.winner_faction !== filters.faction && match.loser_faction !== filters.faction) {
+      return false;
+    }
+    return true;
+  });
+
+  // Filter and sort opponent stats
+  const filteredOpponentStats = opponentStats
+    .filter(stat => !filterOpponent || stat.opponent_name.toLowerCase().includes(filterOpponent.toLowerCase()))
+    .sort((a, b) => {
+      if (!sortColumn) return b.total_matches - a.total_matches;
+      
+      let aVal: any = a[sortColumn as keyof typeof a];
+      let bVal: any = b[sortColumn as keyof typeof b];
+      
+      // Special handling for win_percentage (calculated field)
+      if (sortColumn === 'win_percentage') {
+        const aWinPct = a.total_games > 0 ? (a.wins / a.total_games) * 100 : 0;
+        const bWinPct = b.total_games > 0 ? (b.wins / b.total_games) * 100 : 0;
+        return sortDirection === 'asc' ? aWinPct - bWinPct : bWinPct - aWinPct;
+      }
+      
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = (bVal as string).toLowerCase();
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
+
+  if (loading) {
+    return <div className="w-full max-w-6xl mx-auto px-4 py-8"><p>{t('loading')}</p></div>;
+  }
+
+  if (error) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 py-8">
+        <p className="text-red-600">{error}</p>
+        <button onClick={() => navigate('/players')}>{t('back_to_players')}</button>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 py-8">
+        <p>Profile not found</p>
+        <button onClick={() => navigate('/players')}>{t('back_to_players')}</button>
+      </div>
+    );
+  }
+
+  const tabs: { id: ProfileTab; label: string }[] = [
+    { id: 'overall', label: t('overall_statistics') || 'Overall' },
+    { id: 'matches', label: t('matches_label') || 'Matches' },
+    { id: 'opponents', label: t('my_opponents') || 'Opponents' },
+    { id: 'by-map', label: t('performance_by_map') || 'By Map' },
+    { id: 'by-faction', label: t('performance_by_faction') || 'By Faction' },
+  ];
+
+  return (
+    <div className="bg-gradient-to-br from-gray-100 to-gray-300 min-h-screen py-8 px-4">
+      <div className="max-w-6xl mx-auto">
+        <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">{profile?.nickname}'s Profile</h1>
+        
+        {profile && (
+          <>
+            <ProfileStats player={profile} />
+
+            {/* Tab Navigation */}
+            <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-300">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`px-4 py-3 font-semibold transition-all cursor-pointer ${
+                    activeTab === tab.id
+                      ? 'text-blue-600 border-b-2 border-blue-600 bg-white rounded-t-lg'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setSortColumn('');
+                    setFilterOpponent('');
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+          {/* Tab Content */}
+          <div className="space-y-6">
+            {/* Overall Tab */}
+            {activeTab === 'overall' && (
+              <div className="bg-white rounded-lg shadow-md p-8">
+                <EloChart 
+                  matches={matches}
+                  currentPlayerId={id || ''}
+                />
+
+                <div className="mt-8">
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-6">{t('recent_games')}</h2>
+                  <MatchesTable 
+                    matches={matches.slice(0, 10)}
+                    currentPlayerId={id || ''}
+                    onViewDetails={openMatchDetails}
+                    onDownloadReplay={async (matchId, replayFilePath) => {
+                      try {
+                        if (!replayFilePath) return;
+                        
+                        // Extract filename from path
+                        const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
+                        
+                        // Increment download count
+                        await matchService.incrementReplayDownloads(matchId);
+                        
+                        // Use the replay_file_path HTTPS URL directly
+                        const link = document.createElement('a');
+                        link.href = replayFilePath;
+                        link.download = filename;
+                        link.target = '_blank';
+                        
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      } catch (err) {
+                        console.error('Error downloading replay:', err);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Matches Tab */}
+            {activeTab === 'matches' && (
+              <div className="bg-white rounded-lg shadow-md p-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6">{t('all_matches')}</h2>
+                
+                {/* Filters */}
+                <div className="bg-gray-50 p-4 rounded-lg mb-6 overflow-x-auto -webkit-overflow-scrolling-touch">
+                  <div className="flex gap-3 min-w-min items-end">
+                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+                      <label htmlFor="player" className="font-semibold text-gray-700">{t('filter_player')}</label>
+                      <input
+                        type="text"
+                        id="player"
+                        name="player"
+                        placeholder={t('filter_by_player')}
+                        value={filters.player}
+                        onChange={handleFilterChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+                      <label htmlFor="map" className="font-semibold text-gray-700">{t('filter_map')}</label>
+                      <input
+                        type="text"
+                        id="map"
+                        name="map"
+                        placeholder={t('filter_by_map')}
+                        value={filters.map}
+                        onChange={handleFilterChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+                      <label htmlFor="status" className="font-semibold text-gray-700">{t('filter_match_status')}</label>
+                      <select
+                        id="status"
+                        name="status"
+                        value={filters.status}
+                        onChange={handleFilterChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      >
+                        <option value="">{t('all')}</option>
+                        <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
+                        <option value="confirmed">{t('match_status_confirmed')}</option>
+                        <option value="disputed">{t('match_status_disputed')}</option>
+                        <option value="cancelled">{t('match_status_cancelled')}</option>
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+                      <label htmlFor="faction" className="font-semibold text-gray-700">{t('filter_faction')}</label>
+                      <select
+                        id="faction"
+                        name="faction"
+                        value={filters.faction}
+                        onChange={handleFilterChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      >
+                        <option value="">{t('all')}</option>
+                        {availableFactions.map((faction: any) => (
+                          <option key={faction.id || faction.name} value={faction.name}>
+                            {faction.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button 
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-semibold flex-shrink-0 h-fit"
+                      onClick={resetFilters}
+                    >
+                      {t('reset_filters')}
+                    </button>
+                  </div>
+                </div>
+
+                <MatchesTable 
+                  matches={filteredMatches}
+                  currentPlayerId={id || ''}
+                  onViewDetails={openMatchDetails}
+                  onDownloadReplay={async (matchId, replayFilePath) => {
+                    try {
+                      if (!replayFilePath) return;
+                      
+                      // Extract filename from path
+                      const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
+                      
+                      // Increment download count
+                      await matchService.incrementReplayDownloads(matchId);
+                      
+                      // Use the replay_file_path HTTPS URL directly
+                      const link = document.createElement('a');
+                      link.href = replayFilePath;
+                      link.download = filename;
+                      link.target = '_blank';
+                      
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    } catch (err) {
+                      console.error('Error downloading replay:', err);
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Opponents Tab */}
+            {activeTab === 'opponents' && (
+              <div className="bg-white rounded-lg shadow-md p-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('my_opponents') || 'Opponents'}</h2>
+                
+                {opponentStatsLoading && (
+                  <div className="text-center text-gray-600 py-8">{t('loading')}</div>
+                )}
+
+                {opponentStatsError && (
+                  <div className="text-center text-red-600 py-8">{opponentStatsError}</div>
+                )}
+
+                {!opponentStatsLoading && !opponentStatsError && opponentStats.length === 0 && (
+                  <div className="text-center text-gray-500 italic py-8">{t('no_opponent_data') || 'No opponent data available'}</div>
+                )}
+
+                {!opponentStatsLoading && !opponentStatsError && opponentStats.length > 0 && (
+                  <>
+                    <div className="mb-6">
+                      <input
+                        type="text"
+                        placeholder={t('filter_by_opponent') || 'Filter by opponent...'}
+                        value={filterOpponent}
+                        onChange={(e) => setFilterOpponent(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
+                      />
+                    </div>
+
+                    <div className="overflow-x-auto rounded-lg shadow-md">
+                      <table className="w-full border-collapse bg-white text-sm">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-gray-700 to-gray-800 text-white">
+                            <th 
+                              className="px-4 py-3 text-left font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('opponent_name')}
+                            >
+                              {t('opponent_name') || 'Opponent'}
+                              {sortColumn === 'opponent_name' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('current_elo')}
+                            >
+                              {t('current_elo') || 'Current ELO'}
+                              {sortColumn === 'current_elo' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('total_matches')}
+                            >
+                              {t('total_matches_label') || 'Total'}
+                              {sortColumn === 'total_matches' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('wins')}
+                            >
+                              {t('wins') || 'Wins'}
+                              {sortColumn === 'wins' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('losses')}
+                            >
+                              {t('losses') || 'Losses'}
+                              {sortColumn === 'losses' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('win_percentage')}
+                            >
+                              {t('win_percentage') || 'Win %'}
+                              {sortColumn === 'win_percentage' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('elo_gained')}
+                            >
+                              {t('elo_gained') || 'ELO Gained'}
+                              {sortColumn === 'elo_gained' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('elo_lost')}
+                            >
+                              {t('elo_lost') || 'ELO Lost'}
+                              {sortColumn === 'elo_lost' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                            <th 
+                              className="px-4 py-3 text-center font-semibold cursor-pointer hover:bg-gray-600 transition-colors"
+                              onClick={() => handleSort('last_match_date')}
+                            >
+                              {t('last_match') || 'Last Match'}
+                              {sortColumn === 'last_match_date' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredOpponentStats.map((stat, idx) => {
+                            const winPercentage = stat.total_games > 0 
+                              ? (stat.wins / stat.total_games) * 100 
+                              : 0;
+                            
+                            return (
+                              <tr 
+                                key={stat.opponent_id} 
+                                className={`border-b border-gray-200 transition-colors ${
+                                  idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                                } hover:bg-blue-50`}
+                              >
+                                <td className="px-4 py-3 font-semibold text-gray-800">
+                                  <PlayerLink nickname={stat.opponent_name} userId={stat.opponent_id} />
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="inline-block px-3 py-1 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-900 rounded font-semibold text-sm shadow-sm">
+                                    {stat.current_elo}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-800">
+                                  {stat.total_matches}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="inline-block px-3 py-1 bg-gradient-to-r from-green-100 to-green-200 text-green-900 rounded font-semibold text-sm shadow-sm">
+                                    {stat.wins}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="inline-block px-3 py-1 bg-gradient-to-r from-red-100 to-red-200 text-red-900 rounded font-semibold text-sm shadow-sm">
+                                    {stat.losses}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className={`inline-block px-3 py-1 rounded font-semibold text-sm shadow-sm ${
+                                    winPercentage > 55 
+                                      ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-900'
+                                      : winPercentage < 45 
+                                      ? 'bg-gradient-to-r from-red-100 to-red-200 text-red-900'
+                                      : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800'
+                                  }`}>
+                                    {winPercentage.toFixed(1)}%
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center font-bold text-green-600">
+                                  +{Number(stat.elo_gained).toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3 text-center font-bold text-red-600">
+                                  -{Number(stat.elo_lost).toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3 text-center text-gray-700 text-sm">
+                                  {stat.last_match_date ? new Date(stat.last_match_date).toLocaleDateString() : 'N/A'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Performance by Map Tab */}
+            {activeTab === 'by-map' && (
+              <div className="bg-white rounded-lg shadow-md p-8">
+                <PlayerStatsByMap playerId={id || ''} />
+              </div>
+            )}
+
+            {/* Performance by Faction Tab */}
+            {activeTab === 'by-faction' && (
+              <div className="bg-white rounded-lg shadow-md p-8">
+                <PlayerStatsByFaction playerId={id || ''} />
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Match Details Modal */}
+      <MatchDetailsModal 
+        match={matchDetailsModal}
+        isOpen={!!matchDetailsModal}
+        onClose={closeMatchDetails}
+        onDownloadReplay={handleDownloadReplay}
+      />
+      </div>
+    </div>
+  );
+};
+
+export default PlayerProfile;

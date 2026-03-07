@@ -1,0 +1,2483 @@
+import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { query } from '../config/database.js';
+import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { getUserLevel } from '../utils/auth.js';
+import {
+  calculateNewRating,
+  calculateInitialRating,
+  shouldPlayerBeRated,
+  calculateTrend,
+  getKFactorWithReason,
+} from '../utils/elo.js';
+import { updateBestOfSeriesDB, createNextMatchInSeries } from '../utils/bestOf.js';
+import { checkAndCompleteRound } from '../utils/tournament.js';
+import {
+  updateFactionMapStatistics,
+  recalculatePlayerMatchStatistics,
+  recalculateFactionMapStatistics,
+  updatePlayerElo
+} from '../services/statisticsCalculator.js';
+import { updateTournamentRoundMatch } from '../services/matchCreationService.js';
+// NOTE: Supabase replay storage temporarily disabled - using /uploads/replays instead
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const router = Router();
+
+console.log('🔧 Registering match routes');
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'replays');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log(`✅ Created uploads directory: ${uploadsDir}`);
+}
+
+// Use memory storage to avoid writing temp files before uploading to Supabase
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 512 * 1024 }, // 512KB max file size
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext !== '.gz' && ext !== '.bz2') {
+      return cb(new Error('Only .gz and .bz2 replay files are allowed'));
+    }
+    cb(null, true);
+  },
+});
+
+/**
+ * Normalize map names for consistent comparison
+ * Handles special characters, smart quotes, and whitespace
+ * - Converts smart quotes (', ', ", ") to standard quotes (' and ")
+ * - Trims whitespace
+ * - Lowercases for comparison
+ * @param mapName - The map name to normalize
+ * @returns Normalized map name suitable for comparison
+ */
+function normalizeMapName(mapName: string | null | undefined): string {
+  if (!mapName) return '';
+  
+  // Use Unicode escape sequences to handle all quote variants
+  return mapName
+    // U+2018 (') and U+2019 (') - Left and right single quotation marks
+    .replace(/[\u2018\u2019]/g, "'")
+    // U+201C (") and U+201D (") - Left and right double quotation marks  
+    .replace(/[\u201C\u201D]/g, '"')
+    // U+201E („) and U+201F (‟) - Double low-9 quotation mark
+    .replace(/[\u201E\u201F]/g, '"')
+    // U+2039 (‹) and U+203A (›) - Single-pointing angle quotation marks
+    .replace(/[\u2039\u203A]/g, "'")
+    // U+2035 (`) and U+2032 (′) - Grave accent and prime
+    .replace(/[\u2035\u2032]/g, "'")
+    // U+201A (‚) - Single low-9 quotation mark
+    .replace(/[\u201A]/g, "'")
+    .trim()
+    .toLowerCase();
+}
+
+// Helper function to recalculate all stats (used by both admin and player self-cancel)
+// This does a FULL replay of all non-cancelled matches to recalculate ELO correctly
+async function performGlobalStatsRecalculation() {
+  const logs: string[] = [];
+  const isDebugEnabled = process.env.BACKEND_DEBUG_LOGS === 'true';
+  
+  try {
+    const startMsg = '🔄 Starting full stats recalculation with match replay';
+    if (isDebugEnabled) {
+      logs.push(startMsg);
+      console.log(startMsg);
+    }
+
+    // STEP 1: Disable both triggers to prevent automatic stats updates during this process
+    try {
+      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats');
+      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats');
+      const msg = 'Disabled triggers for stats recalculation';
+      if (isDebugEnabled) {
+        logs.push(msg);
+        console.log(msg);
+      }
+    } catch (error) {
+      if (isDebugEnabled) console.warn('Warning: Failed to disable triggers:', error);
+    }
+
+    const defaultElo = 1400; // FIDE standard baseline for new users
+
+    // STEP 2: Get ALL non-cancelled matches in chronological order (including 'reported')
+    const allNonCancelledMatches = await query(
+      `SELECT m.id, m.winner_id, m.loser_id, m.created_at
+       FROM matches m
+       WHERE m.status != 'cancelled'
+       ORDER BY m.created_at ASC, m.id ASC`
+    );
+
+    // STEP 3: Initialize all users with baseline ELO and zero stats
+    const userStates = new Map<string, {
+      elo_rating: number;
+      matches_played: number;
+      total_wins: number;
+      total_losses: number;
+      trend: string;
+      level: string;
+    }>();
+
+    const allUsersResult = await query('SELECT id FROM users_extension');
+    for (const userRow of allUsersResult.rows) {
+      userStates.set(userRow.id, {
+        elo_rating: defaultElo,
+        matches_played: 0,
+        total_wins: 0,
+        total_losses: 0,
+        trend: '-',
+        level: 'Novato'
+      });
+    }
+
+    // STEP 4: Replay ALL non-cancelled matches chronologically to rebuild correct stats
+    let matchProcessedCount = 0;
+    let debugSampleLogs: string[] = [];
+
+    for (const matchRow of allNonCancelledMatches.rows) {
+      const winnerId = matchRow.winner_id;
+      const loserId = matchRow.loser_id;
+
+      // Ensure both users exist in state map
+      if (!userStates.has(winnerId)) {
+        userStates.set(winnerId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-', level: 'Novato' });
+      }
+      if (!userStates.has(loserId)) {
+        userStates.set(loserId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-', level: 'Novato' });
+      }
+
+      const winner = userStates.get(winnerId)!;
+      const loser = userStates.get(loserId)!;
+
+      // Store before values
+      const winnerEloBefore = winner.elo_rating;
+      const loserEloBefore = loser.elo_rating;
+      const winnerMatchesBeforeCalc = winner.matches_played;
+      const loserMatchesBeforeCalc = loser.matches_played;
+
+      // Calculate new ratings
+      const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
+      const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+      
+      // Get K-factor info for debugging (from elo.ts)
+      const winnerKInfo = getKFactorWithReason(winner.elo_rating, winner.matches_played);
+      const loserKInfo = getKFactorWithReason(loser.elo_rating, loser.matches_played);
+
+      // Calculate levels based on ELO BEFORE and AFTER (not from previous state)
+      const winnerLevelBefore = getUserLevel(winnerEloBefore);
+      const loserLevelBefore = getUserLevel(loserEloBefore);
+      const winnerLevelAfter = getUserLevel(winnerNewRating);
+      const loserLevelAfter = getUserLevel(loserNewRating);
+
+      // Update stats
+      winner.elo_rating = winnerNewRating;
+      loser.elo_rating = loserNewRating;
+      winner.matches_played++;
+      loser.matches_played++;
+      winner.total_wins++;
+      loser.total_losses++;
+      winner.trend = calculateTrend(winner.trend, true);
+      loser.trend = calculateTrend(loser.trend, false);
+      
+      // Update levels in state for next iteration
+      winner.level = winnerLevelAfter;
+      loser.level = loserLevelAfter;
+
+      // Calculate ELO changes for both players
+      const winnerEloChange = winnerNewRating - winnerEloBefore;
+      const loserEloChange = loserNewRating - loserEloBefore;
+
+      // DEBUG: Log sample matches (first 3, last 3, and every 10th)
+      if (isDebugEnabled && (matchProcessedCount < 3 || matchProcessedCount % 10 === 0 || matchProcessedCount === allNonCancelledMatches.rows.length - 1)) {
+        const debugLog = `
+🎮 MATCH #${matchProcessedCount + 1}/${allNonCancelledMatches.rows.length} (${matchRow.created_at})
+   WINNER: ${winnerId.substring(0, 8)}...
+     - ELO: ${winnerEloBefore} | Matches played: ${winnerMatchesBeforeCalc}
+     - K-factor: ${winnerKInfo.k} (${winnerKInfo.reason})
+     - New ELO: ${winnerNewRating} | Change: ${winnerEloChange > 0 ? '+' : ''}${winnerEloChange}
+     - Level: ${winnerLevelBefore} → ${winnerLevelAfter}
+   
+   LOSER: ${loserId.substring(0, 8)}...
+     - ELO: ${loserEloBefore} | Matches played: ${loserMatchesBeforeCalc}
+     - K-factor: ${loserKInfo.k} (${loserKInfo.reason})
+     - New ELO: ${loserNewRating} | Change: ${loserEloChange > 0 ? '+' : ''}${loserEloChange}
+     - Level: ${loserLevelBefore} → ${loserLevelAfter}
+   
+   ✅ Winner +${winnerEloChange}, Loser ${loserEloChange} (balance: ${winnerEloChange + loserEloChange})`;
+        debugSampleLogs.push(debugLog);
+      }
+
+      // Update the match record with correct before/after ELO values and levels
+      await query(
+        `UPDATE matches 
+         SET winner_elo_before = ?, winner_elo_after = ?, 
+             loser_elo_before = ?, loser_elo_after = ?,
+             winner_level_before = ?, winner_level_after = ?,
+             loser_level_before = ?, loser_level_after = ?,
+             elo_change = ?
+         WHERE id = ?`,
+        [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, winnerLevelBefore, winnerLevelAfter, loserLevelBefore, loserLevelAfter, winnerEloChange, matchRow.id]
+      );
+
+      matchProcessedCount++;
+    }
+
+    const finalMsg = `✅ Replayed ${allNonCancelledMatches.rows.length} matches with FIDE ELO recalculation`;
+    if (isDebugEnabled) {
+      logs.push(finalMsg);
+      console.log(finalMsg);
+      logs.push('📊 DEBUG SAMPLE LOGS (first 3, every 10th, and last):');
+      debugSampleLogs.forEach(log => {
+        logs.push(log);
+        console.log(log);
+      });
+    }
+
+    // STEP 5: Update all users in the database with their recalculated stats
+    let usersUpdatedCount = 0;
+    for (const [userId, stats] of userStates.entries()) {
+      // Get current is_rated status from database
+      const userCurrentResult = await query('SELECT is_rated FROM users_extension WHERE id = ?', [userId]);
+      const isCurrentlyRated = userCurrentResult.rows[0]?.is_rated || false;
+      
+      let isRated = isCurrentlyRated;
+      
+      // If rated and ELO falls below 1400, unrate the player
+      if (isCurrentlyRated && stats.elo_rating < 1400) {
+        isRated = false;
+      }
+      // If unrated, has 10+ matches, and ELO >= 1400, rate the player
+      else if (!isCurrentlyRated && stats.matches_played >= 10 && stats.elo_rating >= 1400) {
+        isRated = true;
+      }
+      
+      await query(
+        `UPDATE users_extension 
+         SET elo_rating = ?, 
+             matches_played = ?,
+             total_wins = ?,
+             total_losses = ?,
+             trend = ?,
+             level = ?,
+             is_rated = ?,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, stats.level, isCurrentlyRated, userId]
+      );
+      usersUpdatedCount++;
+    }
+
+    // STEP 6: Re-enable both triggers
+    // Note: With TypeScript services, triggers are replaced by direct service calls
+    try {
+      // Drop old triggers if they exist
+      await query('DROP TRIGGER IF EXISTS trg_update_player_match_stats');
+      await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats');
+      const msg = '✓ Triggers cleaned up (replaced by TypeScript services)';
+      if (isDebugEnabled) {
+        logs.push(msg);
+        console.log(msg);
+      }
+    } catch (error) {
+      if (isDebugEnabled) console.error('Warning: Failed to drop triggers:', error);
+    }
+
+    // STEP 7: Recalculate player match statistics and faction/map balance statistics
+    try {
+      const playerResult = await recalculatePlayerMatchStatistics();
+      const msg = `✓ Recalculated ${playerResult.records_updated} player match statistics`;
+      logs.push(msg);
+      if (isDebugEnabled) console.log(msg);
+    } catch (error) {
+      const msg = `✗ Error recalculating player match statistics: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      logs.push(msg);
+      console.error(msg);
+    }
+
+    try {
+      const factionResult = await recalculateFactionMapStatistics();
+      const msg = `✓ Recalculated ${factionResult.records_updated} faction/map statistics`;
+      logs.push(msg);
+      if (isDebugEnabled) console.log(msg);
+
+      // Manage snapshots
+      const snapshotResult = await query('SELECT COUNT(*) FROM faction_map_statistics_history');
+      const snapshotMsg = '🟢 Snapshots managed';
+      if (isDebugEnabled) {
+        logs.push(snapshotMsg);
+        console.log(snapshotMsg);
+      }
+    } catch (error) {
+      const msg = `✗ Error recalculating faction/map statistics: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      logs.push(msg);
+      console.error(msg);
+    }
+
+    return { 
+      success: true, 
+      logs,
+      matchesProcessed: matchProcessedCount,
+      usersUpdated: usersUpdatedCount
+    };
+  } catch (error) {
+    console.error('Error in performGlobalStatsRecalculation:', error);
+    if (isDebugEnabled) {
+      logs.push(`❌ ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return { 
+      success: false, 
+      logs,
+      matchesProcessed: 0,
+      usersUpdated: 0
+    };
+  }
+}
+
+// Helper function to check if a round is complete and update round_end_date
+async function checkAndUpdateRoundCompletion(roundId: string, tournamentId: string) {
+  try {
+    // Get all tournament_round_matches for this round
+    const matchesResult = await query(
+      `SELECT COUNT(*) as total_matches, 
+              COUNT(CASE WHEN winner_id IS NOT NULL THEN 1 END) as completed_matches
+       FROM tournament_round_matches 
+       WHERE round_id = ?`,
+      [roundId]
+    );
+
+    if (matchesResult.rows.length === 0) return;
+
+    const { total_matches, completed_matches } = matchesResult.rows[0];
+
+    // If all matches are completed, update round_end_date
+    if (total_matches > 0 && parseInt(total_matches) === parseInt(completed_matches)) {
+      await query(
+        `UPDATE tournament_rounds 
+         SET round_end_date = CURRENT_TIMESTAMP, round_status = 'completed', updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [roundId]
+      );
+      console.log(`✅ Round ${roundId} completed - updated round_end_date`);
+    }
+  } catch (error) {
+    console.error('Error checking round completion:', error);
+    // Don't throw - this is a background check
+  }
+}
+
+// Helper function to handle series completion and check round completion
+async function handleSeriesAndRoundCompletion(seriesUpdate: any, tournamentRoundMatchId: string, roundId: string, tournamentId: string, tournament_match_id: string) {
+  try {
+    // If series not complete and we need another match, create it
+    if (seriesUpdate.shouldCreateNextMatch) {
+      try {
+        const nextMatchId = await createNextMatchInSeries(tournamentRoundMatchId, tournamentId, roundId);
+        if (nextMatchId) {
+          console.log(`Created next match in series: ${nextMatchId}`);
+        }
+      } catch (nextMatchError) {
+        console.error('Error creating next match in series:', nextMatchError);
+        // Don't fail if next match creation fails
+      }
+    } else {
+      // Series is complete, check if round is complete
+      try {
+        const roundNumberResult = await query(
+          `SELECT round_number FROM tournament_rounds WHERE id = ?`,
+          [roundId]
+        );
+        const roundNumber = roundNumberResult.rows[0]?.round_number;
+        
+        if (roundNumber) {
+          const isRoundComplete = await checkAndCompleteRound(tournamentId, roundNumber);
+          if (isRoundComplete) {
+            console.log(`✅ Round ${roundNumber} for tournament ${tournamentId} is now complete`);
+          }
+        }
+      } catch (roundCompleteError) {
+        console.error('Error checking round completion:', roundCompleteError);
+        // Don't fail if round check fails
+      }
+    }
+  } catch (error) {
+    console.error('Error handling series and round completion:', error);
+    // Don't throw - this is a background operation
+  }
+}
+
+/**
+ * Preview replay file (decompress and extract data)
+ * Handles .gz and .bz2 files
+ * MUST be BEFORE generic /:id routes
+ */
+router.options('/preview-replay', (req, res) => {
+  console.log('✅ [PREVIEW] OPTIONS request received for /preview-replay');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.status(200).end();
+});
+
+// OPTIONS for base64 endpoint
+router.options('/preview-replay-base64', (req, res) => {
+  console.log('✅ [PREVIEW-B64] OPTIONS request received for /preview-replay-base64');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.status(200).end();
+});
+
+// Alternative endpoint for preview-replay that accepts base64 encoded file in JSON body
+// This avoids multipart/form-data issues with some Cloudflare configurations
+router.post('/preview-replay-base64', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    console.log('✅ [PREVIEW-B64] POST /preview-replay-base64 endpoint reached');
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    const { fileData, fileName } = req.body;
+    
+    if (!fileData || !fileName) {
+      console.warn('[PREVIEW-B64] Missing fileData or fileName');
+      return res.status(400).json({ error: 'Missing fileData or fileName in request body' });
+    }
+    
+    // Decode base64 to buffer
+    const fileBuffer = Buffer.from(fileData, 'base64');
+    const fileExt = path.extname(fileName).toLowerCase();
+    
+    console.log(`📂 [PREVIEW-B64] Previewing replay file: ${fileName} (${fileBuffer.length} bytes), ext: ${fileExt}`);
+    
+    let decompressed: Buffer;
+    
+    if (fileExt === '.gz') {
+      console.log('[PREVIEW-B64] Handling GZIP decompression');
+      const { createGunzip } = await import('zlib');
+      const { Readable } = await import('stream');
+
+      const stream = Readable.from(fileBuffer);
+      const gunzip = createGunzip();
+      const chunks: Buffer[] = [];
+
+      await new Promise((resolve, reject) => {
+        stream
+          .pipe(gunzip)
+          .on('data', (chunk: Buffer) => chunks.push(chunk))
+          .on('end', resolve)
+          .on('error', reject);
+      });
+
+      decompressed = Buffer.concat(chunks);
+      console.log('[PREVIEW-B64] GZIP decompression complete, decompressed size:', decompressed.length);
+    } else if (fileExt === '.bz2') {
+      console.log('[PREVIEW-B64] Handling BZ2 decompression');
+      const bz2Module = await import('bz2');
+      let decompress = bz2Module.decompress || bz2Module.default?.decompress;
+      
+      if (!decompress && typeof bz2Module === 'function') {
+        decompress = bz2Module;
+      }
+
+      if (typeof decompress !== 'function') {
+        console.error('[PREVIEW-B64] Could not find decompress function in bz2 module');
+        throw new Error('bz2.decompress is not available');
+      }
+
+      const decompressedData = decompress(fileBuffer);
+      decompressed = Buffer.from(decompressedData);
+      console.log('[PREVIEW-B64] BZ2 decompression complete, decompressed size:', decompressed.length);
+    } else {
+      console.warn('[PREVIEW-B64] Unsupported file extension:', fileExt);
+      return res.status(400).json({ error: 'Unsupported file format. Only .gz and .bz2 files are allowed.' });
+    }
+
+    // Convert to string and extract replay info (same as multipart endpoint)
+    const xmlText = decompressed.toString('utf-8');
+    const scenarioMatch = xmlText.match(/mp_scenario_name="([^"]+)"/);
+    let map = scenarioMatch ? scenarioMatch[1] : null;
+    if (map) {
+      map = map.replace(/^2p\s*—\s*/, '');
+    }
+
+    const sideUsersGlobal = xmlText.match(/side_users="([^"]+)"/);
+    const playerNames: string[] = [];
+    if (sideUsersGlobal && sideUsersGlobal[1]) {
+      const pairs = sideUsersGlobal[1].split(',');
+      for (const pair of pairs) {
+        const parts = pair.split(':');
+        const name = (parts[1] || parts[0]).trim();
+        if (name) playerNames.push(name);
+      }
+    }
+
+    const factionsInOrder: string[] = [];
+    const factionRegex = /faction_name\s*=\s*_?"([^"]+)"/g;
+    let factionMatch;
+    while ((factionMatch = factionRegex.exec(xmlText)) !== null) {
+      const raw = factionMatch[1];
+      const clean = raw.replace(/^_/, '');
+      factionsInOrder.push(clean);
+    }
+
+    const factionByPlayer: Record<string, string> = {};
+    const oldSideBlockRegex = /\[old_side[^\]]*\][\s\S]*?(?=\[old_side|\Z)/g;
+    let sideBlockMatch;
+    while ((sideBlockMatch = oldSideBlockRegex.exec(xmlText)) !== null) {
+      const text = sideBlockMatch[0];
+      const playerMatch = text.match(/current_player="([^"]+)"/);
+      if (!playerMatch) continue;
+      const player = playerMatch[1];
+      const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+      const factionMatchLocal = text.match(/faction="([^"]+)"/);
+      const rawFaction = (factionNameMatch?.[1] || factionMatchLocal?.[1] || '').trim();
+      if (!rawFaction) continue;
+      const cleanFaction = rawFaction.replace(/^_/, '');
+      factionByPlayer[player] = cleanFaction;
+    }
+
+    const players: Array<{ id: string; name: string; faction: string }> = [];
+    const count = Math.min(playerNames.length, factionsInOrder.length);
+    for (let i = 0; i < count; i++) {
+      const name = playerNames[i];
+      const faction = factionByPlayer[name] ?? factionsInOrder[i] ?? 'Unknown';
+      players.push({ id: name, name, faction });
+    }
+
+    if (playerNames.length === 0 && Object.keys(factionByPlayer).length > 0) {
+      for (const [name, faction] of Object.entries(factionByPlayer)) {
+        players.push({ id: name, name, faction });
+      }
+    }
+
+    console.log('[PREVIEW-B64] Extracted data:', { map, players: players.length });
+    return res.json({ map, players });
+  } catch (error) {
+    console.error('[PREVIEW-B64] Error in preview-replay-base64 endpoint:', error);
+    res.status(500).json({ error: 'Failed to parse replay file', details: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+router.post('/preview-replay', authMiddleware, upload.single('replay'), async (req: AuthRequest, res) => {
+  try {
+    // Ensure CORS headers are present for Cloudflare
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    console.log('✅ [PREVIEW] POST /preview-replay endpoint reached');
+    console.log('[PREVIEW] User ID:', req.userId);
+    console.log('[PREVIEW] File info:', req.file ? { fieldname: req.file.fieldname, originalname: req.file.originalname, size: req.file.size } : 'NO FILE');
+    
+    if (!req.file) {
+      console.warn('[PREVIEW] No file in request');
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const fileBuffer = req.file.buffer;
+    const fileName = req.file.originalname;
+    const fileExt = path.extname(fileName).toLowerCase();
+
+    console.log(`📂 [PREVIEW] Previewing replay file: ${fileName} (${fileBuffer.length} bytes), ext: ${fileExt}`);
+
+    let decompressed: Buffer;
+
+    if (fileExt === '.gz') {
+      console.log('[PREVIEW] Handling GZIP decompression');
+      // Handle gzip decompression
+      const { createGunzip } = await import('zlib');
+      const { Readable } = await import('stream');
+
+      const stream = Readable.from(fileBuffer);
+      const gunzip = createGunzip();
+      const chunks: Buffer[] = [];
+
+      await new Promise((resolve, reject) => {
+        stream
+          .pipe(gunzip)
+          .on('data', (chunk: Buffer) => chunks.push(chunk))
+          .on('end', resolve)
+          .on('error', reject);
+      });
+
+      decompressed = Buffer.concat(chunks);
+      console.log('[PREVIEW] GZIP decompression complete, decompressed size:', decompressed.length);
+    } else if (fileExt === '.bz2') {
+      console.log('[PREVIEW] Handling BZ2 decompression');
+      // Handle bzip2 decompression
+      const bz2Module = await import('bz2');
+      console.log('[PREVIEW] bz2Module:', Object.keys(bz2Module));
+      console.log('[PREVIEW] bz2Module.default:', bz2Module.default);
+      
+      // Try different ways to access decompress function
+      let decompress = bz2Module.decompress || bz2Module.default?.decompress;
+      
+      // If still not found, try accessing the module differently
+      if (!decompress && typeof bz2Module === 'function') {
+        // Sometimes the module itself is the decompress function
+        decompress = bz2Module;
+      }
+      
+      console.log('[PREVIEW] decompress type:', typeof decompress);
+
+      if (typeof decompress !== 'function') {
+        console.error('[PREVIEW] Could not find decompress function in bz2 module');
+        console.error('[PREVIEW] Available keys:', Object.keys(bz2Module || {}));
+        throw new Error('bz2.decompress is not available');
+      }
+
+      console.log('[PREVIEW] Calling bz2.decompress...');
+      const decompressedData = decompress(fileBuffer);
+      decompressed = Buffer.from(decompressedData);
+      console.log('[PREVIEW] BZ2 decompression complete, decompressed size:', decompressed.length);
+    } else {
+      console.warn('[PREVIEW] Unsupported file extension:', fileExt);
+      return res.status(400).json({ error: 'Unsupported file format. Only .gz and .bz2 files are allowed.' });
+    }
+
+    // Convert to string and extract replay info
+    console.log('[PREVIEW] Converting decompressed data to string...');
+    const xmlText = decompressed.toString('utf-8');
+
+    // Extract map name
+    const scenarioMatch = xmlText.match(/mp_scenario_name="([^"]+)"/);
+    let map = scenarioMatch ? scenarioMatch[1] : null;
+    console.log('[PREVIEW] Raw scenario match:', map);
+    if (map) {
+      console.log('[PREVIEW] Char codes:', Array.from(map).map((c, i) => ({ i, char: c, code: c.charCodeAt(0) })));
+      // Remove "2p — " prefix if present
+      map = map.replace(/^2p\s*—\s*/, '');
+      console.log('[PREVIEW] After removing 2p prefix:', map);
+    }
+    console.log('[PREVIEW] Extracted map:', map);
+
+    // Extract players from global side_users attribute (e.g., id1:Nick1,id2:Nick2)
+    const sideUsersGlobal = xmlText.match(/side_users="([^"]+)"/);
+    const playerNames: string[] = [];
+    if (sideUsersGlobal && sideUsersGlobal[1]) {
+      const pairs = sideUsersGlobal[1].split(',');
+      for (const pair of pairs) {
+        const parts = pair.split(':');
+        const name = (parts[1] || parts[0]).trim();
+        if (name) playerNames.push(name);
+      }
+    }
+
+    // Extract factions in order of <side ...> blocks (fallback)
+    const factionsInOrder: string[] = [];
+    const factionRegex = /faction_name\s*=\s*_?"([^"]+)"/g;
+    let factionMatch;
+    while ((factionMatch = factionRegex.exec(xmlText)) !== null) {
+      const raw = factionMatch[1];
+      const clean = raw.replace(/^_/, '');
+      factionsInOrder.push(clean);
+    }
+
+    // Extract factions from [old_side*] blocks mapping current_player -> faction_name (preferred) or faction
+    const factionByPlayer: Record<string, string> = {};
+    const oldSideBlockRegex = /\[old_side[^\]]*\][\s\S]*?(?=\[old_side|\Z)/g;
+    let sideBlockMatch;
+    while ((sideBlockMatch = oldSideBlockRegex.exec(xmlText)) !== null) {
+      const text = sideBlockMatch[0];
+      const playerMatch = text.match(/current_player="([^"]+)"/);
+      if (!playerMatch) continue;
+      const player = playerMatch[1];
+      const factionNameMatch = text.match(/faction_name\s*=\s*_?"([^"]+)"/);
+      const factionMatchLocal = text.match(/faction="([^"]+)"/);
+      const rawFaction = (factionNameMatch?.[1] || factionMatchLocal?.[1] || '').trim();
+      if (!rawFaction) continue;
+      const cleanFaction = rawFaction.replace(/^_/, '');
+      factionByPlayer[player] = cleanFaction;
+    }
+
+    // Build players array by index mapping
+    const players: Array<{ id: string; name: string; faction: string }> = [];
+    const count = Math.min(playerNames.length, factionsInOrder.length);
+    for (let i = 0; i < count; i++) {
+      const name = playerNames[i];
+      const faction = factionByPlayer[name] ?? factionsInOrder[i] ?? 'Unknown';
+      players.push({ id: name, name, faction });
+    }
+
+    // If playerNames are empty but old_side mapping exists, use it to populate players
+    if (playerNames.length === 0 && Object.keys(factionByPlayer).length > 0) {
+      for (const [name, faction] of Object.entries(factionByPlayer)) {
+        players.push({ id: name, name, faction });
+      }
+    }
+    console.log('[PREVIEW] Extracted players:', players);
+
+    console.log('[PREVIEW] Sending successful response...');
+    res.json({
+      success: true,
+      map,
+      players,
+      fileName,
+    });
+  } catch (error: any) {
+    console.error('[PREVIEW] Error in preview-replay endpoint:', error);
+
+    res.status(400).json({
+      error: 'Failed to parse replay file',
+      details: error.message,
+    });
+  }
+});
+
+// Confirm/dispute match - MUST be BEFORE generic /:id routes
+router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    console.log('✅ POST /:id/confirm alcanzado', req.params.id, req.body.action);
+    const { id } = req.params;
+    const { comments, rating, action } = req.body;
+
+    // First check if this is a tournament_match to detect if ranked or unranked
+    const tournamentMatchResult = await query(
+      'SELECT * FROM tournament_matches WHERE id = ?',
+      [id]
+    );
+
+    let match;
+    let isUnranked = false;
+    let tournamentMatchId = null;
+
+    if (tournamentMatchResult.rows.length > 0) {
+      // Found in tournament_matches
+      const tm = tournamentMatchResult.rows[0];
+      tournamentMatchId = tm.id;
+
+      if (tm.match_id === null) {
+        // This is an UNRANKED tournament match (match_id is NULL)
+        isUnranked = true;
+        match = tm;
+        console.log('Found unranked tournament match in tournament_matches');
+      } else {
+        // This is a RANKED tournament match (match_id IS NOT NULL)
+        // Get the actual match data from matches table
+        const rankedMatchResult = await query(
+          'SELECT * FROM matches WHERE id = ?',
+          [tm.match_id]
+        );
+        
+        if (rankedMatchResult.rows.length === 0) {
+          console.log('❌ Ranked match not found:', tm.match_id);
+          return res.status(404).json({ error: 'Match not found' });
+        }
+
+        match = rankedMatchResult.rows[0];
+        isUnranked = false;
+        console.log('Found ranked tournament match in matches table');
+      }
+    } else {
+      // Not a tournament match, try to find in matches table (RANKED only)
+      const rankedMatchResult = await query(
+        'SELECT * FROM matches WHERE id = ?',
+        [id]
+      );
+
+      if (rankedMatchResult.rows.length === 0) {
+        console.log('❌ Match not found:', id);
+        return res.status(404).json({ error: 'Match not found' });
+      }
+
+      match = rankedMatchResult.rows[0];
+      isUnranked = false;
+      console.log('Found ranked match (non-tournament)');
+    }
+
+    console.log('Match loser_id:', match.loser_id, 'Current user:', req.userId);
+    console.log('Match winner_id:', match.winner_id);
+    console.log('Is unranked:', isUnranked);
+
+    // Verify that the user confirming is either the loser or winner
+    const isWinner = match.winner_id === req.userId;
+    const isLoser = match.loser_id === req.userId;
+    
+    if (!isWinner && !isLoser) {
+      console.log('❌ User is neither winner nor loser');
+      return res.status(403).json({ error: 'Only match participants can confirm this match' });
+    }
+
+    if (action === 'confirm') {
+      // Validate rating if provided
+      if (rating && (rating < 1 || rating > 5)) {
+        return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+      }
+
+      if (isUnranked) {
+        // UNRANKED: update only tournament_matches
+        await query(
+          `UPDATE tournament_matches 
+           SET loser_comments = ?, 
+               loser_rating = ?,
+               match_status = 'completed',
+               updated_at = CURRENT_TIMESTAMP 
+           WHERE id = ?`,
+          [comments || null, rating || null, id]
+        );
+      } else {
+        // RANKED: update matches table with appropriate columns based on winner/loser
+        if (isWinner) {
+          // Winner confirming - update winner columns
+          await query(
+            `UPDATE matches 
+             SET winner_comments = ?, 
+                 winner_rating = ?,
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+            [comments || null, rating || null, id]
+          );
+        } else {
+          // Loser confirming - update loser columns
+          await query(
+            `UPDATE matches 
+             SET loser_comments = ?, 
+                 loser_rating = ?,
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+            [comments || null, rating || null, id]
+          );
+        }
+
+        // Check if both have now confirmed - update status to 'confirmed' if both ratings are present
+        const updatedMatch = await query(
+          'SELECT loser_rating, winner_rating FROM matches WHERE id = ?',
+          [id]
+        );
+        
+        if (updatedMatch.rows.length > 0 && updatedMatch.rows[0].loser_rating && updatedMatch.rows[0].winner_rating) {
+          // Both have confirmed - update status to confirmed
+          await query(
+            'UPDATE matches SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['confirmed', id]
+          );
+          console.log(`✅ Match ${id} fully confirmed by both players`);
+        } else {
+          console.log(`⏳ Match ${id} partially confirmed - waiting for other player`);
+        }
+
+        // Also update tournament_matches if this is a tournament ranked match
+        if (tournamentMatchId) {
+          if (isWinner) {
+            await query(
+              `UPDATE tournament_matches 
+               SET winner_comments = ?, 
+                   winner_rating = ?,
+                   updated_at = CURRENT_TIMESTAMP 
+               WHERE id = ?`,
+              [comments || null, rating || null, tournamentMatchId]
+            );
+          } else {
+            await query(
+              `UPDATE tournament_matches 
+               SET loser_comments = ?, 
+                   loser_rating = ?,
+                   updated_at = CURRENT_TIMESTAMP 
+               WHERE id = ?`,
+              [comments || null, rating || null, tournamentMatchId]
+            );
+          }
+        }
+      }
+
+      console.log(
+        `Match ${id} confirmed: ${isWinner ? 'Winner' : 'Loser'} ${req.userId} confirmed the match result`
+      );
+
+      console.log('✅ Respondiendo con éxito - confirm');
+      res.json({ message: 'Match confirmed successfully with your comments and rating' });
+    } else if (action === 'dispute') {
+      if (isUnranked) {
+        // UNRANKED: Any loser can report a dispute
+        // The organizer will then review and decide (confirm or dismiss)
+        
+        // Mark unranked tournament match as disputed (use 'status' field, not 'match_status')
+        await query(
+          'UPDATE tournament_matches SET match_status = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          ['completed', 'disputed', id]
+        );
+
+        console.log(`Unranked tournament match ${id} marked as disputed by loser ${req.userId}`);
+        res.json({ message: 'Match disputed. Awaiting organizer review.' });
+      } else {
+        // RANKED: Mark match as disputed (pending admin review)
+        await query(
+          'UPDATE matches SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          ['disputed', id]
+        );
+
+        // Also update tournament_matches if this is a tournament ranked match
+        if (tournamentMatchId) {
+          await query(
+            'UPDATE tournament_matches SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['disputed', id]
+          );
+        }
+
+        console.log(
+          `Match ${id} disputed by loser ${req.userId}: Awaiting admin review. Stats remain unchanged.`
+        );
+
+        console.log('✅ Respondiendo con éxito - dispute');
+        res.json({ message: 'Match disputed. Awaiting admin review.' });
+      }
+    } else {
+      res.status(400).json({ error: 'Invalid action. Use "confirm" or "dispute"' });
+    }
+  } catch (error) {
+    console.error('Match confirmation error:', error);
+    res.status(500).json({ error: 'Failed to update match' });
+  }
+});
+
+// Get all disputed matches (admin view) - MUST be before /:id route
+router.get('/disputed/all', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Verify admin status
+    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
+    if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await query(
+      `SELECT m.*,
+              w.nickname as winner_nickname,
+              l.nickname as loser_nickname
+       FROM matches m
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
+       WHERE m.status = 'disputed'
+       ORDER BY m.updated_at DESC`
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch disputed matches' });
+  }
+});
+
+// Get all pending matches (admin view) - MUST be before /:id route
+router.get('/pending/all', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Verify admin status
+    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
+    if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await query(
+      `SELECT m.*,
+              w.nickname as winner_nickname,
+              l.nickname as loser_nickname
+       FROM matches m
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
+       WHERE m.status IN ('unconfirmed', 'pending')
+       ORDER BY m.created_at DESC`
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch pending matches' });
+  }
+});
+
+// Get pending matches for current user (as winner or loser) - MUST be before /:id route
+router.get('/pending/user', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const result = await query(
+      `SELECT m.*,
+              w.nickname as winner_nickname,
+              l.nickname as loser_nickname,
+              CASE 
+                WHEN m.winner_id = ? THEN 'winner'
+                WHEN m.loser_id = ? THEN 'loser'
+              END as user_role,
+              CASE 
+                WHEN m.winner_id = ? AND m.status = 'confirmed' THEN true
+                WHEN m.loser_id = ? AND m.status IN ('unconfirmed', 'pending') THEN true
+                ELSE false
+              END as is_awaiting_action
+       FROM matches m
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
+       WHERE (m.winner_id = ? OR m.loser_id = ?)
+         AND m.status IN ('unconfirmed', 'pending')
+       ORDER BY m.created_at DESC`,
+      [req.userId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch pending matches' });
+  }
+});
+
+// Admin action on disputed match - MUST be BEFORE /:matchId routes
+router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body; // 'validate' or 'reject'
+
+    // Verify admin status
+    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
+    if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const matchResult = await query('SELECT * FROM matches WHERE id = ?', [id]);
+    if (matchResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const match = matchResult.rows[0];
+
+    if (match.status !== 'disputed') {
+      return res.status(400).json({ error: 'Match is not disputed' });
+    }
+
+    if (action === 'validate') {
+      // Admin validates the dispute - the match is invalid and must be cancelled
+      // This means: CANCEL the match and REBUILD ALL STATS from scratch (global cascade recalculation)
+      
+      console.log(`Starting global cascade recalculation for cancelled match ${id} (winner: ${match.winner_id}, loser: ${match.loser_id})`);
+
+      // STEP 1: Mark the match as cancelled
+      await query(
+        'UPDATE matches SET status = ?, admin_reviewed = true, admin_reviewed_at = CURRENT_TIMESTAMP, admin_reviewed_by = ? WHERE id = ?',
+        ['cancelled', req.userId, id]
+      );
+
+      // STEP 1B: Disable trigger to prevent automatic faction/map stats updates during this process
+      // The trigger fires on UPDATE matches, which would cause double-counting
+      try {
+        await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches');
+        if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Disabled trigger: trg_update_faction_map_stats');
+      } catch (error) {
+        console.error('Warning: Failed to disable trigger:', error);
+      }
+
+      // STEP 2: Get default ELO for new users (from users table default or environment)
+      const defaultElo = 1400; // FIDE standard baseline for new users
+
+      // STEP 3: Get ALL non-cancelled matches in chronological order
+      const allNonCancelledMatches = await query(
+        `SELECT m.id, m.winner_id, m.loser_id, m.created_at
+         FROM matches m
+         WHERE m.status IN ('confirmed', 'unconfirmed', 'pending', 'disputed')
+         ORDER BY m.created_at ASC, m.id ASC`
+      );
+
+      // STEP 4: Initialize all users with baseline ELO and zero stats
+      const userStates = new Map<string, {
+        elo_rating: number;
+        matches_played: number;
+        total_wins: number;
+        total_losses: number;
+        trend: string;
+      }>();
+
+      const allUsersResult = await query('SELECT id FROM users_extension');
+      for (const userRow of allUsersResult.rows) {
+        userStates.set(userRow.id, {
+          elo_rating: defaultElo,
+          matches_played: 0,
+          total_wins: 0,
+          total_losses: 0,
+          trend: '-'
+        });
+      }
+
+      // STEP 5: Replay ALL non-cancelled matches chronologically to rebuild correct stats
+      for (const matchRow of allNonCancelledMatches.rows) {
+        const winnerId = matchRow.winner_id;
+        const loserId = matchRow.loser_id;
+
+        // Ensure both users exist in state map
+        if (!userStates.has(winnerId)) {
+          userStates.set(winnerId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+        }
+        if (!userStates.has(loserId)) {
+          userStates.set(loserId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+        }
+
+        const winner = userStates.get(winnerId)!;
+        const loser = userStates.get(loserId)!;
+
+        // Store before values
+        const winnerEloBefore = winner.elo_rating;
+        const loserEloBefore = loser.elo_rating;
+
+        // Calculate new ratings
+        const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
+        const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+
+        // Update stats
+        winner.elo_rating = winnerNewRating;
+        loser.elo_rating = loserNewRating;
+        winner.matches_played++;
+        loser.matches_played++;
+        winner.total_wins++;
+        loser.total_losses++;
+        winner.trend = calculateTrend(winner.trend, true);
+        loser.trend = calculateTrend(loser.trend, false);
+
+        // Update the match record with correct before/after ELO values
+        await query(
+          `UPDATE matches 
+           SET winner_elo_before = ?, winner_elo_after = ?, 
+               loser_elo_before = ?, loser_elo_after = ?
+           WHERE id = ?`,
+          [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, matchRow.id]
+        );
+      }
+
+      // STEP 6: Update all users in the database with their recalculated stats
+      for (const [userId, stats] of userStates.entries()) {
+        // Determine is_rated status
+        // Get current is_rated status from database
+        const userCurrentResult = await query('SELECT is_rated FROM users_extension WHERE id = ?', [userId]);
+        const isCurrentlyRated = userCurrentResult.rows[0]?.is_rated || false;
+        
+        let isRated = isCurrentlyRated;
+        
+        // If rated and ELO falls below 1400, unrate the player
+        if (isCurrentlyRated && stats.elo_rating < 1400) {
+          isRated = false;
+        }
+        // If unrated, has 10+ matches, and ELO >= 1400, rate the player
+        else if (!isCurrentlyRated && stats.matches_played >= 10 && stats.elo_rating >= 1400) {
+          isRated = true;
+        }
+        
+        await query(
+          `UPDATE users 
+           SET elo_rating = ?, 
+               matches_played = ?,
+               total_wins = ?,
+               total_losses = ?,
+               trend = ?,
+               is_rated = ?,
+               updated_at = CURRENT_TIMESTAMP 
+           WHERE id = ?`,
+          [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, isRated, userId]
+        );
+      }
+
+      // STEP 6B: Re-enable the trigger after all updates are done
+      // Note: With TypeScript services, triggers are replaced by direct service calls
+      try {
+        // Update faction/map statistics for the match being disputed
+        if (match.map && match.winner_faction && match.loser_faction) {
+          await updateFactionMapStatistics(match.map, match.winner_faction, match.loser_faction, match.winner_side ?? null);
+          if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+            console.log('✓ Faction/map statistics updated');
+          }
+        }
+      } catch (error) {
+        console.error('Warning: Error updating faction/map statistics:', error);
+      }
+
+      // STEP 7: Recalculate faction/map balance statistics
+      try {
+        const factionResult = await recalculateFactionMapStatistics();
+        console.log(`✓ Recalculated ${factionResult.records_updated} faction/map statistics`);
+        if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+          console.log('Faction/map statistics recalculation completed');
+        }
+      } catch (error: any) {
+        console.error('✗ Error with faction/map statistics recalculation:', error);
+        // Don't fail the entire operation if balance stats fail
+      }
+
+      // Recalculate player of month if dispute is from previous month
+      try {
+        const now = new Date();
+        const matchDate = new Date(match.created_at);
+        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        
+        // Check if match is from previous month or earlier
+        if (matchDate < currentMonth) {
+          const { calculatePlayerOfMonth } = await import('../jobs/playerOfMonthJob.js');
+          console.log('🎯 Recalculating player of month after dispute validation...');
+          await calculatePlayerOfMonth();
+          console.log('✅ Player of month recalculated after dispute validation');
+        }
+      } catch (error: any) {
+        console.error('⚠️  Warning: Failed to recalculate player of month after dispute:', error.message);
+        // Don't fail the entire operation if player of month calculation fails
+      }
+
+      // Reopen the associated tournament match for re-reporting
+      const tournamentMatchResult = await query(
+        `SELECT tm.id as tm_id FROM tournament_matches tm
+         WHERE tm.match_id = ?`,
+        [id]
+      );
+
+      if (tournamentMatchResult.rows.length > 0) {
+        const tournamentMatch = tournamentMatchResult.rows[0];
+        
+        // Reopen the tournament match for re-reporting
+        await query(
+          `UPDATE tournament_matches 
+           SET match_status = 'pending', winner_id = NULL, match_id = NULL, played_at = NULL
+           WHERE id = ?`,
+          [tournamentMatch.tm_id]
+        );
+        console.log(`Match ${id} reopened in tournament_matches ${tournamentMatch.tm_id} for re-reporting`);
+      }
+
+      console.log(`Match ${id} dispute validated by admin ${req.userId}: Match marked as cancelled, stats recalculated in global cascade for ${allNonCancelledMatches.rows.length} total matches`);
+      res.json({ 
+        message: 'Dispute validated. Match cancelled, stats reversed, ELO recalculated for all subsequent matches, and reopened for re-reporting.',
+        reopened: tournamentMatchResult.rows.length > 0,
+        totalMatchesProcessed: allNonCancelledMatches.rows.length
+      });
+    } else if (action === 'reject') {
+      // Reject dispute - the dispute is not valid, match was correct
+      // Simply mark as confirmed, NO stat changes, NO ELO recalculation
+      await query(
+        `UPDATE matches 
+         SET status = ?, 
+             admin_reviewed = true, 
+             admin_reviewed_at = CURRENT_TIMESTAMP, 
+             admin_reviewed_by = ? 
+         WHERE id = ?`,
+        ['confirmed', req.userId, id]
+      );
+
+      console.log(`Match ${id} dispute rejected by admin ${req.userId}: Match remains confirmed`);
+      res.json({ message: 'Dispute rejected. Match confirmed.' });
+    } else {
+      res.status(400).json({ error: 'Invalid action. Use "validate" or "reject"' });
+    }
+  } catch (error) {
+    console.error('Admin dispute resolution error:', error);
+    res.status(500).json({ error: 'Failed to resolve dispute' });
+  }
+});
+
+// Get signed download URL for replay file - PUBLIC endpoint with expiring URLs
+// Returns a 5-minute signed URL that client can use for direct download from Supabase
+router.get('/:matchId/replay/download', async (req: AuthRequest, res) => {
+  try {
+    const { matchId } = req.params;
+    console.log('📥 [DOWNLOAD] Signed URL request for match:', matchId);
+
+    // Get match and replay file path from database
+    const result = await query(
+      'SELECT replay_file_path FROM matches WHERE id = ?',
+      [matchId]
+    );
+
+    if (result.rows.length === 0) {
+      console.warn('📥 [DOWNLOAD] Match not found:', matchId);
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    let replayFilePath = result.rows[0].replay_file_path;
+    console.log('📥 [DOWNLOAD] Retrieved replay path from DB:', replayFilePath);
+
+    if (!replayFilePath) {
+      console.warn('📥 [DOWNLOAD] No replay file stored for match:', matchId);
+      return res.status(404).json({ error: 'No replay file for this match' });
+    }
+
+    // NOTE: Supabase replay download temporarily disabled - using /uploads/replays instead
+    console.log('📥 [DOWNLOAD] Replay download feature will be implemented');
+    
+    // TODO: Implement local file download from /uploads/replays
+    return res.status(501).json({ error: 'Replay download feature will be implemented' });
+  } catch (error) {
+    console.error('❌ [DOWNLOAD] Replay download error:', error);
+    return res.status(500).json({ error: 'Failed to download replay' });
+  }
+});
+
+// Increment replay download count - MUST be BEFORE generic /:matchId routes
+router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => {
+  try {
+    const { matchId } = req.params;
+    console.log('📊 [COUNTER] Incrementing download count for match:', matchId);
+
+    // Increment the download count
+    const updateCountResult = await query(
+      'UPDATE matches SET replay_downloads = COALESCE(replay_downloads, 0) + 1 WHERE id = ?',
+      [matchId]
+    );
+    const countResult = await query('SELECT replay_downloads FROM matches WHERE id = ?', [matchId]);
+
+    if (updateCountResult.rowCount === 0) {
+      console.warn('📊 [COUNTER] Match not found:', matchId);
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    console.log('✅ [COUNTER] Download count updated to:', countResult.rows[0].replay_downloads);
+    res.json({ replay_downloads: countResult.rows[0].replay_downloads });
+  } catch (error) {
+    console.error('❌ [COUNTER] Error incrementing replay downloads:', error);
+    res.status(500).json({ error: 'Failed to increment download count' });
+  }
+});
+
+// ============================================================================
+// POST endpoint to report a confidence=1 replay (unparsed match)
+// User says "I won" or "I lost" to help determine the winner
+// ============================================================================
+router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { replayId, winner_choice, rating, comments, tournament_match_id } = req.body;
+    const userId = req.userId;
+
+    // Validate user is authenticated
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Validate inputs
+    if (!replayId) {
+      return res.status(400).json({ error: 'Missing replayId in request body' });
+    }
+
+    if (!winner_choice || !['I won', 'I lost'].includes(winner_choice)) {
+      return res.status(400).json({ error: 'winner_choice must be "I won" or "I lost"' });
+    }
+
+    console.log(`📋 [CONFIDENCE-1] Processing replay ${replayId}: user ${userId} says "${winner_choice}"`);
+
+    // Get the replay from database
+    const replayResult = await query(
+      `SELECT id, parse_summary, integration_confidence, parsed,
+              game_id, wesnoth_version, instance_uuid, tournament_round_match_id
+       FROM replays WHERE id = ? AND integration_confidence = 1 AND parsed = 1`,
+      [replayId]
+    );
+
+    if (replayResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Replay not found or not a confidence=1 replay' });
+    }
+
+    const replay = replayResult.rows[0];
+    console.log(`🎯 [CONFIDENCE-1] Replay loaded:`, {
+      replayId: replay.id,
+      tournament_round_match_id: replay.tournament_round_match_id,
+      has_tournament_round_match: !!replay.tournament_round_match_id
+    });
+    
+    let parseSummary: any;
+
+    try {
+      parseSummary = typeof replay.parse_summary === 'string' 
+        ? JSON.parse(replay.parse_summary) 
+        : replay.parse_summary;
+    } catch (parseError) {
+      console.error('❌ Failed to parse parse_summary JSON:', parseError);
+      return res.status(500).json({ error: 'Invalid parse_summary data in replay' });
+    }
+
+    // Extract player information from parse_summary
+    const forumPlayers = parseSummary?.forumPlayers || [];
+    if (forumPlayers.length < 2) {
+      return res.status(400).json({ error: 'Replay does not have 2 players' });
+    }
+
+    const player1 = forumPlayers[0];
+    const player2 = forumPlayers[1];
+
+    // Get current user's nickname
+    const currentUserResult = await query(
+      `SELECT nickname FROM users_extension WHERE id = ?`,
+      [userId]
+    );
+    
+    if (currentUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const currentUserNickname = currentUserResult.rows[0].nickname?.toLowerCase() || '';
+    const player1Nickname = player1?.user_name?.toLowerCase() || '';
+    const player2Nickname = player2?.user_name?.toLowerCase() || '';
+
+    // Security check: user must be one of the 2 players
+    if (currentUserNickname !== player1Nickname && currentUserNickname !== player2Nickname) {
+      return res.status(403).json({ error: 'You are not a participant in this replay' });
+    }
+
+    // Determine who won based on user's choice
+    let winnerId: string = userId;
+    let loserId: string = '';
+
+    // Get the other player's user ID (from parse_summary, if available, or get from users_extension by nickname)
+    const otherPlayerNickname = currentUserNickname === player1Nickname ? player2Nickname : player1Nickname;
+    
+    // Verify other player exists in forumPlayers (validate from replay data)
+    const otherPlayerData = currentUserNickname === player1Nickname ? player2 : player1;
+    if (!otherPlayerData || !otherPlayerData.user_name) {
+      return res.status(400).json({ error: 'Could not identify second player from replay data' });
+    }
+    
+    const otherPlayerResult = await query(
+      `SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)`,
+      [otherPlayerNickname]
+    );
+
+    let otherPlayerId: string;
+
+    if (otherPlayerResult.rows.length === 0) {
+      // Create the player with default elo=1400 only if they exist in forumPlayers
+      console.log(`⚠️ Player ${otherPlayerNickname} not found in users_extension, creating with default elo=1400 (from replay)`);
+      
+      const newUserId = uuidv4();
+      const createUserResult = await query(
+        `INSERT INTO users_extension (id, nickname, is_active, is_rated, elo_rating, matches_played)
+         VALUES (?, ?, true, false, 1400, 0)`,
+        [newUserId, otherPlayerNickname]
+      );
+      
+      otherPlayerId = newUserId;
+      console.log(`✅ Created new player ${otherPlayerNickname} with ID ${otherPlayerId} (verified from forum replay)`);
+    } else {
+      otherPlayerId = otherPlayerResult.rows[0].id;
+    }
+
+    if (winner_choice === 'I lost') {
+      // User lost, so the other player won
+      loserId = userId;
+      winnerId = otherPlayerId;
+    } else {
+      // User won (default case)
+      loserId = otherPlayerId;
+      winnerId = userId;
+    }
+
+    console.log(`✅ [CONFIDENCE-1] Players identified: winner=${winnerId}, loser=${loserId}`);
+
+    // Determine winner_side from forumPlayers (whichever player is the winner → their side_number)
+    const winnerNicknameForSide = winner_choice === 'I lost' ? otherPlayerNickname : currentUserNickname;
+    const winnerForumPlayer = forumPlayers.find(
+      (p: any) => p.user_name?.toLowerCase() === winnerNicknameForSide
+    );
+    const winnerSide: number | null = winnerForumPlayer?.side_number ?? null;
+
+    // Get winner and loser data for ELO calculation
+    const winnerResult = await query(
+      `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
+      [winnerId]
+    );
+    
+    const loserResult = await query(
+      `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
+      [loserId]
+    );
+
+    if (winnerResult.rows.length === 0 || loserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'One or more players not found' });
+    }
+
+    const winner = winnerResult.rows[0];
+    const loser = loserResult.rows[0];
+
+    // Get map and factions from parse_summary (use resolved values - same as displayed in frontend)
+    const map = parseSummary?.resolvedMap || parseSummary?.finalMap || 'Unknown Map';
+    const winner_faction = parseSummary?.resolvedFactions?.side1 || parseSummary?.finalFactions?.side1 || 'Unknown';
+    const loser_faction = parseSummary?.resolvedFactions?.side2 || parseSummary?.finalFactions?.side2 || 'Unknown';
+
+    console.log(`📋 [CONFIDENCE-1] Map: ${map}, Factions: ${winner_faction} vs ${loser_faction}`);
+
+    // Get tournament info if this is a tournament match
+    let tournamentMode = 'ranked'; // default for direct matches
+    if (replay.tournament_round_match_id) {
+      const tournamentResult = await query(
+        `SELECT t.tournament_mode FROM tournaments t 
+         JOIN tournament_rounds tr ON tr.tournament_id = t.id 
+         JOIN tournament_round_matches trm ON trm.round_id = tr.id
+         WHERE trm.id = ?`,
+        [replay.tournament_round_match_id]
+      );
+      if (tournamentResult.rows.length > 0) {
+        tournamentMode = tournamentResult.rows[0].tournament_mode || 'ranked';
+      }
+    }
+    
+    console.log(`🎯 [CONFIDENCE-1] Tournament mode: ${tournamentMode}`);
+
+    // Calculate FIDE ELO ratings
+    const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
+    const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+    const eloChange = winnerNewRating - winner.elo_rating;
+
+    // Calculate levels before match
+    const winnerLevelBefore = getUserLevel(winner.elo_rating);
+    const loserLevelBefore = getUserLevel(loser.elo_rating);
+    const winnerLevelAfter = getUserLevel(winnerNewRating);
+    const loserLevelAfter = getUserLevel(loserNewRating);
+
+    // Get replay URL
+    const replayUrlResult = await query(
+      `SELECT replay_url FROM replays WHERE id = ?`,
+      [replayId]
+    );
+    const replayUrl = replayUrlResult.rows?.[0]?.replay_url || '';
+
+    // Generate match ID
+    const matchId = uuidv4();
+
+    // Validate and sanitize optional fields
+    const winnerComments = comments ? String(comments).substring(0, 500) : null;
+    const winnerRating = rating ? parseInt(rating, 10) : null;
+
+    // Only create in global matches table for RANKED tournaments/matches
+    if (tournamentMode === 'ranked') {
+      // Create match record with all necessary fields
+      await query(
+        `INSERT INTO matches (
+          id,
+          replay_id,
+          winner_id,
+          loser_id,
+          map,
+          winner_faction,
+          loser_faction,
+          winner_elo_before,
+          loser_elo_before,
+          winner_elo_after,
+          loser_elo_after,
+          winner_level_before,
+          loser_level_before,
+          winner_level_after,
+          loser_level_after,
+          winner_comments,
+          winner_rating,
+          elo_change,
+          tournament_mode,
+          status,
+          replay_file_path,
+          auto_reported,
+          winner_side,
+          game_id,
+          wesnoth_version,
+          instance_uuid
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          matchId,
+          replayId,
+          winnerId,
+          loserId,
+          map,
+          winner_faction,
+          loser_faction,
+          winner.elo_rating,
+          loser.elo_rating,
+          winnerNewRating,
+          loserNewRating,
+          winnerLevelBefore,
+          loserLevelBefore,
+          winnerLevelAfter,
+          loserLevelAfter,
+          winnerComments,
+          winnerRating,
+          eloChange,
+          tournamentMode,
+          'reported',
+          replayUrl,
+          1,
+          winnerSide,                  // winner_side (1 or 2)
+          replay.game_id ?? null,      // game_id from forum
+          replay.wesnoth_version ?? null,  // wesnoth_version
+          replay.instance_uuid ?? null     // instance_uuid
+        ]
+      );
+
+      console.log(`✅ [CONFIDENCE-1] Match created in global table: ${matchId}`);
+
+      // Calculate new trends
+      const winnerTrend = calculateTrend(winner.trend || '-', true);
+      const loserTrend = calculateTrend(loser.trend || '-', false);
+
+      // Update winner stats
+      const newWinnerMatches = winner.matches_played + 1;
+      let winnerIsNowRated = winner.is_rated;
+      let finalWinnerRating = winnerNewRating;
+
+      if (winner.is_rated && finalWinnerRating < 1400) {
+        winnerIsNowRated = false;
+      } else if (!winner.is_rated && newWinnerMatches >= 10 && finalWinnerRating >= 1400) {
+        winnerIsNowRated = true;
+      }
+
+      await query(
+        `UPDATE users_extension 
+         SET elo_rating = ?, 
+             is_rated = ?, 
+             matches_played = ?,
+             total_wins = total_wins + 1,
+             trend = ?,
+             level = ?,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [finalWinnerRating, winnerIsNowRated, newWinnerMatches, winnerTrend, getUserLevel(finalWinnerRating), winnerId]
+      );
+
+      // Update loser stats
+      const newLoserMatches = loser.matches_played + 1;
+      let loserIsNowRated = loser.is_rated;
+      let finalLoserRating = loserNewRating;
+
+      if (loser.is_rated && finalLoserRating < 1400) {
+        loserIsNowRated = false;
+      } else if (!loser.is_rated && newLoserMatches >= 10 && finalLoserRating >= 1400) {
+        loserIsNowRated = true;
+      }
+
+      await query(
+        `UPDATE users_extension 
+         SET elo_rating = ?, 
+             is_rated = ?, 
+             matches_played = ?,
+             total_losses = total_losses + 1,
+             trend = ?,
+             level = ?,
+             updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`,
+        [finalLoserRating, loserIsNowRated, newLoserMatches, loserTrend, getUserLevel(finalLoserRating), loserId]
+      );
+
+      // Update faction/map statistics for this match (incremental update)
+      try {
+        if (map && winner_faction && loser_faction) {
+          await updateFactionMapStatistics(map, winner_faction, loser_faction, winnerSide);
+        }
+      } catch (statsError) {
+        console.error('Warning: Error updating faction/map statistics:', statsError);
+      }
+    } else {
+      // UNRANKED tournament - don't update global ELO
+      console.log(`🎯 [CONFIDENCE-1] Unranked tournament - skipping global ELO updates`);
+      
+      // Still need to mark the replay as having a match (but with null match_id for unranked)
+    }
+
+    // Mark the replay as having a match
+    await query(
+      `UPDATE replays SET match_id = ? WHERE id = ?`,
+      [tournamentMode === 'ranked' ? matchId : null, replayId]
+    );
+
+    // If this replay is linked to a tournament_round_match, create/update tournament_matches entry
+    if (replay.tournament_round_match_id) {
+      console.log(`🎯 [CONFIDENCE-1] Creating tournament_matches entry for round match ${replay.tournament_round_match_id}`);
+      
+      // Get tournament_round_match details
+      const roundMatchResult = await query(
+        `SELECT tournament_id, round_id, player1_id, player2_id FROM tournament_round_matches WHERE id = ?`,
+        [replay.tournament_round_match_id]
+      );
+      
+      if (roundMatchResult.rows.length > 0) {
+        const roundMatch = roundMatchResult.rows[0];
+        
+        // Create tournament_matches entry
+        const tournamentMatchId = uuidv4();
+        await query(
+          `INSERT INTO tournament_matches 
+           (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?)`,
+          [
+            tournamentMatchId,
+            roundMatch.tournament_id,
+            roundMatch.round_id,
+            roundMatch.player1_id,
+            roundMatch.player2_id,
+            matchId,
+            winnerId,
+            replay.tournament_round_match_id
+          ]
+        );
+        console.log(`✅ [CONFIDENCE-1] Created tournament_matches entry: ${tournamentMatchId}`);
+      }
+    }
+
+    // If this replay belongs to a tournament match (old flow), associate and close it
+    if (tournament_match_id) {
+      await query(
+        `UPDATE tournament_matches
+         SET match_id = ?,
+             winner_id = ?,
+             match_status = 'completed',
+             played_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+        [matchId, winnerId, tournament_match_id]
+      );
+      console.log(`✅ [CONFIDENCE-1] Tournament match ${tournament_match_id} updated with match_id ${matchId}`);
+    }
+
+    // If this replay is linked to a tournament_round_match, update series + participant stats
+    console.log(`🎯 [CONFIDENCE-1] Checking tournament_round_match:`, {
+      tournament_round_match_id: replay.tournament_round_match_id,
+      will_update: !!replay.tournament_round_match_id
+    });
+    
+    if (replay.tournament_round_match_id) {
+      console.log(`🎯 [CONFIDENCE-1] Calling updateTournamentRoundMatch with:`, {
+        roundMatchId: replay.tournament_round_match_id,
+        winnerId
+      });
+      const seriesResult = await updateTournamentRoundMatch(replay.tournament_round_match_id, winnerId);
+      console.log(`🎯 [CONFIDENCE-1] updateTournamentRoundMatch returned:`, seriesResult);
+      
+      if (seriesResult.seriesCompleted && seriesResult.tournamentId) {
+        try {
+          const rnResult = await query(
+            `SELECT round_number FROM tournament_rounds WHERE id = ?`,
+            [seriesResult.roundId]
+          );
+          const roundNumber = (rnResult as any).rows?.[0]?.round_number;
+          if (roundNumber) {
+            const { checkAndCompleteRound } = await import('../utils/tournament.js');
+            await checkAndCompleteRound(seriesResult.tournamentId, roundNumber);
+          }
+        } catch (roundErr) {
+          console.error('⚠️  [CONFIDENCE-1] Error checking round completion:', roundErr);
+        }
+      }
+    }
+
+    console.log(`✅ [CONFIDENCE-1] Match reported successfully: ${winnerId} (+${eloChange} ELO) vs ${loserId}`);
+    res.status(201).json({ 
+      success: true,
+      matchId,
+      message: 'Replay reported successfully. Match created and ELO calculated.',
+      winner_rating_change: eloChange
+    });
+
+  } catch (error) {
+    console.error('❌ Error reporting confidence-1 replay:', error);
+    res.status(500).json({ error: 'Failed to report replay', details: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+/**
+ * POST /api/matches/cancel-confidence-1-replay
+ *
+ * Request or confirm cancellation of a confidence=1 replay (game saved mid-match).
+ * Both players must call this endpoint to fully cancel the replay.
+ *
+ * Flow:
+ *   - First player calls → cancel_requested_by = userId  (status: waiting_confirmation)
+ *   - Second player calls → the replay row is DELETED     (status: cancelled)
+ *
+ * Requires: User authentication + must be a participant in the replay
+ */
+router.post('/cancel-confidence-1-replay', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { replayId } = req.body;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    if (!replayId) {
+      return res.status(400).json({ error: 'Missing replayId in request body' });
+    }
+
+    console.log(`🚫 [CANCEL-REPLAY] Processing cancel request for replay ${replayId} by user ${userId}`);
+
+    // Fetch the replay
+    const replayResult = await query(
+      `SELECT id, parse_summary, integration_confidence, parsed, cancel_requested_by
+       FROM replays WHERE id = ? AND integration_confidence = 1 AND parsed = 1`,
+      [replayId]
+    );
+
+    if (replayResult.rows.length === 0) {
+      // Row not found: already deleted (both players confirmed) or never existed
+      return res.status(404).json({ error: 'Replay not found or already cancelled' });
+    }
+
+    const replay = replayResult.rows[0];
+
+    // Parse summary to identify the players
+    let parseSummary: any;
+    try {
+      parseSummary = typeof replay.parse_summary === 'string'
+        ? JSON.parse(replay.parse_summary)
+        : replay.parse_summary;
+    } catch {
+      return res.status(500).json({ error: 'Invalid parse_summary data in replay' });
+    }
+
+    const forumPlayers = parseSummary?.forumPlayers || [];
+    if (forumPlayers.length < 2) {
+      return res.status(400).json({ error: 'Replay does not have 2 identified players' });
+    }
+
+    // Get current user's nickname
+    const currentUserResult = await query(
+      `SELECT nickname FROM users_extension WHERE id = ?`,
+      [userId]
+    );
+    if (currentUserResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const currentUserNickname = currentUserResult.rows[0].nickname?.toLowerCase() || '';
+
+    const player1Nickname = forumPlayers[0]?.user_name?.toLowerCase() || '';
+    const player2Nickname = forumPlayers[1]?.user_name?.toLowerCase() || '';
+
+    // Security: user must be one of the 2 players
+    if (currentUserNickname !== player1Nickname && currentUserNickname !== player2Nickname) {
+      return res.status(403).json({ error: 'You are not a participant in this replay' });
+    }
+
+    // Case 1: No cancel request yet → record first request
+    if (!replay.cancel_requested_by) {
+      await query(
+        `UPDATE replays SET cancel_requested_by = ? WHERE id = ?`,
+        [userId, replayId]
+      );
+      console.log(`🚫 [CANCEL-REPLAY] Cancel requested by ${userId} for replay ${replayId}. Waiting for other player.`);
+      return res.json({
+        success: true,
+        status: 'waiting_confirmation',
+        message: 'Cancel request recorded. Waiting for the other player to confirm.'
+      });
+    }
+
+    // Case 2: Same player is clicking cancel again → idempotent, already requested
+    if (replay.cancel_requested_by === userId) {
+      return res.json({
+        success: true,
+        status: 'waiting_confirmation',
+        message: 'You have already requested cancellation. Waiting for the other player to confirm.'
+      });
+    }
+
+    // Case 3: Different player is now confirming the cancel → delete the replay entirely.
+    // Replays exist only to become matches; if both players agree the game was not finished,
+    // there is no match to create and the record is no longer needed.
+    await query(
+      `DELETE FROM replays WHERE id = ?`,
+      [replayId]
+    );
+
+    console.log(`✅ [CANCEL-REPLAY] Replay ${replayId} deleted. Both players agreed game was not finished.`);
+    return res.json({
+      success: true,
+      status: 'cancelled',
+      message: 'Both players confirmed. Replay has been deleted (game not finished).'
+    });
+
+  } catch (error) {
+    console.error('❌ Error cancelling confidence-1 replay:', error);
+    res.status(500).json({ error: 'Failed to cancel replay', details: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+
+router.get('/', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    // Get page from query params, default to 1
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
+    // Get filter params from query
+    const playerFilter = (req.query.player as string)?.trim() || '';
+    const mapFilter = (req.query.map as string)?.trim() || '';
+    const statusFilter = (req.query.status as string)?.trim() || '';
+    const confirmedFilter = (req.query.confirmed as string)?.trim() || '';
+    const factionFilter = (req.query.faction as string)?.trim() || '';
+
+    console.log('🔍 GET /matches - Filters received:', { playerFilter, mapFilter, statusFilter, confirmedFilter, factionFilter });
+
+    // Build WHERE clause dynamically
+    let whereConditions: string[] = [];
+    let params: any[] = [];
+    let paramCount = 1;
+
+    if (playerFilter) {
+      whereConditions.push(`(w.nickname LIKE ? OR l.nickname LIKE ?)`);
+      params.push(`%${playerFilter}%`);
+      params.push(`%${playerFilter}%`);
+    }
+
+    if (mapFilter) {
+      whereConditions.push(`m.map LIKE ?`);
+      params.push(`%${mapFilter}%`);
+    }
+
+    if (statusFilter) {
+      whereConditions.push(`m.status = ?`);
+      params.push(statusFilter);
+    }
+
+    if (confirmedFilter) {
+      whereConditions.push(`m.status = ?`);
+      params.push(confirmedFilter);
+    }
+
+    if (factionFilter) {
+      whereConditions.push(`(m.winner_faction = ? OR m.loser_faction = ?)`);
+      params.push(factionFilter);
+      params.push(factionFilter);
+      console.log('🔍 Faction filter applied:', factionFilter);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Get total count of filtered matches
+    const countQuery = `SELECT COUNT(*) as total FROM matches m 
+                        JOIN users_extension w ON m.winner_id = w.id 
+                        JOIN users_extension l ON m.loser_id = l.id 
+                        ${whereClause}`;
+    const countResult = await query(countQuery, params);
+    const total = parseInt(countResult.rows[0].total);
+    const totalPages = Math.ceil(total / limit);
+
+    // Get matches for current page with filters
+    params.push(limit);
+    params.push(offset);
+    const result = await query(
+      `SELECT m.id, m.winner_id, m.loser_id, m.winner_faction, m.loser_faction, m.map, m.status,
+              m.winner_elo_before, m.winner_elo_after, m.loser_elo_before, m.loser_elo_after,
+              m.winner_rating, m.loser_rating, m.winner_comments, m.loser_comments,
+              m.replay_file_path, m.replay_downloads, m.created_at, m.updated_at, m.played_at,
+              m.admin_reviewed, m.tournament_id,
+              w.nickname as winner_nickname,
+              l.nickname as loser_nickname,
+              'match' as source_type
+       FROM matches m
+       JOIN users_extension w ON m.winner_id = w.id
+       JOIN users_extension l ON m.loser_id = l.id
+       ${whereClause}
+       ORDER BY m.created_at DESC
+       LIMIT ? OFFSET ?`,
+      params
+    );
+
+    // Get replays with confidence=1 to show as pending reports (ONLY for involved players)
+    const replayResult = await query(
+      `SELECT 
+        r.id, 
+        r.replay_filename,
+        r.game_name,
+        r.parse_summary,
+        r.created_at,
+        r.wesnoth_version,
+        r.cancel_requested_by
+       FROM replays r
+       WHERE r.integration_confidence = 1 
+         AND r.parsed = 1
+         AND r.match_id IS NULL
+         AND (r.tournament_round_match_id IS NULL AND (r.parse_summary IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(r.parse_summary, '$.linkedTournamentRoundMatchId')) IS NULL OR JSON_UNQUOTE(JSON_EXTRACT(r.parse_summary, '$.linkedTournamentRoundMatchId')) = 'null'))
+       ORDER BY r.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+
+    console.log(`📊 [MATCHES] Found ${result.rows.length} matches and ${replayResult.rows?.length || 0} confidence=1 replays`);
+
+    // DEBUG: log raw replay rows before filtering
+    if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+      const debugReplays = await query(
+        `SELECT r.id, r.tournament_round_match_id, r.integration_confidence, r.parsed, r.match_id,
+                JSON_UNQUOTE(JSON_EXTRACT(r.parse_summary, '$.linkedTournamentRoundMatchId')) as json_linked
+         FROM replays r
+         WHERE r.integration_confidence = 1 AND r.parsed = 1 AND r.match_id IS NULL
+         ORDER BY r.created_at DESC LIMIT 10`,
+        []
+      );
+      console.log(`🔍 [MATCHES DEBUG] All confidence=1 parsed replays (before tournament filter):`, JSON.stringify(debugReplays.rows));
+      console.log(`🔍 [MATCHES DEBUG] Filtered replay rows returned:`, JSON.stringify(replayResult.rows?.map((r: any) => r.id)));
+    }
+
+    // Get current user's nickname and admin status once (for security check)
+    const currentUserResult = await query(
+      `SELECT nickname, is_admin FROM users_extension WHERE id = ?`,
+      [req.userId]
+    );
+    const currentUserNickname = currentUserResult.rows?.[0]?.nickname?.toLowerCase() || '';
+    const currentUserIsAdmin = !!(currentUserResult.rows?.[0]?.is_admin);
+
+    console.log(`🔍 [MATCHES DEBUG] userId=${req.userId} nickname=${currentUserNickname} isAdmin=${currentUserIsAdmin} replayRows=${replayResult.rows?.length ?? 'undefined'}`);
+
+    // Format confidence=1 replays as match-like objects - BUT ONLY IF USER IS INVOLVED
+    const formattedReplays = [];
+    
+    for (const r of replayResult.rows) {
+      try {
+        const parseSummary = typeof r.parse_summary === 'string' 
+          ? JSON.parse(r.parse_summary) 
+          : r.parse_summary;
+
+        // Extract players from parse_summary
+        const players = parseSummary.forumPlayers || [];
+        if (players.length < 2) continue;
+
+        const player1Name = players[0]?.user_name?.toLowerCase() || '';
+        const player2Name = players[1]?.user_name?.toLowerCase() || '';
+
+        // SECURITY: Only show this replay to involved players OR admins
+        const isInvolved = currentUserNickname === player1Name || currentUserNickname === player2Name;
+        if (!isInvolved && !currentUserIsAdmin) {
+          continue;
+        }
+
+        // Get victory condition info
+        const victory = parseSummary.replayVictory || {};
+        const winnerName = victory.winner_name || players[0]?.user_name || 'Unknown';
+        const loserName = victory.loser_name || players[1]?.user_name || 'Unknown';
+
+        formattedReplays.push({
+          id: r.id,
+          winner_id: null,  // Unknown until reported
+          loser_id: null,   // Unknown until reported
+          winner_nickname: winnerName,
+          loser_nickname: loserName,
+          winner_faction: victory.winner_faction || parseSummary.finalFactions?.side1 || 'Unknown',
+          loser_faction: victory.loser_faction || parseSummary.finalFactions?.side2 || 'Unknown',
+          map: parseSummary.resolvedMap || parseSummary.forumMap || 'Unknown',
+          status: 'pending_report',
+          winner_elo_before: null,
+          winner_elo_after: null,
+          loser_elo_before: null,
+          loser_elo_after: null,
+          winner_rating: null,
+          loser_rating: null,
+          winner_comments: null,
+          loser_comments: null,
+          replay_file_path: `https://replays.wesnoth.org/${r.wesnoth_version}/${r.replay_filename}`,
+          replay_downloads: 0,
+          created_at: r.created_at,
+          updated_at: r.created_at,
+          played_at: null,
+          admin_reviewed: false,
+          tournament_id: null,
+          source_type: 'replay_confidence_1',
+          replay_id: r.id,
+          confidence_level: 1,
+          parse_summary: parseSummary,
+          replay_filename: r.replay_filename,
+          game_name: r.game_name,
+          cancel_requested_by: r.cancel_requested_by || null,
+          is_admin_view: currentUserIsAdmin && !isInvolved
+        });
+      } catch (error) {
+        console.error('Error formatting replay:', error);
+        continue;
+      }
+    }
+
+    // Combine matches and replays
+    const allResults = [...result.rows, ...formattedReplays];
+    
+    // Sort by created_at DESC
+    allResults.sort((a: any, b: any) => {
+      const aTime = new Date(a.created_at).getTime();
+      const bTime = new Date(b.created_at).getTime();
+      return bTime - aTime;
+    });
+
+    // Apply pagination to combined results
+    const paginatedResults = allResults.slice(0, limit);
+    const combinedTotal = total + (replayResult.rows?.length || 0);
+    const combinedTotalPages = Math.ceil(combinedTotal / limit);
+
+    res.json({
+      data: paginatedResults,
+      pagination: {
+        page,
+        limit,
+        total: combinedTotal,
+        totalPages: combinedTotalPages,
+        showing: paginatedResults.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching matches:', error);
+    res.status(500).json({ error: 'Failed to fetch matches' });
+  }
+});
+
+// Cancel own match (self-dispute auto-confirmation)
+// Reporter can cancel a match they reported if it hasn't been disputed yet
+router.post('/:id/cancel-own', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    
+    // Fetch the match
+    const matchResult = await query(
+      'SELECT * FROM matches WHERE id = ?',
+      [id]
+    );
+    
+    if (matchResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+    
+    const match = matchResult.rows[0];
+    
+    // Verify user is the reporter (winner)
+    if (match.winner_id !== userId) {
+      return res.status(403).json({ error: 'Only the match reporter (winner) can cancel it' });
+    }
+    
+    // Match must not be in a final state already
+    if (!['pending', 'confirmed', 'unconfirmed'].includes(match.status)) {
+      return res.status(400).json({ error: `Match is already ${match.status}, cannot cancel` });
+    }
+    
+    console.log(`[SELF-CANCEL] Player ${userId} canceling their own match ${id}`);
+    
+    // STEP 1: Mark the match as cancelled
+    await query(
+      'UPDATE matches SET status = ?, admin_reviewed = true, admin_reviewed_at = CURRENT_TIMESTAMP, admin_reviewed_by = ? WHERE id = ?',
+      ['cancelled', userId, id]
+    );
+    
+    // STEP 2: Perform global stats recalculation
+    const recalcResult = await performGlobalStatsRecalculation();
+    
+    if (recalcResult.success) {
+      console.log(`Match ${id} self-cancelled by reporter ${userId}: Stats recalculated`);
+      res.json({ 
+        message: 'Match cancelled successfully. Stats have been recalculated.',
+        matchId: id,
+        debugLogs: recalcResult.logs
+      });
+    } else {
+      console.error(`Match ${id} cancelled but stats recalculation may have failed`);
+      res.json({ 
+        message: 'Match cancelled successfully.',
+        matchId: id,
+        warning: 'Stats recalculation encountered some issues',
+        debugLogs: recalcResult.logs
+      });
+    }
+  } catch (error) {
+    console.error('Error cancelling match:', error);
+    res.status(500).json({ error: 'Failed to cancel match' });
+  }
+});
+
+// ============================================================================
+// Pending Reporting Routes
+// ============================================================================
+
+/**
+ * GET /api/matches/pending-reporting
+ * 
+ * Get all matches pending player confirmation (status = 'pending_report')
+ * Filtered to show only matches where the current user participated
+ * 
+ * Requires: User authentication
+ * Returns: Array of pending matches with participant and replay info
+ */
+router.get('/pending-reporting', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get pending matches where user participated
+    const result = await query(
+      `SELECT 
+        m.id,
+        m.replay_id,
+        m.winner_id,
+        m.loser_id,
+        m.map_name,
+        m.era_name,
+        m.status,
+        m.replay_file_path,
+        m.created_at,
+        m.updated_at,
+        w.username as winner_name,
+        w.rating as winner_rating,
+        l.username as loser_name,
+        l.rating as loser_rating,
+        r.game_name,
+        r.start_time,
+        r.end_time,
+        r.detection_confidence,
+        r.detected_from
+      FROM matches m
+      INNER JOIN users_extension w ON m.winner_id = w.id
+      INNER JOIN users_extension l ON m.loser_id = l.id
+      LEFT JOIN replays r ON m.replay_id = r.id
+      WHERE m.status = 'pending_report'
+        AND (m.winner_id = ? OR m.loser_id = ?)
+      ORDER BY m.created_at DESC`,
+      [userId, userId]
+    );
+
+    const matches = (result as any).rows || [];
+
+    res.json({
+      success: true,
+      count: matches.length,
+      matches: matches.map((m: any) => ({
+        id: m.id,
+        replayId: m.replay_id,
+        winners: {
+          id: m.winner_id,
+          name: m.winner_name,
+          rating: m.winner_rating
+        },
+        loser: {
+          id: m.loser_id,
+          name: m.loser_name,
+          rating: m.loser_rating
+        },
+        game: {
+          name: m.game_name,
+          map: m.map_name,
+          era: m.era_name,
+          startTime: m.start_time,
+          endTime: m.end_time
+        },
+        detection: {
+          confidence: m.detection_confidence,
+          from: m.detected_from
+        },
+        replayUrl: m.replay_file_path,
+        status: m.status,
+        createdAt: m.created_at,
+        updatedAt: m.updated_at,
+        isCurrentUserWinner: m.winner_id === userId,
+        currentUserAction: m.winner_id === userId ? 'confirm_victory' : 'confirm_defeat'
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error fetching pending reporting matches:', error);
+    res.status(500).json({ error: 'Failed to fetch pending matches' });
+  }
+});
+
+/**
+ * POST /api/matches/:matchId/confirm-report
+ * 
+ * Player confirms the auto-reported match results
+ * Changes status from 'pending_report' to 'confirmed'
+ * Applies ELO ratings after confirmation
+ * 
+ * Requires: User authentication + must be a participant in the match
+ */
+router.post('/:matchId/confirm-report', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { matchId } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get match details
+    const matchResult = await query(
+      `SELECT id, winner_id, loser_id, status, replay_id 
+       FROM matches WHERE id = ?`,
+      [matchId]
+    );
+
+    if (!matchResult || !(matchResult as any).rows || (matchResult as any).rows.length === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const match = (matchResult as any).rows[0];
+
+    // Verify user is a participant
+    if (match.winner_id !== userId && match.loser_id !== userId) {
+      return res.status(403).json({ error: 'You are not a participant in this match' });
+    }
+
+    // Verify match is in pending_report status
+    if (match.status !== 'pending_report') {
+      return res.status(400).json({ error: 'Match is not pending confirmation' });
+    }
+
+    // Update match status to confirmed
+    await query(
+      `UPDATE matches 
+       SET status = 'confirmed', updated_at = NOW()
+       WHERE id = ?`,
+      [matchId]
+    );
+
+    // Apply ELO ratings
+    const winnerId = match.winner_id;
+    const loserId = match.loser_id;
+
+    // Get current ratings
+    const ratingsResult = await query(
+      `SELECT id, rating FROM users_extension WHERE id IN (?, ?)`,
+      [winnerId, loserId]
+    );
+
+    if (ratingsResult && (ratingsResult as any).rows) {
+      const ratings = (ratingsResult as any).rows;
+      const winnerRating = ratings.find((r: any) => r.id === winnerId)?.rating || 1200;
+      const loserRating = ratings.find((r: any) => r.id === loserId)?.rating || 1200;
+
+      // Calculate new ratings
+      const K = 32;
+      const expectedWinner = 1 / (1 + Math.pow(10, (loserRating - winnerRating) / 400));
+      const expectedLoser = 1 / (1 + Math.pow(10, (winnerRating - loserRating) / 400));
+
+      const newWinnerRating = Math.round(winnerRating + K * (1 - expectedWinner));
+      const newLoserRating = Math.round(loserRating + K * (0 - expectedLoser));
+
+      // Update ratings
+      await query(
+        `UPDATE users_extension SET rating = ?, total_games = total_games + 1, wins = wins + 1 WHERE id = ?`,
+        [newWinnerRating, winnerId]
+      );
+
+      await query(
+        `UPDATE users_extension SET rating = ?, total_games = total_games + 1, losses = losses + 1 WHERE id = ?`,
+        [newLoserRating, loserId]
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Match confirmed. ELO ratings have been applied.',
+      matchId,
+      newStatus: 'confirmed'
+    });
+
+  } catch (error) {
+    console.error('Error confirming match:', error);
+    res.status(500).json({ error: 'Failed to confirm match' });
+  }
+});
+
+/**
+ * POST /api/matches/:matchId/reject-report
+ * 
+ * Player rejects the auto-reported match results
+ * Changes status from 'pending_report' to 'rejected'
+ * Match is not applied to ratings
+ * 
+ * Requires: User authentication + must be a participant in the match
+ */
+router.post('/:matchId/reject-report', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { matchId } = req.params;
+    const userId = req.userId;
+    const { reason } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // Get match details
+    const matchResult = await query(
+      `SELECT id, winner_id, loser_id, status FROM matches WHERE id = ?`,
+      [matchId]
+    );
+
+    if (!matchResult || !(matchResult as any).rows || (matchResult as any).rows.length === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const match = (matchResult as any).rows[0];
+
+    // Verify user is a participant
+    if (match.winner_id !== userId && match.loser_id !== userId) {
+      return res.status(403).json({ error: 'You are not a participant in this match' });
+    }
+
+    // Verify match is in pending_report status
+    if (match.status !== 'pending_report') {
+      return res.status(400).json({ error: 'Match is not pending confirmation' });
+    }
+
+    // Update match status to rejected
+    await query(
+      `UPDATE matches 
+       SET status = 'rejected', updated_at = NOW()
+       WHERE id = ?`,
+      [matchId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Match rejected. Ratings have not been applied.',
+      matchId,
+      newStatus: 'rejected',
+      rejectionReason: reason || 'No reason provided'
+    });
+
+  } catch (error) {
+    console.error('Error rejecting match:', error);
+    res.status(500).json({ error: 'Failed to reject match' });
+  }
+});
+
+// Routes are now properly ordered with specific paths first
+
+/**
+ * POST /api/matches/admin-discard-replay
+ * Admin-only: immediately discard a confidence=1 replay.
+ * Players are NOT asked for confirmation; replay goes straight to parse_status='rejected'.
+ * Body: { replayId: string }
+ */
+router.post('/admin-discard-replay', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { replayId } = req.body;
+    if (!replayId) {
+      return res.status(400).json({ error: 'Missing required field: replayId' });
+    }
+
+    // Verify admin
+    const adminResult = await query(
+      `SELECT is_admin FROM users_extension WHERE id = ?`,
+      [req.userId]
+    );
+    if (!adminResult.rows?.[0]?.is_admin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Verify replay exists and is awaiting confirmation
+    const replayResult = await query(
+      `SELECT id, parse_status, integration_confidence, need_integration FROM replays WHERE id = ?`,
+      [replayId]
+    );
+    const replay = replayResult.rows?.[0];
+    if (!replay || replay.need_integration !== 1) {
+      return res.status(400).json({ error: 'Replay is not awaiting confirmation' });
+    }
+
+    await query(
+      `UPDATE replays SET parse_status = 'rejected', need_integration = 0, parsed = 1, updated_at = NOW() WHERE id = ?`,
+      [replayId]
+    );
+
+    console.log(`🗑️  [ADMIN DISCARD] Replay ${replayId} discarded by admin ${req.userId}`);
+    res.json({ status: 'success', message: 'Replay discarded by admin', replay_id: replayId });
+  } catch (error) {
+    console.error('Error in admin-discard-replay:', error);
+    res.status(500).json({ error: 'Failed to discard replay' });
+  }
+});
+
+export default router;
+export { performGlobalStatsRecalculation };
+

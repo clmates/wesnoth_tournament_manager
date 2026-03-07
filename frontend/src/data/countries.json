@@ -1,0 +1,674 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-02-03T20:44:52.912049",
+  "total": 55,
+  "languages": [
+    "en",
+    "es",
+    "de",
+    "ru",
+    "zh"
+  ],
+  "countries": [
+    {
+      "code": "AR",
+      "flag": "🇦🇷",
+      "names": {
+        "en": "Argentina",
+        "es": "Argentina",
+        "de": "Argentinien",
+        "ru": "Аргентина",
+        "zh": "阿根廷"
+      },
+      "region": "South America"
+    },
+    {
+      "code": "AU",
+      "flag": "🇦🇺",
+      "names": {
+        "en": "Australia",
+        "es": "Australia",
+        "de": "Australien",
+        "ru": "Австралия",
+        "zh": "澳大利亚"
+      },
+      "region": "Oceania"
+    },
+    {
+      "code": "AT",
+      "flag": "🇦🇹",
+      "names": {
+        "en": "Austria",
+        "es": "Austria",
+        "de": "Österreich",
+        "ru": "Австрия",
+        "zh": "奥地利"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "BD",
+      "flag": "🇧🇩",
+      "names": {
+        "en": "Bangladesh",
+        "es": "Bangladesh",
+        "de": "Bangladesch",
+        "ru": "Бангладеш",
+        "zh": "孟加拉国"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "BE",
+      "flag": "🇧🇪",
+      "names": {
+        "en": "Belgium",
+        "es": "Bélgica",
+        "de": "Belgien",
+        "ru": "Бельгия",
+        "zh": "比利时"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "BR",
+      "flag": "🇧🇷",
+      "names": {
+        "en": "Brazil",
+        "es": "Brasil",
+        "de": "Brasilien",
+        "ru": "Бразилия",
+        "zh": "巴西"
+      },
+      "region": "South America"
+    },
+    {
+      "code": "BG",
+      "flag": "🇧🇬",
+      "names": {
+        "en": "Bulgaria",
+        "es": "Bulgaria",
+        "de": "Bulgarien",
+        "ru": "Болгария",
+        "zh": "保加利亚"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "CA",
+      "flag": "🇨🇦",
+      "names": {
+        "en": "Canada",
+        "es": "Canadá",
+        "de": "Kanada",
+        "ru": "Канада",
+        "zh": "加拿大"
+      },
+      "region": "North America"
+    },
+    {
+      "code": "CL",
+      "flag": "🇨🇱",
+      "names": {
+        "en": "Chile",
+        "es": "Chile",
+        "de": "Chile",
+        "ru": "Чили",
+        "zh": "智利"
+      },
+      "region": "South America"
+    },
+    {
+      "code": "CN",
+      "flag": "🇨🇳",
+      "names": {
+        "en": "China",
+        "es": "China",
+        "de": "China",
+        "ru": "Китай",
+        "zh": "中国"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "CO",
+      "flag": "🇨🇴",
+      "names": {
+        "en": "Colombia",
+        "es": "Colombia",
+        "de": "Kolumbien",
+        "ru": "Колумбия",
+        "zh": "哥伦比亚"
+      },
+      "region": "South America"
+    },
+    {
+      "code": "CZ",
+      "flag": "🇨🇿",
+      "names": {
+        "en": "Czech Republic",
+        "es": "República Checa",
+        "de": "Tschechien",
+        "ru": "Чехия",
+        "zh": "捷克"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "EG",
+      "flag": "🇪🇬",
+      "names": {
+        "en": "Egypt",
+        "es": "Egipto",
+        "de": "Ägypten",
+        "ru": "Египет",
+        "zh": "埃及"
+      },
+      "region": "Africa"
+    },
+    {
+      "code": "FR",
+      "flag": "🇫🇷",
+      "names": {
+        "en": "France",
+        "es": "Francia",
+        "de": "Frankreich",
+        "ru": "Франция",
+        "zh": "法国"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "DE",
+      "flag": "🇩🇪",
+      "names": {
+        "en": "Germany",
+        "es": "Alemania",
+        "de": "Deutschland",
+        "ru": "Германия",
+        "zh": "德国"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "GR",
+      "flag": "🇬🇷",
+      "names": {
+        "en": "Greece",
+        "es": "Grecia",
+        "de": "Griechenland",
+        "ru": "Греция",
+        "zh": "希腊"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "HK",
+      "flag": "🇭🇰",
+      "names": {
+        "en": "Hong Kong",
+        "es": "Hong Kong",
+        "de": "Hongkong",
+        "ru": "Гонконг",
+        "zh": "香港"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "HU",
+      "flag": "🇭🇺",
+      "names": {
+        "en": "Hungary",
+        "es": "Hungría",
+        "de": "Ungarn",
+        "ru": "Венгрия",
+        "zh": "匈牙利"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "IN",
+      "flag": "🇮🇳",
+      "names": {
+        "en": "India",
+        "es": "India",
+        "de": "Indien",
+        "ru": "Индия",
+        "zh": "印度"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "ID",
+      "flag": "🇮🇩",
+      "names": {
+        "en": "Indonesia",
+        "es": "Indonesia",
+        "de": "Indonesien",
+        "ru": "Индонезия",
+        "zh": "印度尼西亚"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "IR",
+      "flag": "🇮🇷",
+      "names": {
+        "en": "Iran",
+        "es": "Irán",
+        "de": "Iran",
+        "ru": "Иран",
+        "zh": "伊朗"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "IQ",
+      "flag": "🇮🇶",
+      "names": {
+        "en": "Iraq",
+        "es": "Irak",
+        "de": "Irak",
+        "ru": "Ирак",
+        "zh": "伊拉克"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "IL",
+      "flag": "🇮🇱",
+      "names": {
+        "en": "Israel",
+        "es": "Israel",
+        "de": "Israel",
+        "ru": "Израиль",
+        "zh": "以色列"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "IT",
+      "flag": "🇮🇹",
+      "names": {
+        "en": "Italy",
+        "es": "Italia",
+        "de": "Italien",
+        "ru": "Италия",
+        "zh": "意大利"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "JP",
+      "flag": "🇯🇵",
+      "names": {
+        "en": "Japan",
+        "es": "Japón",
+        "de": "Japan",
+        "ru": "Япония",
+        "zh": "日本"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "KE",
+      "flag": "🇰🇪",
+      "names": {
+        "en": "Kenya",
+        "es": "Kenia",
+        "de": "Kenia",
+        "ru": "Кения",
+        "zh": "肯尼亚"
+      },
+      "region": "Africa"
+    },
+    {
+      "code": "MY",
+      "flag": "🇲🇾",
+      "names": {
+        "en": "Malaysia",
+        "es": "Malasia",
+        "de": "Malaysia",
+        "ru": "Малайзия",
+        "zh": "马来西亚"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "MX",
+      "flag": "🇲🇽",
+      "names": {
+        "en": "Mexico",
+        "es": "México",
+        "de": "Mexiko",
+        "ru": "Мексика",
+        "zh": "墨西哥"
+      },
+      "region": "North America"
+    },
+    {
+      "code": "MA",
+      "flag": "🇲🇦",
+      "names": {
+        "en": "Morocco",
+        "es": "Marruecos",
+        "de": "Marokko",
+        "ru": "Марокко",
+        "zh": "摩洛哥"
+      },
+      "region": "Africa"
+    },
+    {
+      "code": "NL",
+      "flag": "🇳🇱",
+      "names": {
+        "en": "Netherlands",
+        "es": "Países Bajos",
+        "de": "Niederlande",
+        "ru": "Нидерланды",
+        "zh": "荷兰"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "NZ",
+      "flag": "🇳🇿",
+      "names": {
+        "en": "New Zealand",
+        "es": "Nueva Zelanda",
+        "de": "Neuseeland",
+        "ru": "Новая Зеландия",
+        "zh": "新西兰"
+      },
+      "region": "Oceania"
+    },
+    {
+      "code": "NG",
+      "flag": "🇳🇬",
+      "names": {
+        "en": "Nigeria",
+        "es": "Nigeria",
+        "de": "Nigeria",
+        "ru": "Нигерия",
+        "zh": "尼日利亚"
+      },
+      "region": "Africa"
+    },
+    {
+      "code": "XX",
+      "flag": "🌍",
+      "names": {
+        "en": "Other",
+        "es": "Otro",
+        "de": "Andere",
+        "ru": "Другое",
+        "zh": "其他"
+      },
+      "region": "Other"
+    },
+    {
+      "code": "PK",
+      "flag": "🇵🇰",
+      "names": {
+        "en": "Pakistan",
+        "es": "Pakistán",
+        "de": "Pakistan",
+        "ru": "Пакистан",
+        "zh": "巴基斯坦"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "PE",
+      "flag": "🇵🇪",
+      "names": {
+        "en": "Peru",
+        "es": "Perú",
+        "de": "Peru",
+        "ru": "Перу",
+        "zh": "秘鲁"
+      },
+      "region": "South America"
+    },
+    {
+      "code": "PH",
+      "flag": "🇵🇭",
+      "names": {
+        "en": "Philippines",
+        "es": "Filipinas",
+        "de": "Philippinen",
+        "ru": "Филиппины",
+        "zh": "菲律宾"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "PL",
+      "flag": "🇵🇱",
+      "names": {
+        "en": "Poland",
+        "es": "Polonia",
+        "de": "Polen",
+        "ru": "Польша",
+        "zh": "波兰"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "PT",
+      "flag": "🇵🇹",
+      "names": {
+        "en": "Portugal",
+        "es": "Portugal",
+        "de": "Portugal",
+        "ru": "Португалия",
+        "zh": "葡萄牙"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "RO",
+      "flag": "🇷🇴",
+      "names": {
+        "en": "Romania",
+        "es": "Rumania",
+        "de": "Rumänien",
+        "ru": "Румыния",
+        "zh": "罗马尼亚"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "RU",
+      "flag": "🇷🇺",
+      "names": {
+        "en": "Russia",
+        "es": "Rusia",
+        "de": "Russland",
+        "ru": "Россия",
+        "zh": "俄罗斯"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "SA",
+      "flag": "🇸🇦",
+      "names": {
+        "en": "Saudi Arabia",
+        "es": "Arabia Saudita",
+        "de": "Saudi-Arabien",
+        "ru": "Саудовская Аравия",
+        "zh": "沙特阿拉伯"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "SG",
+      "flag": "🇸🇬",
+      "names": {
+        "en": "Singapore",
+        "es": "Singapur",
+        "de": "Singapur",
+        "ru": "Сингапур",
+        "zh": "新加坡"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "ZA",
+      "flag": "🇿🇦",
+      "names": {
+        "en": "South Africa",
+        "es": "Sudáfrica",
+        "de": "Südafrika",
+        "ru": "Южная Африка",
+        "zh": "南非"
+      },
+      "region": "Africa"
+    },
+    {
+      "code": "KR",
+      "flag": "🇰🇷",
+      "names": {
+        "en": "South Korea",
+        "es": "Corea del Sur",
+        "de": "Südkorea",
+        "ru": "Южная Корея",
+        "zh": "韩国"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "ES",
+      "flag": "🇪🇸",
+      "names": {
+        "en": "Spain",
+        "es": "España",
+        "de": "Spanien",
+        "ru": "Испания",
+        "zh": "西班牙"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "SE",
+      "flag": "🇸🇪",
+      "names": {
+        "en": "Sweden",
+        "es": "Suecia",
+        "de": "Schweden",
+        "ru": "Швеция",
+        "zh": "瑞典"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "CH",
+      "flag": "🇨🇭",
+      "names": {
+        "en": "Switzerland",
+        "es": "Suiza",
+        "de": "Schweiz",
+        "ru": "Швейцария",
+        "zh": "瑞士"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "TW",
+      "flag": "🇹🇼",
+      "names": {
+        "en": "Taiwan",
+        "es": "Taiwán",
+        "de": "Taiwan",
+        "ru": "Тайвань",
+        "zh": "台湾"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "TH",
+      "flag": "🇹🇭",
+      "names": {
+        "en": "Thailand",
+        "es": "Tailandia",
+        "de": "Thailand",
+        "ru": "Таиланд",
+        "zh": "泰国"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "TR",
+      "flag": "🇹🇷",
+      "names": {
+        "en": "Turkey",
+        "es": "Turquía",
+        "de": "Türkei",
+        "ru": "Турция",
+        "zh": "土耳其"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "AE",
+      "flag": "🇦🇪",
+      "names": {
+        "en": "United Arab Emirates",
+        "es": "Emiratos Árabes Unidos",
+        "de": "Vereinigte Arabische Emirate",
+        "ru": "ОАЭ",
+        "zh": "阿联酋"
+      },
+      "region": "Asia"
+    },
+    {
+      "code": "GB",
+      "flag": "🇬🇧",
+      "names": {
+        "en": "United Kingdom",
+        "es": "Reino Unido",
+        "de": "Vereinigtes Königreich",
+        "ru": "Великобритания",
+        "zh": "英国"
+      },
+      "region": "Europe"
+    },
+    {
+      "code": "US",
+      "flag": "🇺🇸",
+      "names": {
+        "en": "United States",
+        "es": "Estados Unidos",
+        "de": "Vereinigte Staaten",
+        "ru": "США",
+        "zh": "美国"
+      },
+      "region": "North America"
+    },
+    {
+      "code": "VE",
+      "flag": "🇻🇪",
+      "names": {
+        "en": "Venezuela",
+        "es": "Venezuela",
+        "de": "Venezuela",
+        "ru": "Венесуэла",
+        "zh": "委内瑞拉"
+      },
+      "region": "South America"
+    },
+    {
+      "code": "VN",
+      "flag": "🇻🇳",
+      "names": {
+        "en": "Vietnam",
+        "es": "Vietnam",
+        "de": "Vietnam",
+        "ru": "Вьетнам",
+        "zh": "越南"
+      },
+      "region": "Asia"
+    }
+  ]
+}

@@ -1,0 +1,514 @@
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { matchService } from '../services/api';
+import PlayerLink from './PlayerLink';
+import StarDisplay from './StarDisplay';
+import ReplayConfirmationModal from './ReplayConfirmationModal';
+import { useAuthStore } from '../store/authStore';
+
+// Get API URL for direct backend calls
+
+interface MatchesTableProps {
+  matches: any[];
+  currentPlayerId?: string;
+  onDownloadReplay?: (matchId: string, replayFilePath: string) => void;
+  onViewDetails?: (match: any) => void;
+  onOpenConfirmation?: (match: any) => void;
+  onReplayReported?: (replayId: string) => void;
+}
+
+type SortColumn = 'date' | 'winner' | 'loser' | 'map' | 'status' | '';
+type SortDirection = 'asc' | 'desc';
+
+const MatchesTable: React.FC<MatchesTableProps> = ({
+  matches,
+  currentPlayerId,
+  onDownloadReplay,
+  onViewDetails,
+  onOpenConfirmation,
+  onReplayReported,
+}) => {
+  const { t } = useTranslation();
+  const { isAuthenticated, userId, user, isAdmin } = useAuthStore();
+  const currentUserNickname = user?.nickname?.toLowerCase() || '';
+
+  const [sortColumn, setSortColumn] = React.useState<SortColumn>('');
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
+  const [reportingReplayId, setReportingReplayId] = React.useState<string | null>(null);
+  const [showConfirmationModal, setShowConfirmationModal] = React.useState(false);
+  const [selectedReplay, setSelectedReplay] = React.useState<any>(null);
+  const [modalChoice, setModalChoice] = React.useState<'I won' | 'I lost' | 'cancel'>('I won');
+
+  React.useEffect(() => {
+    console.log(`🔍 [MatchesTable] Received ${matches.length} matches`);
+    matches.forEach((m, i) => {
+      if (m.source_type === 'replay_confidence_1') {
+        console.log(
+          `  [${i}] REPLAY confidence=1: ${m.id}`,
+          { 
+            winner: m.winner_nickname, 
+            loser: m.loser_nickname, 
+            map: m.map, 
+            winner_faction: m.winner_faction,
+            loser_faction: m.loser_faction
+          }
+        );
+      }
+    });
+  }, [matches]);
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
+
+  const winnerEloChange = (match: any) => (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
+  const loserEloChange = (match: any) => (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
+
+  const handleDownloadReplay = async (matchId: string, replayFilePath: string) => {
+    try {
+      if (!replayFilePath) return;
+      
+      if (onDownloadReplay) {
+        await onDownloadReplay(matchId, replayFilePath);
+        return;
+      }
+      
+      // Extract filename from path
+      const filename = replayFilePath.split('/').pop() || `replay_${matchId}`;
+      
+      // Increment download count in the database
+      await matchService.incrementReplayDownloads(matchId);
+      
+      // Use the replay_file_path HTTPS URL directly
+      const link = document.createElement('a');
+      link.href = replayFilePath;
+      link.download = filename;
+      link.target = '_blank';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error downloading replay:', err);
+    }
+  };
+
+  const handleReportConfidence1Replay = (match: any, winner_choice: 'I won' | 'I lost' | 'cancel') => {
+    // Open the modal with replay details
+    setSelectedReplay(match);
+    setModalChoice(winner_choice);
+    setShowConfirmationModal(true);
+    console.log(`🎯 Opening confirmation modal for replay ${match.id}: "${winner_choice}"`);
+  };
+
+  const handleReplayReportSuccess = () => {
+    // Close modal and refresh list
+    setShowConfirmationModal(false);
+    setSelectedReplay(null);
+    
+    if (onReplayReported && selectedReplay) {
+      onReplayReported(selectedReplay.id);
+    }
+  };
+
+  const handleAdminDiscardReplay = async (replayId: string) => {
+    if (!window.confirm(t('replay_discard_confirm'))) return;
+    try {
+      await matchService.adminDiscardReplay(replayId);
+      if (onReplayReported) onReplayReported(replayId);
+    } catch (err) {
+      console.error('Admin discard failed:', err);
+      alert('Failed to discard replay. Please try again.');
+    }
+  };
+
+  // Sorting logic for matches
+  const sortedMatches = React.useMemo(() => {
+    if (!sortColumn) return matches;
+    const sorted = [...matches].sort((a, b) => {
+      let aValue: any, bValue: any;
+      switch (sortColumn) {
+        case 'date':
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        case 'winner':
+          aValue = a.winner_nickname?.toLowerCase?.() || '';
+          bValue = b.winner_nickname?.toLowerCase?.() || '';
+          break;
+        case 'loser':
+          aValue = a.loser_nickname?.toLowerCase?.() || '';
+          bValue = b.loser_nickname?.toLowerCase?.() || '';
+          break;
+        case 'map':
+          aValue = a.map?.toLowerCase?.() || '';
+          bValue = b.map?.toLowerCase?.() || '';
+          break;
+        case 'status':
+          aValue = a.status || '';
+          bValue = b.status || '';
+          break;
+        default:
+          return 0;
+      }
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [matches, sortColumn, sortDirection]);
+
+  if (matches.length === 0) {
+    return (
+      <div className="w-full overflow-x-auto">
+        <table className="w-full border-collapse bg-white">
+          <thead className="bg-gray-100 border-b-2 border-gray-300">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('date')}>{t('label_date')}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('winner')}>{t('label_winner')}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('loser')}>{t('label_loser')}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('map')}>{t('label_map')}</th>
+              <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('status')}>{t('label_status_actions') || 'Status / Actions'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colSpan={5} className="px-4 py-8 text-center text-gray-500 italic">{t('matches_no_matches_found')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <table className="w-full border-collapse bg-white">
+        <thead className="bg-gray-100 border-b-2 border-gray-300">
+          <tr>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('date')}>
+              {t('label_date')}{sortColumn === 'date' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('winner')}>
+              {t('label_winner')}{sortColumn === 'winner' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('loser')}>
+              {t('label_loser')}{sortColumn === 'loser' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('map')}>
+              {t('label_map')}{sortColumn === 'map' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onClick={() => handleSort('status')}>
+              {t('label_status_actions') || 'Status / Actions'}{sortColumn === 'status' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedMatches.map((match) => {
+            // Special rendering for confidence=1 replays
+            if (match.source_type === 'replay_confidence_1') {
+              // Use the data already extracted by backend (more reliable)
+              const map = match.map || 'Unknown Map';
+              const faction1 = match.winner_faction || 'Unknown';
+              const faction2 = match.loser_faction || 'Unknown';
+              const player1Name = match.winner_nickname || 'Player 1';
+              const player2Name = match.loser_nickname || 'Player 2';
+              const date = new Date(match.created_at).toLocaleDateString();
+
+              return (
+                <tr key={match.id} className="border-b border-yellow-200 hover:bg-yellow-50 bg-yellow-50">
+                  <td className="px-4 py-3 text-sm text-gray-700">{date}</td>
+
+                  <td className="px-4 py-3 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-1 min-w-0">
+                          <span className="font-semibold text-yellow-800">{player1Name}</span>
+                        </div>
+                        <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction1}</span>
+                      </div>
+                      <div className="text-xs text-yellow-600 italic">
+                        {t('replay_auto_detected')}
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-3 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-1 min-w-0">
+                          <span className="font-semibold text-yellow-800">{player2Name}</span>
+                        </div>
+                        <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction2}</span>
+                      </div>
+                      <div className="text-xs text-yellow-600 italic">
+                        {t('replay_auto_detected')}
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-3 text-sm">
+                    <div className="font-semibold text-yellow-900">{map}</div>
+                    <div className="text-xs text-yellow-600 mt-1">{t('replay_unparsed')}</div>
+                    {(match.replay_filename || match.game_name) && (
+                      <div className="text-xs text-yellow-700 mt-1 font-mono bg-yellow-100 px-2 py-1 rounded truncate max-w-[200px]" title={match.replay_filename || match.game_name}>
+                        📄 {match.replay_filename || match.game_name}
+                      </div>
+                    )}
+                  </td>
+
+                  <td className="px-4 py-3 text-sm">
+                    <div className="space-y-2">
+                      <div>
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+                          {t('replay_need_confirmation')}
+                        </span>
+                      </div>
+                      {match.cancel_requested_by && (
+                        <div className="text-xs text-gray-600 bg-gray-100 border border-gray-300 rounded px-2 py-1">
+                          🚫 {t('label_cancel_requested')} — {t('label_waiting_other_player')}
+                        </div>
+                      )}
+                      {match.is_admin_view ? (
+                        // Admin view: only discard
+                        <div className="space-y-1">
+                          <div className="text-xs text-orange-700 font-semibold">{t('replay_admin_view')}</div>
+                          <button
+                            className="px-3 py-1 rounded text-xs font-semibold bg-red-600 text-white hover:bg-red-700 transition"
+                            onClick={() => handleAdminDiscardReplay(match.id)}
+                            title={t('replay_discard')}
+                          >
+                            {t('replay_discard')}
+                          </button>
+                        </div>
+                      ) : (
+                        // Player view: I won / I lost / Discard
+                        <>
+                          <div className="text-xs text-yellow-700 mb-2 font-semibold">
+                            {t('replay_who_won')}
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                                showConfirmationModal
+                                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                  : 'bg-green-500 text-white hover:bg-green-600'
+                              }`}
+                              onClick={() => handleReportConfidence1Replay(match, 'I won')}
+                              disabled={showConfirmationModal}
+                              title={`${t('replay_i_won')}: ${player1Name} beats ${player2Name}`}
+                            >
+                              {t('replay_i_won')}
+                            </button>
+                            <button
+                              className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                                showConfirmationModal
+                                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                  : 'bg-red-500 text-white hover:bg-red-600'
+                              }`}
+                              onClick={() => handleReportConfidence1Replay(match, 'I lost')}
+                              disabled={showConfirmationModal}
+                              title={`${t('replay_i_lost')}: ${player2Name} beats ${player1Name}`}
+                            >
+                              {t('replay_i_lost')}
+                            </button>
+                            <button
+                              className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                                showConfirmationModal
+                                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                  : 'bg-gray-500 text-white hover:bg-gray-600'
+                              }`}
+                              onClick={() => handleReportConfidence1Replay(match, 'cancel')}
+                              disabled={showConfirmationModal}
+                              title={t('button_cancel_replay')}
+                            >
+                              🚫 {t('button_cancel_replay')}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      <div className="mt-2 pt-2 border-t border-yellow-200">
+                        <a
+                          href={match.replay_url || match.replay_file_path || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 transition"
+                          title={t('replay_download')}
+                        >
+                          {t('replay_download')}
+                        </a>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              );
+            }
+
+            // Regular match rendering
+            return (
+              <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50">
+              <td className="px-4 py-3 text-sm text-gray-700">{new Date(match.created_at).toLocaleDateString()}</td>
+
+              <td className="px-4 py-3 text-sm">
+                <div className="space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 min-w-0">
+                      <PlayerLink nickname={match.winner_nickname} userId={match.winner_id} />
+                    </div>
+                    <StarDisplay rating={match.winner_rating} size="sm" />
+                    <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded font-semibold">{match.winner_faction}</span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-gray-600">
+                    <div>
+                      <span className="font-semibold text-gray-700">ELO: </span>
+                      <span>{match.winner_elo_before || 'N/A'}</span>
+                      <span className={`ml-1 font-semibold ${winnerEloChange(match) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ({winnerEloChange(match) >= 0 ? '+' : ''}{winnerEloChange(match)})
+                      </span>
+                    </div>
+                    {match.winner_ranking_pos && (
+                      <div>
+                        <span className="font-semibold text-gray-700">Rank: </span>
+                        <span>{match.winner_ranking_pos}</span>
+                        <span className={`ml-1 font-semibold ${(match.winner_ranking_change || 0) > 0 ? 'text-green-600' : (match.winner_ranking_change || 0) < 0 ? 'text-red-600' : ''}`}>
+                          {(match.winner_ranking_change || 0) > 0 ? '↑' : (match.winner_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.winner_ranking_change || 0)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {match.winner_comments && (
+                    <div className="text-xs text-gray-500 italic max-w-xs truncate" title={match.winner_comments}>{match.winner_comments}</div>
+                  )}
+                </div>
+              </td>
+
+              <td className="px-4 py-3 text-sm">
+                <div className="space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 min-w-0">
+                      <PlayerLink nickname={match.loser_nickname} userId={match.loser_id} />
+                    </div>
+                    <StarDisplay rating={match.loser_rating} size="sm" />
+                    <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded font-semibold">{match.loser_faction}</span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-gray-600">
+                    <div>
+                      <span className="font-semibold text-gray-700">ELO: </span>
+                      <span>{match.loser_elo_before || 'N/A'}</span>
+                      <span className={`ml-1 font-semibold ${loserEloChange(match) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ({loserEloChange(match) >= 0 ? '+' : ''}{loserEloChange(match)})
+                      </span>
+                    </div>
+                    {match.loser_ranking_pos && (
+                      <div>
+                        <span className="font-semibold text-gray-700">Rank: </span>
+                        <span>{match.loser_ranking_pos}</span>
+                        <span className={`ml-1 font-semibold ${(match.loser_ranking_change || 0) > 0 ? 'text-green-600' : (match.loser_ranking_change || 0) < 0 ? 'text-red-600' : ''}`}>
+                          {(match.loser_ranking_change || 0) > 0 ? '↑' : (match.loser_ranking_change || 0) < 0 ? '↓' : ''}{Math.abs(match.loser_ranking_change || 0)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {match.loser_comments && (
+                    <div className="text-xs text-gray-500 italic max-w-xs truncate" title={match.loser_comments}>{match.loser_comments}</div>
+                  )}
+                </div>
+              </td>
+
+              <td className="px-4 py-3 text-sm text-gray-700">{match.map}</td>
+
+              <td className="px-4 py-3 text-sm">
+                <div className="space-y-2">
+                  <div>
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                      match.status === 'confirmed' ? 'bg-green-100 text-green-700' :
+                      match.status === 'reported' ? 'bg-orange-100 text-orange-700' :
+                      match.status === 'disputed' ? 'bg-red-100 text-red-700' :
+                      match.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {match.status === 'confirmed' && t('match_status_confirmed')}
+                      {match.status === 'reported' && t('match_status_reported')}
+                      {match.status === 'unconfirmed' && t('match_status_unconfirmed')}
+                      {match.status === 'disputed' && t('match_status_disputed')}
+                      {match.status === 'cancelled' && t('match_status_cancelled')}
+                      {!match.status && t('match_status_unconfirmed')}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    {isAuthenticated && (match.status === 'reported' ? (currentPlayerId === match.loser_id || currentPlayerId === match.winner_id) : (currentPlayerId === match.loser_id)) && (match.status === 'unconfirmed' || !match.status || match.status === 'reported') && (
+                      <button
+                        className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition"
+                        onClick={() => onOpenConfirmation && onOpenConfirmation(match)}
+                        title={currentPlayerId === match.winner_id && match.status === 'reported' ? t('match_inform') : t('report_match_link')}
+                      >
+                        {currentPlayerId === match.winner_id && match.status === 'reported' ? t('match_inform') : t('report_match_link')}
+                      </button>
+                    )}
+                    <button
+                      className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition"
+                      onClick={() => {
+                        if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
+                          console.log('Details button clicked for match:', match);
+                          console.log('onViewDetails prop exists:', !!onViewDetails);
+                        }
+                        if (onViewDetails) {
+                          onViewDetails(match);
+                        }
+                      }}
+                      title={t('view_match_details')}
+                    >
+                      {t('details_btn')}
+                    </button>
+                    {match.replay_file_path ? (
+                      <a
+                        href={match.replay_url || match.replay_file_path}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition"
+                        onClick={() => handleDownloadReplay(match.id, match.replay_file_path)}
+                        title={`${t('downloads')}: ${match.replay_downloads || 0}`}
+                      >
+                        ⬇️ {match.replay_downloads || 0}
+                      </a>
+                    ) : (
+                      <span className="px-2 py-1 text-xs text-gray-500">{t('no_replay')}</span>
+                    )}
+                  </div>
+                </div>
+              </td>
+            </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* Replay Confirmation Modal */}
+      {selectedReplay && (
+        <ReplayConfirmationModal
+          isOpen={showConfirmationModal}
+          replayId={selectedReplay.id}
+          player1_nickname={selectedReplay.winner_nickname}
+          player2_nickname={selectedReplay.loser_nickname}
+          currentUserNickname={currentUserNickname}
+          your_choice={modalChoice}
+          map={selectedReplay.map}
+          player1_faction={selectedReplay.winner_faction}
+          player2_faction={selectedReplay.loser_faction}
+          onClose={() => {
+            setShowConfirmationModal(false);
+            setSelectedReplay(null);
+          }}
+          onSuccess={handleReplayReportSuccess}
+        />
+      )}
+    </div>
+  );
+};
+
+export default MatchesTable;

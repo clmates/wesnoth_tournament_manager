@@ -1,0 +1,155 @@
+import { query } from '../config/database.js';
+
+/**
+ * Calculate and update player of the month
+ * Should run once at the beginning of each month (01:30 on the 1st)
+ * Calculates for the PREVIOUS month (e.g., on Feb 1st, calculates for January)
+ */
+export const calculatePlayerOfMonth = async (): Promise<void> => {
+  try {
+    console.log('🎯 Calculating player of the month for previous month...');
+
+    const now = new Date();
+    // Get the first day of the previous month
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 1); // First day of current month
+    // Convert to YYYY-MM-DD format for consistent storage
+    const monthYearStr = prevMonthStart.toISOString().split('T')[0];
+
+    // Calculate the player who gained the most ELO in the previous month
+    console.log(`📊 Calculating for period: ${prevMonthStart.toISOString()} to ${prevMonthEnd.toISOString()}`);
+    
+    // First, check if there are any matches in the previous month
+    const matchCheckResult = await query(
+      `SELECT COUNT(*) as match_count FROM matches 
+       WHERE created_at >= ? AND created_at < ? AND status != 'cancelled'`,
+      [prevMonthStart, prevMonthEnd]
+    );
+    console.log(`📊 Non-cancelled matches in previous month: ${matchCheckResult.rows[0]?.match_count || 0}`);
+
+    // Check all players
+    const allPlayersResult = await query(
+      `SELECT COUNT(*) as player_count FROM users_extension`
+    );
+    console.log(`📊 Total players: ${allPlayersResult.rows[0]?.player_count || 0}`);
+
+    const playerOfMonthResult = await query(
+      `WITH elo_gains AS (
+        SELECT 
+          u.id,
+          u.nickname,
+          u.elo_rating,
+          COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN m.winner_elo_after - m.winner_elo_before 
+                           WHEN m.loser_id = u.id THEN m.loser_elo_after - m.loser_elo_before 
+                           ELSE 0 END), 0) as elo_change,
+          COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN m.winner_elo_after - m.winner_elo_before 
+                           WHEN m.loser_id = u.id THEN m.loser_elo_after - m.loser_elo_before 
+                           ELSE 0 END), 0) as elo_gained
+        FROM users_extension u
+        LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) 
+          AND m.status != 'cancelled'
+          AND m.created_at >= ?
+          AND m.created_at < ?
+        GROUP BY u.id, u.nickname, u.elo_rating
+        ORDER BY elo_change DESC
+        LIMIT 1
+      )
+      SELECT * FROM elo_gains`,
+      [prevMonthStart, prevMonthEnd]
+    );
+
+    if (playerOfMonthResult.rows.length === 0) {
+      console.log('⚠️  No eligible players found for this month');
+      // Debug: check if there are any results without the ORDER BY LIMIT
+      const debugResult = await query(
+        `WITH elo_gains AS (
+          SELECT 
+            u.id,
+            u.nickname,
+            u.elo_rating,
+            COUNT(m.id) as match_count,
+            COALESCE(SUM(CASE WHEN m.winner_id = u.id THEN m.winner_elo_after - m.winner_elo_before 
+                             WHEN m.loser_id = u.id THEN m.loser_elo_after - m.loser_elo_before 
+                             ELSE 0 END), 0) as elo_gained
+          FROM users_extension u
+          LEFT JOIN matches m ON (m.winner_id = u.id OR m.loser_id = u.id) 
+            AND m.status != 'cancelled'
+            AND m.created_at >= ?
+            AND m.created_at < ?
+          GROUP BY u.id, u.nickname, u.elo_rating
+        )
+        SELECT * FROM elo_gains WHERE match_count > 0 ORDER BY elo_gained DESC`,
+        [prevMonthStart, prevMonthEnd]
+      );
+      console.log(`📊 Players with matches in period: ${debugResult.rows.length}`);
+      debugResult.rows.forEach((row: any) => {
+        console.log(`  - ${row.nickname}: ${row.match_count} matches, +${row.elo_gained} ELO`);
+      });
+      return;
+    }
+
+    const player = playerOfMonthResult.rows[0];
+    const playerId = player.id;
+
+    // Get current ranking position
+    const rankingResult = await query(
+      `SELECT COUNT(*) + 1 as ranking_position
+       FROM users_extension u2
+       WHERE (u2.elo_rating > ? OR (u2.elo_rating = ? AND u2.id < ?))`,
+      [player.elo_rating, player.elo_rating, playerId]
+    );
+
+    const rankingPosition = rankingResult.rows[0]?.ranking_position || 1;
+
+    // Get ranking position at start of previous month to calculate positions gained
+    const startOfMonthEloResult = await query(
+      `SELECT CASE 
+         WHEN m.winner_id = ? THEN m.winner_elo_before
+         ELSE m.loser_elo_before
+       END as elo_at_month_start
+       FROM matches m
+       WHERE (m.winner_id = ? OR m.loser_id = ?)
+         AND m.status != 'cancelled'
+         AND m.created_at >= ?
+         AND m.created_at < ?
+       ORDER BY m.created_at ASC
+       LIMIT 1`,
+      [playerId, playerId, playerId, prevMonthStart, prevMonthEnd]
+    );
+
+    let positionsGained = 0;
+    if (startOfMonthEloResult.rows.length > 0) {
+      const eloAtMonthStart = startOfMonthEloResult.rows[0].elo_at_month_start;
+      
+      // Count ranking at start of month
+      const rankAtStartResult = await query(
+        `SELECT COUNT(*) + 1 as rank_at_start
+         FROM users_extension u2
+         WHERE (u2.elo_rating > ? OR (u2.elo_rating = ? AND u2.id < ?))`,
+        [eloAtMonthStart, eloAtMonthStart, playerId]
+      );
+
+      const rankAtStart = rankAtStartResult.rows[0]?.rank_at_start || 1;
+      positionsGained = rankAtStart - rankingPosition;
+    }
+
+    // Delete previous month's record and insert new one
+    // Store the month_year as the first day of the PREVIOUS month in YYYY-MM-DD format
+    
+    await query(
+      `DELETE FROM player_of_month WHERE month_year = ?`,
+      [monthYearStr]
+    );
+
+    await query(
+      `INSERT INTO player_of_month (player_id, nickname, elo_rating, ranking_position, elo_gained, positions_gained, month_year)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [playerId, player.nickname, player.elo_rating, rankingPosition, Math.round(player.elo_gained), positionsGained, monthYearStr]
+    );
+
+    console.log(`✅ Player of month calculated: ${player.nickname} (ELO gained: +${Math.round(player.elo_gained)}, Positions: ${positionsGained >= 0 ? '+' : ''}${positionsGained})`);
+  } catch (error) {
+    console.error('❌ Error calculating player of month:', error);
+    throw error;
+  }
+};
