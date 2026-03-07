@@ -393,6 +393,7 @@ export async function createBalanceEventBeforeSnapshot(
         map_id,
         faction_id,
         opponent_faction_id,
+        faction_side,
         total_games,
         wins,
         losses,
@@ -407,6 +408,7 @@ export async function createBalanceEventBeforeSnapshot(
         fms.map_id,
         fms.faction_id,
         fms.opponent_faction_id,
+        fms.faction_side,
         fms.total_games,
         fms.wins,
         fms.losses,
@@ -474,6 +476,7 @@ export async function createFactionMapStatisticsSnapshot(
         map_id,
         faction_id,
         opponent_faction_id,
+        faction_side,
         total_games,
         wins,
         losses,
@@ -488,6 +491,7 @@ export async function createFactionMapStatisticsSnapshot(
         fms.map_id,
         fms.faction_id,
         fms.opponent_faction_id,
+        fms.faction_side,
         fms.total_games,
         fms.wins,
         fms.losses,
@@ -923,10 +927,9 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
     };
 
     for (const row of matchesResult.rows) {
-      // If winner_side is unknown (NULL), use faction_side=0 for both perspectives so
-      // these matches don't pollute the per-side win-rate columns (side 1 / side 2).
-      // They still contribute to global totals (wins/losses/total_games).
-      const winnerSide: number = row.winner_side ?? 0;
+      // If winner_side is unknown (NULL), assume side 1 for the winner (convention for
+      // historical matches where side was not recorded).
+      const winnerSide: number = row.winner_side ?? 1;
       const loserSide: number  = winnerSide === 1 ? 2 : winnerSide === 2 ? 1 : 0;
 
       // Winner perspective: faction that won, playing as winnerSide
@@ -1295,6 +1298,7 @@ export async function createBalanceEventAfterSnapshot(
         map_id,
         faction_id,
         opponent_faction_id,
+        faction_side,
         total_games,
         wins,
         losses,
@@ -1309,6 +1313,7 @@ export async function createBalanceEventAfterSnapshot(
         fms.map_id,
         fms.faction_id,
         fms.opponent_faction_id,
+        fms.faction_side,
         fms.total_games,
         fms.wins,
         fms.losses,
