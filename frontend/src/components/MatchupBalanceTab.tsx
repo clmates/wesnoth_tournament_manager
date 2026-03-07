@@ -70,15 +70,19 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
       const ordered = [f1, f2].sort();
       const isOriginalOrder = f1 === ordered[0];
       
-      const f1Wins = isOriginalOrder ? item.wins : item.losses;
-      const f2Wins = isOriginalOrder ? item.losses : item.wins;
+      // parseInt/parseFloat because SUM() returns strings from MariaDB
+      const itemWins = parseInt(String(item.wins), 10) || 0;
+      const itemLosses = parseInt(String(item.losses), 10) || 0;
+      const itemTotal = parseInt(String(item.total_games), 10) || 0;
+
+      const f1Wins = isOriginalOrder ? itemWins : itemLosses;
+      const f2Wins = isOriginalOrder ? itemLosses : itemWins;
       
       const mapKey = `${item.map_id}|${ordered[0]}|${ordered[1]}`;
       
       const existing = matchupMap.get(mapKey);
       
       if (!existing) {
-        // First occurrence - create entry
         matchupMap.set(mapKey, {
           map_id: item.map_id || '',
           map_name: item.map_name || '',
@@ -88,13 +92,12 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
           f2_name: (isOriginalOrder ? item.opponent_faction_name : item.faction_name) || '',
           f1_wins: f1Wins,
           f2_wins: f2Wins,
-          total_games: item.total_games,
+          total_games: itemTotal,
         });
       } else {
-        // Aggregate data from the duplicate entry (same matchup, opposite faction order)
         existing.f1_wins += f1Wins;
         existing.f2_wins += f2Wins;
-        existing.total_games += item.total_games;
+        existing.total_games += itemTotal;
       }
     });
     
