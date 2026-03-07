@@ -29,6 +29,10 @@ interface ComparisonData {
   total_games: number;
   wins: number;
   losses: number;
+  side1_games?: number;
+  side1_wins?: number;
+  side2_games?: number;
+  side2_wins?: number;
 }
 
 interface FactionBalanceTabProps {
@@ -108,50 +112,57 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
   };
 
   const aggregateFactionData = (data: ComparisonData[]) => {
-    // Group by faction to calculate maps_played and aggregate stats
-    // Note: each match appears twice in data (once for each faction), so we only process faction_id
     const factionMap = new Map<string, { 
       faction_id: string;
       faction_name: string;
       total_games: number;
       wins: number;
       losses: number;
+      side1_games: number;
+      side1_wins: number;
+      side2_games: number;
+      side2_wins: number;
       maps: Set<string>;
     }>();
     
     data.forEach(item => {
       const key = item.faction_id || '';
-      const existing = factionMap.get(key);
-      
-      if (!existing) {
+      if (!factionMap.has(key)) {
         factionMap.set(key, {
           faction_id: item.faction_id || '',
           faction_name: item.faction_name || '',
-          total_games: 0,
-          wins: 0,
-          losses: 0,
+          total_games: 0, wins: 0, losses: 0,
+          side1_games: 0, side1_wins: 0,
+          side2_games: 0, side2_wins: 0,
           maps: new Set<string>(),
         });
       }
-      
       const stats = factionMap.get(key)!;
       stats.total_games += item.total_games;
       stats.wins += item.wins;
       stats.losses += item.losses;
-      if (item.map_id) {
-        stats.maps.add(item.map_id);
-      }
+      stats.side1_games += item.side1_games ?? 0;
+      stats.side1_wins  += item.side1_wins  ?? 0;
+      stats.side2_games += item.side2_games ?? 0;
+      stats.side2_wins  += item.side2_wins  ?? 0;
+      if (item.map_id) stats.maps.add(item.map_id);
     });
 
     return Array.from(factionMap.values())
-      .filter(stat => stat.total_games >= minGamesThreshold) // Apply minimum games filter
+      .filter(stat => stat.total_games >= minGamesThreshold)
       .map(stat => ({
         faction_id: stat.faction_id,
         faction_name: stat.faction_name,
         total_games: stat.total_games,
+        wins: stat.wins,
+        losses: stat.losses,
         winrate: stat.total_games > 0 ? (stat.wins / stat.total_games) * 100 : 0,
+        side1_games: stat.side1_games,
+        side1_winrate: stat.side1_games > 0 ? (stat.side1_wins / stat.side1_games) * 100 : null,
+        side2_games: stat.side2_games,
+        side2_winrate: stat.side2_games > 0 ? (stat.side2_wins / stat.side2_games) * 100 : null,
         maps_played: stat.maps.size,
-      })).sort((a, b) => b.winrate - a.winrate); // Match global sort: highest winrate first
+      })).sort((a, b) => b.winrate - a.winrate);
   };
 
   if (loading) return <div className="p-8 text-center text-gray-600 bg-gray-50 rounded-lg">{t('loading')}</div>;
@@ -194,95 +205,108 @@ const FactionBalanceTab: React.FC<FactionBalanceTabProps> = ({ beforeData = null
       <div className="bg-white rounded-lg p-6 shadow-md">
         <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('faction_balance_comparison') || 'Faction Balance - Before & After'}</h3>
         <p className="text-blue-600 text-sm mb-6 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
-          {t('before_event') || 'Before'}: {beforeData ? beforeData.length : 0} {t('matches_evaluated') || 'matches'} | 
-          {t('after_event') || 'After'}: {afterData ? afterData.length : 0} {t('matches_evaluated') || 'matches'}
+          {t('before_event') || 'Before'}: {beforeAgg.reduce((s, f) => s + f.total_games, 0)} {t('matches_evaluated') || 'matches'} | 
+          {t('after_event') || 'After'}: {afterAgg.reduce((s, f) => s + f.total_games, 0)} {t('matches_evaluated') || 'matches'}
         </p>
         <div className="overflow-x-auto border border-gray-200 rounded-lg">
           <table className="w-full border-collapse bg-white">
             <thead className="bg-gray-100 border-b-2 border-gray-300">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction') || 'Faction'}</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('wins') || 'Wins'}</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('losses') || 'Losses'}</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('winrate') || 'Win Rate'}</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('maps_played') || 'Maps'}</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('balance_indicator') || 'Balance'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-600" colSpan={4}>{t('before_event') || 'Before'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-800" colSpan={4}>{t('after_event') || 'After'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('change') || 'Change'}</th>
+              </tr>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-2 text-left text-xs text-gray-500"></th>
+                <th className="px-3 py-2 text-center text-xs text-gray-500">{t('total_games') || 'G'}</th>
+                <th className="px-3 py-2 text-center text-xs text-gray-500">{t('winrate') || 'WR%'}</th>
+                <th className="px-3 py-2 text-center text-xs text-gray-500">{t('side1_winrate') || 'S1'}</th>
+                <th className="px-3 py-2 text-center text-xs text-gray-500">{t('side2_winrate') || 'S2'}</th>
+                <th className="px-3 py-2 text-center text-xs text-gray-500">{t('total_games') || 'G'}</th>
+                <th className="px-3 py-2 text-center text-xs text-gray-500">{t('winrate') || 'WR%'}</th>
+                <th className="px-3 py-2 text-center text-xs text-gray-500">{t('side1_winrate') || 'S1'}</th>
+                <th className="px-3 py-2 text-center text-xs text-gray-500">{t('side2_winrate') || 'S2'}</th>
+                <th className="px-3 py-2 text-center text-xs text-gray-500">Δ WR%</th>
               </tr>
             </thead>
             <tbody>
-              {combined.map((item) => (
-                <tr key={item.faction_id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-semibold text-gray-800">
-                    <div className="flex flex-col gap-1">
-                      <span>{item.faction_name}</span>
-                      {item.before && <span className="text-xs text-gray-500">(before)</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-2">
-                      <span className="font-semibold text-gray-800">{item.after?.total_games || '-'}</span>
-                      {item.before && <span className="text-xs text-gray-600">{item.before.total_games}</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-2">
-                      <span className="font-semibold text-green-600">{item.after?.wins || '-'}</span>
-                      {item.before && <span className="text-xs text-green-600">{item.before.wins}</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-2">
-                      <span className="font-semibold text-red-600">{item.after?.losses || '-'}</span>
-                      {item.before && <span className="text-xs text-red-600">{item.before.losses}</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-2">
-                      <span className={`px-3 py-1 rounded-lg font-semibold inline-block w-fit ${
-                        item.after && item.after.winrate > 55 ? 'bg-green-100 text-green-700' : 
-                        item.after && item.after.winrate < 45 ? 'bg-red-100 text-red-700' : 
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {item.after?.winrate.toFixed(1) || '-'}%
-                      </span>
-                      {item.before && (
-                        <span className={`px-3 py-1 rounded-lg font-semibold inline-block w-fit text-xs ${
-                          item.before.winrate > 55 ? 'bg-green-100 text-green-700' : 
-                          item.before.winrate < 45 ? 'bg-red-100 text-red-700' : 
+              {combined.map((item) => {
+                const wrBefore = item.before?.winrate ?? null;
+                const wrAfter  = item.after?.winrate  ?? null;
+                const wrDelta  = wrBefore != null && wrAfter != null ? wrAfter - wrBefore : null;
+                return (
+                  <tr key={item.faction_id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-800">{item.faction_name}</td>
+                    {/* Before */}
+                    <td className="px-3 py-3 text-center text-gray-500 text-sm">{item.before?.total_games ?? '—'}</td>
+                    <td className="px-3 py-3 text-center">
+                      {wrBefore != null ? (
+                        <span className={`px-2 py-0.5 rounded text-sm font-semibold ${
+                          wrBefore > 55 ? 'bg-green-100 text-green-700' :
+                          wrBefore < 45 ? 'bg-red-100 text-red-700' :
                           'bg-blue-100 text-blue-700'
-                        }`}>
-                          {item.before.winrate.toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-2">
-                      <span className="font-semibold text-gray-800">{item.after?.maps_played || '-'}</span>
-                      {item.before && <span className="text-xs text-gray-600">{item.before.maps_played}</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col gap-2">
-                      <div className="w-24 h-6 bg-gray-200 rounded-lg overflow-hidden border border-gray-300">
-                        <div 
-                          className="h-full bg-blue-500 transition-all duration-300"
-                          style={{ width: `${item.after?.winrate || 50}%` }}
-                        ></div>
-                      </div>
-                      {item.before && (
-                        <div className="w-24 h-6 bg-gray-200 rounded-lg overflow-hidden border border-gray-300">
-                          <div 
-                            className="h-full bg-gray-400 transition-all duration-300"
-                            style={{ width: `${item.before.winrate}%` }}
-                          ></div>
+                        }`}>{wrBefore.toFixed(1)}%</span>
+                      ) : <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      {item.before?.side1_winrate != null ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${item.before.side1_winrate > 55 ? 'bg-green-100 text-green-700' : item.before.side1_winrate < 45 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{item.before.side1_winrate.toFixed(1)}%</span>
+                          <span className="text-xs text-gray-400">{item.before.side1_games}g</span>
                         </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      ) : <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      {item.before?.side2_winrate != null ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${item.before.side2_winrate > 55 ? 'bg-green-100 text-green-700' : item.before.side2_winrate < 45 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{item.before.side2_winrate.toFixed(1)}%</span>
+                          <span className="text-xs text-gray-400">{item.before.side2_games}g</span>
+                        </div>
+                      ) : <span className="text-gray-400">—</span>}
+                    </td>
+                    {/* After */}
+                    <td className="px-3 py-3 text-center text-gray-700 text-sm font-semibold">{item.after?.total_games ?? '—'}</td>
+                    <td className="px-3 py-3 text-center">
+                      {wrAfter != null ? (
+                        <span className={`px-2 py-0.5 rounded text-sm font-semibold ${
+                          wrAfter > 55 ? 'bg-green-100 text-green-700' :
+                          wrAfter < 45 ? 'bg-red-100 text-red-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>{wrAfter.toFixed(1)}%</span>
+                      ) : <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      {item.after?.side1_winrate != null ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${item.after.side1_winrate > 55 ? 'bg-green-100 text-green-700' : item.after.side1_winrate < 45 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{item.after.side1_winrate.toFixed(1)}%</span>
+                          <span className="text-xs text-gray-400">{item.after.side1_games}g</span>
+                        </div>
+                      ) : <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      {item.after?.side2_winrate != null ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${item.after.side2_winrate > 55 ? 'bg-green-100 text-green-700' : item.after.side2_winrate < 45 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{item.after.side2_winrate.toFixed(1)}%</span>
+                          <span className="text-xs text-gray-400">{item.after.side2_games}g</span>
+                        </div>
+                      ) : <span className="text-gray-400">—</span>}
+                    </td>
+                    {/* Delta */}
+                    <td className="px-3 py-3 text-center">
+                      {wrDelta != null ? (
+                        <span className={`px-2 py-0.5 rounded font-semibold text-sm ${
+                          wrDelta > 2 ? 'bg-green-100 text-green-700' :
+                          wrDelta < -2 ? 'bg-red-100 text-red-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {wrDelta > 0 ? '+' : ''}{wrDelta.toFixed(1)}%
+                        </span>
+                      ) : <span className="text-gray-400">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -45,6 +45,10 @@ interface AggregatedData {
   total_games: number;
   wins: number;
   losses: number;
+  side1_games?: number;
+  side1_wins?: number;
+  side2_games?: number;
+  side2_wins?: number;
 }
 
 const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, onEventChange, onComparisonDataChange }) => {
@@ -91,12 +95,11 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
       const data = await statisticsService.getEventImpact(id);
       console.log(`[BalanceEventImpactPanel] Received ${data.length} rows from backend`);
 
-      // The backend returns pre-compared rows with winrate_before/after and games_before/after.
-      // Build beforeData and afterData directly from those fields.
       const beforeAgg: AggregatedData[] = data.map((item: any) => {
-        const gamesBefore = typeof item.games_before === 'string' ? parseInt(item.games_before) : (item.games_before || 0);
+        const gamesBefore   = typeof item.games_before   === 'string' ? parseInt(item.games_before)   : (item.games_before   || 0);
+        const winsBefore    = typeof item.wins_before    === 'string' ? parseInt(item.wins_before)    : (item.wins_before    || 0);
+        const lossesBefore  = typeof item.losses_before  === 'string' ? parseInt(item.losses_before)  : (item.losses_before  || 0);
         const winrateBefore = typeof item.winrate_before === 'string' ? parseFloat(item.winrate_before) : (item.winrate_before || 0);
-        const winsBefore = Math.round((winrateBefore / 100) * gamesBefore);
         return {
           map_id: item.map_id,
           map_name: item.map_name,
@@ -107,14 +110,19 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
           winrate: winrateBefore,
           total_games: gamesBefore,
           wins: winsBefore,
-          losses: gamesBefore - winsBefore,
+          losses: lossesBefore,
+          side1_games: item.side1_games_before || 0,
+          side1_wins:  item.side1_wins_before  || 0,
+          side2_games: item.side2_games_before || 0,
+          side2_wins:  item.side2_wins_before  || 0,
         };
       }).filter((d: AggregatedData) => d.total_games > 0);
 
       const afterAgg: AggregatedData[] = data.map((item: any) => {
-        const gamesAfter = typeof item.games_after === 'string' ? parseInt(item.games_after) : (item.games_after || 0);
+        const gamesAfter   = typeof item.games_after   === 'string' ? parseInt(item.games_after)   : (item.games_after   || 0);
+        const winsAfter    = typeof item.wins_after    === 'string' ? parseInt(item.wins_after)    : (item.wins_after    || 0);
+        const lossesAfter  = typeof item.losses_after  === 'string' ? parseInt(item.losses_after)  : (item.losses_after  || 0);
         const winrateAfter = typeof item.winrate_after === 'string' ? parseFloat(item.winrate_after) : (item.winrate_after || 0);
-        const winsAfter = Math.round((winrateAfter / 100) * gamesAfter);
         return {
           map_id: item.map_id,
           map_name: item.map_name,
@@ -125,7 +133,11 @@ const BalanceEventImpactPanel: React.FC<BalanceEventImpactProps> = ({ eventId, o
           winrate: winrateAfter,
           total_games: gamesAfter,
           wins: winsAfter,
-          losses: gamesAfter - winsAfter,
+          losses: lossesAfter,
+          side1_games: item.side1_games_after || 0,
+          side1_wins:  item.side1_wins_after  || 0,
+          side2_games: item.side2_games_after || 0,
+          side2_wins:  item.side2_wins_after  || 0,
         };
       }).filter((d: AggregatedData) => d.total_games > 0);
 

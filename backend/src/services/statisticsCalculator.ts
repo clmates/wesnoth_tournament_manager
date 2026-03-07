@@ -1350,14 +1350,14 @@ export async function createBalanceEventAfterSnapshot(
 }
 
 /**
- * Get balance event forward impact (looking ahead from patch date)
+ * Get balance event impact computed directly from matches.
+ * Uses event_date as the dividing line: matches before vs matches after.
+ * Each match is processed twice (winner + loser perspective) like recalculateFactionMapStatistics.
  */
 export async function getBalanceEventForwardImpact(
-  eventId: string,
-  daysAfter: number = 60
+  eventId: string
 ): Promise<BalanceEventImpact[]> {
   try {
-    // Get event details
     const eventResult = await query(
       'SELECT event_date FROM balance_events WHERE id = ?',
       [eventId]
@@ -1367,37 +1367,124 @@ export async function getBalanceEventForwardImpact(
       return [];
     }
 
-    const eventDate = new Date(eventResult.rows[0].event_date);
-    const afterDate = new Date(eventDate);
-    afterDate.setDate(afterDate.getDate() + daysAfter);
+    const eventDate: string = new Date(eventResult.rows[0].event_date).toISOString().split('T')[0];
 
-    const result = await query(
+    const matchesResult = await query(
       `SELECT
-        COALESCE(gm.id, '') as map_id,
-        COALESCE(gm.name, '') as map_name,
-        COALESCE(f1.id, '') as faction_id,
-        COALESCE(f1.name, '') as faction_name,
-        COALESCE(f2.id, '') as opponent_faction_id,
-        COALESCE(f2.name, '') as opponent_faction_name,
-        0 as winrate_before,
-        COALESCE(AVG(fmsh.winrate), 0) as winrate_after,
-        COALESCE(AVG(fmsh.winrate), 0) as winrate_change,
-        0 as sample_size_before,
-        COUNT(DISTINCT fmsh.map_id) as sample_size_after,
-        0 as games_before,
-        COALESCE(SUM(fmsh.total_games), 0) as games_after
-      FROM faction_map_statistics_history fmsh
-      LEFT JOIN game_maps gm ON gm.id = fmsh.map_id
-      LEFT JOIN factions f1 ON f1.id = fmsh.faction_id
-      LEFT JOIN factions f2 ON f2.id = fmsh.opponent_faction_id
-      WHERE fmsh.snapshot_date BETWEEN ? AND ?
-      GROUP BY gm.id, gm.name, f1.id, f1.name, f2.id, f2.name`,
-      [eventDate.toISOString().split('T')[0], afterDate.toISOString().split('T')[0]]
+         gm.id  AS map_id,
+         gm.name AS map_name,
+         f_w.id AS winner_faction_id,
+         f_w.name AS winner_faction_name,
+         f_l.id AS loser_faction_id,
+         f_l.name AS loser_faction_name,
+         m.winner_side,
+         DATE(m.created_at) AS match_date
+       FROM matches m
+       JOIN game_maps gm ON gm.name = m.map
+       JOIN factions f_w ON f_w.name = m.winner_faction
+       JOIN factions f_l ON f_l.name = m.loser_faction
+       WHERE m.status != 'cancelled'`
     );
 
-    return result.rows as BalanceEventImpact[];
+    type Entry = {
+      map_id: string; map_name: string;
+      faction_id: string; faction_name: string;
+      opponent_faction_id: string; opponent_faction_name: string;
+      games_before: number; wins_before: number; losses_before: number;
+      s1_games_before: number; s1_wins_before: number;
+      s2_games_before: number; s2_wins_before: number;
+      games_after: number; wins_after: number; losses_after: number;
+      s1_games_after: number; s1_wins_after: number;
+      s2_games_after: number; s2_wins_after: number;
+    };
+
+    const aggregated = new Map<string, Entry>();
+
+    const addEntry = (
+      map_id: string, map_name: string,
+      faction_id: string, faction_name: string,
+      opponent_faction_id: string, opponent_faction_name: string,
+      matchDate: string, isWin: boolean, factionSide: number
+    ) => {
+      const key = `${map_id}|${faction_id}|${opponent_faction_id}`;
+      let entry = aggregated.get(key);
+      if (!entry) {
+        entry = {
+          map_id, map_name, faction_id, faction_name,
+          opponent_faction_id, opponent_faction_name,
+          games_before: 0, wins_before: 0, losses_before: 0,
+          s1_games_before: 0, s1_wins_before: 0,
+          s2_games_before: 0, s2_wins_before: 0,
+          games_after: 0, wins_after: 0, losses_after: 0,
+          s1_games_after: 0, s1_wins_after: 0,
+          s2_games_after: 0, s2_wins_after: 0,
+        };
+        aggregated.set(key, entry);
+      }
+      const isBefore = matchDate < eventDate;
+      if (isBefore) {
+        entry.games_before++;
+        if (isWin) entry.wins_before++; else entry.losses_before++;
+        if (factionSide === 1) { entry.s1_games_before++; if (isWin) entry.s1_wins_before++; }
+        if (factionSide === 2) { entry.s2_games_before++; if (isWin) entry.s2_wins_before++; }
+      } else {
+        entry.games_after++;
+        if (isWin) entry.wins_after++; else entry.losses_after++;
+        if (factionSide === 1) { entry.s1_games_after++; if (isWin) entry.s1_wins_after++; }
+        if (factionSide === 2) { entry.s2_games_after++; if (isWin) entry.s2_wins_after++; }
+      }
+    };
+
+    for (const row of matchesResult.rows) {
+      const matchDate: string = row.match_date instanceof Date
+        ? row.match_date.toISOString().split('T')[0]
+        : String(row.match_date).split('T')[0];
+      const winnerSide: number = row.winner_side ?? 1;
+      const loserSide: number  = winnerSide === 1 ? 2 : 1;
+
+      addEntry(row.map_id, row.map_name, row.winner_faction_id, row.winner_faction_name,
+               row.loser_faction_id, row.loser_faction_name, matchDate, true, winnerSide);
+      addEntry(row.map_id, row.map_name, row.loser_faction_id, row.loser_faction_name,
+               row.winner_faction_id, row.winner_faction_name, matchDate, false, loserSide);
+    }
+
+    const wr = (wins: number, games: number) =>
+      games > 0 ? Math.round((wins / games) * 10000) / 100 : null;
+
+    return Array.from(aggregated.values()).map(entry => ({
+      map_id: entry.map_id,
+      map_name: entry.map_name,
+      faction_id: entry.faction_id,
+      faction_name: entry.faction_name,
+      opponent_faction_id: entry.opponent_faction_id,
+      opponent_faction_name: entry.opponent_faction_name,
+      games_before: entry.games_before,
+      wins_before: entry.wins_before,
+      losses_before: entry.losses_before,
+      winrate_before: wr(entry.wins_before, entry.games_before) ?? 0,
+      side1_games_before: entry.s1_games_before,
+      side1_wins_before: entry.s1_wins_before,
+      side1_winrate_before: wr(entry.s1_wins_before, entry.s1_games_before),
+      side2_games_before: entry.s2_games_before,
+      side2_wins_before: entry.s2_wins_before,
+      side2_winrate_before: wr(entry.s2_wins_before, entry.s2_games_before),
+      games_after: entry.games_after,
+      wins_after: entry.wins_after,
+      losses_after: entry.losses_after,
+      winrate_after: wr(entry.wins_after, entry.games_after) ?? 0,
+      side1_games_after: entry.s1_games_after,
+      side1_wins_after: entry.s1_wins_after,
+      side1_winrate_after: wr(entry.s1_wins_after, entry.s1_games_after),
+      side2_games_after: entry.s2_games_after,
+      side2_wins_after: entry.s2_wins_after,
+      side2_winrate_after: wr(entry.s2_wins_after, entry.s2_games_after),
+      winrate_change: (entry.games_after > 0 ? (entry.wins_after / entry.games_after) * 100 : 0) -
+                      (entry.games_before > 0 ? (entry.wins_before / entry.games_before) * 100 : 0),
+      sample_size_before: entry.games_before,
+      sample_size_after: entry.games_after,
+    }));
   } catch (error) {
-    console.error('Error getting balance event forward impact:', error);
+    console.error('Error getting balance event impact from matches:', error);
     throw error;
   }
 }
