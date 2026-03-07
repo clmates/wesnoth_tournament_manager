@@ -77,7 +77,7 @@ const Statistics: React.FC = () => {
         {activeTab === 'faction' && <FactionBalanceTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
         {activeTab === 'map' && <MapBalanceTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
         {activeTab === 'matchups' && <MatchupBalanceTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
-        {activeTab === 'faction-vs-faction' && <FactionVsFactionTab />}
+        {activeTab === 'faction-vs-faction' && <FactionVsFactionTab beforeData={selectedEventId ? beforeData : null} afterData={selectedEventId ? afterData : null} />}
       </div>
     </div>
   );
