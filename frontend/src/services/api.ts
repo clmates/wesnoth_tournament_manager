@@ -4,14 +4,14 @@ import axios, { AxiosError } from 'axios';
 let API_URL: string;
 
 // Check environment variables first (from Cloudflare or deployment)
-if (import.meta.env.VITE_API_URL) {
-  // Use VITE_API_URL from environment (set in Cloudflare or deployment)
+if (import.meta.env.VITE_API_BASE_URL) {
+  // Primary: VITE_API_BASE_URL (used in .env.test and other deployments)
+  API_URL = import.meta.env.VITE_API_BASE_URL;
+} else if (import.meta.env.VITE_API_URL) {
+  // Fallback: VITE_API_URL from Cloudflare
   API_URL = import.meta.env.VITE_API_URL.endsWith('/api') 
     ? import.meta.env.VITE_API_URL 
     : `${import.meta.env.VITE_API_URL}/api`;
-} else if (import.meta.env.VITE_API_BASE_URL) {
-  // Fallback to VITE_API_BASE_URL
-  API_URL = import.meta.env.VITE_API_BASE_URL;
 } else {
   // Development/local default
   API_URL = 'http://localhost:3000/api';
