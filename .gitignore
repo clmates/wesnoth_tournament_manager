@@ -58,3 +58,6 @@ tmp/
 *.db
 *.sqlite
 *.sqlite3
+
+# Scripts / export files
+scripts/

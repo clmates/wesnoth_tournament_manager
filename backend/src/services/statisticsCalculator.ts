@@ -913,19 +913,25 @@ export async function recalculateFactionMapStatistics(): Promise<{ records_updat
       const key = `${row.map_id}|${row.faction_id}|${row.opponent_faction_id}|${row.faction_side}`;
       const existing = aggregated.get(key);
 
+      // Parse as integers — mysql2 returns SUM() as strings and COUNT() as numbers,
+      // mixing types causes JS string concatenation ("1" + 0 = "10") instead of addition.
+      const tg = parseInt(row.total_games) || 0;
+      const w  = parseInt(row.wins)        || 0;
+      const l  = parseInt(row.losses)      || 0;
+
       if (existing) {
-        existing.total_games += row.total_games;
-        existing.wins += row.wins;
-        existing.losses += row.losses;
+        existing.total_games += tg;
+        existing.wins        += w;
+        existing.losses      += l;
       } else {
         aggregated.set(key, {
           map_id: row.map_id,
           faction_id: row.faction_id,
           opponent_faction_id: row.opponent_faction_id,
           faction_side: row.faction_side,
-          total_games: row.total_games,
-          wins: row.wins,
-          losses: row.losses
+          total_games: tg,
+          wins: w,
+          losses: l
         });
       }
     }
