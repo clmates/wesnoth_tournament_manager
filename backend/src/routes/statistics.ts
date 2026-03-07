@@ -504,7 +504,7 @@ router.post('/history/events', async (req, res) => {
     await query(
       `INSERT INTO balance_events (id, event_date, patch_version, event_type, description, faction_id, map_id, notes, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [eventId, event_date, patch_version, event_type, description, faction_id || null, map_id || null, notes || null, userId]
+      [eventId, event_date, patch_version ?? null, event_type, description, faction_id ?? null, map_id ?? null, notes ?? null, userId]
     );
     const inserted = await query(
       'SELECT id, event_date, patch_version, event_type, description, created_at FROM balance_events WHERE id = ?',
@@ -539,7 +539,7 @@ router.put('/history/events/:eventId', async (req, res) => {
       `UPDATE balance_events 
        SET event_date = ?, patch_version = ?, event_type = ?, description = ?, faction_id = ?, map_id = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      [event_date, patch_version, event_type, description, faction_id || null, map_id || null, notes || null, eventId]
+      [event_date, patch_version ?? null, event_type, description, faction_id ?? null, map_id ?? null, notes ?? null, eventId]
     );
     
     if (updateResult.rowCount === 0) {
