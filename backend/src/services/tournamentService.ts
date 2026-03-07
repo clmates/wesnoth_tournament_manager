@@ -1,7 +1,7 @@
 // services/tournamentService.ts
 // Tournament service with support for multiple modes (League, Swiss, Swiss Hybrid, Enhanced Elimination)
 
-import db from '../config/database';
+import db from '../config/database.js';
 import {
   TournamentConfigUnion,
   TournamentType,
@@ -16,7 +16,7 @@ import {
   isSwissConfig,
   isLeagueConfig,
   isSwissHybridConfig,
-} from '../types/tournament';
+} from '../types/tournament.js';
 
 class TournamentService {
   /**

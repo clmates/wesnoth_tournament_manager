@@ -9,7 +9,7 @@
  * - Team member validation checks
  */
 
-import { query } from '../config/database';
+import { query } from '../config/database.js';
 import { randomUUID } from 'crypto';
 
 // ============================================================================
