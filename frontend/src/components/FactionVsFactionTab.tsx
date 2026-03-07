@@ -61,9 +61,12 @@ const FactionVsFactionTab: React.FC = () => {
           // Determine if we need to flip the order
           const isFlipped = f1 > f2;
           
-          // Parse winrates to numbers
-          const f1_wr = parseFloat(item.faction_1_winrate) || 0;
-          const f2_wr = parseFloat(item.faction_2_winrate) || 0;
+          // parseInt/parseFloat because SUM()/COUNT() from MariaDB returns strings
+          const itemTotal    = parseInt(String(item.total_games), 10)     || 0;
+          const itemF1Wins   = parseInt(String(item.faction_1_wins), 10)  || 0;
+          const itemF2Wins   = parseInt(String(item.faction_2_wins), 10)  || 0;
+          const f1_wr        = parseFloat(item.faction_1_winrate)         || 0;
+          const f2_wr        = parseFloat(item.faction_2_winrate)         || 0;
           
           const existing = factionMatchupMap.get(key);
           
@@ -71,20 +74,20 @@ const FactionVsFactionTab: React.FC = () => {
             factionMatchupMap.set(key, {
               faction_1_name: isFlipped ? f2 : f1,
               faction_2_name: isFlipped ? f1 : f2,
-              total_games: item.total_games,
-              faction_1_wins: isFlipped ? item.faction_2_wins : item.faction_1_wins,
-              faction_2_wins: isFlipped ? item.faction_1_wins : item.faction_2_wins,
+              total_games: itemTotal,
+              faction_1_wins: isFlipped ? itemF2Wins : itemF1Wins,
+              faction_2_wins: isFlipped ? itemF1Wins : itemF2Wins,
               faction_1_winrate: isFlipped ? f2_wr : f1_wr,
               faction_2_winrate: isFlipped ? f1_wr : f2_wr,
-              imbalance: Math.abs(item.faction_1_wins - item.faction_2_wins),
+              imbalance: Math.abs(itemF1Wins - itemF2Wins),
             });
           } else {
             // Aggregate
-            existing.total_games += item.total_games;
-            const f1WinsToAdd = isFlipped ? item.faction_2_wins : item.faction_1_wins;
-            const f2WinsToAdd = isFlipped ? item.faction_1_wins : item.faction_2_wins;
-            existing.faction_1_wins += f1WinsToAdd;
-            existing.faction_2_wins += f2WinsToAdd;
+            const f1WinsToAdd = isFlipped ? itemF2Wins : itemF1Wins;
+            const f2WinsToAdd = isFlipped ? itemF1Wins : itemF2Wins;
+            existing.total_games      += itemTotal;
+            existing.faction_1_wins   += f1WinsToAdd;
+            existing.faction_2_wins   += f2WinsToAdd;
             existing.imbalance = Math.abs(existing.faction_1_wins - existing.faction_2_wins);
             if (existing.total_games > 0) {
               existing.faction_1_winrate = (existing.faction_1_wins / existing.total_games) * 100;
