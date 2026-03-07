@@ -501,10 +501,15 @@ router.post('/history/events', async (req, res) => {
     }
     
     const eventId = uuidv4();
+    
+    // Debug: log all parameters to identify which is undefined
+    const params = [eventId, event_date, patch_version ?? null, event_type, description, faction_id ?? null, map_id ?? null, notes ?? null, userId ?? null];
+    console.log('Balance event insert params:', params.map((p, i) => `[${i}] ${typeof p} = ${JSON.stringify(p)}`));
+    
     await query(
       `INSERT INTO balance_events (id, event_date, patch_version, event_type, description, faction_id, map_id, notes, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [eventId, event_date, patch_version ?? null, event_type, description, faction_id ?? null, map_id ?? null, notes ?? null, userId]
+      params
     );
     const inserted = await query(
       'SELECT id, event_date, patch_version, event_type, description, created_at FROM balance_events WHERE id = ?',
