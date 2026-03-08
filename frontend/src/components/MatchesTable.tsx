@@ -231,6 +231,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           <span className="font-semibold text-yellow-800">{player1Name}</span>
                         </div>
                         <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction1}</span>
+                        {match.winner_side && (
+                          <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>S{match.winner_side}</span>
+                        )}
                       </div>
                       <div className="text-xs text-yellow-600 italic">
                         {t('replay_auto_detected')}
@@ -245,6 +248,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           <span className="font-semibold text-yellow-800">{player2Name}</span>
                         </div>
                         <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{faction2}</span>
+                        {match.winner_side && (
+                          <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>S{match.winner_side === 1 ? 2 : 1}</span>
+                        )}
                       </div>
                       <div className="text-xs text-yellow-600 italic">
                         {t('replay_auto_detected')}
@@ -362,6 +368,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     </div>
                     <StarDisplay rating={match.winner_rating} size="sm" />
                     <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded font-semibold">{match.winner_faction}</span>
+                    {match.winner_side && (
+                      <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>S{match.winner_side}</span>
+                    )}
                   </div>
                   <div className="flex gap-3 text-xs text-gray-600">
                     <div>
@@ -395,6 +404,9 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     </div>
                     <StarDisplay rating={match.loser_rating} size="sm" />
                     <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded font-semibold">{match.loser_faction}</span>
+                    {match.winner_side && (
+                      <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>S{match.winner_side === 1 ? 2 : 1}</span>
+                    )}
                   </div>
                   <div className="flex gap-3 text-xs text-gray-600">
                     <div>

@@ -296,6 +296,9 @@ const Home: React.FC = () => {
                               {match.winner_faction && (
                                 <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded inline-block w-fit">{match.winner_faction}</span>
                               )}
+                              {match.winner_side && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded font-semibold inline-block w-fit ${match.winner_side === 1 ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>S{match.winner_side}</span>
+                              )}
                               {match.winner_comments && (
                                 <span className="text-xs text-gray-600 italic">{match.winner_comments}</span>
                               )}
@@ -316,6 +319,9 @@ const Home: React.FC = () => {
                               <span className="font-semibold text-red-600"><PlayerLink nickname={match.loser_nickname} userId={match.loser_id} /></span>
                               {match.loser_faction && (
                                 <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded inline-block w-fit">{match.loser_faction}</span>
+                              )}
+                              {match.winner_side && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded font-semibold inline-block w-fit ${match.winner_side === 1 ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>S{match.winner_side === 1 ? 2 : 1}</span>
                               )}
                               {match.loser_comments && (
                                 <span className="text-xs text-gray-600 italic">{match.loser_comments}</span>

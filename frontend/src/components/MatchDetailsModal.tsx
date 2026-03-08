@@ -102,8 +102,18 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
 
                   <tr className="border-b border-gray-200 hover:bg-gray-50">
                     <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Faction</td>
-                    <td className="px-4 py-3 text-center"><span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{match.winner_faction}</span></td>
-                    <td className="px-4 py-3 text-center"><span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{match.loser_faction}</span></td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{match.winner_faction}</span>
+                      {match.winner_side && (
+                        <span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-xs font-semibold ${match.winner_side === 1 ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>S{match.winner_side}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">{match.loser_faction}</span>
+                      {match.winner_side && (
+                        <span className={`ml-1 inline-block px-1.5 py-0.5 rounded text-xs font-semibold ${match.winner_side === 1 ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>S{match.winner_side === 1 ? 2 : 1}</span>
+                      )}
+                    </td>
                   </tr>
 
                   <tr className="border-b border-gray-200 hover:bg-gray-50">
