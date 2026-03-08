@@ -793,7 +793,11 @@ export async function recalculatePlayerMatchStatistics(): Promise<{ records_upda
 
       const winnerEloChange = (row.winner_elo_after  ?? 0) - (row.winner_elo_before ?? 0);
       const loserEloChange  = (row.loser_elo_after   ?? 0) - (row.loser_elo_before  ?? 0);
-      const matchDate       = row.created_at ? String(row.created_at) : null;
+      const matchDate       = row.created_at
+        ? (row.created_at instanceof Date
+            ? row.created_at.toISOString().slice(0, 19).replace('T', ' ')
+            : String(row.created_at).slice(0, 19).replace('T', ' '))
+        : null;
 
       // ── WINNER perspective ──────────────────────────────────────
       for (const side of SIDES) {
