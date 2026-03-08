@@ -292,8 +292,8 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                             {t('replay_discard')}
                           </button>
                         </div>
-                      ) : (
-                        // Player view: I won / I lost / Discard
+                      ) : match.is_participant ? (
+                        // Participant view: I won / I lost / Cancel
                         <>
                           <div className="text-xs text-yellow-700 mb-2 font-semibold">
                             {t('replay_who_won')}
@@ -337,7 +337,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                             </button>
                           </div>
                         </>
-                      )}
+                      ) : null}
                       <div className="mt-2 pt-2 border-t border-yellow-200">
                         <a
                           href={match.replay_url || match.replay_file_path || '#'}

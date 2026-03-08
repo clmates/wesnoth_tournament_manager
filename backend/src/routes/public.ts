@@ -623,110 +623,107 @@ router.get('/matches', async (req, res) => {
       }
     }
 
-    // Get replays with confidence=1 if user is authenticated
+    // Get replays with confidence=1 (visible to everyone, action buttons controlled in frontend)
     let formattedReplays = [];
-    if (currentUserNickname) {
-      try {
-        const replayResult = await query(
-          `SELECT 
-            r.id, 
-            r.replay_filename,
-            r.game_name,
-            r.replay_url,
-            r.parse_summary,
-            r.created_at,
-            r.wesnoth_version,
-            r.cancel_requested_by
-           FROM replays r
-           WHERE r.integration_confidence = 1 
-             AND r.parsed = 1
-             AND r.match_id IS NULL
-             AND r.tournament_id IS NULL
-           ORDER BY r.created_at DESC
-           LIMIT ? OFFSET ?`,
-          [pageSize, offset]
-        );
+    try {
+      const replayResult = await query(
+        `SELECT 
+          r.id, 
+          r.replay_filename,
+          r.game_name,
+          r.replay_url,
+          r.parse_summary,
+          r.created_at,
+          r.wesnoth_version,
+          r.cancel_requested_by
+         FROM replays r
+         WHERE r.integration_confidence = 1 
+           AND r.parsed = 1
+           AND r.match_id IS NULL
+           AND r.tournament_id IS NULL
+         ORDER BY r.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [pageSize, offset]
+      );
 
-        console.log(`📋 [PUBLIC/MATCHES] Found ${replayResult.rows?.length || 0} confidence=1 replays for user ${currentUserNickname}`);
+      console.log(`📋 [PUBLIC/MATCHES] Found ${replayResult.rows?.length || 0} confidence=1 replays`);
 
-        // Format replays as match-like objects - only for involved players
-        for (const r of replayResult.rows) {
-          try {
-            const parseSummary = typeof r.parse_summary === 'string' 
-              ? JSON.parse(r.parse_summary) 
-              : r.parse_summary;
+      for (const r of replayResult.rows) {
+        try {
+          const parseSummary = typeof r.parse_summary === 'string' 
+            ? JSON.parse(r.parse_summary) 
+            : r.parse_summary;
 
-            const players = parseSummary.forumPlayers || [];
-            if (players.length < 2) continue;
+          const players = parseSummary.forumPlayers || [];
+          if (players.length < 2) continue;
 
-            const player1Name = players[0]?.user_name?.toLowerCase() || '';
-            const player2Name = players[1]?.user_name?.toLowerCase() || '';
+          const player1Name = players[0]?.user_name?.toLowerCase() || '';
+          const player2Name = players[1]?.user_name?.toLowerCase() || '';
 
-            // SECURITY: only show to involved players OR admins
-            const isInvolved = currentUserNickname === player1Name || currentUserNickname === player2Name;
-            if (!isInvolved && !currentUserIsAdmin) {
-              continue;
-            }
+          const isInvolved = currentUserNickname 
+            ? currentUserNickname === player1Name || currentUserNickname === player2Name
+            : false;
 
-            // Extract map - USE resolvedMap from parse_summary
-            const map = parseSummary.resolvedMap 
-              || parseSummary.parsedMap 
-              || parseSummary.map 
-              || parseSummary.forumMap 
-              || parseSummary.scenario
-              || 'Unknown Map';
+          // Extract map - USE resolvedMap from parse_summary
+          const map = parseSummary.resolvedMap 
+            || parseSummary.parsedMap 
+            || parseSummary.map 
+            || parseSummary.forumMap 
+            || parseSummary.scenario
+            || 'Unknown Map';
 
-            // Extract factions - USE resolvedFactions from parse_summary (side1/side2 structure)
-            const resolvedFactions = parseSummary.resolvedFactions || {};
+          // Extract factions - USE resolvedFactions from parse_summary (side1/side2 structure)
+          const resolvedFactions = parseSummary.resolvedFactions || {};
 
-            // side1 = player 1, side2 = player 2
-            let winner_faction = resolvedFactions.side1 || 'Unknown';
-            let loser_faction = resolvedFactions.side2 || 'Unknown';
+          // side1 = player 1, side2 = player 2
+          let winner_faction = resolvedFactions.side1 || 'Unknown';
+          let loser_faction = resolvedFactions.side2 || 'Unknown';
 
-            const replayData = {
-              id: r.id,
-              winner_id: null,
-              loser_id: null,
-              winner_nickname: parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown',
-              loser_nickname: parseSummary.replayVictory?.loser_name || players[1]?.user_name || 'Unknown',
-              winner_faction: winner_faction,
-              loser_faction: loser_faction,
-              map: map,
-              status: 'pending_report',
-              winner_elo_before: null,
-              winner_elo_after: null,
-              loser_elo_before: null,
-              loser_elo_after: null,
-              winner_rating: null,
-              loser_rating: null,
-              winner_comments: null,
-              loser_comments: null,
-              replay_url: r.replay_url,
-              replay_downloads: 0,
-              created_at: r.created_at,
-              updated_at: r.created_at,
-              played_at: null,
-              admin_reviewed: false,
-              tournament_id: null,
-              source_type: 'replay_confidence_1',
-              replay_id: r.id,
-              confidence_level: 1,
-              parse_summary: parseSummary,
-              replay_filename: r.replay_filename,
-              game_name: r.game_name,
-              cancel_requested_by: r.cancel_requested_by || null,
-              is_admin_view: currentUserIsAdmin && !isInvolved
-            };
+          const replayData = {
+            id: r.id,
+            winner_id: null,
+            loser_id: null,
+            winner_nickname: parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown',
+            loser_nickname: parseSummary.replayVictory?.loser_name || players[1]?.user_name || 'Unknown',
+            winner_faction: winner_faction,
+            loser_faction: loser_faction,
+            winner_side: parseSummary.replayVictory?.winner_side || null,
+            map: map,
+            status: 'pending_report',
+            winner_elo_before: null,
+            winner_elo_after: null,
+            loser_elo_before: null,
+            loser_elo_after: null,
+            winner_rating: null,
+            loser_rating: null,
+            winner_comments: null,
+            loser_comments: null,
+            replay_url: r.replay_url,
+            replay_downloads: 0,
+            created_at: r.created_at,
+            updated_at: r.created_at,
+            played_at: null,
+            admin_reviewed: false,
+            tournament_id: null,
+            source_type: 'replay_confidence_1',
+            replay_id: r.id,
+            confidence_level: 1,
+            parse_summary: parseSummary,
+            replay_filename: r.replay_filename,
+            game_name: r.game_name,
+            cancel_requested_by: r.cancel_requested_by || null,
+            is_admin_view: currentUserIsAdmin && !isInvolved,
+            is_participant: isInvolved
+          };
 
-            console.log(`📋 [REPLAY] ${replayData.winner_nickname} (${winner_faction}) vs ${replayData.loser_nickname} (${loser_faction}) on ${map}`);
-            formattedReplays.push(replayData);
-          } catch (formatError) {
-            console.error('Error formatting replay:', formatError);
-          }
+          console.log(`📋 [REPLAY] ${replayData.winner_nickname} (${winner_faction}) vs ${replayData.loser_nickname} (${loser_faction}) on ${map}`);
+          formattedReplays.push(replayData);
+        } catch (formatError) {
+          console.error('Error formatting replay:', formatError);
         }
-      } catch (replayQueryError) {
-        console.error('❌ [PUBLIC/MATCHES] Error fetching replays:', replayQueryError);
       }
+    } catch (replayQueryError) {
+      console.error('❌ [PUBLIC/MATCHES] Error fetching replays:', replayQueryError);
     }
 
     // Combine matches and replays
