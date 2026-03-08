@@ -2,360 +2,240 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { statisticsService } from '../services/statisticsService';
 
-interface MatchupStats {
+/** One row = one faction as Side 1 vs another as Side 2, on a specific map */
+interface SideMatchupRow {
   map_id: string;
   map_name: string;
-  faction_1_id: string;
-  faction_1_name: string;
-  faction_2_id: string;
-  faction_2_name: string;
-  total_games: number;
-  faction_1_wins: number;
-  faction_2_wins: number;
-  faction_1_winrate: number;
-  imbalance: number;
-  // Side-specific winrates (null when no data for that side)
-  side1_games?: number;
-  f1_side1_winrate?: number | null;
-  side2_games?: number;
-  f1_side2_winrate?: number | null;
+  side1_faction_id: string;
+  side1_faction_name: string;
+  side2_faction_id: string;
+  side2_faction_name: string;
+  games: number;
+  side1_wins: number;
+  side1_winrate: number;
+  imbalance: number; // |s1_winrate - 50| * 2
 }
 
-interface ComparisonData {
-  map_id?: string;
-  map_name?: string;
-  faction_id?: string;
-  faction_name?: string;
-  opponent_faction_id?: string;
-  opponent_faction_name?: string;
-  winrate: number;
-  total_games: number;
-  wins: number;
-  losses: number;
-  side1_games?: number;
-  side1_wins?: number;
-  side2_games?: number;
-  side2_wins?: number;
+/** Convert /matchups endpoint rows (faction_id < opponent_id) into per-side rows */
+function globalToSideRows(data: any[], minGames: number): SideMatchupRow[] {
+  const rows: SideMatchupRow[] = [];
+  data.forEach((item: any) => {
+    const s1g  = parseInt(String(item.side1_games), 10) || 0;
+    const s1wr = parseFloat(item.f1_side1_winrate)      || 0;
+    const s2g  = parseInt(String(item.side2_games), 10) || 0;
+    const s2wr = parseFloat(item.f1_side2_winrate)      || 0;
+
+    if (s1g >= minGames) {
+      rows.push({
+        map_id: item.map_id, map_name: item.map_name,
+        side1_faction_id:   item.faction_1_id,
+        side1_faction_name: item.faction_1_name,
+        side2_faction_id:   item.faction_2_id,
+        side2_faction_name: item.faction_2_name,
+        games: s1g,
+        side1_wins: Math.round(s1wr * s1g / 100),
+        side1_winrate: s1wr,
+        imbalance: Math.abs(s1wr - 50) * 2,
+      });
+    }
+    if (s2g >= minGames) {
+      // faction_2 plays as side 1 → their WR = 100 - faction_1's WR as side 2
+      const f2s1wr = 100 - s2wr;
+      rows.push({
+        map_id: item.map_id, map_name: item.map_name,
+        side1_faction_id:   item.faction_2_id,
+        side1_faction_name: item.faction_2_name,
+        side2_faction_id:   item.faction_1_id,
+        side2_faction_name: item.faction_1_name,
+        games: s2g,
+        side1_wins: Math.round(f2s1wr * s2g / 100),
+        side1_winrate: f2s1wr,
+        imbalance: Math.abs(f2s1wr - 50) * 2,
+      });
+    }
+  });
+  return rows.sort((a, b) => b.imbalance - a.imbalance);
+}
+
+/**
+ * Convert balance event comparison data (per-faction perspective, each match appears twice)
+ * into SideMatchupRows. Deduplicate with a Map keyed by (map, side1_id, side2_id).
+ */
+function comparisonToSideRows(data: any[]): SideMatchupRow[] {
+  const rowMap = new Map<string, SideMatchupRow>();
+
+  data.forEach((item: any) => {
+    const s1g = parseInt(String(item.side1_games), 10) || 0;
+    const s1w = parseInt(String(item.side1_wins),  10) || 0;
+    const s2g = parseInt(String(item.side2_games), 10) || 0;
+    const s2w = parseInt(String(item.side2_wins),  10) || 0;
+
+    // faction played as side 1
+    if (s1g > 0) {
+      const key = `${item.map_id}|${item.faction_id}|${item.opponent_faction_id}`;
+      if (!rowMap.has(key)) {
+        const wr = (s1w / s1g) * 100;
+        rowMap.set(key, {
+          map_id: item.map_id || '', map_name: item.map_name || '',
+          side1_faction_id:   item.faction_id || '',
+          side1_faction_name: item.faction_name || '',
+          side2_faction_id:   item.opponent_faction_id || '',
+          side2_faction_name: item.opponent_faction_name || '',
+          games: s1g, side1_wins: s1w,
+          side1_winrate: wr, imbalance: Math.abs(wr - 50) * 2,
+        });
+      }
+    }
+
+    // opponent played as side 1 (faction was side 2)
+    if (s2g > 0) {
+      const key = `${item.map_id}|${item.opponent_faction_id}|${item.faction_id}`;
+      if (!rowMap.has(key)) {
+        const oppWins = s2g - s2w;
+        const wr = (oppWins / s2g) * 100;
+        rowMap.set(key, {
+          map_id: item.map_id || '', map_name: item.map_name || '',
+          side1_faction_id:   item.opponent_faction_id || '',
+          side1_faction_name: item.opponent_faction_name || '',
+          side2_faction_id:   item.faction_id || '',
+          side2_faction_name: item.faction_name || '',
+          games: s2g, side1_wins: oppWins,
+          side1_winrate: wr, imbalance: Math.abs(wr - 50) * 2,
+        });
+      }
+    }
+  });
+
+  return Array.from(rowMap.values()).sort((a, b) => b.imbalance - a.imbalance);
 }
 
 const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ beforeData = null, afterData = null }) => {
   const { t } = useTranslation();
-  const [stats, setStats] = useState<MatchupStats[]>([]);
-  const [beforeStats, setBeforeStats] = useState<MatchupStats[]>([]);
-  const [afterStats, setAfterStats] = useState<MatchupStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [minGames, setMinGames] = useState(5);
-  const [minGamesThreshold, setMinGamesThreshold] = useState(5); // Default value
-
-  const aggregateMatchupData = (data: ComparisonData[]): MatchupStats[] => {
-    console.log('[MatchupBalanceTab] Input data count:', data.length);
-    console.log('[MatchupBalanceTab] Raw input sample:', JSON.stringify(data.slice(0, 3), null, 2));
-    
-    // Group by normalized matchup (map + normalized faction order)
-    // Each match appears twice in data (once for each faction), but we need to aggregate them
-    const matchupMap = new Map<string, {
-      map_id: string;
-      map_name: string;
-      f1_id: string;
-      f1_name: string;
-      f2_id: string;
-      f2_name: string;
-      f1_wins: number;
-      f2_wins: number;
-      total_games: number;
-      s1g: number;
-      s1w: number;
-      s2g: number;
-      s2w: number;
-    }>();
-    
-    data.forEach(item => {
-      const f1 = item.faction_id || '';
-      const f2 = item.opponent_faction_id || '';
-      
-      // Normalize faction order
-      const ordered = [f1, f2].sort();
-      const isOriginalOrder = f1 === ordered[0];
-      
-      // parseInt/parseFloat because SUM() returns strings from MariaDB
-      const itemWins   = parseInt(String(item.wins),        10) || 0;
-      const itemLosses = parseInt(String(item.losses),      10) || 0;
-      const itemTotal  = parseInt(String(item.total_games), 10) || 0;
-
-      const f1Wins = isOriginalOrder ? itemWins : itemLosses;
-      const f2Wins = isOriginalOrder ? itemLosses : itemWins;
-
-      // Side data - when flipped: our f1's side1 = original faction's side2, wins inverted
-      const beS1g = parseInt(String(item.side1_games), 10) || 0;
-      const beS1w = parseInt(String(item.side1_wins),  10) || 0;
-      const beS2g = parseInt(String(item.side2_games), 10) || 0;
-      const beS2w = parseInt(String(item.side2_wins),  10) || 0;
-
-      const s1g = isOriginalOrder ? beS1g : beS2g;
-      const s1w = isOriginalOrder ? beS1w : (beS2g - beS2w);
-      const s2g = isOriginalOrder ? beS2g : beS1g;
-      const s2w = isOriginalOrder ? beS2w : (beS1g - beS1w);
-      
-      const mapKey = `${item.map_id}|${ordered[0]}|${ordered[1]}`;
-      
-      const existing = matchupMap.get(mapKey);
-      
-      if (!existing) {
-        matchupMap.set(mapKey, {
-          map_id: item.map_id || '',
-          map_name: item.map_name || '',
-          f1_id: ordered[0],
-          f1_name: (isOriginalOrder ? item.faction_name : item.opponent_faction_name) || '',
-          f2_id: ordered[1],
-          f2_name: (isOriginalOrder ? item.opponent_faction_name : item.faction_name) || '',
-          f1_wins: f1Wins,
-          f2_wins: f2Wins,
-          total_games: itemTotal,
-          s1g, s1w, s2g, s2w,
-        });
-      } else {
-        existing.f1_wins     += f1Wins;
-        existing.f2_wins     += f2Wins;
-        existing.total_games += itemTotal;
-        existing.s1g += s1g;
-        existing.s1w += s1w;
-        existing.s2g += s2g;
-        existing.s2w += s2w;
-      }
-    });
-    
-    const results: MatchupStats[] = Array.from(matchupMap.values()).map(matchup => {
-      const totalGames = matchup.total_games / 2;
-      const f1Wins     = matchup.f1_wins / 2;
-      const f2Wins     = matchup.f2_wins / 2;
-      const f1Winrate  = totalGames > 0 ? (f1Wins / totalGames) * 100 : 0;
-      const imbalance  = totalGames > 0 ? (Math.abs(f1Wins - f2Wins) / totalGames) * 100 : 0;
-      // Side games also counted twice (once per faction perspective)
-      const s1g = matchup.s1g / 2;
-      const s1w = matchup.s1w / 2;
-      const s2g = matchup.s2g / 2;
-      const s2w = matchup.s2w / 2;
-      
-      return {
-        map_id:             matchup.map_id,
-        map_name:           matchup.map_name,
-        faction_1_id:       matchup.f1_id,
-        faction_1_name:     matchup.f1_name,
-        faction_2_id:       matchup.f2_id,
-        faction_2_name:     matchup.f2_name,
-        total_games:        totalGames,
-        faction_1_wins:     f1Wins,
-        faction_2_wins:     f2Wins,
-        faction_1_winrate:  f1Winrate,
-        imbalance,
-        side1_games:        s1g,
-        f1_side1_winrate:   s1g > 0 ? (s1w / s1g) * 100 : null,
-        side2_games:        s2g,
-        f1_side2_winrate:   s2g > 0 ? (s2w / s2g) * 100 : null,
-      };
-    });
-    
-    console.log('[MatchupBalanceTab] Final aggregated result:', JSON.stringify(results, null, 2));
-    
-    return results
-      .sort((a, b) => b.imbalance - a.imbalance);
-  };
+  const [stats, setStats]             = useState<SideMatchupRow[]>([]);
+  const [beforeStats, setBeforeStats] = useState<SideMatchupRow[]>([]);
+  const [afterStats, setAfterStats]   = useState<SideMatchupRow[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState('');
+  const [minGames, setMinGames]       = useState(5);
 
   useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const config = await statisticsService.getConfig();
-        if (config.minGamesThreshold) {
-          setMinGamesThreshold(config.minGamesThreshold);
-        }
-      } catch (err) {
-        console.warn('Could not load config, using default threshold');
-      }
-    };
-
-    fetchConfig();
+    statisticsService.getConfig().then(cfg => {
+      if (cfg.minGamesThreshold) setMinGames(cfg.minGamesThreshold);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        setLoading(true);
-        const data = await statisticsService.getMatchupStats(minGames);
-        console.log('[MatchupBalanceTab] Backend data received:', JSON.stringify(data.slice(0, 3), null, 2));
-        // Convert string numbers to actual numbers
-        const converted = data.map((item: any) => ({
-          ...item,
-          faction_1_winrate: typeof item.faction_1_winrate === 'string' ? parseFloat(item.faction_1_winrate) : item.faction_1_winrate,
-          imbalance: typeof item.imbalance === 'string' ? parseFloat(item.imbalance) : item.imbalance,
-          f1_side1_winrate: item.f1_side1_winrate != null ? parseFloat(item.f1_side1_winrate) : null,
-          f1_side2_winrate: item.f1_side2_winrate != null ? parseFloat(item.f1_side2_winrate) : null,
-          side1_games: item.side1_games != null ? parseInt(item.side1_games) : 0,
-          side2_games: item.side2_games != null ? parseInt(item.side2_games) : 0,
-        }));
-        console.log('[MatchupBalanceTab] Backend data converted:', JSON.stringify(converted.slice(0, 3), null, 2));
-        setStats(converted);
-      } catch (err) {
-        console.error('Error fetching matchup stats:', err);
-        setError('Error loading matchup statistics');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
+    setLoading(true);
+    statisticsService.getMatchupStats(minGames)
+      .then(data => setStats(globalToSideRows(data, minGames)))
+      .catch(() => setError('Error loading matchup statistics'))
+      .finally(() => setLoading(false));
   }, [minGames]);
 
   useEffect(() => {
-    if (beforeData && beforeData.length > 0) {
-      console.log('[MatchupBalanceTab] Before data received, item count:', beforeData.length);
-      const aggregated = aggregateMatchupData(beforeData);
-      setBeforeStats(aggregated);
-    } else {
-      setBeforeStats([]);
-    }
-  }, [beforeData, minGames]);
+    setBeforeStats(beforeData?.length > 0 ? comparisonToSideRows(beforeData) : []);
+  }, [beforeData]);
 
   useEffect(() => {
-    if (afterData && afterData.length > 0) {
-      console.log('[MatchupBalanceTab] After data received, item count:', afterData.length);
-      const aggregated = aggregateMatchupData(afterData);
-      setAfterStats(aggregated);
-    } else {
-      setAfterStats([]);
-    }
-  }, [afterData, minGames]);
+    setAfterStats(afterData?.length > 0 ? comparisonToSideRows(afterData) : []);
+  }, [afterData]);
+
+  const getImbalanceColor = (imb: number) =>
+    imb > 20 ? 'bg-red-100 text-red-700' : imb > 10 ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700';
+
+  const wrColor = (wr: number) =>
+    wr > 55 ? 'text-green-700' : wr < 45 ? 'text-red-700' : 'text-gray-700';
 
   if (loading) return <div className="p-8 text-center text-gray-600 bg-gray-50 rounded-lg">{t('loading')}</div>;
-  if (error) return <div className="p-8 text-center text-red-600 bg-red-50 rounded-lg border-l-4 border-red-500">{error}</div>;
+  if (error)   return <div className="p-8 text-center text-red-600 bg-red-50 rounded-lg border-l-4 border-red-500">{error}</div>;
 
   const showComparison = beforeStats.length > 0 || afterStats.length > 0;
-  const filteredStats = stats.filter(s => s.total_games >= minGames);
 
+  const TableHead = () => (
+    <thead className="bg-gray-100 border-b-2 border-gray-300">
+      <tr>
+        <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('map') || 'Map'}</th>
+        <th className="px-4 py-3 text-left font-semibold text-amber-700 bg-amber-50">Side 1</th>
+        <th className="px-2 py-3 text-center font-semibold text-gray-800">{t('vs')}</th>
+        <th className="px-4 py-3 text-left font-semibold text-purple-700 bg-purple-50">Side 2</th>
+        <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('total_games') || 'G'}</th>
+        <th className="px-4 py-3 text-center font-semibold text-amber-700 bg-amber-50">{t('side_1_wr') || 'S1 WR'}</th>
+        <th className="px-4 py-3 text-center font-semibold text-purple-700 bg-purple-50">{t('side_2_wr') || 'S2 WR'}</th>
+        <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('imbalance') || 'Imbalance'}</th>
+      </tr>
+    </thead>
+  );
+
+  /* ─── Comparison view ─── */
   if (showComparison) {
-    // Create combined view
-    const allMatchupIds = new Set([
-      ...beforeStats.map(m => `${m.map_id}|${m.faction_1_id}|${m.faction_2_id}`),
-      ...afterStats.map(m => `${m.map_id}|${m.faction_1_id}|${m.faction_2_id}`)
+    const allKeys = new Set([
+      ...beforeStats.map(r => `${r.map_id}|${r.side1_faction_id}|${r.side2_faction_id}`),
+      ...afterStats.map(r  => `${r.map_id}|${r.side1_faction_id}|${r.side2_faction_id}`),
     ]);
-    
-    const beforeMap = new Map(beforeStats.map(m => [`${m.map_id}|${m.faction_1_id}|${m.faction_2_id}`, m]));
-    const afterMap = new Map(afterStats.map(m => [`${m.map_id}|${m.faction_1_id}|${m.faction_2_id}`, m]));
-    
-    const combined = Array.from(allMatchupIds)
-      .map(matchupId => {
-        const before = beforeMap.get(matchupId);
-        const after = afterMap.get(matchupId);
-        return {
-          matchup_id: matchupId,
-          before,
-          after,
-        };
-      })
-      .filter(item => (item.after || item.before) && ((item.after?.total_games || 0) + (item.before?.total_games || 0)) >= minGames)
+    const beforeMap = new Map(beforeStats.map(r => [`${r.map_id}|${r.side1_faction_id}|${r.side2_faction_id}`, r]));
+    const afterMap  = new Map(afterStats.map(r  => [`${r.map_id}|${r.side1_faction_id}|${r.side2_faction_id}`, r]));
+
+    const combined = Array.from(allKeys)
+      .map(key => ({ before: beforeMap.get(key), after: afterMap.get(key) }))
+      .filter(item => ((item.after?.games || 0) + (item.before?.games || 0)) >= minGames)
       .sort((a, b) => {
-        const aImbalance = Math.max(a.after?.imbalance || 0, a.before?.imbalance || 0);
-        const bImbalance = Math.max(b.after?.imbalance || 0, b.before?.imbalance || 0);
-        return bImbalance - aImbalance;
+        const aI = Math.max(a.after?.imbalance || 0, a.before?.imbalance || 0);
+        const bI = Math.max(b.after?.imbalance || 0, b.before?.imbalance || 0);
+        return bI - aI;
       });
 
     return (
       <div className="bg-white rounded-lg p-6 shadow-md">
-        <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('unbalanced_matchups_comparison') || 'Unbalanced Matchups - Before & After'}</h3>
+        <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('unbalanced_matchups_comparison') || 'Matchup Analysis — Before & After'}</h3>
         <p className="text-blue-600 text-sm mb-3 p-3 bg-blue-50 rounded border-l-4 border-blue-500">
-          {t('before_event') || 'Before'}: {beforeData ? beforeData.length : 0} {t('matches_evaluated') || 'matches'} | 
-          {t('after_event') || 'After'}: {afterData ? afterData.length : 0} {t('matches_evaluated') || 'matches'}
+          {t('before_event') || 'Before'}: {beforeStats.reduce((s, r) => s + r.games, 0)}g |{' '}
+          {t('after_event')  || 'After'}:  {afterStats.reduce((s, r)  => s + r.games, 0)}g
         </p>
         <div className="bg-gray-100 p-4 rounded-lg mb-6 border border-gray-200 flex items-center gap-4">
           <label className="flex items-center gap-2 font-semibold text-gray-800">
             {t('minimum_games') || 'Minimum Games'}:
-            <input
-              type="number"
-              min="1"
-              max="100"
-              value={minGames}
-              onChange={(e) => setMinGames(Math.max(1, parseInt(e.target.value) || 1))}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 w-24"
-            />
+            <input type="number" min="1" max="100" value={minGames}
+              onChange={e => setMinGames(Math.max(1, parseInt(e.target.value) || 1))}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 w-24" />
           </label>
         </div>
-
         <div className="overflow-x-auto border border-gray-200 rounded-lg">
-          <table className="w-full border-collapse bg-white">
-            <thead className="bg-gray-100 border-b-2 border-gray-300">
-              <tr>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('map') || 'Map'}</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction_1') || 'Faction 1'}</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('vs')}</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction_2') || 'Faction 2'}</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_1_wins') || 'F1 Wins'}</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_2_wins') || 'F2 Wins'}</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-800 bg-amber-50">{t('side_1_wr') || 'F1 S1 WR'}</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-800 bg-purple-50">{t('side_2_wr') || 'F1 S2 WR'}</th>
-                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('imbalance') || 'Imbalance'}</th>
-              </tr>
-            </thead>
+          <table className="w-full border-collapse bg-white text-sm">
+            <TableHead />
             <tbody>
               {combined.map((item, idx) => {
-                const stat = item.after || item.before;
-                if (!stat) return null;
+                const ref = item.after || item.before!;
                 return (
-                  <tr key={`${stat.map_id}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-semibold text-gray-800">{stat.map_name}</td>
-                    <td className="px-4 py-3 font-semibold text-blue-700">{stat.faction_1_name}</td>
-                    <td className="px-4 py-3 text-center text-gray-500 font-semibold">vs</td>
-                    <td className="px-4 py-3 font-semibold text-red-700">{stat.faction_2_name}</td>
+                  <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-800">{ref.map_name}</td>
+                    <td className="px-4 py-3 font-semibold text-amber-700 bg-amber-50">{ref.side1_faction_name}</td>
+                    <td className="px-2 py-3 text-center text-gray-500">vs</td>
+                    <td className="px-4 py-3 font-semibold text-purple-700 bg-purple-50">{ref.side2_faction_name}</td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-semibold text-gray-800">{item.after ? Math.round(item.after.total_games) : '—'}</span>
-                        {item.before && <span className="text-xs text-gray-500">{Math.round(item.before.total_games)}</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-semibold text-gray-800">{item.after ? Math.round(item.after.faction_1_wins) : '—'}</span>
-                        {item.before && <span className="text-xs text-gray-500">{Math.round(item.before.faction_1_wins)}</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex flex-col gap-1">
-                        <span className="font-semibold text-gray-800">{item.after ? Math.round(item.after.faction_2_wins) : '—'}</span>
-                        {item.before && <span className="text-xs text-gray-500">{Math.round(item.before.faction_2_wins)}</span>}
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-semibold text-gray-800">{item.after?.games ?? '—'}</span>
+                        {item.before && <span className="text-xs text-gray-400">{item.before.games}</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center bg-amber-50">
-                      {[item.after, item.before].map((period, pi) => period?.f1_side1_winrate != null && (period.side1_games ?? 0) > 0 ? (
-                        <div key={pi} className={`flex flex-col items-center ${pi === 1 ? 'mt-1' : ''}`}>
-                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${period.f1_side1_winrate > 55 ? 'bg-green-100 text-green-700' : period.f1_side1_winrate < 45 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {period.f1_side1_winrate.toFixed(1)}%
-                          </span>
-                          <span className="text-xs text-gray-400">{period.side1_games}g</span>
-                        </div>
-                      ) : <span key={pi} className="text-gray-400 text-xs">—</span>)}
+                      <div className="flex flex-col gap-0.5">
+                        {item.after  && <span className={`font-semibold text-sm ${wrColor(item.after.side1_winrate)}`}>{item.after.side1_winrate.toFixed(1)}%</span>}
+                        {item.before && <span className={`text-xs ${wrColor(item.before.side1_winrate)}`}>{item.before.side1_winrate.toFixed(1)}%</span>}
+                        {!item.after && <span className="text-gray-400">—</span>}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-center bg-purple-50">
-                      {[item.after, item.before].map((period, pi) => period?.f1_side2_winrate != null && (period.side2_games ?? 0) > 0 ? (
-                        <div key={pi} className={`flex flex-col items-center ${pi === 1 ? 'mt-1' : ''}`}>
-                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${period.f1_side2_winrate > 55 ? 'bg-green-100 text-green-700' : period.f1_side2_winrate < 45 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {period.f1_side2_winrate.toFixed(1)}%
-                          </span>
-                          <span className="text-xs text-gray-400">{period.side2_games}g</span>
-                        </div>
-                      ) : <span key={pi} className="text-gray-400 text-xs">—</span>)}
+                      <div className="flex flex-col gap-0.5">
+                        {item.after  && <span className={`font-semibold text-sm ${wrColor(100 - item.after.side1_winrate)}`}>{(100 - item.after.side1_winrate).toFixed(1)}%</span>}
+                        {item.before && <span className={`text-xs ${wrColor(100 - item.before.side1_winrate)}`}>{(100 - item.before.side1_winrate).toFixed(1)}%</span>}
+                        {!item.after && <span className="text-gray-400">—</span>}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex flex-col gap-2">
-                        {item.after && (
-                          <span className={`px-3 py-1 rounded-lg font-semibold inline-block text-sm w-fit ${item.after.imbalance > 10 ? 'bg-red-100 text-red-700' : item.after.imbalance > 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {item.after.imbalance.toFixed(1)}%
-                          </span>
-                        )}
-                        {item.before && (
-                          <span className={`px-3 py-1 rounded-lg font-semibold inline-block text-xs w-fit ${item.before.imbalance > 10 ? 'bg-red-100 text-red-700' : item.before.imbalance > 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {item.before.imbalance.toFixed(1)}%
-                          </span>
-                        )}
+                      <div className="flex flex-col gap-0.5">
+                        {item.after  && <span className={`px-2 py-0.5 rounded text-sm font-semibold ${getImbalanceColor(item.after.imbalance)}`}>{item.after.imbalance.toFixed(1)}%</span>}
+                        {item.before && <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getImbalanceColor(item.before.imbalance)}`}>{item.before.imbalance.toFixed(1)}%</span>}
+                        {!item.after && <span className="text-gray-400">—</span>}
                       </div>
                     </td>
                   </tr>
@@ -368,109 +248,61 @@ const MatchupBalanceTab: React.FC<{ beforeData?: any; afterData?: any }> = ({ be
     );
   }
 
-  // Default global view
+  /* ─── Global view ─── */
+  const filtered = stats.filter(r => r.games >= minGames);
+
   return (
     <div className="bg-white rounded-lg p-6 shadow-md">
-      <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('unbalanced_matchups') || 'Unbalanced Matchups'}</h3>
-      <p className="text-gray-600 text-sm mb-6 pb-3 px-3 bg-blue-50 border-l-4 border-blue-500 rounded">{t('matchup_balance_explanation') || 'Analysis of specific faction matchups showing imbalance'}</p>
-      
+      <h3 className="text-xl font-semibold text-gray-800 mb-3">{t('unbalanced_matchups') || 'Matchup Analysis'}</h3>
+      <p className="text-gray-600 text-sm mb-6 pb-3 px-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+        {t('matchup_balance_explanation') || 'Win rate per faction per side per map'}
+      </p>
       <div className="bg-gray-100 p-4 rounded-lg mb-6 border border-gray-200 flex items-center gap-4">
         <label className="flex items-center gap-2 font-semibold text-gray-800">
           {t('minimum_games') || 'Minimum Games'}:
-          <input 
-            type="number" 
-            min="1" 
-            max="100" 
-            value={minGames}
-            onChange={(e) => setMinGames(Math.max(1, parseInt(e.target.value) || 1))}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 w-24"
-          />
+          <input type="number" min="1" max="100" value={minGames}
+            onChange={e => setMinGames(Math.max(1, parseInt(e.target.value) || 1))}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 w-24" />
         </label>
+        <span className="text-sm text-gray-500">{filtered.length} {t('matchups') || 'matchups'}</span>
       </div>
 
-      <div className="overflow-x-auto border border-gray-200 rounded-lg">
-        <table className="w-full border-collapse bg-white">
-          <thead className="bg-gray-100 border-b-2 border-gray-300">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('map') || 'Map'}</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction_1') || 'Faction 1'}</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('vs')}</th>
-              <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('faction_2') || 'Faction 2'}</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_1_wins') || 'F1 Wins'}</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_2_wins') || 'F2 Wins'}</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-800 bg-amber-50" title="Win rate of Faction 1 when playing as Side 1 (first mover)">{t('side_1_wr') || 'Side 1 WR'}</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-800 bg-purple-50" title="Win rate of Faction 1 when playing as Side 2">{t('side_2_wr') || 'Side 2 WR'}</th>
-              <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('imbalance') || 'Imbalance'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStats.map((stat, idx) => (
-              <tr key={`${stat.map_id}-${stat.faction_1_id}-${stat.faction_2_id}-${idx}`} className="border-b border-gray-200 hover:bg-gray-50">
-                <td className="px-4 py-3 font-semibold text-gray-800">{stat.map_name}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-blue-700">{stat.faction_1_name}</span>
-                    <span className="text-xs text-gray-600">({stat.faction_1_winrate.toFixed(1)}%)</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center text-gray-500 font-semibold">vs</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-red-700">{stat.faction_2_name}</span>
-                    <span className="text-xs text-gray-600">({(100 - stat.faction_1_winrate).toFixed(1)}%)</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-center text-gray-700">{stat.total_games}</td>
-                <td className="px-4 py-3 text-center font-semibold">
-                  <span className={stat.faction_1_wins > stat.faction_2_wins ? 'text-green-700' : 'text-gray-700'}>
-                    {stat.faction_1_wins}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-center font-semibold">
-                  <span className={stat.faction_2_wins > stat.faction_1_wins ? 'text-green-700' : 'text-gray-700'}>
-                    {stat.faction_2_wins}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-center bg-amber-50">
-                  {stat.f1_side1_winrate != null && stat.side1_games ? (
+      {filtered.length === 0 ? (
+        <p className="text-center text-gray-500 italic py-8 bg-gray-50 rounded-lg">{t('no_data_available') || 'No data available'}</p>
+      ) : (
+        <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <table className="w-full border-collapse bg-white">
+            <TableHead />
+            <tbody>
+              {filtered.map((row, idx) => (
+                <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="px-4 py-3 font-semibold text-gray-800">{row.map_name}</td>
+                  <td className="px-4 py-3 font-semibold text-amber-700 bg-amber-50">{row.side1_faction_name}</td>
+                  <td className="px-2 py-3 text-center text-gray-500 font-semibold">vs</td>
+                  <td className="px-4 py-3 font-semibold text-purple-700 bg-purple-50">{row.side2_faction_name}</td>
+                  <td className="px-4 py-3 text-center text-gray-700">{row.games}</td>
+                  <td className="px-4 py-3 text-center bg-amber-50">
                     <div className="flex flex-col items-center">
-                      <span className={`font-semibold text-sm ${
-                        stat.f1_side1_winrate >= 55 ? 'text-green-700' :
-                        stat.f1_side1_winrate <= 45 ? 'text-red-700' : 'text-gray-700'
-                      }`}>{stat.f1_side1_winrate.toFixed(1)}%</span>
-                      <span className="text-xs text-gray-500">{stat.side1_games}g</span>
+                      <span className={`font-semibold text-sm ${wrColor(row.side1_winrate)}`}>{row.side1_winrate.toFixed(1)}%</span>
+                      <span className="text-xs text-gray-400">{row.side1_wins}W</span>
                     </div>
-                  ) : <span className="text-gray-400 text-xs">—</span>}
-                </td>
-                <td className="px-4 py-3 text-center bg-purple-50">
-                  {stat.f1_side2_winrate != null && stat.side2_games ? (
+                  </td>
+                  <td className="px-4 py-3 text-center bg-purple-50">
                     <div className="flex flex-col items-center">
-                      <span className={`font-semibold text-sm ${
-                        stat.f1_side2_winrate >= 55 ? 'text-green-700' :
-                        stat.f1_side2_winrate <= 45 ? 'text-red-700' : 'text-gray-700'
-                      }`}>{stat.f1_side2_winrate.toFixed(1)}%</span>
-                      <span className="text-xs text-gray-500">{stat.side2_games}g</span>
+                      <span className={`font-semibold text-sm ${wrColor(100 - row.side1_winrate)}`}>{(100 - row.side1_winrate).toFixed(1)}%</span>
+                      <span className="text-xs text-gray-400">{row.games - row.side1_wins}W</span>
                     </div>
-                  ) : <span className="text-gray-400 text-xs">—</span>}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <span className={`px-3 py-1 rounded-lg font-semibold inline-block text-sm ${
-                    stat.imbalance > 10 ? 'bg-red-100 text-red-700' : 
-                    stat.imbalance > 5 ? 'bg-yellow-100 text-yellow-700' : 
-                    'bg-blue-100 text-blue-700'
-                  }`}>
-                    {stat.total_games > 0 ? ((stat.imbalance / stat.total_games) * 100).toFixed(1) : stat.imbalance.toFixed(1)}%
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {!showComparison && stats.length === 0 && (
-        <p className="text-center text-gray-500 italic py-8 bg-gray-50 rounded-lg mt-4">{t('no_data_available') || 'No data available for the selected criteria'}</p>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`px-3 py-1 rounded-lg font-semibold inline-block text-sm ${getImbalanceColor(row.imbalance)}`}>
+                      {row.imbalance.toFixed(1)}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
