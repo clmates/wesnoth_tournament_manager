@@ -673,186 +673,225 @@ export async function recalculatePlayerMatchStatistics(): Promise<{ records_upda
   try {
     const { randomUUID } = await import('crypto');
 
-    // Truncate the stats table
     await query('TRUNCATE TABLE player_match_statistics');
 
-    // Get all unique players that have played at least one non-cancelled match
-    const playersResult = await query(
-      `SELECT DISTINCT winner_id as player_id FROM matches WHERE status != 'cancelled'
-       UNION
-       SELECT DISTINCT loser_id FROM matches WHERE status != 'cancelled'`
+    // Fetch all non-cancelled matches with map/faction IDs resolved.
+    // We process each row twice (winner + loser perspective) to avoid UNION/subquery complexity.
+    const matchesResult = await query(
+      `SELECT
+         m.winner_id,
+         m.loser_id,
+         gm.id  AS map_id,
+         f_w.id AS winner_faction_id,
+         f_l.id AS loser_faction_id,
+         m.winner_side,
+         m.winner_elo_before,
+         m.winner_elo_after,
+         m.loser_elo_before,
+         m.loser_elo_after,
+         m.created_at
+       FROM matches m
+       LEFT JOIN game_maps gm ON gm.name = m.map
+       LEFT JOIN factions f_w ON f_w.name = m.winner_faction
+       LEFT JOIN factions f_l ON f_l.name = m.loser_faction
+       WHERE m.status != 'cancelled'
+       ORDER BY m.created_at ASC`
     );
 
+    // ── Accumulator types ──────────────────────────────────────────────────────
+
+    type GlobalEntry = {
+      wins: number; losses: number; elo_sum: number; elo_count: number;
+    };
+    type OpponentEntry = {
+      wins: number; losses: number; elo_sum: number; elo_count: number;
+      elo_gained: number; elo_lost: number;
+      last_elo_against_me: number | null; last_match_date: string | null;
+    };
+    type MapEntry = {
+      map_id: string;
+      wins: number; losses: number; elo_sum: number; elo_count: number;
+    };
+    type FactionEntry = {
+      faction_id: string; opponent_faction_id: string;
+      wins: number; losses: number;
+    };
+
+    // player_id → side → entry
+    const globalMap    = new Map<string, Map<number, GlobalEntry>>();
+    // player_id → side → opponent_id → entry
+    const opponentMap  = new Map<string, Map<number, Map<string, OpponentEntry>>>();
+    // player_id → side → map_id → entry
+    const mapMap       = new Map<string, Map<number, Map<string, MapEntry>>>();
+    // player_id → side → "faction_id|opp_faction_id" → entry
+    const factionMap   = new Map<string, Map<number, Map<string, FactionEntry>>>();
+
+    const SIDES = [0, 1, 2] as const;
+
+    const getOrInit = <K, V>(map: Map<K, V>, key: K, init: () => V): V => {
+      let v = map.get(key);
+      if (!v) { v = init(); map.set(key, v); }
+      return v;
+    };
+
+    const addGlobal = (playerId: string, side: number, isWin: boolean, eloChange: number) => {
+      const byPlayer = getOrInit(globalMap, playerId, () => new Map());
+      const entry    = getOrInit(byPlayer, side, () => ({ wins: 0, losses: 0, elo_sum: 0, elo_count: 0 }));
+      if (isWin) entry.wins++; else entry.losses++;
+      entry.elo_sum   += eloChange;
+      entry.elo_count += 1;
+    };
+
+    const addOpponent = (
+      playerId: string, side: number, opponentId: string,
+      isWin: boolean, eloChange: number,
+      opponentEloBefore: number, matchDate: string
+    ) => {
+      const byPlayer   = getOrInit(opponentMap, playerId, () => new Map());
+      const bySide     = getOrInit(byPlayer,   side,     () => new Map());
+      const entry      = getOrInit(bySide, opponentId, () => ({
+        wins: 0, losses: 0, elo_sum: 0, elo_count: 0,
+        elo_gained: 0, elo_lost: 0,
+        last_elo_against_me: null as number | null,
+        last_match_date: null as string | null,
+      }));
+      if (isWin) { entry.wins++; if (eloChange > 0) entry.elo_gained += eloChange; }
+      else       { entry.losses++; if (eloChange < 0) entry.elo_lost += Math.abs(eloChange); }
+      entry.elo_sum   += eloChange;
+      entry.elo_count += 1;
+      entry.last_elo_against_me = opponentEloBefore;
+      entry.last_match_date     = matchDate;
+    };
+
+    const addMap = (
+      playerId: string, side: number, mapId: string,
+      isWin: boolean, eloChange: number
+    ) => {
+      const byPlayer = getOrInit(mapMap, playerId, () => new Map());
+      const bySide   = getOrInit(byPlayer, side,   () => new Map());
+      const entry    = getOrInit(bySide, mapId, () => ({ map_id: mapId, wins: 0, losses: 0, elo_sum: 0, elo_count: 0 }));
+      if (isWin) entry.wins++; else entry.losses++;
+      entry.elo_sum   += eloChange;
+      entry.elo_count += 1;
+    };
+
+    const addFaction = (
+      playerId: string, side: number,
+      factionId: string, opponentFactionId: string, isWin: boolean
+    ) => {
+      const byPlayer = getOrInit(factionMap, playerId, () => new Map());
+      const bySide   = getOrInit(byPlayer, side,       () => new Map());
+      const key      = `${factionId}|${opponentFactionId}`;
+      const entry    = getOrInit(bySide, key, () => ({ faction_id: factionId, opponent_faction_id: opponentFactionId, wins: 0, losses: 0 }));
+      if (isWin) entry.wins++; else entry.losses++;
+    };
+
+    // ── One-pass accumulation ─────────────────────────────────────────────────
+    for (const row of matchesResult.rows) {
+      const winnerSide: number = row.winner_side ?? 1;
+      const loserSide:  number = winnerSide === 1 ? 2 : 1;
+
+      const winnerEloChange = (row.winner_elo_after  ?? 0) - (row.winner_elo_before ?? 0);
+      const loserEloChange  = (row.loser_elo_after   ?? 0) - (row.loser_elo_before  ?? 0);
+      const matchDate       = row.created_at ? String(row.created_at) : null;
+
+      // ── WINNER perspective ──────────────────────────────────────
+      for (const side of SIDES) {
+        const sideFilter = side === 0 || side === winnerSide;
+        if (!sideFilter) continue;
+        addGlobal(row.winner_id, side, true, winnerEloChange);
+        addOpponent(row.winner_id, side, row.loser_id, true, winnerEloChange,
+          row.loser_elo_before ?? 0, matchDate ?? '');
+        if (row.map_id)           addMap(row.winner_id, side, row.map_id, true, winnerEloChange);
+        if (row.winner_faction_id && row.loser_faction_id)
+          addFaction(row.winner_id, side, row.winner_faction_id, row.loser_faction_id, true);
+      }
+
+      // ── LOSER perspective ───────────────────────────────────────
+      for (const side of SIDES) {
+        const sideFilter = side === 0 || side === loserSide;
+        if (!sideFilter) continue;
+        addGlobal(row.loser_id, side, false, loserEloChange);
+        addOpponent(row.loser_id, side, row.winner_id, false, loserEloChange,
+          row.winner_elo_before ?? 0, matchDate ?? '');
+        if (row.map_id)           addMap(row.loser_id, side, row.map_id, false, loserEloChange);
+        if (row.winner_faction_id && row.loser_faction_id)
+          addFaction(row.loser_id, side, row.loser_faction_id, row.winner_faction_id, false);
+      }
+    }
+
+    // ── INSERT helpers ────────────────────────────────────────────────────────
     let recordsUpdated = 0;
 
-    for (const p of playersResult.rows) {
-      const playerId = p.player_id;
+    const insertBase = `INSERT INTO player_match_statistics
+      (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+       player_side, total_games, wins, losses, winrate, avg_elo_change)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-      // ── 1. GLOBAL STATS ─────────────────────────────────────────────────────
-      const globalResult = await query(
-        `SELECT
-           SUM(CASE WHEN winner_id = ? THEN 1 ELSE 0 END) as wins,
-           SUM(CASE WHEN loser_id  = ? THEN 1 ELSE 0 END) as losses,
-           AVG(CASE WHEN winner_id = ? THEN winner_elo_after - winner_elo_before
-                    WHEN loser_id  = ? THEN loser_elo_after  - loser_elo_before END) as avg_elo_change
-         FROM matches
-         WHERE (winner_id = ? OR loser_id = ?) AND status != 'cancelled'`,
-        [playerId, playerId, playerId, playerId, playerId, playerId]
-      );
+    const insertOpponent = `INSERT INTO player_match_statistics
+      (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
+       player_side, total_games, wins, losses, winrate, avg_elo_change,
+       elo_gained, elo_lost, last_elo_against_me, last_match_date)
+      VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-      const gRow = globalResult.rows[0];
-      const gWins   = parseInt(gRow.wins)   || 0;
-      const gLosses = parseInt(gRow.losses) || 0;
-      const gTotal  = gWins + gLosses;
-      const gWinrate = gTotal > 0 ? (gWins / gTotal) * 100 : 0;
+    const wr = (w: number, total: number) => total > 0 ? Math.round((w / total) * 10000) / 100 : 0;
+    const avg = (sum: number, n: number) => n > 0 ? Math.round((sum / n) * 100) / 100 : 0;
 
-      await query(
-        `INSERT INTO player_match_statistics
-         (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
-          total_games, wins, losses, winrate, avg_elo_change)
-         VALUES (?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?)`,
-        [randomUUID(), playerId, gTotal, gWins, gLosses,
-         Math.round(gWinrate * 100) / 100, Math.round((gRow.avg_elo_change || 0) * 100) / 100]
-      );
-      recordsUpdated++;
-
-      // ── 2. PER-OPPONENT STATS ────────────────────────────────────────────────
-      const opponentResult = await query(
-        `SELECT
-           CASE WHEN winner_id = ? THEN loser_id  ELSE winner_id END as opponent_id,
-           SUM(CASE WHEN winner_id = ? THEN 1 ELSE 0 END) as wins,
-           SUM(CASE WHEN loser_id  = ? THEN 1 ELSE 0 END) as losses,
-           AVG(CASE WHEN winner_id = ? THEN winner_elo_after - winner_elo_before
-                    WHEN loser_id  = ? THEN loser_elo_after  - loser_elo_before END) as avg_elo_change,
-           SUM(CASE WHEN winner_id = ? AND (winner_elo_after - winner_elo_before) > 0
-                    THEN winner_elo_after - winner_elo_before ELSE 0 END) as elo_gained,
-           SUM(CASE WHEN loser_id  = ? AND (loser_elo_before - loser_elo_after) > 0
-                    THEN loser_elo_before - loser_elo_after  ELSE 0 END) as elo_lost,
-           MAX(CASE WHEN winner_id = ? THEN loser_elo_before
-                    WHEN loser_id  = ? THEN winner_elo_before END) as last_elo_against_me,
-           MAX(created_at) as last_match_date
-         FROM matches
-         WHERE (winner_id = ? OR loser_id = ?) AND status != 'cancelled'
-         GROUP BY CASE WHEN winner_id = ? THEN loser_id ELSE winner_id END`,
-        [playerId, playerId, playerId, playerId, playerId,
-         playerId, playerId, playerId, playerId, playerId, playerId, playerId]
-      );
-
-      for (const row of opponentResult.rows) {
-        const wins   = parseInt(row.wins)   || 0;
-        const losses = parseInt(row.losses) || 0;
-        const total  = wins + losses;
-        const winrate = total > 0 ? (wins / total) * 100 : 0;
-
-        await query(
-          `INSERT INTO player_match_statistics
-           (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
-            total_games, wins, losses, winrate, avg_elo_change,
-            elo_gained, elo_lost, last_elo_against_me, last_match_date)
-           VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [randomUUID(), playerId, row.opponent_id, total, wins, losses,
-           Math.round(winrate * 100) / 100,
-           Math.round((row.avg_elo_change || 0) * 100) / 100,
-           Math.round((row.elo_gained || 0) * 100) / 100,
-           Math.round((row.elo_lost   || 0) * 100) / 100,
-           row.last_elo_against_me ? Math.round(row.last_elo_against_me * 100) / 100 : null,
-           row.last_match_date || null]
-        );
+    // 1. Global stats
+    for (const [playerId, bySide] of globalMap) {
+      for (const [side, e] of bySide) {
+        const total = e.wins + e.losses;
+        await query(insertBase, [
+          randomUUID(), playerId, null, null, null, null,
+          side, total, e.wins, e.losses, wr(e.wins, total), avg(e.elo_sum, e.elo_count)
+        ]);
         recordsUpdated++;
       }
+    }
 
-      // ── 3. PER-MAP STATS ─────────────────────────────────────────────────────
-      const mapResult = await query(
-        `SELECT
-           gm.id as map_id,
-           SUM(CASE WHEN m.winner_id = ? THEN 1 ELSE 0 END) as wins,
-           SUM(CASE WHEN m.loser_id  = ? THEN 1 ELSE 0 END) as losses,
-           AVG(CASE WHEN m.winner_id = ? THEN m.winner_elo_after - m.winner_elo_before
-                    WHEN m.loser_id  = ? THEN m.loser_elo_after  - m.loser_elo_before END) as avg_elo_change
-         FROM matches m
-         JOIN game_maps gm ON gm.name = m.map
-         WHERE (m.winner_id = ? OR m.loser_id = ?) AND m.status != 'cancelled'
-         GROUP BY gm.id`,
-        [playerId, playerId, playerId, playerId, playerId, playerId]
-      );
-
-      for (const row of mapResult.rows) {
-        const wins   = parseInt(row.wins)   || 0;
-        const losses = parseInt(row.losses) || 0;
-        const total  = wins + losses;
-        const winrate = total > 0 ? (wins / total) * 100 : 0;
-
-        await query(
-          `INSERT INTO player_match_statistics
-           (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
-            total_games, wins, losses, winrate, avg_elo_change)
-           VALUES (?, ?, NULL, ?, NULL, NULL, ?, ?, ?, ?, ?)`,
-          [randomUUID(), playerId, row.map_id, total, wins, losses,
-           Math.round(winrate * 100) / 100,
-           Math.round((row.avg_elo_change || 0) * 100) / 100]
-        );
-        recordsUpdated++;
-      }
-
-      // ── 4. PER-FACTION (PLAYER'S FACTION vs OPPONENT FACTION) ───────────────
-      // Wins side: player was winner — group by winner_faction vs loser_faction
-      const factionWinResult = await query(
-        `SELECT
-           f_w.id as faction_id,
-           f_l.id as opponent_faction_id,
-           COUNT(*) as wins
-         FROM matches m
-         JOIN factions f_w ON f_w.name = m.winner_faction
-         JOIN factions f_l ON f_l.name = m.loser_faction
-         WHERE m.winner_id = ? AND m.status != 'cancelled'
-         GROUP BY f_w.id, f_l.id`,
-        [playerId]
-      );
-
-      // Losses side: player was loser — group by loser_faction vs winner_faction
-      const factionLossResult = await query(
-        `SELECT
-           f_l.id as faction_id,
-           f_w.id as opponent_faction_id,
-           COUNT(*) as losses
-         FROM matches m
-         JOIN factions f_w ON f_w.name = m.winner_faction
-         JOIN factions f_l ON f_l.name = m.loser_faction
-         WHERE m.loser_id = ? AND m.status != 'cancelled'
-         GROUP BY f_l.id, f_w.id`,
-        [playerId]
-      );
-
-      // Merge wins and losses by faction pairing
-      const factionMap = new Map<string, { faction_id: string; opponent_faction_id: string; wins: number; losses: number }>();
-
-      for (const row of factionWinResult.rows) {
-        const key = `${row.faction_id}|${row.opponent_faction_id}`;
-        factionMap.set(key, { faction_id: row.faction_id, opponent_faction_id: row.opponent_faction_id, wins: parseInt(row.wins) || 0, losses: 0 });
-      }
-      for (const row of factionLossResult.rows) {
-        const key = `${row.faction_id}|${row.opponent_faction_id}`;
-        const existing = factionMap.get(key);
-        if (existing) {
-          existing.losses += parseInt(row.losses) || 0;
-        } else {
-          factionMap.set(key, { faction_id: row.faction_id, opponent_faction_id: row.opponent_faction_id, wins: 0, losses: parseInt(row.losses) || 0 });
+    // 2. Per-opponent stats
+    for (const [playerId, bySide] of opponentMap) {
+      for (const [side, byOpponent] of bySide) {
+        for (const [opponentId, e] of byOpponent) {
+          const total = e.wins + e.losses;
+          await query(insertOpponent, [
+            randomUUID(), playerId, opponentId,
+            side, total, e.wins, e.losses, wr(e.wins, total), avg(e.elo_sum, e.elo_count),
+            Math.round(e.elo_gained * 100) / 100,
+            Math.round(e.elo_lost   * 100) / 100,
+            e.last_elo_against_me !== null ? Math.round(e.last_elo_against_me * 100) / 100 : null,
+            e.last_match_date || null
+          ]);
+          recordsUpdated++;
         }
       }
+    }
 
-      for (const stats of factionMap.values()) {
-        const total  = stats.wins + stats.losses;
-        const winrate = total > 0 ? (stats.wins / total) * 100 : 0;
+    // 3. Per-map stats
+    for (const [playerId, bySide] of mapMap) {
+      for (const [side, byMap] of bySide) {
+        for (const [mapId, e] of byMap) {
+          const total = e.wins + e.losses;
+          await query(insertBase, [
+            randomUUID(), playerId, null, mapId, null, null,
+            side, total, e.wins, e.losses, wr(e.wins, total), avg(e.elo_sum, e.elo_count)
+          ]);
+          recordsUpdated++;
+        }
+      }
+    }
 
-        await query(
-          `INSERT INTO player_match_statistics
-           (id, player_id, opponent_id, map_id, faction_id, opponent_faction_id,
-            total_games, wins, losses, winrate, avg_elo_change)
-           VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, 0)`,
-          [randomUUID(), playerId, stats.faction_id, stats.opponent_faction_id,
-           total, stats.wins, stats.losses, Math.round(winrate * 100) / 100]
-        );
-        recordsUpdated++;
+    // 4. Per-faction stats
+    for (const [playerId, bySide] of factionMap) {
+      for (const [side, byFaction] of bySide) {
+        for (const e of byFaction.values()) {
+          const total = e.wins + e.losses;
+          await query(insertBase, [
+            randomUUID(), playerId, null, null, e.faction_id, e.opponent_faction_id,
+            side, total, e.wins, e.losses, wr(e.wins, total), 0
+          ]);
+          recordsUpdated++;
+        }
       }
     }
 

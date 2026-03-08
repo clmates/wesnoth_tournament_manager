@@ -3,6 +3,12 @@ import { query } from '../config/database.js';
 
 const router = Router();
 
+/** Parse optional ?side query param. Valid values: 0 (all), 1 (side 1), 2 (side 2). Default: 0. */
+const parseSide = (raw: unknown): number => {
+  const v = parseInt(String(raw));
+  return (v === 1 || v === 2) ? v : 0;
+};
+
 /**
  * Get global player statistics
  * Returns overall winrate, ELO change, games played
@@ -10,11 +16,13 @@ const router = Router();
 router.get('/player/:playerId/global', async (req, res) => {
   try {
     const { playerId } = req.params;
-    
+    const side = parseSide(req.query.side);
+
     const result = await query(
       `SELECT 
         pms.player_id,
         u.nickname as player_name,
+        pms.player_side,
         pms.total_games,
         pms.wins,
         pms.losses,
@@ -26,8 +34,9 @@ router.get('/player/:playerId/global', async (req, res) => {
       WHERE pms.player_id = ?
       AND pms.opponent_id IS NULL
       AND pms.map_id IS NULL
-      AND pms.faction_id IS NULL`,
-      [playerId]
+      AND pms.faction_id IS NULL
+      AND pms.player_side = ?`,
+      [playerId, side]
     );
     res.json(result.rows[0] || {});
   } catch (error) {
@@ -44,13 +53,13 @@ router.get('/player/:playerId/by-map', async (req, res) => {
   try {
     const { playerId } = req.params;
     const minGames = parseInt(req.query.minGames as string) || 2;
-    
-    console.log('Fetching by-map stats for player:', playerId, 'minGames:', minGames);
-    
+    const side = parseSide(req.query.side);
+
     const result = await query(
       `SELECT 
         gm.id as map_id,
         gm.name as map_name,
+        pms.player_side,
         pms.total_games,
         pms.wins,
         pms.losses,
@@ -62,11 +71,11 @@ router.get('/player/:playerId/by-map', async (req, res) => {
       AND pms.opponent_id IS NULL
       AND pms.map_id IS NOT NULL
       AND pms.faction_id IS NULL
+      AND pms.player_side = ?
       AND pms.total_games >= ?
       ORDER BY pms.winrate DESC`,
-      [playerId, minGames]
+      [playerId, side, minGames]
     );
-    console.log('By-map result rows:', result.rows);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching player map statistics:', error);
@@ -82,13 +91,13 @@ router.get('/player/:playerId/by-faction', async (req, res) => {
   try {
     const { playerId } = req.params;
     const minGames = parseInt(req.query.minGames as string) || 2;
-    
-    console.log('Fetching by-faction stats for player:', playerId, 'minGames:', minGames);
-    
+    const side = parseSide(req.query.side);
+
     const result = await query(
       `SELECT 
         f.id as faction_id,
         f.name as faction_name,
+        pms.player_side,
         pms.total_games,
         pms.wins,
         pms.losses,
@@ -100,11 +109,11 @@ router.get('/player/:playerId/by-faction', async (req, res) => {
       AND pms.opponent_id IS NULL
       AND pms.map_id IS NULL
       AND pms.faction_id IS NOT NULL
+      AND pms.player_side = ?
       AND pms.total_games >= ?
       ORDER BY pms.winrate DESC`,
-      [playerId, minGames]
+      [playerId, side, minGames]
     );
-    console.log('By-faction result rows:', result.rows);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching player faction statistics:', error);
@@ -118,13 +127,15 @@ router.get('/player/:playerId/by-faction', async (req, res) => {
 router.get('/player/:playerId/vs-player/:opponentId', async (req, res) => {
   try {
     const { playerId, opponentId } = req.params;
-    
+    const side = parseSide(req.query.side);
+
     const result = await query(
       `SELECT 
         pms.player_id,
         u1.nickname as player_name,
         pms.opponent_id,
         u2.nickname as opponent_name,
+        pms.player_side,
         pms.total_games,
         pms.wins,
         pms.losses,
@@ -139,8 +150,9 @@ router.get('/player/:playerId/vs-player/:opponentId', async (req, res) => {
       AND pms.opponent_id = ?
       AND pms.map_id IS NULL
       AND pms.faction_id IS NULL
-      GROUP BY pms.player_id, u1.nickname, pms.opponent_id, u2.nickname, pms.total_games, pms.wins, pms.losses, pms.winrate, pms.avg_elo_change`,
-      [playerId, opponentId]
+      AND pms.player_side = ?
+      GROUP BY pms.player_id, u1.nickname, pms.opponent_id, u2.nickname, pms.player_side, pms.total_games, pms.wins, pms.losses, pms.winrate, pms.avg_elo_change`,
+      [playerId, opponentId, side]
     );
     res.json(result.rows[0] || {});
   } catch (error) {
@@ -155,11 +167,13 @@ router.get('/player/:playerId/vs-player/:opponentId', async (req, res) => {
 router.get('/player/:playerId/map/:mapId', async (req, res) => {
   try {
     const { playerId, mapId } = req.params;
-    
+    const side = parseSide(req.query.side);
+
     const result = await query(
       `SELECT 
         gm.id as map_id,
         gm.name as map_name,
+        pms.player_side,
         pms.total_games,
         pms.wins,
         pms.losses,
@@ -173,8 +187,9 @@ router.get('/player/:playerId/map/:mapId', async (req, res) => {
       AND pms.map_id = ?
       AND pms.opponent_id IS NULL
       AND pms.faction_id IS NULL
-      GROUP BY gm.id, gm.name, pms.total_games, pms.wins, pms.losses, pms.winrate, pms.avg_elo_change`,
-      [playerId, mapId]
+      AND pms.player_side = ?
+      GROUP BY gm.id, gm.name, pms.player_side, pms.total_games, pms.wins, pms.losses, pms.winrate, pms.avg_elo_change`,
+      [playerId, mapId, side]
     );
     res.json(result.rows[0] || {});
   } catch (error) {
@@ -189,11 +204,13 @@ router.get('/player/:playerId/map/:mapId', async (req, res) => {
 router.get('/player/:playerId/faction/:factionId', async (req, res) => {
   try {
     const { playerId, factionId } = req.params;
-    
+    const side = parseSide(req.query.side);
+
     const result = await query(
       `SELECT 
         f.id as faction_id,
         f.name as faction_name,
+        pms.player_side,
         pms.total_games,
         pms.wins,
         pms.losses,
@@ -207,8 +224,9 @@ router.get('/player/:playerId/faction/:factionId', async (req, res) => {
       AND pms.faction_id = ?
       AND pms.opponent_id IS NULL
       AND pms.map_id IS NULL
-      GROUP BY f.id, f.name, pms.total_games, pms.wins, pms.losses, pms.winrate, pms.avg_elo_change`,
-      [playerId, factionId]
+      AND pms.player_side = ?
+      GROUP BY f.id, f.name, pms.player_side, pms.total_games, pms.wins, pms.losses, pms.winrate, pms.avg_elo_change`,
+      [playerId, factionId, side]
     );
     res.json(result.rows[0] || {});
   } catch (error) {
@@ -223,13 +241,15 @@ router.get('/player/:playerId/faction/:factionId', async (req, res) => {
 router.get('/player/:playerId/map/:mapId/faction/:factionId', async (req, res) => {
   try {
     const { playerId, mapId, factionId } = req.params;
-    
+    const side = parseSide(req.query.side);
+
     const result = await query(
       `SELECT 
         gm.id as map_id,
         gm.name as map_name,
         f.id as faction_id,
         f.name as faction_name,
+        pms.player_side,
         pms.total_games,
         pms.wins,
         pms.losses,
@@ -241,8 +261,9 @@ router.get('/player/:playerId/map/:mapId/faction/:factionId', async (req, res) =
       WHERE pms.player_id = ?
       AND pms.map_id = ?
       AND pms.faction_id = ?
-      AND pms.opponent_id IS NULL`,
-      [playerId, mapId, factionId]
+      AND pms.opponent_id IS NULL
+      AND pms.player_side = ?`,
+      [playerId, mapId, factionId, side]
     );
     res.json(result.rows[0] || {});
   } catch (error) {
@@ -258,16 +279,14 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
   try {
     const { playerId } = req.params;
     const limit = parseInt(req.query.limit as string) || 10;
-    
-    console.log('Fetching recent opponents for player:', playerId, 'limit:', limit);
-    
-    // Get opponents from pre-calculated aggregated h2h records (map_id and faction_id NULL)
-    // These are pre-calculated during statistics recalculation for O(1) query performance
+    const side = parseSide(req.query.side);
+
     const result = await query(
       `SELECT
         pms.opponent_id,
         u.nickname as opponent_name,
         u.elo_rating as current_elo,
+        pms.player_side,
         pms.total_games,
         pms.wins,
         pms.losses,
@@ -283,11 +302,11 @@ router.get('/player/:playerId/recent-opponents', async (req, res) => {
       AND pms.map_id IS NULL
       AND pms.faction_id IS NULL
       AND pms.opponent_faction_id IS NULL
+      AND pms.player_side = ?
       ORDER BY IF(pms.last_match_date IS NULL, 1, 0), pms.last_match_date DESC
       LIMIT ?`,
-      [playerId, limit]
+      [playerId, side, limit]
     );
-    console.log('Recent opponents result rows:', result.rows);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching recent opponents:', error);
