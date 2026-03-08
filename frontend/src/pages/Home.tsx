@@ -281,6 +281,84 @@ const Home: React.FC = () => {
                   </thead>
                   <tbody>
                     {recentMatches.map((match) => {
+                      const isConfidence1 = match.source_type === 'replay_confidence_1';
+
+                      if (isConfidence1) {
+                        const map = match.map || 'Unknown Map';
+                        const player1Name = match.winner_nickname || 'Player 1';
+                        const player2Name = match.loser_nickname || 'Player 2';
+
+                        return (
+                          <tr key={match.id} className="border-b border-yellow-200 hover:bg-yellow-50 bg-yellow-50">
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {new Date(match.created_at).toLocaleDateString()}
+                            </td>
+
+                            <td className="px-4 py-3 text-sm" colSpan={2}>
+                              <div className="space-y-2">
+                                <div className="flex gap-2 items-center">
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-semibold text-yellow-800">{player1Name}</span>
+                                  </div>
+                                  {match.winner_faction && (
+                                    <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{match.winner_faction}</span>
+                                  )}
+                                  {match.winner_side && (
+                                    <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>S{match.winner_side}</span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-yellow-600 italic">{t('replay_auto_detected')}</div>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3 text-sm" colSpan={2}>
+                              <div className="space-y-2">
+                                <div className="flex gap-2 items-center">
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-semibold text-yellow-800">{player2Name}</span>
+                                  </div>
+                                  {match.loser_faction && (
+                                    <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded font-semibold">{match.loser_faction}</span>
+                                  )}
+                                  {match.winner_side && (
+                                    <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>S{match.winner_side === 1 ? 2 : 1}</span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-yellow-600 italic">{t('replay_auto_detected')}</div>
+                              </div>
+                            </td>
+
+                            <td className="px-4 py-3 text-sm">
+                              <div className="space-y-2">
+                                <div className="font-semibold text-yellow-900">{map}</div>
+                                <div className="text-xs text-yellow-600">{t('replay_unparsed')}</div>
+                                {(match.replay_filename || match.game_name) && (
+                                  <div className="text-xs text-yellow-700 font-mono bg-yellow-100 px-2 py-1 rounded truncate max-w-[200px]" title={match.replay_filename || match.game_name}>
+                                    📄 {match.replay_filename || match.game_name}
+                                  </div>
+                                )}
+                                <div>
+                                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+                                    {t('replay_need_confirmation')}
+                                  </span>
+                                </div>
+                                {(match.replay_url || match.replay_file_path) && (
+                                  <a
+                                    href={match.replay_url || match.replay_file_path}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-block px-3 py-1 rounded text-xs font-semibold bg-blue-500 text-white hover:bg-blue-600 transition"
+                                    title={t('replay_download')}
+                                  >
+                                    {t('replay_download')}
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      }
+
                       const winnerEloChange = (match.winner_elo_after || 0) - (match.winner_elo_before || 0);
                       const loserEloChange = (match.loser_elo_after || 0) - (match.loser_elo_before || 0);
 

@@ -417,18 +417,72 @@ router.get('/news', async (req, res) => {
 // Get recent matches (public endpoint)
 router.get('/matches/recent', async (req, res) => {
   try {
-    const result = await query(
-      `SELECT m.*, 
-              w.nickname as winner_nickname,
-              l.nickname as loser_nickname
-       FROM matches m
-       JOIN users_extension w ON m.winner_id = w.id
-       JOIN users_extension l ON m.loser_id = l.id
-       ORDER BY m.created_at DESC
-       LIMIT 20`
-    );
-    console.log('Recent matches query result:', result.rows.length, 'rows found');
-    res.json(result.rows);
+    const [matchResult, replayResult] = await Promise.all([
+      query(
+        `SELECT m.*, 
+                w.nickname as winner_nickname,
+                l.nickname as loser_nickname
+         FROM matches m
+         JOIN users_extension w ON m.winner_id = w.id
+         JOIN users_extension l ON m.loser_id = l.id
+         ORDER BY m.created_at DESC
+         LIMIT 20`
+      ),
+      query(
+        `SELECT r.id, r.replay_filename, r.game_name, r.replay_url, r.parse_summary, r.created_at
+         FROM replays r
+         WHERE r.integration_confidence = 1
+           AND r.parsed = 1
+           AND r.match_id IS NULL
+           AND r.tournament_id IS NULL
+         ORDER BY r.created_at DESC
+         LIMIT 20`
+      )
+    ]);
+
+    const formattedReplays: any[] = [];
+    for (const r of replayResult.rows) {
+      try {
+        const parseSummary = typeof r.parse_summary === 'string'
+          ? JSON.parse(r.parse_summary)
+          : r.parse_summary;
+        const players = parseSummary.forumPlayers || [];
+        if (players.length < 2) continue;
+        const resolvedFactions = parseSummary.resolvedFactions || {};
+        formattedReplays.push({
+          id: r.id,
+          winner_id: null,
+          loser_id: null,
+          winner_nickname: parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown',
+          loser_nickname: parseSummary.replayVictory?.loser_name || players[1]?.user_name || 'Unknown',
+          winner_faction: resolvedFactions.side1 || 'Unknown',
+          loser_faction: resolvedFactions.side2 || 'Unknown',
+          winner_side: parseSummary.replayVictory?.winner_side || null,
+          map: parseSummary.resolvedMap || parseSummary.parsedMap || parseSummary.scenario || 'Unknown Map',
+          status: 'pending_report',
+          winner_elo_before: null,
+          winner_elo_after: null,
+          loser_elo_before: null,
+          loser_elo_after: null,
+          replay_url: r.replay_url,
+          replay_file_path: r.replay_url,
+          replay_downloads: 0,
+          created_at: r.created_at,
+          source_type: 'replay_confidence_1',
+          confidence_level: 1,
+          game_name: r.game_name,
+          replay_filename: r.replay_filename
+        });
+      } catch {
+        // skip malformed replay
+      }
+    }
+
+    const allResults = [...matchResult.rows, ...formattedReplays];
+    allResults.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    console.log('Recent matches query result:', allResults.length, 'rows found');
+    res.json(allResults.slice(0, 20));
   } catch (error) {
     console.error('Error fetching recent matches:', error);
     res.status(500).json({ error: 'Failed to fetch recent matches', details: (error as any).message });
