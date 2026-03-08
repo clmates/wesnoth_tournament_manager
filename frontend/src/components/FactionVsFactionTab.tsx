@@ -11,6 +11,23 @@ interface FactionMatchupStats {
   faction_1_winrate: number;
   faction_2_winrate: number;
   imbalance: number;
+  side1_games?: number;
+  f1_side1_winrate?: number | null;
+  side2_games?: number;
+  f1_side2_winrate?: number | null;
+}
+
+/** Accumulator for building FactionMatchupStats across multiple map rows */
+interface MatchupAccum {
+  faction_1_name: string;
+  faction_2_name: string;
+  total_games: number;
+  f1_wins: number;
+  f2_wins: number;
+  s1g: number; // side1_games (faction_1 as side 1)
+  s1w: number; // side1_wins
+  s2g: number; // side2_games (faction_1 as side 2)
+  s2w: number; // side2_wins
 }
 
 interface ComparisonInputData {
@@ -102,7 +119,7 @@ const FactionVsFactionTab: React.FC<{ beforeData?: any[] | null; afterData?: any
         setLoading(true);
         const data = await statisticsService.getMatchupStats(minGames);
 
-        const factionMatchupMap = new Map<string, FactionMatchupStats>();
+        const accumMap = new Map<string, MatchupAccum>();
 
         data.forEach((item: any) => {
           const f1 = item.faction_1_name;
@@ -110,40 +127,62 @@ const FactionVsFactionTab: React.FC<{ beforeData?: any[] | null; afterData?: any
           const key = [f1, f2].sort().join('|');
           const isFlipped = f1 > f2;
 
-          const itemTotal  = parseInt(String(item.total_games),   10) || 0;
-          const itemF1Wins = parseInt(String(item.faction_1_wins), 10) || 0;
-          const itemF2Wins = parseInt(String(item.faction_2_wins), 10) || 0;
-          const f1_wr      = parseFloat(item.faction_1_winrate)       || 0;
-          const f2_wr      = parseFloat(item.faction_2_winrate)       || 0;
+          const itemTotal  = parseInt(String(item.total_games),    10) || 0;
+          const itemF1Wins = parseInt(String(item.faction_1_wins),  10) || 0;
+          const itemF2Wins = parseInt(String(item.faction_2_wins),  10) || 0;
 
-          const existing = factionMatchupMap.get(key);
+          // Side stats from backend (faction_1 = backend's f1, which may be flipped)
+          const beS1g  = parseInt(String(item.side1_games), 10)  || 0;
+          const beS1wr = parseFloat(item.f1_side1_winrate) || 0;
+          const beS2g  = parseInt(String(item.side2_games), 10)  || 0;
+          const beS2wr = parseFloat(item.f1_side2_winrate) || 0;
+          const beS1w  = Math.round(beS1wr * beS1g / 100);
+          const beS2w  = Math.round(beS2wr * beS2g / 100);
+
+          // When flipped: our faction_1 = backend's faction_2
+          // → our faction_1's side1 = backend's faction_2's side1 = backend's faction_1's side2, wins inverted
+          const s1g = isFlipped ? beS2g : beS1g;
+          const s1w = isFlipped ? (beS2g - beS2w) : beS1w;  // backend f2 wins when backend f1 loses
+          const s2g = isFlipped ? beS1g : beS2g;
+          const s2w = isFlipped ? (beS1g - beS1w) : beS2w;
+
+          const existing = accumMap.get(key);
           if (!existing) {
-            factionMatchupMap.set(key, {
-              faction_1_name:    isFlipped ? f2 : f1,
-              faction_2_name:    isFlipped ? f1 : f2,
-              total_games:       itemTotal,
-              faction_1_wins:    isFlipped ? itemF2Wins : itemF1Wins,
-              faction_2_wins:    isFlipped ? itemF1Wins : itemF2Wins,
-              faction_1_winrate: isFlipped ? f2_wr : f1_wr,
-              faction_2_winrate: isFlipped ? f1_wr : f2_wr,
-              imbalance:         Math.abs(itemF1Wins - itemF2Wins),
+            accumMap.set(key, {
+              faction_1_name: isFlipped ? f2 : f1,
+              faction_2_name: isFlipped ? f1 : f2,
+              total_games:    itemTotal,
+              f1_wins:        isFlipped ? itemF2Wins : itemF1Wins,
+              f2_wins:        isFlipped ? itemF1Wins : itemF2Wins,
+              s1g, s1w, s2g, s2w,
             });
           } else {
-            const f1WinsToAdd = isFlipped ? itemF2Wins : itemF1Wins;
-            const f2WinsToAdd = isFlipped ? itemF1Wins : itemF2Wins;
-            existing.total_games    += itemTotal;
-            existing.faction_1_wins += f1WinsToAdd;
-            existing.faction_2_wins += f2WinsToAdd;
-            existing.imbalance = Math.abs(existing.faction_1_wins - existing.faction_2_wins);
-            if (existing.total_games > 0) {
-              existing.faction_1_winrate = (existing.faction_1_wins / existing.total_games) * 100;
-              existing.faction_2_winrate = (existing.faction_2_wins / existing.total_games) * 100;
-            }
+            existing.total_games += itemTotal;
+            existing.f1_wins += isFlipped ? itemF2Wins : itemF1Wins;
+            existing.f2_wins += isFlipped ? itemF1Wins : itemF2Wins;
+            existing.s1g += s1g;
+            existing.s1w += s1w;
+            existing.s2g += s2g;
+            existing.s2w += s2w;
           }
         });
 
-        const aggregated = Array.from(factionMatchupMap.values())
+        const aggregated: FactionMatchupStats[] = Array.from(accumMap.values())
           .filter(m => m.total_games >= minGames)
+          .map(m => ({
+            faction_1_name:    m.faction_1_name,
+            faction_2_name:    m.faction_2_name,
+            total_games:       m.total_games,
+            faction_1_wins:    m.f1_wins,
+            faction_2_wins:    m.f2_wins,
+            faction_1_winrate: m.total_games > 0 ? (m.f1_wins / m.total_games) * 100 : 0,
+            faction_2_winrate: m.total_games > 0 ? (m.f2_wins / m.total_games) * 100 : 0,
+            imbalance:         m.total_games > 0 ? (Math.abs(m.f1_wins - m.f2_wins) / m.total_games) * 100 : 0,
+            side1_games:       m.s1g,
+            f1_side1_winrate:  m.s1g > 0 ? (m.s1w / m.s1g) * 100 : null,
+            side2_games:       m.s2g,
+            f1_side2_winrate:  m.s2g > 0 ? (m.s2w / m.s2g) * 100 : null,
+          }))
           .sort((a, b) => b.imbalance - a.imbalance);
 
         setStats(aggregated);
@@ -318,6 +357,8 @@ const FactionVsFactionTab: React.FC<{ beforeData?: any[] | null; afterData?: any
                 <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('total_games') || 'Games'}</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_1_wins') || 'F1 Wins'}</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_1_winrate') || 'F1 WR'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('side1_winrate') || 'F1 S1 WR'}</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('side2_winrate') || 'F1 S2 WR'}</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_2_wins') || 'F2 Wins'}</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('faction_2_winrate') || 'F2 WR'}</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-800">{t('imbalance') || 'Imbalance'}</th>
@@ -326,13 +367,33 @@ const FactionVsFactionTab: React.FC<{ beforeData?: any[] | null; afterData?: any
             <tbody>
               {filteredStats.map((stat, idx) => (
                 <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-semibold text-blue-700">{stat.faction_1_name}</td>
+                  <td className="px-4 py-3 text-center font-semibold text-blue-700">{stat.faction_1_name}</td>
                   <td className="px-4 py-3 text-center text-gray-500 font-semibold">vs</td>
                   <td className="px-4 py-3 font-semibold text-red-700">{stat.faction_2_name}</td>
                   <td className="px-4 py-3 text-center font-semibold text-gray-800">{Math.round(stat.total_games)}</td>
                   <td className="px-4 py-3 text-center font-semibold text-gray-800">{Math.round(stat.faction_1_wins)}</td>
                   <td className="px-4 py-3 text-center text-sm">
                     <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded font-semibold">{stat.faction_1_winrate.toFixed(1)}%</span>
+                  </td>
+                  <td className="px-4 py-3 text-center text-sm">
+                    {stat.f1_side1_winrate != null ? (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${stat.f1_side1_winrate > 55 ? 'bg-green-100 text-green-700' : stat.f1_side1_winrate < 45 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {stat.f1_side1_winrate.toFixed(1)}%
+                        </span>
+                        <span className="text-xs text-gray-400">{stat.side1_games}g</span>
+                      </div>
+                    ) : <span className="text-gray-400">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center text-sm">
+                    {stat.f1_side2_winrate != null ? (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${stat.f1_side2_winrate > 55 ? 'bg-green-100 text-green-700' : stat.f1_side2_winrate < 45 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                          {stat.f1_side2_winrate.toFixed(1)}%
+                        </span>
+                        <span className="text-xs text-gray-400">{stat.side2_games}g</span>
+                      </div>
+                    ) : <span className="text-gray-400">—</span>}
                   </td>
                   <td className="px-4 py-3 text-center font-semibold text-gray-800">{Math.round(stat.faction_2_wins)}</td>
                   <td className="px-4 py-3 text-center text-sm">
