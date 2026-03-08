@@ -33,6 +33,7 @@ const User: React.FC = () => {
   const [opponentStats, setOpponentStats] = useState<any[]>([]);
   const [opponentStatsLoading, setOpponentStatsLoading] = useState(false);
   const [opponentStatsError, setOpponentStatsError] = useState('');
+  const [opponentSide, setOpponentSide] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [matchDetailsModal, setMatchDetailsModal] = useState<any>(null);
@@ -91,13 +92,13 @@ const User: React.FC = () => {
 
   // Fetch opponent stats when opponents tab is selected
   useEffect(() => {
-    if (activeTab === 'opponents' && opponentStats.length === 0 && !opponentStatsLoading && userId) {
+    if (activeTab === 'opponents' && !opponentStatsLoading && userId) {
       const fetchOpponents = async () => {
         try {
           setOpponentStatsLoading(true);
           setOpponentStatsError('');
           console.log('Fetching recent opponents for user:', userId);
-          const opponentsRes = await playerStatisticsService.getRecentOpponents(userId, 100);
+          const opponentsRes = await playerStatisticsService.getRecentOpponents(userId, 100, opponentSide);
           console.log('Opponents data received:', opponentsRes);
           
           // Normalize API response to match expected format
@@ -128,7 +129,7 @@ const User: React.FC = () => {
 
       fetchOpponents();
     }
-  }, [activeTab, userId]);
+  }, [activeTab, userId, opponentSide]);
 
   const refetchMatches = async () => {
     try {
@@ -455,7 +456,22 @@ const User: React.FC = () => {
               {activeTab === 'opponents' && (
                 <div className="bg-white rounded-lg shadow-md p-8">
                   <div>
-                    <h2 className="text-2xl font-bold mb-6 text-gray-800">{t('my_opponents') || 'Opponents'}</h2>
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                      <h2 className="text-2xl font-bold text-gray-800">{t('my_opponents') || 'Opponents'}</h2>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-600">{t('side') || 'Side'}:</span>
+                        {([0, 1, 2] as const).map((val) => (
+                          <button key={val} onClick={() => setOpponentSide(val)}
+                            className={`px-3 py-1 text-sm font-semibold rounded transition-colors ${
+                              opponentSide === val
+                                ? val === 0 ? 'bg-gray-700 text-white' : val === 1 ? 'bg-amber-500 text-white' : 'bg-purple-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}>
+                            {val === 0 ? (t('all') || 'All') : `Side ${val}`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     
                     {opponentStatsLoading && (
                       <div className="text-center py-8 text-gray-600 text-lg">{t('loading')}</div>
