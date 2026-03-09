@@ -2010,19 +2010,21 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
       {/* Delete Tournament Confirmation Modal */}
       {showDeleteConfirmModal && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-small">
-            <div className="modal-header">
-              <h2>{t('tournaments.confirm_delete_title') || 'Confirm Tournament Deletion'}</h2>
-            </div>
-            <div className="modal-body">
-              <p>{t('tournaments.no_participants_message') || 'No participants have registered for this tournament. Delete it?'}</p>
-            </div>
-            <div className="modal-footer">
-              <button className="cancel-btn" onClick={() => setShowDeleteConfirmModal(false)}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">{t('tournaments.confirm_delete_title') || 'Confirm Tournament Deletion'}</h2>
+            <p className="text-gray-600 mb-6">{t('tournaments.no_participants_message') || 'No participants have registered for this tournament. Delete it?'}</p>
+            <div className="flex justify-end gap-3">
+              <button
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
+                onClick={() => setShowDeleteConfirmModal(false)}
+              >
                 {t('cancel_btn') || 'Cancel'}
               </button>
-              <button className="delete-btn" onClick={handleConfirmDelete}>
+              <button
+                className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                onClick={handleConfirmDelete}
+              >
                 {t('delete_btn') || 'Delete'}
               </button>
             </div>
@@ -2032,12 +2034,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
       {/* Rename Team Modal */}
       {renameTeamModal.open && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-small">
-            <div className="modal-header">
-              <h2>Rename Team</h2>
-            </div>
-            <div className="modal-body">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Rename Team</h2>
+            <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">New team name</label>
               <input
                 type="text"
@@ -2049,15 +2049,15 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                 autoFocus
               />
             </div>
-            <div className="modal-footer">
+            <div className="flex justify-end gap-3">
               <button
-                className="cancel-btn"
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
                 onClick={() => setRenameTeamModal({ open: false, teamId: null, currentName: '' })}
               >
                 {t('cancel_btn') || 'Cancel'}
               </button>
               <button
-                className="save-btn"
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
                 disabled={renameTeamLoading || !renameTeamValue.trim()}
                 onClick={handleRenameTeam}
               >

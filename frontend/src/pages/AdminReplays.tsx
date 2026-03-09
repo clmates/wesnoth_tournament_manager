@@ -214,18 +214,22 @@ const AdminReplays: React.FC = () => {
 
       {/* Parse Summary Modal */}
       {summaryModal.open && (
-        <div className="modal-overlay" onClick={() => setSummaryModal({ open: false, json: '', filename: '' })}>
-          <div className="modal-content" style={{ maxWidth: '700px', maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="text-sm font-mono truncate">Parse Summary — {summaryModal.filename}</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" onClick={() => setSummaryModal({ open: false, json: '', filename: '' })}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col" style={{ maxHeight: '85vh' }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-gray-800 truncate">Parse Summary</h2>
+              <span className="text-xs text-gray-500 font-mono truncate ml-4">{summaryModal.filename}</span>
             </div>
-            <div className="modal-body">
-              <pre className="text-xs bg-gray-50 rounded p-3 overflow-auto whitespace-pre-wrap break-words" style={{ maxHeight: '55vh' }}>
+            <div className="flex-1 overflow-auto p-4">
+              <pre className="text-xs bg-gray-50 rounded-lg p-4 overflow-auto whitespace-pre-wrap break-words font-mono leading-relaxed">
                 {summaryModal.json}
               </pre>
             </div>
-            <div className="modal-footer">
-              <button className="cancel-btn" onClick={() => setSummaryModal({ open: false, json: '', filename: '' })}>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
+                onClick={() => setSummaryModal({ open: false, json: '', filename: '' })}
+              >
                 Close
               </button>
             </div>
