@@ -103,7 +103,7 @@ const TournamentDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { userId, user, enableRanked } = useAuthStore();
+  const { userId, user, enableRanked, isAdmin, isTournamentModerator } = useAuthStore();
 
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [participants, setParticipants] = useState<TournamentParticipant[]>([]);
@@ -132,6 +132,9 @@ const TournamentDetail: React.FC = () => {
   const [determineWinnerData, setDetermineWinnerData] = useState<any>(null);
   const [showDetermineWinnerModal, setShowDetermineWinnerModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [renameTeamModal, setRenameTeamModal] = useState<{ open: boolean; teamId: string; currentName: string }>({ open: false, teamId: '', currentName: '' });
+  const [renameTeamValue, setRenameTeamValue] = useState('');
+  const [renameTeamLoading, setRenameTeamLoading] = useState(false);
 
     const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
   const [selectedTournamentReplay, setSelectedTournamentReplay] = useState<any>(null);
@@ -707,6 +710,45 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
   const isCreator = userId === tournament?.creator_id;
   const isAcceptedParticipant = userParticipationStatus === 'accepted';
+  const canManageParticipants = isCreator || isAdmin || isTournamentModerator;
+  const canRenameTeam = (team: any) =>
+    isCreator || isAdmin || isTournamentModerator ||
+    (team.members_with_elo && team.members_with_elo.some((m: any) => m.user_id === userId));
+
+  const handleRenameTeam = async () => {
+    if (!renameTeamValue.trim() || !tournament) return;
+    setRenameTeamLoading(true);
+    try {
+      await tournamentService.renameTeam(tournament.id, renameTeamModal.teamId, renameTeamValue.trim());
+      setSuccess('Team renamed successfully');
+      setTimeout(() => setSuccess(''), 3000);
+      setRenameTeamModal({ open: false, teamId: '', currentName: '' });
+      // Refresh participants to reflect the new name
+      const standingsRes = await tournamentService.getTournamentStandings(tournament.id);
+      setParticipants(standingsRes.data?.standings || []);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to rename team');
+      setTimeout(() => setError(''), 4000);
+    } finally {
+      setRenameTeamLoading(false);
+    }
+  };
+
+  const handleRemoveParticipant = async (participantId: string, nickname: string) => {
+    if (!tournament) return;
+    if (!window.confirm(`Remove ${nickname} from this tournament?`)) return;
+    try {
+      await tournamentService.removeParticipant(tournament.id, participantId);
+      setSuccess(`${nickname} removed from tournament`);
+      setTimeout(() => setSuccess(''), 3000);
+      // Refresh participants
+      const standingsRes = await tournamentService.getTournamentStandings(tournament.id);
+      setParticipants(standingsRes.data?.standings || []);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to remove participant');
+      setTimeout(() => setError(''), 4000);
+    }
+  };
 
   if (loading) {
     return <div className="w-full min-h-screen px-4 py-8 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200"><p>{t('loading')}</p></div>;
@@ -998,9 +1040,20 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   <div key={team.id} className="border-2 border-blue-400 rounded-lg p-6 bg-gray-50 shadow hover:shadow-lg transition-all hover:-translate-y-1">
                     <div className="flex justify-between items-start gap-6 mb-4 pb-3 border-b-2 border-blue-400 flex-wrap">
                       <div className="flex flex-col gap-1">
-                        <h3 className="text-lg font-semibold text-gray-800">
-                          {team.nickname}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            {team.nickname}
+                          </h3>
+                          {canRenameTeam(team) && tournament?.status === 'registration_open' && team.nickname !== 'Rejected players' && (
+                            <button
+                              className="text-gray-400 hover:text-blue-600 transition-colors p-1"
+                              title="Rename team"
+                              onClick={() => { setRenameTeamModal({ open: true, teamId: team.id, currentName: team.nickname }); setRenameTeamValue(team.nickname); }}
+                            >
+                              ✏️
+                            </button>
+                          )}
+                        </div>
                         <span className="text-sm text-gray-600">({team.team_size}/2 members)</span>
                         {team.team_total_elo && (
                           <div className="text-sm text-gray-700 mt-2">
@@ -1096,6 +1149,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                       Awaiting confirmation
                                     </span>
                                   )}
+                                  {/* Remove participant — self, organizer, admin, moderator; only before tournament starts */}
+                                  {(member.user_id === userId || canManageParticipants) &&
+                                   tournament?.status === 'registration_open' && (
+                                    <button
+                                      className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
+                                      title="Remove from tournament"
+                                      onClick={() => handleRemoveParticipant(member.participant_id, member.nickname)}
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -1126,7 +1190,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_wins')}</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_losses')}</th>
                     <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_points')}</th>
-                    {isCreator && <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>}
+                    {(isCreator || canManageParticipants || userId) && tournament?.status === 'registration_open' && <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -1150,22 +1214,37 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       <td className="px-4 py-3 text-gray-700">{p.tournament_wins}</td>
                       <td className="px-4 py-3 text-gray-700">{p.tournament_losses}</td>
                       <td className="px-4 py-3 text-gray-700">{p.tournament_points}</td>
-                      {isCreator && p.participation_status === 'pending' && (
+                      {tournament?.status === 'registration_open' && (
                       <td className="px-4 py-3 text-gray-700">
-                        <button 
-                          className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors mr-2"
-                          onClick={() => handleAcceptParticipant(p.id)}
-                        >
-                          {t('btn_accept')}
-                        </button>
-                        <button 
-                          className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
-                          onClick={() => handleRejectParticipant(p.id)}
-                        >
-                          {t('btn_reject')}
-                        </button>
+                        <div className="flex gap-1 flex-wrap">
+                        {isCreator && p.participation_status === 'pending' && (
+                          <>
+                          <button 
+                            className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                            onClick={() => handleAcceptParticipant(p.id)}
+                          >
+                            {t('btn_accept')}
+                          </button>
+                          <button 
+                            className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
+                            onClick={() => handleRejectParticipant(p.id)}
+                          >
+                            {t('btn_reject')}
+                          </button>
+                          </>
+                        )}
+                        {(p.user_id === userId || canManageParticipants) && (
+                          <button
+                            className="px-2 py-1 bg-red-700 text-white rounded text-xs hover:bg-red-800 transition-colors"
+                            title="Remove from tournament"
+                            onClick={() => handleRemoveParticipant(p.id, p.nickname)}
+                          >
+                            ✕
+                          </button>
+                        )}
+                        </div>
                       </td>
-                    )}
+                      )}
                   </tr>
                 ))}
               </tbody>
@@ -1945,6 +2024,44 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               </button>
               <button className="delete-btn" onClick={handleConfirmDelete}>
                 {t('delete_btn') || 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Team Modal */}
+      {renameTeamModal.open && (
+        <div className="modal-overlay">
+          <div className="modal-content modal-small">
+            <div className="modal-header">
+              <h2>Rename Team</h2>
+            </div>
+            <div className="modal-body">
+              <label className="block text-sm font-medium text-gray-700 mb-1">New team name</label>
+              <input
+                type="text"
+                value={renameTeamValue}
+                onChange={(e) => setRenameTeamValue(e.target.value)}
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                placeholder="Enter team name"
+                maxLength={64}
+                autoFocus
+              />
+            </div>
+            <div className="modal-footer">
+              <button
+                className="cancel-btn"
+                onClick={() => setRenameTeamModal({ open: false, teamId: null, currentName: '' })}
+              >
+                {t('cancel_btn') || 'Cancel'}
+              </button>
+              <button
+                className="save-btn"
+                disabled={renameTeamLoading || !renameTeamValue.trim()}
+                onClick={handleRenameTeam}
+              >
+                {renameTeamLoading ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>

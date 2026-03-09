@@ -199,6 +199,10 @@ export const tournamentService = {
     api.post(`/tournaments/${tournamentId}/participants/${participantId}/confirm`),
   rejectParticipant: (tournamentId: string, participantId: string) => 
     api.post(`/tournaments/${tournamentId}/participants/${participantId}/reject`),
+  renameTeam: (tournamentId: string, teamId: string, name: string) =>
+    api.put(`/tournaments/${tournamentId}/teams/${teamId}/rename`, { name }),
+  removeParticipant: (tournamentId: string, participantId: string) =>
+    api.delete(`/tournaments/${tournamentId}/participants/${participantId}`),
 };
 
 export const adminService = {

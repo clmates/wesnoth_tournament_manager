@@ -57,12 +57,31 @@ export const adminMiddleware = async (req: AuthRequest, res: Response, next: Nex
 };
 
 export const moderatorOrAdminMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (!req.userId || !req.username) {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
+  let userId: string;
+  let username: string;
+  try {
+    const decoded = verifyToken(token);
+    userId = decoded.userId;
+    username = decoded.username;
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  if (!userId || !username) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  req.userId = userId;
+  req.username = username;
+
   const { query } = require('../config/database');
-  const result = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
+  const result = await query('SELECT is_admin FROM users_extension WHERE id = ?', [userId]);
 
   if (result.rows.length === 0) {
     return res.status(403).json({ error: 'Not authorized' });
@@ -71,7 +90,7 @@ export const moderatorOrAdminMiddleware = async (req: AuthRequest, res: Response
   const isAdmin = result.rows[0].is_admin;
   if (isAdmin) return next();
 
-  const isModerator = await checkUserIsForumModerator(req.username);
+  const isModerator = await checkUserIsForumModerator(username);
   if (isModerator) return next();
 
   return res.status(403).json({ error: 'Not authorized' });
