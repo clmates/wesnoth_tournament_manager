@@ -301,9 +301,11 @@ const AdminUsers: React.FC = () => {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                      user.is_admin ? 'bg-purple-100 text-purple-800' :
+                      user.is_moderator ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
                     }`}>
-                      {user.is_admin ? t('role_admin') : t('role_user')}
+                      {user.is_admin ? t('role_admin') : user.is_moderator ? 'Moderator' : t('role_user')}
                     </span>
                   </td>
                   <td className="px-4 py-3">

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database.js';
+import { queryPhpbb } from '../config/phpbbDatabase.js';
 import { authMiddleware, moderatorOrAdminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { calculateNewRating, calculateTrend } from '../utils/elo.js';
 import { unlockAccount } from '../services/accountLockout.js';
@@ -25,7 +26,31 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
        WHERE id != '00000000-0000-0000-0000-000000000000'
        ORDER BY created_at DESC`
     );
-    res.json(result.rows);
+
+    // Fetch moderator group members from forum DB and mark them
+    const groupId = process.env.FORUM_MODERATOR_GROUP_ID;
+    let moderatorNicknames = new Set<string>();
+    if (groupId) {
+      try {
+        const modResult = await queryPhpbb(
+          `SELECT u.username_clean
+           FROM phpbb3_users u
+           JOIN phpbb3_user_group ug ON u.user_id = ug.user_id
+           WHERE ug.group_id = ?`,
+          [Number(groupId)]
+        );
+        moderatorNicknames = new Set((modResult as any[]).map((r: any) => r.username_clean.toLowerCase()));
+      } catch (modErr) {
+        console.error('Failed to fetch forum moderators for user list:', modErr);
+      }
+    }
+
+    const users = result.rows.map((u: any) => ({
+      ...u,
+      is_moderator: !u.is_admin && moderatorNicknames.has((u.nickname || '').toLowerCase()),
+    }));
+
+    res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users', details: (error as any).message });
