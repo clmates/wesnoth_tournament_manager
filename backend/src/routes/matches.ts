@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database.js';
-import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { authMiddleware, moderatorOrAdminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { getUserLevel } from '../utils/auth.js';
 import {
   calculateNewRating,
@@ -941,14 +941,8 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Get all disputed matches (admin view) - MUST be before /:id route
-router.get('/disputed/all', authMiddleware, async (req: AuthRequest, res) => {
+router.get('/disputed/all', moderatorOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
-    // Verify admin status
-    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
-    if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const result = await query(
       `SELECT m.*,
               w.nickname as winner_nickname,
@@ -1024,16 +1018,10 @@ router.get('/pending/user', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Admin action on disputed match - MUST be BEFORE /:matchId routes
-router.post('/admin/:id/dispute', authMiddleware, async (req: AuthRequest, res) => {
+router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const { action } = req.body; // 'validate' or 'reject'
-
-    // Verify admin status
-    const adminResult = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
-    if (adminResult.rows.length === 0 || !adminResult.rows[0].is_admin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
 
     const matchResult = await query('SELECT * FROM matches WHERE id = ?', [id]);
     if (matchResult.rows.length === 0) {

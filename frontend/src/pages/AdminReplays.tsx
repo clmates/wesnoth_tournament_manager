@@ -133,6 +133,13 @@ const AdminReplays: React.FC = () => {
             <option value="reported">Reported (has match)</option>
           </select>
           <span className="text-sm text-gray-500 ml-auto">{replays.length} replays found</span>
+          <button
+            onClick={fetchReplays}
+            className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+            title="Refresh"
+          >
+            🔄 Refresh
+          </button>
         </div>
 
         {replays.length === 0 ? (
