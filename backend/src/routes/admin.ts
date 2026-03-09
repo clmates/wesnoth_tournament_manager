@@ -686,15 +686,21 @@ router.delete('/audit-logs/old', authMiddleware, async (req: AuthRequest, res) =
 // List replays with filtering — accessible to admins and tournament moderators
 router.get('/replays', moderatorOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { status, limit = 50, offset = 0 } = req.query;
+    const { status, limit = 100, offset = 0 } = req.query;
     const params: any[] = [];
-    let where = '';
-    if (status) {
-      where = 'WHERE parse_status = ?';
-      params.push(status);
+    let where = 'WHERE deleted_at IS NULL';
+    if (status && status !== 'all') {
+      if (status === 'reported') {
+        where += ' AND match_id IS NOT NULL';
+      } else {
+        where += ' AND parse_status = ?';
+        params.push(status);
+      }
     }
     const result = await query(
-      `SELECT id, replay_filename, parse_status, game_id, parse_error_message, detected_at, start_time, end_time, wesnoth_version, map_name
+      `SELECT id, game_id, instance_uuid, replay_filename, parse_status, match_id,
+              integration_confidence, parse_error_message, parse_summary,
+              detected_at, start_time, map_name
        FROM replays ${where}
        ORDER BY detected_at DESC
        LIMIT ? OFFSET ?`,
