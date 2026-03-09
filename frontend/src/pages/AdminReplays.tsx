@@ -107,7 +107,7 @@ const AdminReplays: React.FC = () => {
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">ID</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('admin.replay_filename', 'Filename')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_status', 'Status')}</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('admin.replay_match_type', 'Match Type')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('admin.replay_map', 'Map')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('admin.replay_error', 'Error')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_date', 'Date')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_actions', 'Actions')}</th>
@@ -125,12 +125,12 @@ const AdminReplays: React.FC = () => {
                         {replay.parse_status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-700 text-sm">{replay.match_type || '—'}</td>
-                    <td className="px-4 py-3 text-red-700 text-xs max-w-xs truncate" title={replay.error_message}>
-                      {replay.error_message || '—'}
+                    <td className="px-4 py-3 text-gray-700 text-sm">{replay.map_name || '—'}</td>
+                    <td className="px-4 py-3 text-red-700 text-xs max-w-xs truncate" title={replay.parse_error_message}>
+                      {replay.parse_error_message || '—'}
                     </td>
                     <td className="px-4 py-3 text-gray-600 text-xs">
-                      {replay.created_at ? new Date(replay.created_at).toLocaleDateString() : '—'}
+                      {replay.detected_at ? new Date(replay.detected_at).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-3">
                       {['new', 'parsed', 'error'].includes(replay.parse_status) && (

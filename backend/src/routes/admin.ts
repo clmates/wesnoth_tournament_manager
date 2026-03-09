@@ -20,7 +20,7 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const result = await query(
-      `SELECT id, nickname, language, discord_id, is_admin, is_active, is_blocked, is_rated, elo_rating, matches_played, total_wins, total_losses, created_at, updated_at
+      `SELECT id, nickname, language, discord_id, is_admin, is_active, is_blocked, is_rated, elo_rating, enable_ranked, matches_played, total_wins, total_losses, created_at, updated_at
        FROM users_extension 
        WHERE id != '00000000-0000-0000-0000-000000000000'
        ORDER BY created_at DESC`
@@ -669,9 +669,9 @@ router.get('/replays', moderatorOrAdminMiddleware, async (req: AuthRequest, res)
       params.push(status);
     }
     const result = await query(
-      `SELECT id, replay_filename, parse_status, game_id, match_type, error_message, created_at, updated_at
+      `SELECT id, replay_filename, parse_status, game_id, parse_error_message, detected_at, start_time, end_time, wesnoth_version, map_name
        FROM replays ${where}
-       ORDER BY created_at DESC
+       ORDER BY detected_at DESC
        LIMIT ? OFFSET ?`,
       [...params, Number(limit), Number(offset)]
     );

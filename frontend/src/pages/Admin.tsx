@@ -281,6 +281,7 @@ const AdminUsers: React.FC = () => {
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_level')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_status')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_role')}</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-800">Ranked</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-800">{t('label_actions')}</th>
                 </tr>
             </thead>
@@ -303,6 +304,13 @@ const AdminUsers: React.FC = () => {
                       user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
                     }`}>
                       {user.is_admin ? t('role_admin') : t('role_user')}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      user.enable_ranked ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {user.enable_ranked ? 'Enabled' : 'Disabled'}
                     </span>
                   </td>
                   <td className="px-4 py-3">

@@ -3286,7 +3286,7 @@ router.put('/:tournamentId/teams/:teamId/rename', authMiddleware, async (req: Au
 
     // Fetch tournament and team
     const [tournResult, teamResult] = await Promise.all([
-      query(`SELECT id, organizer_id FROM tournaments WHERE id = ?`, [tournamentId]),
+      query(`SELECT id, creator_id FROM tournaments WHERE id = ?`, [tournamentId]),
       query(`SELECT id, name FROM tournament_teams WHERE id = ? AND tournament_id = ?`, [teamId, tournamentId]),
     ]);
 
@@ -3298,7 +3298,7 @@ router.put('/:tournamentId/teams/:teamId/rename', authMiddleware, async (req: Au
     const username = req.username!;
 
     // Check if requester is organizer
-    const isOrganizer = tournament.organizer_id === userId;
+    const isOrganizer = tournament.creator_id === userId;
 
     // Check if requester is a team member
     const memberResult = await query(
@@ -3350,7 +3350,7 @@ router.delete('/:tournamentId/participants/:participantId', authMiddleware, asyn
 
     // Fetch tournament
     const tournResult = await query(
-      `SELECT id, organizer_id, status FROM tournaments WHERE id = ?`,
+      `SELECT id, creator_id, status FROM tournaments WHERE id = ?`,
       [tournamentId]
     );
     if (tournResult.rows.length === 0) return res.status(404).json({ error: 'Tournament not found' });
@@ -3372,7 +3372,7 @@ router.delete('/:tournamentId/participants/:participantId', authMiddleware, asyn
 
     const participant = participantResult.rows[0];
     const isSelf = participant.user_id === userId;
-    const isOrganizer = tournament.organizer_id === userId;
+    const isOrganizer = tournament.creator_id === userId;
 
     const adminResult = await query(`SELECT is_admin FROM users_extension WHERE id = ?`, [userId]);
     const isAdmin = adminResult.rows[0]?.is_admin;
