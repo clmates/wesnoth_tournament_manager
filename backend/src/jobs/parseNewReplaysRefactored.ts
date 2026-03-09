@@ -17,6 +17,8 @@ import { query } from '../config/database.js';
 import ReplayParser from '../services/replayParser.js';
 import { parseRankedReplay, ParsedRankedReplay } from '../utils/replayRankedParser.js';
 import { createMatch, updateTournamentRoundMatch } from '../services/matchCreationService.js';
+import { checkForumBanlist } from '../services/phpbbAuth.js';
+import { queryPhpbb } from '../config/phpbbDatabase.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -467,9 +469,15 @@ export class ParseNewReplaysRefactorized {
         console.log(`   ⚠️  Tournament with non-ranked assets → TOURNAMENT_UNRANKED`);
       }
     } else if (parseSummary.replayRankedMode && parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
-      // Generic ranked match (no tournament detected)
-      parseSummary.matchType = 'ranked';
-      console.log(`   ✅ ranked_mode=true, factions ranked, map ranked → RANKED`);
+      // Generic ranked match (no tournament detected) — validate player eligibility
+      const eligibilityRejection = await this.checkRankedEligibility(parseSummary.forumPlayers);
+      if (eligibilityRejection) {
+        parseSummary.matchType = 'rejected';
+        console.log(`   ❌ ${eligibilityRejection} → REJECTED`);
+      } else {
+        parseSummary.matchType = 'ranked';
+        console.log(`   ✅ ranked_mode=true, factions ranked, map ranked → RANKED`);
+      }
     } else if (parseSummary.replayRankedMode && !parseSummary.factionsAreRanked && !parseSummary.mapIsRanked) {
       // Non-ranked assets with ranked addon and no tournament
       parseSummary.matchType = 'rejected';
@@ -480,6 +488,43 @@ export class ParseNewReplaysRefactorized {
     }
 
     return parseSummary;
+  }
+
+  /**
+   * Check that all players in a ranked (non-tournament) match are eligible:
+   * - enable_ranked = 1 in users_extension
+   * - No active ban in phpbb3_banlist
+   * Returns a rejection reason string, or null if all players are eligible.
+   */
+  private async checkRankedEligibility(
+    forumPlayers: Array<{ user_name: string }>
+  ): Promise<string | null> {
+    for (const player of forumPlayers) {
+      if (!player.user_name) continue;
+
+      // Check enable_ranked flag
+      const userResult = await query(
+        `SELECT enable_ranked FROM users_extension WHERE LOWER(nickname) = LOWER(?) LIMIT 1`,
+        [player.user_name]
+      );
+      const enableRanked = userResult.rows[0]?.enable_ranked;
+      if (!enableRanked) {
+        return `Player ${player.user_name} has not enabled ranked matches (enable_ranked=0)`;
+      }
+
+      // Check forum ban (by phpBB user_id)
+      const phpbbResult = await queryPhpbb(
+        `SELECT user_id FROM phpbb3_users WHERE LOWER(username_clean) = LOWER(?) LIMIT 1`,
+        [player.user_name]
+      ) as any[];
+      if (Array.isArray(phpbbResult) && phpbbResult.length > 0) {
+        const banCheck = await checkForumBanlist(phpbbResult[0].user_id);
+        if (banCheck.banned) {
+          return `Player ${player.user_name} has an active forum ban`;
+        }
+      }
+    }
+    return null;
   }
 
   /**

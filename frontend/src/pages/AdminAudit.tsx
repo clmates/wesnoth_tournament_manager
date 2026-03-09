@@ -17,7 +17,7 @@ interface AuditLog {
 
 export default function AdminAudit() {
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin } = useAuthStore();
+  const { isAuthenticated, isAdmin, isTournamentModerator } = useAuthStore();
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -32,14 +32,14 @@ export default function AdminAudit() {
 
   // Check authentication and admin status
   useEffect(() => {
-    if (!isAuthenticated || !isAdmin) {
+    if (!isAuthenticated || (!isAdmin && !isTournamentModerator)) {
       navigate('/');
       return;
     }
     
     // Only fetch logs if admin
     fetchAuditLogs();
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, isAdmin, isTournamentModerator, navigate]);
 
   // Fetch audit logs
   const fetchAuditLogs = async () => {
@@ -199,7 +199,8 @@ export default function AdminAudit() {
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons — admin only */}
+      {isAdmin && (
       <div className="flex gap-4 mb-6">
         <button
           onClick={() => setShowDeleteConfirm(true)}
@@ -216,6 +217,7 @@ export default function AdminAudit() {
           🧹 Delete Logs Older Than {filters.daysBack} Days
         </button>
       </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (

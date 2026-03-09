@@ -8,7 +8,7 @@ import MainLayout from '../components/MainLayout';
 const AdminUsers: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin } = useAuthStore();
+  const { isAuthenticated, isAdmin, isTournamentModerator } = useAuthStore();
   
   const [users, setUsers] = useState<any[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
@@ -27,14 +27,16 @@ const AdminUsers: React.FC = () => {
   const [togglingMaintenance, setTogglingMaintenance] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !isAdmin) {
+    if (!isAuthenticated || (!isAdmin && !isTournamentModerator)) {
       navigate('/');
       return;
     }
 
     fetchUsers();
-    fetchMaintenanceStatus();
-  }, [isAuthenticated, isAdmin, navigate]);
+    if (isAdmin) {
+      fetchMaintenanceStatus();
+    }
+  }, [isAuthenticated, isAdmin, isTournamentModerator, navigate]);
 
   const fetchUsers = async () => {
     try {
@@ -220,6 +222,8 @@ const AdminUsers: React.FC = () => {
       </section>
 
       <section className="mb-6">
+        {isAdmin && (
+          <>
         <button
           className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 mr-3"
           onClick={handleRecalculateAllStats}
@@ -238,6 +242,8 @@ const AdminUsers: React.FC = () => {
         >
           {maintenanceMode ? '⚠️ Maintenance ON' : '✓ Maintenance OFF'}
         </button>
+          </>
+        )}
       </section>
 
       <section>
@@ -301,42 +307,50 @@ const AdminUsers: React.FC = () => {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {user.is_blocked ? (
-                        <button
-                          className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-                          onClick={() => handleAction(user, 'unblock')}
-                        >
-                          {t('btn_unblock')}
-                        </button>
-                      ) : (
-                        <button
-                          className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-                          onClick={() => handleAction(user, 'block')}
-                        >
-                          {t('btn_block')}
-                        </button>
+                      {/* Block/unblock: moderators cannot target admin users */}
+                      {!(isTournamentModerator && !isAdmin && user.is_admin) && (
+                        user.is_blocked ? (
+                          <button
+                            className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                            onClick={() => handleAction(user, 'unblock')}
+                          >
+                            {t('btn_unblock')}
+                          </button>
+                        ) : (
+                          <button
+                            className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                            onClick={() => handleAction(user, 'block')}
+                          >
+                            {t('btn_block')}
+                          </button>
+                        )
                       )}
-                      {user.is_admin ? (
-                        <button
-                          className="px-2 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                          onClick={() => handleAction(user, 'removeAdmin')}
-                        >
-                          {t('btn_remove_admin')}
-                        </button>
-                      ) : (
-                        <button
-                          className="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600"
-                          onClick={() => handleAction(user, 'makeAdmin')}
-                        >
-                          {t('btn_make_admin')}
-                        </button>
+                      {/* Admin-only actions */}
+                      {isAdmin && (
+                        <>
+                          {user.is_admin ? (
+                            <button
+                              className="px-2 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                              onClick={() => handleAction(user, 'removeAdmin')}
+                            >
+                              {t('btn_remove_admin')}
+                            </button>
+                          ) : (
+                            <button
+                              className="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600"
+                              onClick={() => handleAction(user, 'makeAdmin')}
+                            >
+                              {t('btn_make_admin')}
+                            </button>
+                          )}
+                          <button
+                            className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                            onClick={() => handleConfirmDelete(user)}
+                          >
+                            {t('btn_delete')}
+                          </button>
+                        </>
                       )}
-                      <button
-                        className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                        onClick={() => handleConfirmDelete(user)}
-                      >
-                        {t('btn_delete')}
-                      </button>
                     </div>
                   </td>
                 </tr>

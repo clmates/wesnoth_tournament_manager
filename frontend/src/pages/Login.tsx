@@ -7,22 +7,22 @@ import { useAuthStore } from '../store/authStore';
 const Login: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { setToken, setUserId, setIsAdmin } = useAuthStore();
+  const { setToken, setUserId, setIsAdmin, setIsTournamentModerator, setEnableRanked } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [banInfo, setBanInfo] = useState<{ reason?: string; until?: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setBanInfo(null);
     
     try {
-      // Login with Wesnoth credentials
       const response = await authService.login(username, password);
       
-      // Validate token before storing
       if (!response.data.token || !response.data.userId) {
         throw new Error('Invalid response: missing token or userId');
       }
@@ -30,13 +30,14 @@ const Login: React.FC = () => {
       setToken(response.data.token);
       setUserId(response.data.userId);
       localStorage.setItem('username', response.data.username);
+      setIsTournamentModerator(response.data.isTournamentModerator || false);
       
-      // Get user profile to check if admin
+      // Get user profile to check if admin and set language
       try {
         const profileRes = await userService.getProfile();
         setIsAdmin(profileRes.data.is_admin || false);
+        setEnableRanked(!!profileRes.data.enable_ranked);
         
-        // Change language to user's preferred language
         const userLanguage = profileRes.data.language || 'en';
         if (userLanguage !== i18n.language) {
           i18n.changeLanguage(userLanguage);
@@ -48,11 +49,20 @@ const Login: React.FC = () => {
       
       navigate('/');
     } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Login failed. Please check your credentials.';
-      setError(errorMsg);
+      const data = err.response?.data;
+      if (data?.error === 'forum_banned') {
+        setBanInfo({ reason: data.banReason, until: data.banUntil });
+      } else {
+        setError(data?.error || 'Login failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatBanUntil = (until?: string | null): string => {
+    if (!until) return t('login_ban_permanent', 'permanently');
+    return t('login_ban_until', { date: new Date(until).toLocaleDateString() });
   };
 
   return (
@@ -64,6 +74,14 @@ const Login: React.FC = () => {
         <p className="bg-red-100 text-red-800 px-4 py-3 rounded-md mb-4 border-l-4 border-red-600">
           {error}
         </p>
+      )}
+
+      {banInfo && (
+        <div className="bg-red-50 text-red-900 px-4 py-3 rounded-md mb-4 border-l-4 border-red-700">
+          <p className="font-semibold">{t('login_ban_title', 'Your account is banned from the Wesnoth forum')}</p>
+          {banInfo.reason && <p className="text-sm mt-1">{t('login_ban_reason', 'Reason')}: {banInfo.reason}</p>}
+          <p className="text-sm mt-1">{t('login_ban_duration', 'Duration')}: {formatBanUntil(banInfo.until)}</p>
+        </div>
       )}
       
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

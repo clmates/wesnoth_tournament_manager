@@ -11,7 +11,7 @@ import { AvatarSelector } from '../components/AvatarSelector';
 const Profile: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, setEnableRanked: setStoreEnableRanked } = useAuthStore();
   
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -25,6 +25,9 @@ const Profile: React.FC = () => {
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const [preferencesCollapsed, setPreferencesCollapsed] = useState(false);
   const [avatarSectionCollapsed, setAvatarSectionCollapsed] = useState(true);
+  const [enableRanked, setEnableRanked] = useState(false);
+  const [rankedMessage, setRankedMessage] = useState('');
+  const [updatingRanked, setUpdatingRanked] = useState(false);
 
   const languages = useMemo(() => [
     { code: 'en', name: 'English', countryCode: 'us' },
@@ -69,6 +72,7 @@ const Profile: React.FC = () => {
         console.log('Setting selectedLanguage to:', langFromDB);
         setSelectedLanguage(langFromDB);
         setDiscordId(profileRes.data.discord_id || '');
+        setEnableRanked(!!profileRes.data.enable_ranked);
         console.log('Discord ID from API:', profileRes.data.discord_id);
         
         // Change i18n if different
@@ -151,6 +155,22 @@ const Profile: React.FC = () => {
       setUpdatingDiscord(false);
     }
   }, [discordId, t]);
+
+  const handleRankedToggle = useCallback(async (newValue: boolean) => {
+    setUpdatingRanked(true);
+    setRankedMessage('');
+    try {
+      await userService.updateRankedStatus(newValue);
+      setEnableRanked(newValue);
+      setStoreEnableRanked(newValue);
+      setRankedMessage(t('profile.ranked_updated', 'Ranked preference updated'));
+      setTimeout(() => setRankedMessage(''), 3000);
+    } catch (err: any) {
+      setRankedMessage(t('profile.error_ranked_update', 'Error updating ranked preference'));
+    } finally {
+      setUpdatingRanked(false);
+    }
+  }, [t]);
 
   if (loading) {
     return <div className="auth-container"><p>{t('loading')}</p></div>;
@@ -278,6 +298,30 @@ const Profile: React.FC = () => {
                       onChange={handleAvatarChange}
                     />
                   </div>
+                )}
+              </section>
+
+              <section className="bg-white rounded-lg shadow-md p-8 mb-8">
+                <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.ranked_title', 'Ranked Matches')}</h2>
+                <p className="text-gray-600 mb-4">{t('profile.ranked_description', 'Enable this option to participate in ranked ladder matches. Your results will affect your ELO rating.')}</p>
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={enableRanked}
+                      disabled={updatingRanked}
+                      onChange={(e) => handleRankedToggle(e.target.checked)}
+                    />
+                    <div className={`w-12 h-6 rounded-full transition-colors ${enableRanked ? 'bg-blue-500' : 'bg-gray-300'} ${updatingRanked ? 'opacity-50' : ''}`} />
+                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${enableRanked ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </div>
+                  <span className="text-gray-700 font-medium">
+                    {enableRanked ? t('profile.ranked_enabled', 'Ranked matches enabled') : t('profile.ranked_disabled', 'Ranked matches disabled')}
+                  </span>
+                </label>
+                {rankedMessage && (
+                  <p className="mt-3 text-sm text-green-700 bg-green-50 px-3 py-2 rounded">{rankedMessage}</p>
                 )}
               </section>
 

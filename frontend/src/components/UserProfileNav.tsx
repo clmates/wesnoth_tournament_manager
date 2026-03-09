@@ -6,7 +6,8 @@ import { useAuthStore } from '../store/authStore';
 const UserProfileNav: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { isAdmin } = useAuthStore();
+  const { isAdmin, isTournamentModerator } = useAuthStore();
+  const isModerator = isTournamentModerator && !isAdmin;
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -37,12 +38,57 @@ const UserProfileNav: React.FC = () => {
             <span className="hidden md:inline">{t('sidebar.my_tournaments')}</span>
           </button>
 
-          {/* Admin Separator */}
-          {isAdmin && (
+          {/* Admin/Moderator Separator */}
+          {(isAdmin || isTournamentModerator) && (
             <div className="w-px h-6 bg-white/30 mx-2 max-sm:hidden"></div>
           )}
 
-          {/* Admin Links */}
+          {/* Moderator-only links (subset) */}
+          {isModerator && (
+            <>
+              {/* Manage Users */}
+              <button 
+                className="flex items-center gap-2 px-3 py-2 bg-orange-500/10 border border-orange-500/30 text-white text-sm font-medium rounded hover:bg-orange-500/20 hover:border-orange-500/50 active:bg-orange-500/25 transition-all transform hover:-translate-y-0.5 whitespace-nowrap flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5"
+                onClick={() => handleNavigate('/admin')}
+                title={t('sidebar.manage_users')}
+              >
+                <span className="text-lg flex items-center justify-center min-w-5 max-sm:text-base">👥</span>
+                <span className="hidden md:inline">{t('sidebar.manage_users')}</span>
+              </button>
+
+              {/* Disputes */}
+              <button 
+                className="flex items-center gap-2 px-3 py-2 bg-orange-500/10 border border-orange-500/30 text-white text-sm font-medium rounded hover:bg-orange-500/20 hover:border-orange-500/50 active:bg-orange-500/25 transition-all transform hover:-translate-y-0.5 whitespace-nowrap flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5"
+                onClick={() => handleNavigate('/admin/disputes')}
+                title={t('sidebar.match_disputes')}
+              >
+                <span className="text-lg flex items-center justify-center min-w-5 max-sm:text-base">⚖️</span>
+                <span className="hidden md:inline">{t('sidebar.match_disputes')}</span>
+              </button>
+
+              {/* Audit Logs */}
+              <button 
+                className="flex items-center gap-2 px-3 py-2 bg-orange-500/10 border border-orange-500/30 text-white text-sm font-medium rounded hover:bg-orange-500/20 hover:border-orange-500/50 active:bg-orange-500/25 transition-all transform hover:-translate-y-0.5 whitespace-nowrap flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5"
+                onClick={() => handleNavigate('/admin/audit')}
+                title="Audit Logs"
+              >
+                <span className="text-lg flex items-center justify-center min-w-5 max-sm:text-base">🔒</span>
+                <span className="hidden md:inline">Audit Logs</span>
+              </button>
+
+              {/* Replays */}
+              <button 
+                className="flex items-center gap-2 px-3 py-2 bg-orange-500/10 border border-orange-500/30 text-white text-sm font-medium rounded hover:bg-orange-500/20 hover:border-orange-500/50 active:bg-orange-500/25 transition-all transform hover:-translate-y-0.5 whitespace-nowrap flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5"
+                onClick={() => handleNavigate('/admin/replays')}
+                title="Manage Replays"
+              >
+                <span className="text-lg flex items-center justify-center min-w-5 max-sm:text-base">🎮</span>
+                <span className="hidden md:inline">Replays</span>
+              </button>
+            </>
+          )}
+
+          {/* Admin Links (full set) */}
           {isAdmin && (
             <>
               {/* Manage Users */}
@@ -113,6 +159,16 @@ const UserProfileNav: React.FC = () => {
               >
                 <span className="text-lg flex items-center justify-center min-w-5 max-sm:text-base">🔒</span>
                 <span className="hidden md:inline">Audit Logs</span>
+              </button>
+
+              {/* Replays */}
+              <button 
+                className="flex items-center gap-2 px-3 py-2 bg-orange-500/10 border border-orange-500/30 text-white text-sm font-medium rounded hover:bg-orange-500/20 hover:border-orange-500/50 active:bg-orange-500/25 transition-all transform hover:-translate-y-0.5 whitespace-nowrap flex-shrink-0 max-sm:px-2 max-sm:py-1.5 max-sm:text-xs max-md:px-2.5"
+                onClick={() => handleNavigate('/admin/replays')}
+                title="Manage Replays"
+              >
+                <span className="text-lg flex items-center justify-center min-w-5 max-sm:text-base">🎮</span>
+                <span className="hidden md:inline">Replays</span>
               </button>
 
               {/* Balance Events */}

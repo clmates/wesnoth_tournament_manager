@@ -10,7 +10,8 @@ interface ProfileSidebarProps {
 
 const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { user, isAdmin, logout } = useAuthStore();
+  const { user, isAdmin, isTournamentModerator, logout } = useAuthStore();
+  const isModerator = isTournamentModerator && !isAdmin;
   const { t } = useTranslation();
 
   const handleLogout = () => {
@@ -62,7 +63,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
           </li>
         </ul>
 
-        {isAdmin && (
+        {(isAdmin || isTournamentModerator) && (
           <>
             <div className="px-4 py-3 border-t border-gray-200">
               <div className="text-xs font-bold text-gray-600 uppercase tracking-wide">{t('sidebar.admin_options')}</div>
@@ -76,42 +77,46 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
                     <span>{t('sidebar.manage_users')}</span>
                   </button>
                 </li>
-                <li>
-                  <button 
-                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
-                    onClick={() => handleNavigate('/admin/announcements')}
-                  >
-                    <span>📢</span>
-                    <span>{t('announcements')}</span>
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
-                    onClick={() => handleNavigate('/admin/faq')}
-                  >
-                    <span>❓</span>
-                    <span>{t('navbar_faq')}</span>
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
-                    onClick={() => handleNavigate('/admin/maps-and-factions')}
-                  >
-                    <span>🗺️</span>
-                    <span>Maps & Factions</span>
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
-                    onClick={() => handleNavigate('/admin/tournaments')}
-                  >
-                    <span>⚙️</span>
-                    <span>{t('sidebar.manage_tournaments')}</span>
-                  </button>
-                </li>
+                {isAdmin && (
+                  <>
+                    <li>
+                      <button 
+                        className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
+                        onClick={() => handleNavigate('/admin/announcements')}
+                      >
+                        <span>📢</span>
+                        <span>{t('announcements')}</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
+                        onClick={() => handleNavigate('/admin/faq')}
+                      >
+                        <span>❓</span>
+                        <span>{t('navbar_faq')}</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
+                        onClick={() => handleNavigate('/admin/maps-and-factions')}
+                      >
+                        <span>🗺️</span>
+                        <span>Maps & Factions</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
+                        onClick={() => handleNavigate('/admin/tournaments')}
+                      >
+                        <span>⚙️</span>
+                        <span>{t('sidebar.manage_tournaments')}</span>
+                      </button>
+                    </li>
+                  </>
+                )}
                 <li>
                   <button 
                     className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
@@ -119,6 +124,24 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ isOpen, onClose }) => {
                   >
                     <span>⚖️</span>
                     <span>{t('sidebar.match_disputes')}</span>
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
+                    onClick={() => handleNavigate('/admin/audit')}
+                  >
+                    <span>🔒</span>
+                    <span>Audit Logs</span>
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-3 text-sm"
+                    onClick={() => handleNavigate('/admin/replays')}
+                  >
+                    <span>🎮</span>
+                    <span>Replays</span>
                   </button>
                 </li>
               </ul>

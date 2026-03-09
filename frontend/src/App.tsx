@@ -26,6 +26,7 @@ import AdminFAQ from './pages/AdminFAQ';
 import AdminTournaments from './pages/AdminTournaments';
 import AdminDisputes from './pages/AdminDisputes';
 import AdminAudit from './pages/AdminAudit';
+import AdminReplays from './pages/AdminReplays';
 import AdminMapsAndFactions from './pages/AdminMapsAndFactions';
 import AdminBalanceEvents from './pages/AdminBalanceEvents';
 import FAQ from './pages/FAQ';
@@ -111,6 +112,7 @@ const App: React.FC = () => {
             <Route path="/admin/tournaments" element={<AdminTournaments />} />
             <Route path="/admin/disputes" element={<AdminDisputes />} />
             <Route path="/admin/audit" element={<AdminAudit />} />
+            <Route path="/admin/replays" element={<AdminReplays />} />
             <Route path="/admin/maps-and-factions" element={<AdminMapsAndFactions />} />
             <Route path="/admin/balance-events" element={<AdminBalanceEvents />} />
             <Route path="*" element={<Navigate to="/" />} />

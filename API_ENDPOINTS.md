@@ -10,8 +10,8 @@
 
 ## Auth
 
-- `[POST] /api/auth/login` — Public — body: `{nickname, password}` — Authenticate against `phpbb3_users` forum table and return JWT token + userId.
-- `[GET] /api/auth/validate-token` — Private — none — Validate JWT and return current user info.
+- `[POST] /api/auth/login` — Public — body: `{nickname, password}` — Authenticate against `phpbb3_users` forum table and return JWT token + userId + isTournamentModerator. Returns `{error: 'forum_banned', banReason, banUntil}` (401) if user has an active phpBB ban.
+- `[GET] /api/auth/validate-token` — Private — none — Validate JWT and return current user info including `isAdmin` and `isTournamentModerator`.
 
 > Account creation (registration), password reset, and email verification are handled entirely by the **Wesnoth forum** at `https://forum.wesnoth.org`. Users are auto-created in `users_extension` on first successful login or when a ranked replay is processed.
 
@@ -42,9 +42,10 @@
 
 ## User Routes
 
-- `[GET] /api/users/profile` — Private — none — Get current authenticated user's profile.
+- `[GET] /api/users/profile` — Private — none — Get current authenticated user's profile. Includes `enable_ranked` flag.
 - `[PUT] /api/users/profile/discord` — Private — body: `{discord_id}` — Update Discord ID.
 - `[PUT] /api/users/profile/update` — Private — body: `{avatar, country, language, ...}` — Update profile preferences.
+- `[PUT] /api/users/profile/ranked` — Private — body: `{enable_ranked: boolean}` — Enable/disable participation in ranked matches.
 - `[GET] /api/users/:id/stats` — Public — Player aggregated stats (wins/losses/elo).
 - `[GET] /api/users/:id/stats/month` — Public — Player stats for the current month.
 - `[GET] /api/users/:id/matches` — Public — Recent matches for a player.
@@ -110,6 +111,8 @@
 - `[POST] /api/tournaments/:id/calculate-tiebreakers` — Private (organizer) — Calculate tiebreakers.
 - `[POST] /api/leagues/:id/calculate-tiebreakers` — Private (organizer) — Calculate league tiebreakers.
 - `[GET] /api/tournaments/suggestions/by-count` — Private — Tournament suggestions by participation count.
+- `[PUT] /api/tournaments/:tournamentId/teams/:teamId/rename` — Private (organizer/team member/admin/moderator) — body: `{name: string}` — Rename a tournament team.
+- `[DELETE] /api/tournaments/:tournamentId/participants/:participantId` — Private (self/organizer/admin/moderator) — Remove a participant (only when tournament is not started/completed). Cleans up empty teams in team tournaments.
 
 ---
 
@@ -158,9 +161,12 @@
 
 ## Admin Routes
 
+> **Note on access levels**: Some admin routes are accessible to `tournament_moderator` users (members of phpBB group `FORUM_MODERATOR_GROUP_ID`). These are marked *(admin + moderator)*. All other admin routes require site admin (`is_admin = 1`).
+
 ### User Management
 - `[GET] /api/admin/users` — Private (admin) — List all users with full profile.
-- `[POST] /api/admin/users/:id/block` — Private (admin) — Block user (`is_blocked = 1`).
+- `[POST] /api/admin/users/:id/block` — Private (admin + moderator) — Block user (`is_blocked = 1`). Moderators cannot block admin users.
+- `[POST] /api/admin/users/:id/unblock` — Private (admin + moderator) — Unblock user (`is_blocked = 0`).
 - `[POST] /api/admin/users/:id/unlock` — Private (admin) — Reset failed login attempts and unblock user. Sends Discord notification if configured.
 - `[POST] /api/admin/users/:id/make-admin` — Private (admin) — Grant site admin role (`is_admin = 1`).
 - `[POST] /api/admin/users/:id/remove-admin` — Private (admin) — Revoke site admin role.
@@ -172,9 +178,13 @@
 - `[GET] /api/admin/maintenance-logs` — Private (admin) — query: `limit` — Maintenance mode change history.
 
 ### Audit Logs
-- `[GET] /api/admin/audit-logs` — Private (admin) — query: optional filters — List audit log entries.
+- `[GET] /api/admin/audit-logs` — Private (admin + moderator) — query: optional filters — List audit log entries.
 - `[DELETE] /api/admin/audit-logs` — Private (admin) — body: `{logIds: string[]}` — Delete specific audit logs.
 - `[DELETE] /api/admin/audit-logs/old` — Private (admin) — body: `{daysBack: number}` — Delete old audit logs.
+
+### Replays
+- `[GET] /api/admin/replays` — Private (admin + moderator) — query: `{status?, limit?, offset?}` — List replays with filtering.
+- `[POST] /api/admin/replays/:replayId/force-discard` — Private (admin + moderator) — Force-discard a replay with status `new`, `parsed`, or `error`.
 
 ### Statistics & Debug
 - `[POST] /api/admin/recalculate-all-stats` — Private (admin) — Recalculate all player statistics.

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { searchLimiter } from '../middleware/rateLimiter.js';
+import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
 
 const router = Router();
 
@@ -28,6 +29,7 @@ router.get('/profile', authMiddleware, async (req: AuthRequest, res) => {
         u.is_active,
         u.country,
         u.avatar,
+        u.enable_ranked,
         pms.avg_elo_change
       FROM users_extension u
       LEFT JOIN player_match_statistics pms ON u.id = pms.player_id 
@@ -285,6 +287,35 @@ router.put('/profile/update', authMiddleware, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Error updating profile:', error);
     res.status(500).json({ error: 'Failed to update profile', details: (error as any).message });
+  }
+});
+
+// Toggle enable_ranked for the authenticated user
+router.put('/profile/ranked', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { enable_ranked } = req.body;
+
+    if (typeof enable_ranked !== 'boolean') {
+      return res.status(400).json({ error: 'enable_ranked must be a boolean' });
+    }
+
+    await query(
+      `UPDATE users_extension SET enable_ranked = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [enable_ranked ? 1 : 0, req.userId]
+    );
+
+    await logAuditEvent({
+      event_type: 'PROFILE_UPDATE',
+      user_id: req.userId,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: { field: 'enable_ranked', value: enable_ranked }
+    });
+
+    res.json({ enable_ranked });
+  } catch (error) {
+    console.error('Error updating enable_ranked:', error);
+    res.status(500).json({ error: 'Failed to update ranked preference' });
   }
 });
 

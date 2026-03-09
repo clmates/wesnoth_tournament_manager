@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { generateTokenWithUsername, verifyToken } from '../utils/auth.js';
-import { authenticatePhpbbUser, getPhpbbUser } from '../services/phpbbAuth.js';
+import { authenticatePhpbbUser, getPhpbbUser, checkForumBanlist, checkUserIsForumModerator } from '../services/phpbbAuth.js';
 import { generateUUID } from '../utils/uuid.js';
 import { queryTournament } from '../config/tournamentDatabase.js';
 import { query } from '../config/database.js';
@@ -41,6 +41,24 @@ router.post('/login', async (req, res) => {
 
     console.log(`✅ [LOGIN] Successfully authenticated ${normalizedUsername}`);
 
+    // Check forum banlist (by user_id and active dates)
+    const banCheck = await checkForumBanlist(authResult.user_id);
+    if (banCheck.banned) {
+      console.warn(`❌ [LOGIN] User ${normalizedUsername} has an active forum ban`);
+      await logAuditEvent({
+        event_type: 'LOGIN_FAILED',
+        username: normalizedUsername,
+        ip_address: getUserIP(req),
+        user_agent: getUserAgent(req),
+        details: { reason: 'forum_banned', banReason: banCheck.reason, banUntil: banCheck.until }
+      });
+      return res.status(401).json({
+        error: 'forum_banned',
+        banReason: banCheck.reason,
+        banUntil: banCheck.until ?? null,
+      });
+    }
+
     // Check if user exists in users_extension (tournament database)
     const existingUsers = await queryTournament(
       'SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)',
@@ -69,6 +87,9 @@ router.post('/login', async (req, res) => {
     // Generate JWT token with tournament database user ID
     const token = generateTokenWithUsername(normalizedUsername, tournamentUserId);
 
+    // Check if user is a tournament moderator via forum group membership
+    const isTournamentModerator = await checkUserIsForumModerator(normalizedUsername);
+
     // Log successful login
     await logAuditEvent({
       event_type: 'LOGIN_SUCCESS',
@@ -83,6 +104,7 @@ router.post('/login', async (req, res) => {
       token, 
       username: normalizedUsername,
       userId: tournamentUserId,
+      isTournamentModerator,
     });
 
   } catch (error) {
@@ -120,6 +142,7 @@ router.get('/validate-token', async (req, res) => {
     );
 
     const isAdmin = tournamentUserResult.rows[0]?.is_admin || false;
+    const isTournamentModerator = await checkUserIsForumModerator(decoded.username);
 
     // Return user info
     res.json({
@@ -127,7 +150,8 @@ router.get('/validate-token', async (req, res) => {
       userId: decoded.userId,
       username: phpbbUser.username,
       nickname: tournamentUserResult.rows[0]?.nickname || phpbbUser.username,
-      isAdmin: isAdmin
+      isAdmin: isAdmin,
+      isTournamentModerator,
     });
 
   } catch (error) {

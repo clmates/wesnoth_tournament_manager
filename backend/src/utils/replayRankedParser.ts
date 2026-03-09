@@ -11,14 +11,14 @@
  * 6. Victory determination with confidence level
  * 
  * Addon Configuration:
- * - ranked_mode="yes" → Partida ranked
- * - tournament="no" → Solo ranked global (confidence=2, auto-confirm)
- * - tournament="yes" → Torneo específico (confidence=1, pending, game_name=tournamentName)
+ * - ranked_mode="yes" → Ranked match
+ * - tournament="no" → Global ranked only (confidence=2, auto-confirm)
+ * - tournament="yes" → Specific tournament (confidence=1, pending, game_name=tournamentName)
  * 
  * Surrender Flow:
  * [fire_event] raise="menu item surrender"
- *   → [input] value=2 → ✅ CONFIRMADO (jugador perdió)
- *   → [input] value=1 → ❌ RECHAZADO (partida continúa)
+ *   → [input] value=2 → ✅ CONFIRMED (player surrendered and lost)
+ *   → [input] value=1 → ❌ REJECTED (player cancelled, game continues)
  */
 
 import * as fs from 'fs';

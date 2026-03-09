@@ -80,6 +80,70 @@ export async function validatePhpbbPassword(
 }
 
 /**
+ * Check if a user has an active ban in phpbb3_banlist (by user_id and dates).
+ * ban_end = 0 means permanent ban.
+ */
+export async function checkForumBanlist(
+  userId: number
+): Promise<{ banned: boolean; reason?: string; until?: Date | null }> {
+  try {
+    const results = await queryPhpbb(
+      `SELECT ban_reason, ban_give_reason, ban_end
+       FROM phpbb3_banlist
+       WHERE ban_userid = ?
+         AND ban_exclude = 0
+         AND ban_start <= UNIX_TIMESTAMP()
+         AND (ban_end = 0 OR ban_end >= UNIX_TIMESTAMP())
+       LIMIT 1`,
+      [userId]
+    );
+
+    if (Array.isArray(results) && results.length > 0) {
+      const ban = results[0] as any;
+      return {
+        banned: true,
+        reason: ban.ban_give_reason || ban.ban_reason || 'banned',
+        until: ban.ban_end === 0 ? null : new Date(ban.ban_end * 1000),
+      };
+    }
+
+    return { banned: false };
+  } catch (error) {
+    console.error('❌ [phpBB] Error checking banlist:', error);
+    return { banned: false };
+  }
+}
+
+/**
+ * Check if a user belongs to the forum moderator group defined by FORUM_MODERATOR_GROUP_ID.
+ */
+export async function checkUserIsForumModerator(username: string): Promise<boolean> {
+  try {
+    const groupId = process.env.FORUM_MODERATOR_GROUP_ID;
+    if (!groupId) return false;
+
+    const userResults = await queryPhpbb(
+      `SELECT user_id FROM phpbb3_users WHERE LOWER(username_clean) = LOWER(?) LIMIT 1`,
+      [username]
+    );
+
+    if (!Array.isArray(userResults) || userResults.length === 0) return false;
+
+    const userId = (userResults[0] as any).user_id;
+
+    const groupResults = await queryPhpbb(
+      `SELECT user_id FROM phpbb3_user_group WHERE user_id = ? AND group_id = ? LIMIT 1`,
+      [userId, parseInt(groupId, 10)]
+    );
+
+    return Array.isArray(groupResults) && groupResults.length > 0;
+  } catch (error) {
+    console.error('❌ [phpBB] Error checking moderator group:', error);
+    return false;
+  }
+}
+
+/**
  * Check if user is banned or inactive
  * user_type: 0 = normal, 1 = inactive, 2 = ignore, 3 = founder
  * user_inactive_reason: 0 = active, 1 = new user not activated, etc.

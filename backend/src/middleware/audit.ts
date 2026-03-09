@@ -4,7 +4,7 @@ import { AuthRequest } from './auth.js';
 import { generateUUID } from '../utils/uuid.js';
 
 export interface AuditLogEntry {
-  event_type: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'REGISTRATION' | 'ADMIN_ACTION' | 'SECURITY_EVENT' | 'PASSWORD_RESET_REQUEST' | 'EMAIL_VERIFIED' | 'ACCOUNT_UNLOCKED' | 'PASSWORD_RESET' | 'MAINTENANCE_MODE_TOGGLE';
+  event_type: 'LOGIN_SUCCESS' | 'LOGIN_FAILED' | 'REGISTRATION' | 'ADMIN_ACTION' | 'SECURITY_EVENT' | 'PASSWORD_RESET_REQUEST' | 'EMAIL_VERIFIED' | 'ACCOUNT_UNLOCKED' | 'PASSWORD_RESET' | 'MAINTENANCE_MODE_TOGGLE' | 'PROFILE_UPDATE' | 'USER_BLOCKED' | 'USER_UNBLOCKED' | 'REPLAY_FORCE_DISCARDED' | 'PARTICIPANT_REMOVED' | 'TEAM_RENAMED';
   user_id?: string;
   username?: string;
   ip_address: string;

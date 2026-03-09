@@ -134,8 +134,9 @@ Application-level user profile. One record per forum user who has interacted wit
 | `elo_rating` | int | 1400 | Current ELO rating |
 | `level` | varchar(50) | `'novato'` | Skill level label |
 | `is_active` | tinyint(1) | 0 | 1 = active in the app |
-| `is_blocked` | tinyint(1) | 0 | 1 = blocked from the app (admin action only; does not affect forum account) |
+| `is_blocked` | tinyint(1) | 0 | 1 = blocked from the app (admin/moderator action; does not affect forum account) |
 | `is_admin` | tinyint(1) | 0 | 1 = site administrator (independent from forum admin/moderator status) |
+| `enable_ranked` | tinyint(1) | 0 | 1 = player has opted in to ranked ladder matches; required for replays to be counted as ranked |
 | `is_rated` | tinyint(1) | 0 | 1 = has enough games to appear in the ranked leaderboard |
 | `elo_provisional` | tinyint(1) | 0 | 1 = ELO still provisional (fewer than threshold games played) |
 | `matches_played` | int | 0 | Total ranked matches played |

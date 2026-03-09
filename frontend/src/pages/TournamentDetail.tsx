@@ -103,7 +103,7 @@ const TournamentDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { userId, user } = useAuthStore();
+  const { userId, user, enableRanked } = useAuthStore();
 
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [participants, setParticipants] = useState<TournamentParticipant[]>([]);
@@ -846,9 +846,20 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       <div className="flex flex-row flex-wrap gap-3 items-center justify-between mb-6">
         {/* Join button (only if logged in) - Left side */}
         {tournament.status === 'registration_open' && !userParticipationStatus && userId && (
-          <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors" onClick={handleJoinTournament}>
-            {t('tournaments.request_join')}
-          </button>
+          tournament.tournament_mode === 'ranked' && !enableRanked ? (
+            <div className="flex flex-col gap-1">
+              <button className="px-6 py-2 bg-gray-300 text-gray-500 rounded cursor-not-allowed" disabled>
+                {t('tournaments.request_join')}
+              </button>
+              <p className="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                {t('tournaments.join_ranked_disabled', 'Enable ranked matches in your profile to join this tournament')}
+              </p>
+            </div>
+          ) : (
+            <button className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors" onClick={handleJoinTournament}>
+              {t('tournaments.request_join')}
+            </button>
+          )
         )}
         {(!tournament.status || tournament.status !== 'registration_open' || userParticipationStatus || !userId) && !isCreator && (
           <div></div>

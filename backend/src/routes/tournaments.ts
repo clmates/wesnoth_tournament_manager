@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { query } from '../config/database.js';
-import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { authMiddleware, moderatorOrAdminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { activateRound, checkAndCompleteRound, getWinnerAndRunnerUp } from '../utils/tournament.js';
 import discordService from '../services/discordService.js';
 import { randomUUID } from 'crypto';
+import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
+import { checkUserIsForumModerator } from '../services/phpbbAuth.js';
 
 const router = Router();
 
@@ -3269,4 +3271,152 @@ router.post('/:tournamentId/matches/:matchId/dispute', authMiddleware, async (re
   }
 });
 
+// ─────────────────────────────────────────────────────────────
+// Rename tournament team
+// Allowed: organizer, any team member, tournament moderator, admin
+// ─────────────────────────────────────────────────────────────
+router.put('/:tournamentId/teams/:teamId/rename', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { tournamentId, teamId } = req.params;
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Team name cannot be empty' });
+    }
+
+    // Fetch tournament and team
+    const [tournResult, teamResult] = await Promise.all([
+      query(`SELECT id, organizer_id FROM tournaments WHERE id = ?`, [tournamentId]),
+      query(`SELECT id, name FROM tournament_teams WHERE id = ? AND tournament_id = ?`, [teamId, tournamentId]),
+    ]);
+
+    if (tournResult.rows.length === 0) return res.status(404).json({ error: 'Tournament not found' });
+    if (teamResult.rows.length === 0) return res.status(404).json({ error: 'Team not found' });
+
+    const tournament = tournResult.rows[0];
+    const userId = req.userId!;
+    const username = req.username!;
+
+    // Check if requester is organizer
+    const isOrganizer = tournament.organizer_id === userId;
+
+    // Check if requester is a team member
+    const memberResult = await query(
+      `SELECT tp.id FROM tournament_participants tp WHERE tp.user_id = ? AND tp.team_id = ? LIMIT 1`,
+      [userId, teamId]
+    );
+    const isTeamMember = memberResult.rows.length > 0;
+
+    // Check admin
+    const adminResult = await query(`SELECT is_admin FROM users_extension WHERE id = ?`, [userId]);
+    const isAdmin = adminResult.rows[0]?.is_admin;
+
+    // Check moderator
+    const isModerator = !isOrganizer && !isTeamMember && !isAdmin
+      ? await checkUserIsForumModerator(username)
+      : false;
+
+    if (!isOrganizer && !isTeamMember && !isAdmin && !isModerator) {
+      return res.status(403).json({ error: 'Not authorized to rename this team' });
+    }
+
+    await query(`UPDATE tournament_teams SET name = ? WHERE id = ?`, [name.trim(), teamId]);
+
+    await logAuditEvent({
+      event_type: 'TEAM_RENAMED',
+      user_id: userId,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: { tournament_id: tournamentId, team_id: teamId, old_name: teamResult.rows[0].name, new_name: name.trim() }
+    });
+
+    res.json({ message: 'Team renamed successfully', name: name.trim() });
+  } catch (error) {
+    console.error('Error renaming team:', error);
+    res.status(500).json({ error: 'Failed to rename team' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Remove participant from tournament (before tournament starts)
+// Allowed: the participant themselves, organizer, moderator, admin
+// For team tournaments: deletes team if all members are removed
+// ─────────────────────────────────────────────────────────────
+router.delete('/:tournamentId/participants/:participantId', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { tournamentId, participantId } = req.params;
+    const userId = req.userId!;
+    const username = req.username!;
+
+    // Fetch tournament
+    const tournResult = await query(
+      `SELECT id, organizer_id, status FROM tournaments WHERE id = ?`,
+      [tournamentId]
+    );
+    if (tournResult.rows.length === 0) return res.status(404).json({ error: 'Tournament not found' });
+
+    const tournament = tournResult.rows[0];
+    if (['in_progress', 'completed'].includes(tournament.status)) {
+      return res.status(400).json({ error: 'Cannot remove participants from a tournament that has already started' });
+    }
+
+    // Fetch participant
+    const participantResult = await query(
+      `SELECT tp.id, tp.user_id, tp.team_id, ue.nickname
+       FROM tournament_participants tp
+       JOIN users_extension ue ON tp.user_id = ue.id
+       WHERE tp.id = ? AND tp.tournament_id = ?`,
+      [participantId, tournamentId]
+    );
+    if (participantResult.rows.length === 0) return res.status(404).json({ error: 'Participant not found' });
+
+    const participant = participantResult.rows[0];
+    const isSelf = participant.user_id === userId;
+    const isOrganizer = tournament.organizer_id === userId;
+
+    const adminResult = await query(`SELECT is_admin FROM users_extension WHERE id = ?`, [userId]);
+    const isAdmin = adminResult.rows[0]?.is_admin;
+
+    const isModerator = !isSelf && !isOrganizer && !isAdmin
+      ? await checkUserIsForumModerator(username)
+      : false;
+
+    if (!isSelf && !isOrganizer && !isAdmin && !isModerator) {
+      return res.status(403).json({ error: 'Not authorized to remove this participant' });
+    }
+
+    // Remove participant
+    await query(`DELETE FROM tournament_participants WHERE id = ?`, [participantId]);
+
+    // For team tournaments: check if team is now empty and delete if so
+    if (participant.team_id) {
+      const remainingMembers = await query(
+        `SELECT COUNT(*) as count FROM tournament_participants WHERE team_id = ?`,
+        [participant.team_id]
+      );
+      if (parseInt(remainingMembers.rows[0].count) === 0) {
+        await query(`DELETE FROM tournament_teams WHERE id = ?`, [participant.team_id]);
+      }
+    }
+
+    await logAuditEvent({
+      event_type: 'PARTICIPANT_REMOVED',
+      user_id: userId,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: {
+        tournament_id: tournamentId,
+        participant_id: participantId,
+        removed_user_id: participant.user_id,
+        removed_nickname: participant.nickname,
+        team_id: participant.team_id || null,
+      }
+    });
+
+    res.json({ message: 'Participant removed successfully', participant_id: participantId });
+  } catch (error) {
+    console.error('Error removing participant:', error);
+    res.status(500).json({ error: 'Failed to remove participant' });
+  }
+});
 

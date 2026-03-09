@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database.js';
-import { authMiddleware, AuthRequest } from '../middleware/auth.js';
+import { authMiddleware, moderatorOrAdminMiddleware, AuthRequest } from '../middleware/auth.js';
 import { calculateNewRating, calculateTrend } from '../utils/elo.js';
 import { unlockAccount } from '../services/accountLockout.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
@@ -32,71 +32,50 @@ router.get('/users', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// Block user (early-register duplicate kept for compatibility — canonical is below)
-router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) => {
-  try {
-    const { id } = req.params;
-    await query('UPDATE users_extension SET is_blocked = 1 WHERE id = ?', [id]);
-    res.json({ message: 'User blocked' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to block user' });
-  }
-});
+// Block user (duplicate removed — canonical endpoint below, after FAQ)
 
-// Unblock user
-router.post('/users/:id/unlock', authMiddleware, async (req: AuthRequest, res) => {
+router.post('/users/:id/unlock', moderatorOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const ip = getUserIP(req);
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') {
-      console.log('🔓 [UNLOCK ENDPOINT v2] Called for user ID:', id);
-    }
-
-    // Verify user is admin
-    const adminCheck = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: 'Only admins can perform this action' });
+      console.log('🔓 [UNLOCK ENDPOINT] Called for user ID:', id);
     }
 
     // Get user info for logging and Discord notifications
-    const userInfo = await query('SELECT nickname, discord_id FROM users_extension WHERE id = ?', [id]);
+    const userInfo = await query('SELECT nickname, discord_id, is_admin FROM users_extension WHERE id = ?', [id]);
     if (userInfo.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const user = userInfo.rows[0];
 
+    if (user.is_admin) {
+      return res.status(403).json({ error: 'Cannot unblock an admin user' });
+    }
+
     // Unlock account - reset failed attempts and unblock
     await unlockAccount(id);
-    await query(
-      'UPDATE users_extension SET is_blocked = 0 WHERE id = ?',
-      [id]
-    );
+    await query('UPDATE users_extension SET is_blocked = 0 WHERE id = ?', [id]);
+
     if (process.env.BACKEND_DEBUG_LOGS === 'true') {
       console.log('✅ User unlocked and unblocked:', user.nickname);
     }
 
     // Send Discord notification if enabled
     try {
-      await notifyUserUnlocked({
-        nickname: user.nickname,
-        discord_id: user.discord_id
-      });
-      if (process.env.BACKEND_DEBUG_LOGS === 'true') {
-        console.log('✅ User unlock Discord notification sent');
-      }
+      await notifyUserUnlocked({ nickname: user.nickname, discord_id: user.discord_id });
     } catch (discordError) {
       console.error('Discord notification error (unlock):', discordError);
     }
 
-    // Log admin action
     await logAuditEvent({
-      event_type: 'ADMIN_ACTION',
+      event_type: 'USER_UNBLOCKED',
       user_id: req.userId,
       ip_address: ip,
       user_agent: getUserAgent(req),
-      details: { action: 'unlock_account', target_user_id: id, target_username: user.nickname }
+      details: { target_user_id: id, target_nickname: user.nickname }
     });
 
     res.json({ message: 'Account unlocked successfully' });
@@ -339,17 +318,26 @@ router.delete('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
   }
 });
 
-// Block user
-router.post('/users/:id/block', authMiddleware, async (req: AuthRequest, res) => {
+// Block user — accessible to admins and tournament moderators (cannot block admins)
+router.post('/users/:id/block', moderatorOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
+
+    const target = await query(`SELECT id, nickname, is_admin FROM users_extension WHERE id = ?`, [id]);
+    if (target.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    if (target.rows[0].is_admin) return res.status(403).json({ error: 'Cannot block an admin user' });
+
     await query(`UPDATE users_extension SET is_blocked = 1 WHERE id = ?`, [id]);
+
+    await logAuditEvent({
+      event_type: 'USER_BLOCKED',
+      user_id: req.userId,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: { target_user_id: id, target_nickname: target.rows[0].nickname }
+    });
+
     const result = await query(`SELECT id, nickname, is_blocked, is_admin FROM users_extension WHERE id = ?`, [id]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
     res.json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to block user' });
@@ -542,15 +530,9 @@ router.post('/recalculate-all-stats', authMiddleware, async (req: AuthRequest, r
   }
 });
 
-// Get audit logs
-router.get('/audit-logs', authMiddleware, async (req: AuthRequest, res) => {
+// Get audit logs — accessible to admins and tournament moderators
+router.get('/audit-logs', moderatorOrAdminMiddleware, async (req: AuthRequest, res) => {
   try {
-    // Check if user is admin
-    const adminCheck = await query('SELECT is_admin FROM users_extension WHERE id = ?', [req.userId]);
-    if (!adminCheck.rows[0]?.is_admin) {
-      return res.status(403).json({ error: 'Only admins can access audit logs' });
-    }
-
     const { eventType, username, ipAddress, daysBack = 7 } = req.query;
 
     // Build WHERE clause
@@ -673,6 +655,68 @@ router.delete('/audit-logs/old', authMiddleware, async (req: AuthRequest, res) =
   } catch (error) {
     console.error('Audit logs cleanup error:', error);
     res.status(500).json({ error: 'Failed to delete old audit logs' });
+  }
+});
+
+// List replays with filtering — accessible to admins and tournament moderators
+router.get('/replays', moderatorOrAdminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { status, limit = 50, offset = 0 } = req.query;
+    const params: any[] = [];
+    let where = '';
+    if (status) {
+      where = 'WHERE parse_status = ?';
+      params.push(status);
+    }
+    const result = await query(
+      `SELECT id, replay_filename, parse_status, game_id, match_type, error_message, created_at, updated_at
+       FROM replays ${where}
+       ORDER BY created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, Number(limit), Number(offset)]
+    );
+    res.json({ replays: result.rows });
+  } catch (error) {
+    console.error('List replays error:', error);
+    res.status(500).json({ error: 'Failed to fetch replays' });
+  }
+});
+
+// Force-discard an unprocessed replay — accessible to admins and tournament moderators
+router.post('/replays/:replayId/force-discard', moderatorOrAdminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { replayId } = req.params;
+
+    const replayResult = await query(
+      `SELECT id, parse_status, replay_filename FROM replays WHERE id = ?`,
+      [replayId]
+    );
+    if (replayResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Replay not found' });
+    }
+
+    const replay = replayResult.rows[0];
+    const allowedStatuses = ['new', 'parsed', 'error'];
+    if (!allowedStatuses.includes(replay.parse_status)) {
+      return res.status(400).json({
+        error: `Cannot discard replay with status '${replay.parse_status}'. Allowed: ${allowedStatuses.join(', ')}`
+      });
+    }
+
+    await query(`UPDATE replays SET parse_status = 'rejected', updated_at = NOW() WHERE id = ?`, [replayId]);
+
+    await logAuditEvent({
+      event_type: 'REPLAY_FORCE_DISCARDED',
+      user_id: req.userId,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: { replay_id: replayId, filename: replay.replay_filename, previous_status: replay.parse_status }
+    });
+
+    res.json({ status: 'success', message: 'Replay force-discarded', replay_id: replayId });
+  } catch (error) {
+    console.error('Force discard replay error:', error);
+    res.status(500).json({ error: 'Failed to discard replay' });
   }
 });
 

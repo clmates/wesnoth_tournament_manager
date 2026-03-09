@@ -8,7 +8,7 @@ import MainLayout from '../components/MainLayout';
 const AdminDisputes: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin } = useAuthStore();
+  const { isAuthenticated, isAdmin, isTournamentModerator } = useAuthStore();
   
   const [disputes, setDisputes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,13 +17,13 @@ const AdminDisputes: React.FC = () => {
   const [selectedDispute, setSelectedDispute] = useState<any>(null);
 
   useEffect(() => {
-    if (!isAuthenticated || !isAdmin) {
+    if (!isAuthenticated || (!isAdmin && !isTournamentModerator)) {
       navigate('/');
       return;
     }
 
     fetchDisputes();
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, isAdmin, isTournamentModerator, navigate]);
 
   const fetchDisputes = async () => {
     try {
