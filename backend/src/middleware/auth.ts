@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/auth.js';
 import { checkUserIsForumModerator } from '../services/phpbbAuth.js';
+import { query } from '../config/database.js';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -46,7 +47,6 @@ export const adminMiddleware = async (req: AuthRequest, res: Response, next: Nex
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  const { query } = require('../config/database');
   const result = await query('SELECT id FROM users_extension WHERE id = ? AND is_admin = 1', [req.userId]);
 
   if (result.rows.length === 0) {
@@ -80,7 +80,6 @@ export const moderatorOrAdminMiddleware = async (req: AuthRequest, res: Response
   req.userId = userId;
   req.username = username;
 
-  const { query } = require('../config/database');
   const result = await query('SELECT is_admin FROM users_extension WHERE id = ?', [userId]);
 
   if (result.rows.length === 0) {
