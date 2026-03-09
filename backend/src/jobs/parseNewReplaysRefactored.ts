@@ -320,6 +320,31 @@ export class ParseNewReplaysRefactorized {
       console.log(`   Player: ${player.user_name} (Side ${player.side_number}, Faction: ${player.faction})`);
     }
 
+    // ======== STEP 2b: Enrich players with ranked eligibility info ========
+    for (const player of parseSummary.forumPlayers) {
+      if (!player.user_name) continue;
+      // enable_ranked flag
+      const userResult = await query(
+        `SELECT enable_ranked FROM users_extension WHERE LOWER(nickname) = LOWER(?) LIMIT 1`,
+        [player.user_name]
+      );
+      player.enable_ranked = userResult.rows[0]?.enable_ranked ? true : false;
+
+      // active ban
+      const phpbbRow = await queryPhpbb(
+        `SELECT user_id FROM phpbb3_users WHERE LOWER(username_clean) = LOWER(?) LIMIT 1`,
+        [player.user_name]
+      ) as any[];
+      if (Array.isArray(phpbbRow) && phpbbRow.length > 0) {
+        const banCheck = await checkForumBanlist(phpbbRow[0].user_id);
+        player.is_banned = banCheck.banned;
+        if (banCheck.banned) player.ban_reason = banCheck.reason || null;
+      } else {
+        player.is_banned = false;
+      }
+      console.log(`   Eligibility: ${player.user_name} — ranked_enabled=${player.enable_ranked}, banned=${player.is_banned}`);
+    }
+
     // ======== STEP 3: Query forum for map/scenario ========
     console.log(`📋 [FORUM] Step 3: Querying map...`);
     const mapResult = await query(
@@ -492,36 +517,20 @@ export class ParseNewReplaysRefactorized {
 
   /**
    * Check that all players in a ranked (non-tournament) match are eligible:
-   * - enable_ranked = 1 in users_extension
-   * - No active ban in phpbb3_banlist
+   * - enable_ranked = 1 (pre-fetched in forumPlayers[].enable_ranked)
+   * - No active ban   (pre-fetched in forumPlayers[].is_banned)
    * Returns a rejection reason string, or null if all players are eligible.
    */
   private async checkRankedEligibility(
-    forumPlayers: Array<{ user_name: string }>
+    forumPlayers: Array<{ user_name: string; enable_ranked?: boolean; is_banned?: boolean }>
   ): Promise<string | null> {
     for (const player of forumPlayers) {
       if (!player.user_name) continue;
-
-      // Check enable_ranked flag
-      const userResult = await query(
-        `SELECT enable_ranked FROM users_extension WHERE LOWER(nickname) = LOWER(?) LIMIT 1`,
-        [player.user_name]
-      );
-      const enableRanked = userResult.rows[0]?.enable_ranked;
-      if (!enableRanked) {
+      if (!player.enable_ranked) {
         return `Player ${player.user_name} has not enabled ranked matches (enable_ranked=0)`;
       }
-
-      // Check forum ban (by phpBB user_id)
-      const phpbbResult = await queryPhpbb(
-        `SELECT user_id FROM phpbb3_users WHERE LOWER(username_clean) = LOWER(?) LIMIT 1`,
-        [player.user_name]
-      ) as any[];
-      if (Array.isArray(phpbbResult) && phpbbResult.length > 0) {
-        const banCheck = await checkForumBanlist(phpbbResult[0].user_id);
-        if (banCheck.banned) {
-          return `Player ${player.user_name} has an active forum ban`;
-        }
+      if (player.is_banned) {
+        return `Player ${player.user_name} has an active forum ban`;
       }
     }
     return null;
