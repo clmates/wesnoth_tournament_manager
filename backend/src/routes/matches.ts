@@ -1058,11 +1058,15 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
       const directLoserId: string = match.loser_id;
       const cancelledAt = new Date(match.created_at);
 
-      // Counts confirmed matches for a player before a given date, excluding one match id
-      const countConfirmedMatchesBefore = async (userId: string, beforeDate: Date, excludeMatchId: string): Promise<number> => {
+      // ELO is applied for any match that is not cancelled/disputed/rejected.
+      // 'reported', 'unconfirmed', and 'confirmed' all have ELO applied.
+      const ELO_APPLIED_STATUSES = `('confirmed', 'reported', 'unconfirmed')`;
+
+      // Counts ELO-applied matches for a player before a given date, excluding one match id
+      const countMatchesBefore = async (userId: string, beforeDate: Date, excludeMatchId: string): Promise<number> => {
         const result = await query(
           `SELECT COUNT(*) as cnt FROM matches
-           WHERE (winner_id = ? OR loser_id = ?) AND status = 'confirmed'
+           WHERE (winner_id = ? OR loser_id = ?) AND status IN ${ELO_APPLIED_STATUSES}
              AND created_at < ? AND id != ?`,
           [userId, userId, beforeDate, excludeMatchId]
         );
@@ -1070,29 +1074,48 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
       };
 
       // STEP 2: Initialize affected player set with ELO restored to their pre-cancelled-match values
-      interface PlayerState { elo: number; matches_played: number; }
+      interface PlayerState { elo: number; matches_played: number; nickname: string; }
       const affectedPlayers = new Map<string, PlayerState>();
 
-      const winnerMatchesBefore = await countConfirmedMatchesBefore(directWinnerId, cancelledAt, id);
-      const loserMatchesBefore  = await countConfirmedMatchesBefore(directLoserId,  cancelledAt, id);
+      // Resolve nicknames for logging
+      const nicknameCache = new Map<string, string>();
+      const getNickname = async (userId: string): Promise<string> => {
+        if (nicknameCache.has(userId)) return nicknameCache.get(userId)!;
+        const r = await query(`SELECT nickname FROM users_extension WHERE id = ?`, [userId]);
+        const nick = r.rows[0]?.nickname ?? userId.substring(0, 8);
+        nicknameCache.set(userId, nick);
+        return nick;
+      };
+
+      const winnerNick = await getNickname(directWinnerId);
+      const loserNick  = await getNickname(directLoserId);
+      const winnerMatchesBefore = await countMatchesBefore(directWinnerId, cancelledAt, id);
+      const loserMatchesBefore  = await countMatchesBefore(directLoserId,  cancelledAt, id);
 
       affectedPlayers.set(directWinnerId, {
         elo: Number(match.winner_elo_before) || 1400,
-        matches_played: winnerMatchesBefore
+        matches_played: winnerMatchesBefore,
+        nickname: winnerNick
       });
       affectedPlayers.set(directLoserId, {
         elo: Number(match.loser_elo_before) || 1400,
-        matches_played: loserMatchesBefore
+        matches_played: loserMatchesBefore,
+        nickname: loserNick
       });
 
-      // STEP 3: Load all confirmed matches that happened AFTER the cancelled one
+      console.log(`🎯 [CASCADE] Cancelled match: ${winnerNick} (ELO ${match.winner_elo_before}→restored) vs ${loserNick} (ELO ${match.loser_elo_before}→restored)`);
+      console.log(`🎯 [CASCADE] Initial affected players: ${winnerNick} (ELO=${match.winner_elo_before}, matches_before=${winnerMatchesBefore}), ${loserNick} (ELO=${match.loser_elo_before}, matches_before=${loserMatchesBefore})`);
+
+      // STEP 3: Load all ELO-applied matches that happened AFTER the cancelled one
       const subsequentMatches = await query(
         `SELECT id, winner_id, loser_id, winner_elo_before, loser_elo_before, created_at
          FROM matches
-         WHERE status = 'confirmed' AND created_at > ?
+         WHERE status IN ${ELO_APPLIED_STATUSES} AND created_at > ?
          ORDER BY created_at ASC, id ASC`,
         [cancelledAt]
       );
+
+      console.log(`🎯 [CASCADE] Found ${subsequentMatches.rows.length} subsequent ELO-applied matches to scan`);
 
       // STEP 4: Cascade forward — skip matches where neither player is affected
       let matchesRecalculated = 0;
@@ -1102,18 +1125,29 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
         const winnerAffected = affectedPlayers.has(mWinnerId);
         const loserAffected  = affectedPlayers.has(mLoserId);
 
-        if (!winnerAffected && !loserAffected) continue;
+        if (!winnerAffected && !loserAffected) {
+          if (process.env.BACKEND_DEBUG_LOGS === 'true') {
+            const wn = await getNickname(mWinnerId);
+            const ln = await getNickname(mLoserId);
+            console.log(`   ⏭️  [CASCADE] Skip match ${m.id.substring(0,8)} (${wn} vs ${ln}) — neither player affected`);
+          }
+          continue;
+        }
 
         const mCreatedAt = new Date(m.created_at);
+        const mWinnerNick = await getNickname(mWinnerId);
+        const mLoserNick  = await getNickname(mLoserId);
 
         // Add newcomers using their elo_before from the (still-original) match record
         if (!winnerAffected) {
-          const mBefore = await countConfirmedMatchesBefore(mWinnerId, mCreatedAt, m.id);
-          affectedPlayers.set(mWinnerId, { elo: Number(m.winner_elo_before) || 1400, matches_played: mBefore });
+          const mBefore = await countMatchesBefore(mWinnerId, mCreatedAt, m.id);
+          affectedPlayers.set(mWinnerId, { elo: Number(m.winner_elo_before) || 1400, matches_played: mBefore, nickname: mWinnerNick });
+          console.log(`   ➕ [CASCADE] Added ${mWinnerNick} to affected set (ELO=${m.winner_elo_before}, matches_before=${mBefore})`);
         }
         if (!loserAffected) {
-          const mBefore = await countConfirmedMatchesBefore(mLoserId, mCreatedAt, m.id);
-          affectedPlayers.set(mLoserId, { elo: Number(m.loser_elo_before) || 1400, matches_played: mBefore });
+          const mBefore = await countMatchesBefore(mLoserId, mCreatedAt, m.id);
+          affectedPlayers.set(mLoserId, { elo: Number(m.loser_elo_before) || 1400, matches_played: mBefore, nickname: mLoserNick });
+          console.log(`   ➕ [CASCADE] Added ${mLoserNick} to affected set (ELO=${m.loser_elo_before}, matches_before=${mBefore})`);
         }
 
         const winnerState = affectedPlayers.get(mWinnerId)!;
@@ -1126,6 +1160,8 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
         const loserNewElo  = calculateNewRating(loserEloBefore,  winnerEloBefore, 'loss', loserState.matches_played);
 
         const eloChange = winnerNewElo - winnerEloBefore;
+
+        console.log(`   🎮 [CASCADE] Match ${m.id.substring(0,8)}: ${mWinnerNick} ${winnerEloBefore}→${winnerNewElo} (+${eloChange}) | ${mLoserNick} ${loserEloBefore}→${loserNewElo} (${loserNewElo - loserEloBefore})`);
 
         await query(
           `UPDATE matches
@@ -1152,21 +1188,26 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
         matchesRecalculated++;
       }
 
+      console.log(`🎯 [CASCADE] Cascade complete. Recalculated ${matchesRecalculated} matches. Affected players (${affectedPlayers.size}):`);
+      for (const [uid, s] of affectedPlayers.entries()) {
+        console.log(`   👤 ${s.nickname} → final ELO=${s.elo}`);
+      }
+
       // STEP 5: Final stats update for all affected players
       for (const [userId, state] of affectedPlayers.entries()) {
         const winsResult = await query(
-          `SELECT COUNT(*) as cnt FROM matches WHERE winner_id = ? AND status = 'confirmed'`,
+          `SELECT COUNT(*) as cnt FROM matches WHERE winner_id = ? AND status IN ${ELO_APPLIED_STATUSES}`,
           [userId]
         );
         const lossesResult = await query(
-          `SELECT COUNT(*) as cnt FROM matches WHERE loser_id = ? AND status = 'confirmed'`,
+          `SELECT COUNT(*) as cnt FROM matches WHERE loser_id = ? AND status IN ${ELO_APPLIED_STATUSES}`,
           [userId]
         );
         // Fetch last 10 matches in chronological order (oldest→newest) to build trend
         const trendResult = await query(
           `SELECT winner_id FROM (
              SELECT winner_id, created_at FROM matches
-             WHERE (winner_id = ? OR loser_id = ?) AND status = 'confirmed'
+             WHERE (winner_id = ? OR loser_id = ?) AND status IN ${ELO_APPLIED_STATUSES}
              ORDER BY created_at DESC LIMIT 10
            ) sub ORDER BY created_at ASC`,
           [userId, userId]
@@ -1183,6 +1224,8 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
 
         const isRated = shouldPlayerBeRated(matchesPlayed, state.elo);
         const level   = getUserLevel(state.elo);
+
+        console.log(`   💾 [CASCADE] Updating ${state.nickname}: ELO=${state.elo}, W=${totalWins}, L=${totalLosses}, trend=${trend}, level=${level}, rated=${isRated}`);
 
         await query(
           `UPDATE users_extension
