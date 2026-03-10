@@ -1060,13 +1060,14 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
 
       // ELO is applied for any match that is not cancelled/disputed/rejected.
       // 'reported', 'unconfirmed', and 'confirmed' all have ELO applied.
-      const ELO_APPLIED_STATUSES = `('confirmed', 'reported', 'unconfirmed')`;
+      // ELO is applied to all matches except cancelled ones.
+      const ELO_STATUS_FILTER = `status != 'cancelled'`;
 
       // Counts ELO-applied matches for a player before a given date, excluding one match id
       const countMatchesBefore = async (userId: string, beforeDate: Date, excludeMatchId: string): Promise<number> => {
         const result = await query(
           `SELECT COUNT(*) as cnt FROM matches
-           WHERE (winner_id = ? OR loser_id = ?) AND status IN ${ELO_APPLIED_STATUSES}
+           WHERE (winner_id = ? OR loser_id = ?) AND ${ELO_STATUS_FILTER}
              AND created_at < ? AND id != ?`,
           [userId, userId, beforeDate, excludeMatchId]
         );
@@ -1110,7 +1111,7 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
       const subsequentMatches = await query(
         `SELECT id, winner_id, loser_id, winner_elo_before, loser_elo_before, created_at
          FROM matches
-         WHERE status IN ${ELO_APPLIED_STATUSES} AND created_at > ?
+         WHERE ${ELO_STATUS_FILTER} AND created_at > ?
          ORDER BY created_at ASC, id ASC`,
         [cancelledAt]
       );
@@ -1196,18 +1197,18 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
       // STEP 5: Final stats update for all affected players
       for (const [userId, state] of affectedPlayers.entries()) {
         const winsResult = await query(
-          `SELECT COUNT(*) as cnt FROM matches WHERE winner_id = ? AND status IN ${ELO_APPLIED_STATUSES}`,
+          `SELECT COUNT(*) as cnt FROM matches WHERE winner_id = ? AND ${ELO_STATUS_FILTER}`,
           [userId]
         );
         const lossesResult = await query(
-          `SELECT COUNT(*) as cnt FROM matches WHERE loser_id = ? AND status IN ${ELO_APPLIED_STATUSES}`,
+          `SELECT COUNT(*) as cnt FROM matches WHERE loser_id = ? AND ${ELO_STATUS_FILTER}`,
           [userId]
         );
         // Fetch last 10 matches in chronological order (oldest→newest) to build trend
         const trendResult = await query(
           `SELECT winner_id FROM (
              SELECT winner_id, created_at FROM matches
-             WHERE (winner_id = ? OR loser_id = ?) AND status IN ${ELO_APPLIED_STATUSES}
+             WHERE (winner_id = ? OR loser_id = ?) AND ${ELO_STATUS_FILTER}
              ORDER BY created_at DESC LIMIT 10
            ) sub ORDER BY created_at ASC`,
           [userId, userId]
