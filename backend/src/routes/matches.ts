@@ -1035,168 +1035,171 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
     }
 
     if (action === 'validate') {
-      // Admin validates the dispute - the match is invalid and must be cancelled
-      // This means: CANCEL the match and REBUILD ALL STATS from scratch (global cascade recalculation)
-      
-      console.log(`Starting global cascade recalculation for cancelled match ${id} (winner: ${match.winner_id}, loser: ${match.loser_id})`);
+      // Admin validates the dispute - the match is invalid and must be cancelled.
+      // Targeted cascade: only reprocesses matches involving the directly affected players
+      // and any players who played against them (or their transitive chain) afterwards.
 
-      // STEP 1: Mark the match as cancelled
+      console.log(`Starting targeted cascade recalculation for cancelled match ${id} (winner: ${match.winner_id}, loser: ${match.loser_id})`);
+
+      // STEP 1: Cancel the disputed match
       await query(
-        'UPDATE matches SET status = ?, admin_reviewed = true, admin_reviewed_at = CURRENT_TIMESTAMP, admin_reviewed_by = ? WHERE id = ?',
-        ['cancelled', req.userId, id]
+        `UPDATE matches SET status = 'cancelled', admin_reviewed = ?, admin_reviewed_at = NOW(), admin_reviewed_by = ? WHERE id = ?`,
+        [true, req.userId, id]
       );
 
-      // STEP 1B: Disable trigger to prevent automatic faction/map stats updates during this process
-      // The trigger fires on UPDATE matches, which would cause double-counting
-      try {
-        await query('DROP TRIGGER IF EXISTS trg_update_faction_map_stats ON matches');
-        if (process.env.BACKEND_DEBUG_LOGS === 'true') console.log('Disabled trigger: trg_update_faction_map_stats');
-      } catch (error) {
-        console.error('Warning: Failed to disable trigger:', error);
-      }
+      const directWinnerId: string = match.winner_id;
+      const directLoserId: string = match.loser_id;
+      const cancelledAt = new Date(match.created_at);
 
-      // STEP 2: Get default ELO for new users (from users table default or environment)
-      const defaultElo = 1400; // FIDE standard baseline for new users
+      // Counts confirmed matches for a player before a given date, excluding one match id
+      const countConfirmedMatchesBefore = async (userId: string, beforeDate: Date, excludeMatchId: string): Promise<number> => {
+        const result = await query(
+          `SELECT COUNT(*) as cnt FROM matches
+           WHERE (winner_id = ? OR loser_id = ?) AND status = 'confirmed'
+             AND created_at < ? AND id != ?`,
+          [userId, userId, beforeDate, excludeMatchId]
+        );
+        return Number(result.rows[0]?.cnt ?? 0);
+      };
 
-      // STEP 3: Get ALL non-cancelled matches in chronological order
-      const allNonCancelledMatches = await query(
-        `SELECT m.id, m.winner_id, m.loser_id, m.created_at
-         FROM matches m
-         WHERE m.status IN ('confirmed', 'unconfirmed', 'pending', 'disputed')
-         ORDER BY m.created_at ASC, m.id ASC`
+      // STEP 2: Initialize affected player set with ELO restored to their pre-cancelled-match values
+      interface PlayerState { elo: number; matches_played: number; }
+      const affectedPlayers = new Map<string, PlayerState>();
+
+      const winnerMatchesBefore = await countConfirmedMatchesBefore(directWinnerId, cancelledAt, id);
+      const loserMatchesBefore  = await countConfirmedMatchesBefore(directLoserId,  cancelledAt, id);
+
+      affectedPlayers.set(directWinnerId, {
+        elo: Number(match.winner_elo_before) || 1400,
+        matches_played: winnerMatchesBefore
+      });
+      affectedPlayers.set(directLoserId, {
+        elo: Number(match.loser_elo_before) || 1400,
+        matches_played: loserMatchesBefore
+      });
+
+      // STEP 3: Load all confirmed matches that happened AFTER the cancelled one
+      const subsequentMatches = await query(
+        `SELECT id, winner_id, loser_id, winner_elo_before, loser_elo_before, created_at
+         FROM matches
+         WHERE status = 'confirmed' AND created_at > ?
+         ORDER BY created_at ASC, id ASC`,
+        [cancelledAt]
       );
 
-      // STEP 4: Initialize all users with baseline ELO and zero stats
-      const userStates = new Map<string, {
-        elo_rating: number;
-        matches_played: number;
-        total_wins: number;
-        total_losses: number;
-        trend: string;
-      }>();
+      // STEP 4: Cascade forward — skip matches where neither player is affected
+      let matchesRecalculated = 0;
+      for (const m of subsequentMatches.rows) {
+        const mWinnerId: string = m.winner_id;
+        const mLoserId:  string = m.loser_id;
+        const winnerAffected = affectedPlayers.has(mWinnerId);
+        const loserAffected  = affectedPlayers.has(mLoserId);
 
-      const allUsersResult = await query('SELECT id FROM users_extension');
-      for (const userRow of allUsersResult.rows) {
-        userStates.set(userRow.id, {
-          elo_rating: defaultElo,
-          matches_played: 0,
-          total_wins: 0,
-          total_losses: 0,
-          trend: '-'
-        });
-      }
+        if (!winnerAffected && !loserAffected) continue;
 
-      // STEP 5: Replay ALL non-cancelled matches chronologically to rebuild correct stats
-      for (const matchRow of allNonCancelledMatches.rows) {
-        const winnerId = matchRow.winner_id;
-        const loserId = matchRow.loser_id;
+        const mCreatedAt = new Date(m.created_at);
 
-        // Ensure both users exist in state map
-        if (!userStates.has(winnerId)) {
-          userStates.set(winnerId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+        // Add newcomers using their elo_before from the (still-original) match record
+        if (!winnerAffected) {
+          const mBefore = await countConfirmedMatchesBefore(mWinnerId, mCreatedAt, m.id);
+          affectedPlayers.set(mWinnerId, { elo: Number(m.winner_elo_before) || 1400, matches_played: mBefore });
         }
-        if (!userStates.has(loserId)) {
-          userStates.set(loserId, { elo_rating: defaultElo, matches_played: 0, total_wins: 0, total_losses: 0, trend: '-' });
+        if (!loserAffected) {
+          const mBefore = await countConfirmedMatchesBefore(mLoserId, mCreatedAt, m.id);
+          affectedPlayers.set(mLoserId, { elo: Number(m.loser_elo_before) || 1400, matches_played: mBefore });
         }
 
-        const winner = userStates.get(winnerId)!;
-        const loser = userStates.get(loserId)!;
+        const winnerState = affectedPlayers.get(mWinnerId)!;
+        const loserState  = affectedPlayers.get(mLoserId)!;
 
-        // Store before values
-        const winnerEloBefore = winner.elo_rating;
-        const loserEloBefore = loser.elo_rating;
+        const winnerEloBefore = winnerState.elo;
+        const loserEloBefore  = loserState.elo;
 
-        // Calculate new ratings
-        const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
-        const loserNewRating = calculateNewRating(loser.elo_rating, winner.elo_rating, 'loss', loser.matches_played);
+        const winnerNewElo = calculateNewRating(winnerEloBefore, loserEloBefore, 'win',  winnerState.matches_played);
+        const loserNewElo  = calculateNewRating(loserEloBefore,  winnerEloBefore, 'loss', loserState.matches_played);
 
-        // Update stats
-        winner.elo_rating = winnerNewRating;
-        loser.elo_rating = loserNewRating;
-        winner.matches_played++;
-        loser.matches_played++;
-        winner.total_wins++;
-        loser.total_losses++;
-        winner.trend = calculateTrend(winner.trend, true);
-        loser.trend = calculateTrend(loser.trend, false);
+        const eloChange = winnerNewElo - winnerEloBefore;
 
-        // Update the match record with correct before/after ELO values
         await query(
-          `UPDATE matches 
-           SET winner_elo_before = ?, winner_elo_after = ?, 
-               loser_elo_before = ?, loser_elo_after = ?
+          `UPDATE matches
+           SET winner_elo_before = ?, winner_elo_after = ?,
+               loser_elo_before  = ?, loser_elo_after  = ?,
+               winner_level_before = ?, winner_level_after = ?,
+               loser_level_before  = ?, loser_level_after  = ?,
+               elo_change = ?
            WHERE id = ?`,
-          [winnerEloBefore, winnerNewRating, loserEloBefore, loserNewRating, matchRow.id]
+          [
+            winnerEloBefore, winnerNewElo,
+            loserEloBefore,  loserNewElo,
+            getUserLevel(winnerEloBefore), getUserLevel(winnerNewElo),
+            getUserLevel(loserEloBefore),  getUserLevel(loserNewElo),
+            eloChange, m.id
+          ]
+        );
+
+        winnerState.elo = winnerNewElo;
+        winnerState.matches_played++;
+        loserState.elo  = loserNewElo;
+        loserState.matches_played++;
+
+        matchesRecalculated++;
+      }
+
+      // STEP 5: Final stats update for all affected players
+      for (const [userId, state] of affectedPlayers.entries()) {
+        const winsResult = await query(
+          `SELECT COUNT(*) as cnt FROM matches WHERE winner_id = ? AND status = 'confirmed'`,
+          [userId]
+        );
+        const lossesResult = await query(
+          `SELECT COUNT(*) as cnt FROM matches WHERE loser_id = ? AND status = 'confirmed'`,
+          [userId]
+        );
+        // Fetch last 10 matches in chronological order (oldest→newest) to build trend
+        const trendResult = await query(
+          `SELECT winner_id FROM (
+             SELECT winner_id, created_at FROM matches
+             WHERE (winner_id = ? OR loser_id = ?) AND status = 'confirmed'
+             ORDER BY created_at DESC LIMIT 10
+           ) sub ORDER BY created_at ASC`,
+          [userId, userId]
+        );
+
+        const totalWins   = Number(winsResult.rows[0]?.cnt   ?? 0);
+        const totalLosses = Number(lossesResult.rows[0]?.cnt ?? 0);
+        const matchesPlayed = totalWins + totalLosses;
+
+        let trend = '-';
+        for (const row of trendResult.rows) {
+          trend = calculateTrend(trend, row.winner_id === userId);
+        }
+
+        const isRated = shouldPlayerBeRated(matchesPlayed, state.elo);
+        const level   = getUserLevel(state.elo);
+
+        await query(
+          `UPDATE users_extension
+           SET elo_rating = ?, matches_played = ?, total_wins = ?, total_losses = ?,
+               trend = ?, level = ?, is_rated = ?, updated_at = NOW()
+           WHERE id = ?`,
+          [state.elo, matchesPlayed, totalWins, totalLosses, trend, level, isRated, userId]
         );
       }
 
-      // STEP 6: Update all users in the database with their recalculated stats
-      for (const [userId, stats] of userStates.entries()) {
-        // Determine is_rated status
-        // Get current is_rated status from database
-        const userCurrentResult = await query('SELECT is_rated FROM users_extension WHERE id = ?', [userId]);
-        const isCurrentlyRated = userCurrentResult.rows[0]?.is_rated || false;
-        
-        let isRated = isCurrentlyRated;
-        
-        // If rated and ELO falls below 1400, unrate the player
-        if (isCurrentlyRated && stats.elo_rating < 1400) {
-          isRated = false;
-        }
-        // If unrated, has 10+ matches, and ELO >= 1400, rate the player
-        else if (!isCurrentlyRated && stats.matches_played >= 10 && stats.elo_rating >= 1400) {
-          isRated = true;
-        }
-        
-        await query(
-          `UPDATE users 
-           SET elo_rating = ?, 
-               matches_played = ?,
-               total_wins = ?,
-               total_losses = ?,
-               trend = ?,
-               is_rated = ?,
-               updated_at = CURRENT_TIMESTAMP 
-           WHERE id = ?`,
-          [stats.elo_rating, stats.matches_played, stats.total_wins, stats.total_losses, stats.trend, isRated, userId]
-        );
-      }
-
-      // STEP 6B: Re-enable the trigger after all updates are done
-      // Note: With TypeScript services, triggers are replaced by direct service calls
-      try {
-        // Update faction/map statistics for the match being disputed
-        if (match.map && match.winner_faction && match.loser_faction) {
-          await updateFactionMapStatistics(match.map, match.winner_faction, match.loser_faction, match.winner_side ?? null);
-          if (process.env.BACKEND_DEBUG_LOGS === 'true') {
-            console.log('✓ Faction/map statistics updated');
-          }
-        }
-      } catch (error) {
-        console.error('Warning: Error updating faction/map statistics:', error);
-      }
-
-      // STEP 7: Recalculate faction/map balance statistics
+      // STEP 6: Recalculate faction/map balance statistics
       try {
         const factionResult = await recalculateFactionMapStatistics();
         console.log(`✓ Recalculated ${factionResult.records_updated} faction/map statistics`);
-        if (process.env.BACKEND_DEBUG_LOGS === 'true') {
-          console.log('Faction/map statistics recalculation completed');
-        }
       } catch (error: any) {
         console.error('✗ Error with faction/map statistics recalculation:', error);
-        // Don't fail the entire operation if balance stats fail
       }
 
-      // Recalculate player of month if dispute is from previous month
+      // STEP 7: Recalculate player of month if match is from a previous calendar month
       try {
         const now = new Date();
         const matchDate = new Date(match.created_at);
-        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        
-        // Check if match is from previous month or earlier
-        if (matchDate < currentMonth) {
+        const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        if (matchDate < currentMonthStart) {
           const { calculatePlayerOfMonth } = await import('../jobs/playerOfMonthJob.js');
           console.log('🎯 Recalculating player of month after dispute validation...');
           await calculatePlayerOfMonth();
@@ -1204,22 +1207,18 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
         }
       } catch (error: any) {
         console.error('⚠️  Warning: Failed to recalculate player of month after dispute:', error.message);
-        // Don't fail the entire operation if player of month calculation fails
       }
 
-      // Reopen the associated tournament match for re-reporting
+      // STEP 8: Reopen linked tournament match for re-reporting
       const tournamentMatchResult = await query(
-        `SELECT tm.id as tm_id FROM tournament_matches tm
-         WHERE tm.match_id = ?`,
+        `SELECT tm.id as tm_id FROM tournament_matches tm WHERE tm.match_id = ?`,
         [id]
       );
 
       if (tournamentMatchResult.rows.length > 0) {
         const tournamentMatch = tournamentMatchResult.rows[0];
-        
-        // Reopen the tournament match for re-reporting
         await query(
-          `UPDATE tournament_matches 
+          `UPDATE tournament_matches
            SET match_status = 'pending', winner_id = NULL, match_id = NULL, played_at = NULL
            WHERE id = ?`,
           [tournamentMatch.tm_id]
@@ -1227,11 +1226,12 @@ router.post('/admin/:id/dispute', moderatorOrAdminMiddleware, async (req: AuthRe
         console.log(`Match ${id} reopened in tournament_matches ${tournamentMatch.tm_id} for re-reporting`);
       }
 
-      console.log(`Match ${id} dispute validated by admin ${req.userId}: Match marked as cancelled, stats recalculated in global cascade for ${allNonCancelledMatches.rows.length} total matches`);
-      res.json({ 
-        message: 'Dispute validated. Match cancelled, stats reversed, ELO recalculated for all subsequent matches, and reopened for re-reporting.',
+      console.log(`Match ${id} dispute validated by admin ${req.userId}: Cancelled, cascade recalculated ${matchesRecalculated} subsequent matches, updated ${affectedPlayers.size} affected players`);
+      res.json({
+        message: 'Dispute validated. Match cancelled, ELO recalculated for all affected players, and reopened for re-reporting.',
         reopened: tournamentMatchResult.rows.length > 0,
-        totalMatchesProcessed: allNonCancelledMatches.rows.length
+        affectedPlayers: affectedPlayers.size,
+        matchesRecalculated
       });
     } else if (action === 'reject') {
       // Reject dispute - the dispute is not valid, match was correct
