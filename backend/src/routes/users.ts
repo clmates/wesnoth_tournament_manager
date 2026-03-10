@@ -327,6 +327,20 @@ router.get('/ranking/global', async (req, res) => {
     const limit = 20;
     const offset = (page - 1) * limit;
 
+    // Sort params — whitelist to prevent SQL injection
+    const ALLOWED_SORT_COLUMNS: Record<string, string> = {
+      elo_rating:     'u.elo_rating',
+      nickname:       'u.nickname',
+      matches_played: 'u.matches_played',
+      total_wins:     'u.total_wins',
+      total_losses:   'u.total_losses',
+      win_percentage: '(u.total_wins * 1.0 / NULLIF(u.matches_played, 0))',
+      trend:          'u.trend',
+    };
+    const sortByRaw = (req.query.sortBy as string) || 'elo_rating';
+    const sortByExpr = ALLOWED_SORT_COLUMNS[sortByRaw] ?? 'u.elo_rating';
+    const sortOrder = (req.query.sortOrder as string)?.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
     // Get filter params from query
     const nicknameFilter = (req.query.nickname as string)?.trim() || '';
     const minElo = req.query.min_elo ? parseInt(req.query.min_elo as string) : null;
@@ -372,7 +386,7 @@ router.get('/ranking/global', async (req, res) => {
       `SELECT u.id, u.nickname, u.elo_rating, u.level, u.is_rated, u.matches_played, u.total_wins, u.total_losses, u.country, u.avatar, COALESCE(u.trend, '-') as trend 
        FROM users_extension u
        WHERE ${whereClause}
-       ORDER BY u.elo_rating DESC
+       ORDER BY ${sortByExpr} ${sortOrder}
        LIMIT ? OFFSET ?`,
       params
     );

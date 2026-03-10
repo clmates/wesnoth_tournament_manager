@@ -898,29 +898,36 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
       res.json({ message: 'Match confirmed successfully with your comments and rating' });
     } else if (action === 'dispute') {
       if (isUnranked) {
-        // UNRANKED: Any loser can report a dispute
-        // The organizer will then review and decide (confirm or dismiss)
-        
-        // Mark unranked tournament match as disputed (use 'status' field, not 'match_status')
+        // UNRANKED: save comment in the appropriate column and mark as disputed
+        const commentColumn = isWinner ? 'winner_comments' : 'loser_comments';
         await query(
-          'UPDATE tournament_matches SET match_status = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          ['completed', 'disputed', id]
+          `UPDATE tournament_matches SET match_status = 'completed', status = 'disputed',
+            ${commentColumn} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          [comments || null, id]
         );
 
-        console.log(`Unranked tournament match ${id} marked as disputed by loser ${req.userId}`);
+        console.log(`Unranked tournament match ${id} marked as disputed by ${isWinner ? 'winner' : 'loser'} ${req.userId}`);
         res.json({ message: 'Match disputed. Awaiting organizer review.' });
       } else {
-        // RANKED: Mark match as disputed (pending admin review)
-        await query(
-          'UPDATE matches SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-          ['disputed', id]
-        );
+        // RANKED: save comment in winner_comments or loser_comments and mark as disputed
+        if (isWinner) {
+          await query(
+            `UPDATE matches SET status = 'disputed', winner_comments = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [comments || null, id]
+          );
+        } else {
+          await query(
+            `UPDATE matches SET status = 'disputed', loser_comments = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [comments || null, id]
+          );
+        }
 
         // Also update tournament_matches if this is a tournament ranked match
         if (tournamentMatchId) {
+          const tmCommentColumn = isWinner ? 'winner_comments' : 'loser_comments';
           await query(
-            'UPDATE tournament_matches SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            ['disputed', id]
+            `UPDATE tournament_matches SET status = 'disputed', ${tmCommentColumn} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+            [comments || null, tournamentMatchId]
           );
         }
 

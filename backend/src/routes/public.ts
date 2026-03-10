@@ -497,6 +497,20 @@ router.get('/players', async (req, res) => {
     const limit = 20;
     const offset = (page - 1) * limit;
 
+    // Sort params — whitelist to prevent SQL injection
+    const ALLOWED_SORT_COLUMNS: Record<string, string> = {
+      nickname:       'nickname',
+      elo_rating:     'elo_rating',
+      matches_played: 'matches_played',
+      total_wins:     'total_wins',
+      total_losses:   'total_losses',
+      win_percentage: '(total_wins * 1.0 / NULLIF(matches_played, 0))',
+      is_rated:       'is_rated',
+    };
+    const sortByRaw = (req.query.sortBy as string) || 'nickname';
+    const sortByExpr = ALLOWED_SORT_COLUMNS[sortByRaw] ?? 'nickname';
+    const sortOrder = (req.query.sortOrder as string)?.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+
     // Get filter params from query
     const nicknameFilter = (req.query.nickname as string)?.trim() || '';
     const ratedOnly = req.query.rated_only === 'true';
@@ -547,7 +561,7 @@ router.get('/players', async (req, res) => {
       `SELECT id, nickname, elo_rating, is_rated, matches_played, total_wins, total_losses, country, avatar
        FROM users_extension
        WHERE ${whereClause}
-       ORDER BY nickname ASC
+       ORDER BY ${sortByExpr} ${sortOrder}
        LIMIT ? OFFSET ?`,
       params
     );

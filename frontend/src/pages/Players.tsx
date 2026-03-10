@@ -34,45 +34,24 @@ const Players: React.FC = () => {
   const navigate = useNavigate();
   const { userId } = useAuthStore();
   const [players, setPlayers] = useState<PlayerStats[]>([]);
-  const [sortColumn, setSortColumn] = useState<SortColumn>('');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-    // Sorting logic
-    const handleSort = (column: SortColumn) => {
-      if (sortColumn === column) {
-        setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
-      } else {
-        setSortColumn(column);
-        setSortDirection('desc');
-      }
-    };
+  const [sortColumn, setSortColumn] = useState<SortColumn>('nickname');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [refreshKey, setRefreshKey] = useState(0);
 
-    // Sort players before rendering
-    const sortedPlayers = React.useMemo(() => {
-      if (!sortColumn) return players;
-      const sorted = [...players].sort((a, b) => {
-        let aValue: any = a[sortColumn as keyof PlayerStats];
-        let bValue: any = b[sortColumn as keyof PlayerStats];
-        // For nickname, sort as string
-        if (sortColumn === 'nickname') {
-          aValue = aValue?.toLowerCase?.() || '';
-          bValue = bValue?.toLowerCase?.() || '';
-          if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-          if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-          return 0;
-        }
-        // For is_rated, sort true > false
-        if (sortColumn === 'is_rated') {
-          if (aValue === bValue) return 0;
-          return (aValue ? -1 : 1) * (sortDirection === 'asc' ? 1 : -1);
-        }
-        // For numbers
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
-        }
-        return 0;
-      });
-      return sorted;
-    }, [players, sortColumn, sortDirection]);
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+    setCurrentPage(1);
+  };
+
+  const handleRefresh = () => {
+    setRefreshKey(k => k + 1);
+  };
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -129,7 +108,12 @@ const Players: React.FC = () => {
       try {
         setLoading(true);
         setError('');
-        const res = await publicService.getAllPlayers(currentPage, appliedFilters);
+        const res = await publicService.getAllPlayers(
+          currentPage,
+          appliedFilters,
+          sortColumn || undefined,
+          sortColumn ? sortDirection : undefined
+        );
         
         // Calculate stats for each player
         const allUsers = res.data?.data || [];
@@ -171,7 +155,7 @@ const Players: React.FC = () => {
     };
 
     fetchPlayers();
-  }, [currentPage, appliedFilters]);
+  }, [currentPage, appliedFilters, sortColumn, sortDirection, refreshKey]);
   const handleResetFilters = () => {
     const emptyFilters = {
       nickname: '',
@@ -325,6 +309,9 @@ const Players: React.FC = () => {
           <button className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded transition-colors flex-shrink-0 h-fit self-end" onClick={handleResetFilters}>
             {t('reset_filters')}
           </button>
+          <button className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded transition-colors flex-shrink-0 h-fit self-end" onClick={handleRefresh} title="Refresh">
+            🔄
+          </button>
         </div>
       </div>
 
@@ -368,7 +355,7 @@ const Players: React.FC = () => {
               </tr>
           </thead>
           <tbody>
-            {sortedPlayers.map((player, index) => (
+            {players.map((player, index) => (
               <tr key={player.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 text-gray-700">
                   <span className="font-semibold">#{(currentPage - 1) * 20 + index + 1}</span>

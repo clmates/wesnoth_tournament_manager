@@ -109,13 +109,15 @@ export const userService = {
   getRecentMatches: (id: string) => api.get(`/users/${id}/matches`),
   getMatches: () => api.get('/matches'),
   searchUsers: (query: string) => api.get(`/users/search/${query}`),
-  getGlobalRanking: (page: number = 1, filters?: any) => {
+  getGlobalRanking: (page: number = 1, filters?: any, sortBy?: string, sortOrder?: string) => {
     const params: any = { page };
     if (filters) {
       if (filters.nickname) params.nickname = filters.nickname;
       if (filters.min_elo) params.min_elo = filters.min_elo;
       if (filters.max_elo) params.max_elo = filters.max_elo;
     }
+    if (sortBy) params.sortBy = sortBy;
+    if (sortOrder) params.sortOrder = sortOrder;
     return api.get('/users/ranking/global', { params });
   },
   getAllUsers: () => api.get('/users/all'),
@@ -264,7 +266,7 @@ export const publicService = {
     }
     return api.get('/public/matches', { params });
   },
-  getAllPlayers: (page: number = 1, filters?: any) => {
+  getAllPlayers: (page: number = 1, filters?: any, sortBy?: string, sortOrder?: string) => {
     const params: any = { page };
     if (filters) {
       if (filters.nickname) params.nickname = filters.nickname;
@@ -273,6 +275,8 @@ export const publicService = {
       if (filters.min_matches) params.min_matches = filters.min_matches;
       if (filters.rated_only) params.rated_only = filters.rated_only;
     }
+    if (sortBy) params.sortBy = sortBy;
+    if (sortOrder) params.sortOrder = sortOrder;
     return api.get('/public/players', { params });
   },
   getTournaments: (page: number = 1, filters?: any) => {

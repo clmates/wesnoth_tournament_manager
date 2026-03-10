@@ -29,6 +29,7 @@ const Matches: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [matchDetailsModal, setMatchDetailsModal] = useState<MatchDetailsModal>({
     isOpen: false,
     match: null,
@@ -97,7 +98,9 @@ const Matches: React.FC = () => {
     };
 
     fetchMatches();
-  }, [currentPage, filters]);
+  }, [currentPage, filters, refreshKey]);
+
+  const handleRefresh = () => setRefreshKey(k => k + 1);
 
   // Reset to page 1 when filters change
   const handleFilterChangeWithReset = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -349,6 +352,7 @@ const Matches: React.FC = () => {
           </div>
 
           <button className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors flex-shrink-0 h-fit self-end" onClick={resetFilters}>{t('reset_filters')}</button>
+          <button className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded transition-colors flex-shrink-0 h-fit self-end" onClick={handleRefresh} title="Refresh">🔄</button>
         </div>
       </div>
 
