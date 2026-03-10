@@ -231,7 +231,7 @@ router.get('/news', authMiddleware, async (req: AuthRequest, res) => {
 router.get('/faq', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const result = await query(
-      `SELECT id, question, answer, language_code, "order", created_at FROM faq ORDER BY "order" ASC, created_at DESC`
+      `SELECT id, question, answer, language_code, \`order\`, created_at FROM faq ORDER BY \`order\` ASC, created_at DESC`
     );
     res.json(result.rows);
   } catch (error) {

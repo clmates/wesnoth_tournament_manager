@@ -57,8 +57,11 @@ const AdminFAQ: React.FC = () => {
         grouped[item.id][item.language_code || 'en'] = item;
       });
       
-      // Sort by question title (English version, or first available language)
+      // Sort by order field (English version), fallback to question alphabetically
       const sortedItems = Object.values(grouped).sort((a: any, b: any) => {
+        const orderA = a.en?.order ?? a[Object.keys(a)[0]]?.order ?? 0;
+        const orderB = b.en?.order ?? b[Object.keys(b)[0]]?.order ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
         const questionA = (a.en?.question || a[Object.keys(a)[0]]?.question || '').toLowerCase();
         const questionB = (b.en?.question || b[Object.keys(b)[0]]?.question || '').toLowerCase();
         return questionA.localeCompare(questionB);
@@ -267,7 +270,10 @@ const AdminFAQ: React.FC = () => {
                 <div key={id} className="bg-white rounded-lg shadow-md p-4">
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="text-lg font-semibold text-gray-800">{question}</h3>
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">Multi-language</span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-semibold rounded-full">#{itemGroup[firstLang || 'en']?.order ?? 0}</span>
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">Multi-language</span>
+                    </div>
                   </div>
                   <p className="text-gray-700 mb-4">{itemGroup[firstLang || 'en']?.answer}</p>
                   <div className="flex gap-2">
