@@ -238,9 +238,9 @@ const Players: React.FC = () => {
       )}
 
       {/* Filters */}
-      <div className="bg-gray-100 p-6 rounded-lg mb-6 overflow-x-auto -webkit-overflow-scrolling-touch">
-        <div className="flex gap-4 min-w-min">
-          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+      <div className="bg-gray-100 p-4 rounded-lg mb-6">
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="flex flex-col gap-1 min-w-[150px] flex-1">
             <label htmlFor="nickname" className="font-semibold text-gray-700 text-sm">{t('filter_nickname')}</label>
             <input
               type="text"
@@ -253,7 +253,7 @@ const Players: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+          <div className="flex flex-col gap-1 min-w-[120px] flex-1">
             <label htmlFor="min_elo" className="font-semibold text-gray-700 text-sm">{t('filter_min_elo')}</label>
             <input
               type="number"
@@ -266,7 +266,7 @@ const Players: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+          <div className="flex flex-col gap-1 min-w-[120px] flex-1">
             <label htmlFor="max_elo" className="font-semibold text-gray-700 text-sm">{t('filter_max_elo')}</label>
             <input
               type="number"
@@ -279,7 +279,7 @@ const Players: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[180px]">
+          <div className="flex flex-col gap-1 min-w-[120px] flex-1">
             <label htmlFor="min_matches" className="font-semibold text-gray-700 text-sm">{t('filter_min_matches')}</label>
             <input
               type="number"
@@ -292,24 +292,22 @@ const Players: React.FC = () => {
             />
           </div>
 
-          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
-            <label htmlFor="rated_only" className="font-semibold text-gray-700 text-sm flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                id="rated_only"
-                name="rated_only"
-                checked={inputFilters.rated_only}
-                onChange={handleFilterInputChange}
-                className="w-4 h-4 text-blue-500 rounded cursor-pointer"
-              />
-              {t('filter_rated_only')}
-            </label>
-          </div>
+          <label htmlFor="rated_only" className="flex items-center gap-2 cursor-pointer font-semibold text-gray-700 text-sm pb-2 whitespace-nowrap">
+            <input
+              type="checkbox"
+              id="rated_only"
+              name="rated_only"
+              checked={inputFilters.rated_only}
+              onChange={handleFilterInputChange}
+              className="w-4 h-4 text-blue-500 rounded cursor-pointer"
+            />
+            {t('filter_rated_only')}
+          </label>
 
-          <button className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded transition-colors flex-shrink-0 h-fit self-end" onClick={handleResetFilters}>
+          <button className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded transition-colors whitespace-nowrap" onClick={handleResetFilters}>
             {t('reset_filters')}
           </button>
-          <button className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded transition-colors flex-shrink-0 h-fit self-end" onClick={handleRefresh} title="Refresh">
+          <button className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded transition-colors" onClick={handleRefresh} title="Refresh">
             🔄
           </button>
         </div>
