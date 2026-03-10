@@ -263,15 +263,17 @@ router.post('/faq', authMiddleware, async (req: AuthRequest, res) => {
     // Create records for all languages provided (English is guaranteed)
     for (const lang of languages) {
       if (lang.data && lang.data.question && lang.data.answer) {
+        const orderValue = lang.data.order ? Number(lang.data.order) : 0;
         if (lang.code === 'en') {
           await query(
             `INSERT INTO faq (id, question, answer, language_code, \`order\`) VALUES (?, ?, ?, ?, ?)`,
-            [faqId, lang.data.question, lang.data.answer, lang.code, lang.data.order ? Number(lang.data.order) : 0]
+            [faqId, lang.data.question, lang.data.answer, lang.code, orderValue]
           );
         } else {
+          const enOrderValue = en.order ? Number(en.order) : 0;
           await query(
             `INSERT INTO faq (id, question, answer, language_code, \`order\`) VALUES (?, ?, ?, ?, ?)`,
-            [faqId, lang.data.question, lang.data.answer, lang.code, en.order ? Number(en.order) : 0]
+            [faqId, lang.data.question, lang.data.answer, lang.code, enOrderValue]
           );
         }
       }
@@ -310,15 +312,17 @@ router.put('/faq/:id', authMiddleware, async (req: AuthRequest, res) => {
     // Create records for all languages provided (English is guaranteed)
     for (const lang of languages) {
       if (lang.data && lang.data.question && lang.data.answer) {
+        const orderValue = lang.data.order ? Number(lang.data.order) : 0;
         if (lang.code === 'en') {
           await query(
             `INSERT INTO faq (id, question, answer, language_code, \`order\`) VALUES (?, ?, ?, ?, ?)`,
-            [id, lang.data.question, lang.data.answer, lang.code, lang.data.order ? Number(lang.data.order) : 0]
+            [id, lang.data.question, lang.data.answer, lang.code, orderValue]
           );
         } else {
+          const enOrderValue = en.order ? Number(en.order) : 0;
           await query(
             `INSERT INTO faq (id, question, answer, language_code, \`order\`) VALUES (?, ?, ?, ?, ?)`,
-            [id, lang.data.question, lang.data.answer, lang.code, en.order ? Number(en.order) : 0]
+            [id, lang.data.question, lang.data.answer, lang.code, enOrderValue]
           );
         }
       }

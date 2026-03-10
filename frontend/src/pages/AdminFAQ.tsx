@@ -95,12 +95,23 @@ const AdminFAQ: React.FC = () => {
       return;
     }
 
+    // Convert order to number for all languages
+    const dataToSubmit = Object.fromEntries(
+      Object.entries(formData).map(([lang, data]: [string, any]) => [
+        lang,
+        {
+          ...data,
+          order: data.order ? Number(data.order) : 0
+        }
+      ])
+    );
+
     try {
       if (editingId) {
-        await adminService.updateFaq(editingId, formData);
+        await adminService.updateFaq(editingId, dataToSubmit);
         setMessage('FAQ item updated successfully');
       } else {
-        await adminService.createFaq(formData);
+        await adminService.createFaq(dataToSubmit);
         setMessage('FAQ item created successfully');
       }
 
