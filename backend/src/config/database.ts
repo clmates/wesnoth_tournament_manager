@@ -18,6 +18,7 @@ const pool: Pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  charset: 'utf8mb4',
 });
 
 // Error handler (mysql2 pool doesn't use 'error' event like pg does)
