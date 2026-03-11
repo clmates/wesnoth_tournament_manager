@@ -30,6 +30,78 @@ const LANG_LABELS: Record<string, string> = { en: 'English', es: 'Español', de:
 const emptyLangForm = (): LangFormData =>
   Object.fromEntries(LANGUAGES.map(l => [l, { name: '', description: '' }]));
 
+// Defined outside the parent component to avoid remounting on every render (which would lose focus)
+const LangForm: React.FC<{
+  langData: LangFormData; setLangData: (d: LangFormData) => void;
+  activeTab: string; setActiveTab: (l: string) => void;
+  flags: { is_active: boolean; is_ranked: boolean };
+  setFlags: (f: { is_active: boolean; is_ranked: boolean }) => void;
+  onSubmit: (e: React.FormEvent) => void; onCancel: () => void;
+  editingId: string | null; entityLabel: string;
+}> = ({ langData, setLangData, activeTab, setActiveTab, flags, setFlags, onSubmit, onCancel, editingId, entityLabel }) => (
+  <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
+    {/* Language tabs */}
+    <div className="flex border-b border-gray-300 mb-4 flex-wrap gap-1">
+      {LANGUAGES.map(lang => (
+        <button key={lang} type="button"
+          className={`px-3 py-2 font-semibold border-b-2 text-sm ${
+            activeTab === lang ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-800'
+          }`}
+          onClick={() => setActiveTab(lang)}
+        >
+          {LANG_LABELS[lang]}
+          {langData[lang].name && <span className="ml-1 text-green-500 text-xs">✓</span>}
+        </button>
+      ))}
+    </div>
+
+    {/* Language content */}
+    <div className="mb-4">
+      <label className="block text-gray-700 font-semibold mb-1 text-sm">
+        Name {activeTab === 'en' ? '*' : '(optional)'}
+      </label>
+      <input type="text" required={activeTab === 'en'}
+        value={langData[activeTab].name}
+        onChange={e => setLangData({ ...langData, [activeTab]: { ...langData[activeTab], name: e.target.value } })}
+        placeholder={activeTab === 'en' ? `${entityLabel} name (required)` : `${entityLabel} name in ${LANG_LABELS[activeTab]}`}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+      />
+    </div>
+    <div className="mb-4">
+      <label className="block text-gray-700 font-semibold mb-1 text-sm">Description (optional)</label>
+      <textarea rows={2}
+        value={langData[activeTab].description}
+        onChange={e => setLangData({ ...langData, [activeTab]: { ...langData[activeTab], description: e.target.value } })}
+        placeholder={`Description in ${LANG_LABELS[activeTab]}`}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+      />
+    </div>
+
+    {/* Flags */}
+    <div className="flex gap-5 mb-5">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={flags.is_active}
+          onChange={e => setFlags({ ...flags, is_active: e.target.checked })} className="w-4 h-4" />
+        Is Active
+      </label>
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" checked={flags.is_ranked}
+          onChange={e => setFlags({ ...flags, is_ranked: e.target.checked })} className="w-4 h-4" />
+        Is Ranked
+      </label>
+    </div>
+
+    <div className="flex gap-2">
+      <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        {editingId ? `Update ${entityLabel}` : `Add ${entityLabel}`}
+      </button>
+      <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+        Cancel
+      </button>
+    </div>
+  </form>
+);
+
 const AdminMapsAndFactions: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -245,81 +317,7 @@ const AdminMapsAndFactions: React.FC = () => {
     } catch (err: any) { setError(err.response?.data?.error || 'Failed to delete faction'); }
   };
 
-  // ── Reusable lang-tab form ──────────────────────────────────
-
-  const LangForm = ({
-    langData, setLangData, activeTab, setActiveTab, flags, setFlags,
-    onSubmit, onCancel, editingId, entityLabel,
-  }: {
-    langData: LangFormData; setLangData: (d: LangFormData) => void;
-    activeTab: string; setActiveTab: (l: string) => void;
-    flags: { is_active: boolean; is_ranked: boolean };
-    setFlags: (f: { is_active: boolean; is_ranked: boolean }) => void;
-    onSubmit: (e: React.FormEvent) => void; onCancel: () => void;
-    editingId: string | null; entityLabel: string;
-  }) => (
-    <form onSubmit={onSubmit} className="bg-white rounded-lg shadow-md p-6 mb-6">
-      {/* Language tabs */}
-      <div className="flex border-b border-gray-300 mb-4 flex-wrap gap-1">
-        {LANGUAGES.map(lang => (
-          <button key={lang} type="button"
-            className={`px-3 py-2 font-semibold border-b-2 text-sm ${
-              activeTab === lang ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-800'
-            } ${langData[lang].name ? 'after:content-["•"] after:text-green-500 after:ml-1' : ''}`}
-            onClick={() => setActiveTab(lang)}
-          >
-            {LANG_LABELS[lang]}
-            {langData[lang].name && <span className="ml-1 text-green-500 text-xs">✓</span>}
-          </button>
-        ))}
-      </div>
-
-      {/* Language content */}
-      <div className="mb-4">
-        <label className="block text-gray-700 font-semibold mb-1 text-sm">
-          Name {activeTab === 'en' ? '*' : '(optional)'}
-        </label>
-        <input type="text" required={activeTab === 'en'}
-          value={langData[activeTab].name}
-          onChange={e => setLangData({ ...langData, [activeTab]: { ...langData[activeTab], name: e.target.value } })}
-          placeholder={activeTab === 'en' ? `${entityLabel} name (required)` : `${entityLabel} name in ${LANG_LABELS[activeTab]}`}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-        />
-      </div>
-      <div className="mb-4">
-        <label className="block text-gray-700 font-semibold mb-1 text-sm">Description (optional)</label>
-        <textarea rows={2}
-          value={langData[activeTab].description}
-          onChange={e => setLangData({ ...langData, [activeTab]: { ...langData[activeTab], description: e.target.value } })}
-          placeholder={`Description in ${LANG_LABELS[activeTab]}`}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-        />
-      </div>
-
-      {/* Flags */}
-      <div className="flex gap-5 mb-5">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={flags.is_active}
-            onChange={e => setFlags({ ...flags, is_active: e.target.checked })} className="w-4 h-4" />
-          Is Active
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={flags.is_ranked}
-            onChange={e => setFlags({ ...flags, is_ranked: e.target.checked })} className="w-4 h-4" />
-          Is Ranked
-        </label>
-      </div>
-
-      <div className="flex gap-2">
-        <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          {editingId ? `Update ${entityLabel}` : `Add ${entityLabel}`}
-        </button>
-        <button type="button" onClick={onCancel} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
+  // ── Reusable lang-tab form defined outside this component (above) to avoid remounting on each render
 
   if (loading) return <MainLayout><div className="max-w-6xl mx-auto px-4 py-8"><p className="text-center text-gray-600">Loading...</p></div></MainLayout>;
   if (!isAuthenticated || !isAdmin) return <MainLayout><div className="max-w-6xl mx-auto px-4 py-8"><p className="text-center text-red-600">Access denied. Admin only.</p></div></MainLayout>;
