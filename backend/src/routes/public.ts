@@ -514,6 +514,7 @@ router.get('/players', async (req, res) => {
     // Get filter params from query
     const nicknameFilter = (req.query.nickname as string)?.trim() || '';
     const ratedOnly = req.query.rated_only === 'true';
+    const rankedOnly = req.query.ranked_only === 'true';
     const minElo = req.query.min_elo ? parseInt(req.query.min_elo as string) : null;
     const maxElo = req.query.max_elo ? parseInt(req.query.max_elo as string) : null;
     const minMatches = req.query.min_matches ? parseInt(req.query.min_matches as string) : null;
@@ -529,6 +530,10 @@ router.get('/players', async (req, res) => {
 
     if (ratedOnly) {
       whereConditions.push(`is_rated = 1`);
+    }
+
+    if (rankedOnly) {
+      whereConditions.push(`enable_ranked = 1`);
     }
 
     if (minElo !== null) {
@@ -558,7 +563,7 @@ router.get('/players', async (req, res) => {
     params.push(limit);
     params.push(offset);
     const result = await query(
-      `SELECT id, nickname, elo_rating, is_rated, matches_played, total_wins, total_losses, country, avatar
+      `SELECT id, nickname, elo_rating, is_rated, enable_ranked, matches_played, total_wins, total_losses, country, avatar
        FROM users_extension
        WHERE ${whereClause}
        ORDER BY ${sortByExpr} ${sortOrder}

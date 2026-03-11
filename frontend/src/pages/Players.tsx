@@ -10,6 +10,7 @@ interface PlayerStats {
   nickname: string;
   elo_rating: number;
   is_rated: boolean;
+  enable_ranked: boolean;
   matches_played: number;
   total_wins: number;
   total_losses: number;
@@ -24,6 +25,7 @@ interface FilterState {
   max_elo: string;
   min_matches: string;
   rated_only: boolean;
+  ranked_only: boolean;
 }
 
 type SortColumn = 'nickname' | 'elo_rating' | 'is_rated' | 'matches_played' | 'total_wins' | 'total_losses' | 'winPercentage' | '';
@@ -65,6 +67,7 @@ const Players: React.FC = () => {
     max_elo: '',
     min_matches: '',
     rated_only: false,
+    ranked_only: false,
   });
   
   // Applied filters state (updates with debounce)
@@ -74,6 +77,7 @@ const Players: React.FC = () => {
     max_elo: '',
     min_matches: '',
     rated_only: false,
+    ranked_only: false,
   });
   
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -130,6 +134,7 @@ const Players: React.FC = () => {
             nickname: user.nickname,
             elo_rating: user.elo_rating || 1200,
             is_rated: user.is_rated || false,
+            enable_ranked: user.enable_ranked || false,
             matches_played: totalMatches,
             total_wins: wins,
             total_losses: losses,
@@ -163,6 +168,7 @@ const Players: React.FC = () => {
       max_elo: '',
       min_matches: '',
       rated_only: false,
+      ranked_only: false,
     };
     setInputFilters(emptyFilters);
     setAppliedFilters(emptyFilters);
@@ -304,6 +310,18 @@ const Players: React.FC = () => {
             {t('filter_rated_only')}
           </label>
 
+          <label htmlFor="ranked_only" className="flex items-center gap-2 cursor-pointer font-semibold text-gray-700 text-sm pb-2 whitespace-nowrap">
+            <input
+              type="checkbox"
+              id="ranked_only"
+              name="ranked_only"
+              checked={inputFilters.ranked_only}
+              onChange={handleFilterInputChange}
+              className="w-4 h-4 text-green-500 rounded cursor-pointer"
+            />
+            {t('filter_ranked_only', 'Ranked enabled')}
+          </label>
+
           <button className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded transition-colors whitespace-nowrap" onClick={handleResetFilters}>
             {t('reset_filters')}
           </button>
@@ -333,6 +351,9 @@ const Players: React.FC = () => {
                 <th className="px-4 py-3 text-left cursor-pointer hover:bg-gray-300 transition-colors font-semibold text-gray-700" onClick={() => handleSort('is_rated')} style={{cursor:'pointer'}}>
                   {t('label_status')}
                   {sortColumn === 'is_rated' && (sortDirection === 'desc' ? ' ▼' : ' ▲')}
+                </th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">
+                  {t('label_ranked', 'Ranked')}
                 </th>
                 <th className="px-4 py-3 text-left cursor-pointer hover:bg-gray-300 transition-colors font-semibold text-gray-700" onClick={() => handleSort('matches_played')} style={{cursor:'pointer'}}>
                   {t('label_total')}
@@ -388,6 +409,11 @@ const Players: React.FC = () => {
                 <td className="px-4 py-3 text-gray-700">
                   <span className={`text-xs rounded-full px-2 py-1 ${player.is_rated ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                     {player.is_rated ? t('players_status_rated') : t('players_status_unrated')}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-700">
+                  <span className={`text-xs rounded-full px-2 py-1 ${player.enable_ranked ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
+                    {player.enable_ranked ? t('label_ranked_enabled', 'Enabled') : t('label_ranked_disabled', 'Disabled')}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-gray-700">{player.matches_played}</td>
