@@ -303,7 +303,7 @@ const Profile: React.FC = () => {
 
               <section className="bg-white rounded-lg shadow-md p-8 mb-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6 pb-4 border-b-2 border-gray-200">{t('profile.ranked_title', 'Ranked Matches')}</h2>
-                <p className="text-gray-600 mb-4">{t('profile.ranked_description', 'Enable this option to participate in ranked ladder matches. Your results will affect your ELO rating.')}</p>
+                <p className="text-gray-600 mb-4">{t('profile.ranked_description', 'Enable this option to participate in ranked matches. Your results will affect your ELO rating.')}</p>
                 <label className="flex items-center gap-3 cursor-pointer select-none">
                   <div className="relative">
                     <input
