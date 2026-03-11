@@ -855,17 +855,19 @@ router.patch('/maps/:mapId', authMiddleware, async (req: AuthRequest, res) => {
     }
 
     const { mapId } = req.params;
-    const { is_active, is_ranked } = req.body;
+    const { is_active, is_ranked, name } = req.body;
 
     await query(`
       UPDATE game_maps
       SET 
         is_active = COALESCE(?, is_active),
-        is_ranked = COALESCE(?, is_ranked)
+        is_ranked = COALESCE(?, is_ranked),
+        name = COALESCE(?, name)
       WHERE id = ?
     `, [
       is_active !== undefined ? (is_active ? 1 : 0) : null,
       is_ranked !== undefined ? (is_ranked ? 1 : 0) : null,
+      name || null,
       mapId
     ]);
 
@@ -1047,17 +1049,19 @@ router.patch('/factions/:factionId', authMiddleware, async (req: AuthRequest, re
     }
 
     const { factionId } = req.params;
-    const { is_active, is_ranked } = req.body;
+    const { is_active, is_ranked, name } = req.body;
 
     await query(`
       UPDATE factions
       SET 
         is_active = COALESCE(?, is_active),
-        is_ranked = COALESCE(?, is_ranked)
+        is_ranked = COALESCE(?, is_ranked),
+        name = COALESCE(?, name)
       WHERE id = ?
     `, [
       is_active !== undefined ? (is_active ? 1 : 0) : null,
       is_ranked !== undefined ? (is_ranked ? 1 : 0) : null,
+      name || null,
       factionId
     ]);
 

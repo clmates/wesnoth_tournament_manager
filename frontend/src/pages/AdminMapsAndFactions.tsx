@@ -100,6 +100,10 @@ const AdminMapsAndFactions: React.FC = () => {
         }
       });
     } catch { /* leave empty */ }
+    // Fallback: if no EN translation found, use the name stored in game_maps
+    if (!langData.en.name) {
+      langData.en = { name: map.name, description: '' };
+    }
     setMapLangData(langData);
     setMapLangTab('en');
     setShowMapForm(true);
@@ -112,7 +116,7 @@ const AdminMapsAndFactions: React.FC = () => {
       setError('');
       let mapId = editingMapId;
       if (editingMapId) {
-        await api.patch(`/admin/maps/${editingMapId}`, mapFlags);
+        await api.patch(`/admin/maps/${editingMapId}`, { ...mapFlags, name: mapLangData.en.name });
       } else {
         const res = await api.post('/admin/maps', {
           name: mapLangData.en.name,
@@ -180,6 +184,10 @@ const AdminMapsAndFactions: React.FC = () => {
         }
       });
     } catch { /* leave empty */ }
+    // Fallback: if no EN translation found, use the name stored in factions
+    if (!langData.en.name) {
+      langData.en = { name: faction.name, description: '' };
+    }
     setFactionLangData(langData);
     setFactionLangTab('en');
     setShowFactionForm(true);
@@ -192,7 +200,7 @@ const AdminMapsAndFactions: React.FC = () => {
       setError('');
       let factionId = editingFactionId;
       if (editingFactionId) {
-        await api.patch(`/admin/factions/${editingFactionId}`, factionFlags);
+        await api.patch(`/admin/factions/${editingFactionId}`, { ...factionFlags, name: factionLangData.en.name });
       } else {
         const res = await api.post('/admin/factions', {
           name: factionLangData.en.name,
