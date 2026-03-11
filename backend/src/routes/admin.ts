@@ -831,9 +831,9 @@ router.post('/maps', authMiddleware, async (req: AuthRequest, res) => {
 
     // Create translation
     await query(`
-      INSERT INTO map_translations (map_id, language_code, name, description)
-      VALUES (?, ?, ?, ?)
-    `, [mapId, language_code, name, description || null]);
+      INSERT INTO map_translations (id, map_id, language_code, name, description)
+      VALUES (?, ?, ?, ?, ?)
+    `, [uuidv4(), mapId, language_code, name, description || null]);
 
     const mapResult = await query(`
       SELECT id, name, is_active, is_ranked, created_at FROM game_maps WHERE id = ?
@@ -901,13 +901,13 @@ router.post('/maps/:mapId/translations', authMiddleware, async (req: AuthRequest
     }
 
     await query(`
-      INSERT INTO map_translations (map_id, language_code, name, description)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO map_translations (id, map_id, language_code, name, description)
+      VALUES (?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         name = VALUES(name),
         description = VALUES(description),
         updated_at = CURRENT_TIMESTAMP
-    `, [mapId, language_code, name, description || null]);
+    `, [uuidv4(), mapId, language_code, name, description || null]);
 
     const result = await query(`
       SELECT id, map_id, language_code, name, description FROM map_translations WHERE map_id = ? AND language_code = ?
@@ -1023,9 +1023,9 @@ router.post('/factions', authMiddleware, async (req: AuthRequest, res) => {
 
     // Create translation
     await query(`
-      INSERT INTO faction_translations (faction_id, language_code, name, description)
-      VALUES (?, ?, ?, ?)
-    `, [factionId, language_code, name, description || null]);
+      INSERT INTO faction_translations (id, faction_id, language_code, name, description)
+      VALUES (?, ?, ?, ?, ?)
+    `, [uuidv4(), factionId, language_code, name, description || null]);
 
     const factionResult = await query(`
       SELECT id, name, is_active, is_ranked, created_at FROM factions WHERE id = ?
@@ -1093,13 +1093,13 @@ router.post('/factions/:factionId/translations', authMiddleware, async (req: Aut
     }
 
     await query(`
-      INSERT INTO faction_translations (faction_id, language_code, name, description)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO faction_translations (id, faction_id, language_code, name, description)
+      VALUES (?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         name = VALUES(name),
         description = VALUES(description),
         updated_at = CURRENT_TIMESTAMP
-    `, [factionId, language_code, name, description || null]);
+    `, [uuidv4(), factionId, language_code, name, description || null]);
 
     const result = await query(`
       SELECT id, faction_id, language_code, name, description FROM faction_translations WHERE faction_id = ? AND language_code = ?
