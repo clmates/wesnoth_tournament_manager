@@ -433,6 +433,7 @@ router.get('/matches/recent', async (req, res) => {
          FROM replays r
          WHERE r.integration_confidence = 1
            AND r.parsed = 1
+           AND r.parse_status != 'rejected'
            AND r.match_id IS NULL
            AND r.tournament_id IS NULL
          ORDER BY r.created_at DESC
@@ -712,6 +713,7 @@ router.get('/matches', async (req, res) => {
          FROM replays r
          WHERE r.integration_confidence = 1 
            AND r.parsed = 1
+           AND r.parse_status != 'rejected'
            AND r.match_id IS NULL
            AND r.tournament_id IS NULL
          ORDER BY r.created_at DESC
