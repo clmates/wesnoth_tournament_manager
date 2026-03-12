@@ -712,8 +712,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   const isAcceptedParticipant = userParticipationStatus === 'accepted';
   const canManageParticipants = isCreator || isAdmin || isTournamentModerator;
   const canRenameTeam = (team: any) =>
-    isCreator || isAdmin || isTournamentModerator ||
-    (team.members_with_elo && team.members_with_elo.some((m: any) => m.user_id === userId));
+    isCreator || isAdmin || isTournamentModerator || (userTeamId && team.id === userTeamId);
 
   const handleRenameTeam = async () => {
     if (!renameTeamValue.trim() || !tournament) return;
