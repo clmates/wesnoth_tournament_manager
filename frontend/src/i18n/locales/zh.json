@@ -433,6 +433,7 @@
   "sidebar.manage_users": "管理用户",
   "sidebar.manage_tournaments": "管理赛事",
   "sidebar.match_disputes": "比赛争议",
+  "sidebar.admin_announcements": "公告",
   "rated": "已评级",
   "label_total_matches": "总比赛场数",
   "label_record": "W-L",
