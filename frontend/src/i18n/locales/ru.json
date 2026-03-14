@@ -444,7 +444,7 @@
   "sidebar.manage_users": "Управлять пользователями",
   "sidebar.manage_tournaments": "Управлять турнирами",
   "sidebar.match_disputes": "Спорные матчи",
-  "sidebar.admin_announcements": "Объявления",
+  "admin_announcements": "Управление объявлениями",
   "rated": "Классифицирован",
   "label_total_matches": "Всего матчей",
   "label_record": "W-L",

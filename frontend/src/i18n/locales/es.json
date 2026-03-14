@@ -433,7 +433,7 @@
   "sidebar.manage_users": "Gestionar Usuarios",
   "sidebar.manage_tournaments": "Gestionar Torneos",
   "sidebar.match_disputes": "Reclamaciones de Partidas",
-  "sidebar.admin_announcements": "Anuncios",
+  "admin_announcements": "Gestión de Anuncios",
   "rated": "Clasificado",
   "label_total_matches": "Partidas Totales",
   "label_record": "W-L",

@@ -453,7 +453,7 @@
   "sidebar.manage_users": "Manage Users",
   "sidebar.manage_tournaments": "Manage Tournaments",
   "sidebar.match_disputes": "Match Disputes",
-  "sidebar.admin_announcements": "Announcements",
+  "admin_announcements": "Announcements Management",
   "rated": "Rated",
   "label_total_matches": "Total Matches",
   "label_record": "W-L",

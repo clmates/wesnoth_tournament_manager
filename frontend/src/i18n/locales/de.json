@@ -444,7 +444,7 @@
   "sidebar.manage_users": "Benutzer verwalten",
   "sidebar.manage_tournaments": "Turniere verwalten",
   "sidebar.match_disputes": "Spiel-Streitfälle",
-  "sidebar.admin_announcements": "Ankündigungen",
+  "admin_announcements": "Ankündigungsverwaltung",
   "rated": "Bewertet",
   "label_total_matches": "Gesamtspiele",
   "label_record": "W-L",
