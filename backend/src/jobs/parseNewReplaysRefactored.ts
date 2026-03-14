@@ -408,35 +408,52 @@ export class ParseNewReplaysRefactorized {
 
     // ======== VALIDATE AND RESOLVE FACTIONS ========
     console.log(`🔍 [PARSE] Validating factions against factions table...`);
-    const winner = parseSummary.forumPlayers[0];
-    const loser = parseSummary.forumPlayers[1];
     
-    if (winner && loser) {
+    // Determine winner and loser using actual victory data (not just [0] and [1])
+    let winnerForumData = null;
+    let loserForumData = null;
+    
+    if (parseSummary.replayVictory) {
+      winnerForumData = parseSummary.forumPlayers.find(p => p.user_name === parseSummary.replayVictory.winner_name);
+      loserForumData = parseSummary.forumPlayers.find(p => p.user_name === parseSummary.replayVictory.loser_name);
+    }
+    
+    // Fallback if victory not detected or players not found by name
+    if (!winnerForumData || !loserForumData) {
+      winnerForumData = parseSummary.forumPlayers[0];
+      loserForumData = parseSummary.forumPlayers[1];
+    }
+    
+    if (winnerForumData && loserForumData) {
+      // Get the actual side numbers of winner and loser
+      const winnerSideNum = winnerForumData.side_number;
+      const loserSideNum = loserForumData.side_number;
+      
       // Determine which factions to use: replay factions (Custom) or forum factions (not Custom)
-      const winnerFactionRaw = (hasCustomFaction && parseSummary.replayFactions.winner) || parseSummary.forumFactions['side1'] || 'Unknown';
-      const loserFactionRaw = (hasCustomFaction && parseSummary.replayFactions.loser) || parseSummary.forumFactions['side2'] || 'Unknown';
+      const winnerFactionRaw = (hasCustomFaction && parseSummary.replayFactions.winner) || parseSummary.forumFactions[`side${winnerSideNum}`] || 'Unknown';
+      const loserFactionRaw = (hasCustomFaction && parseSummary.replayFactions.loser) || parseSummary.forumFactions[`side${loserSideNum}`] || 'Unknown';
       
       const winnerResolved = await this.resolveFaction(winnerFactionRaw);
       const loserResolved = await this.resolveFaction(loserFactionRaw);
       
-      // Set finalFactions to the RESOLVED values (clean, without prefixes)
-      parseSummary.finalFactions['side1'] = winnerResolved.name || 'Unknown';
-      parseSummary.finalFactions['side2'] = loserResolved.name || 'Unknown';
+      // Set finalFactions using ACTUAL side numbers
+      parseSummary.finalFactions[`side${winnerSideNum}`] = winnerResolved.name || 'Unknown';
+      parseSummary.finalFactions[`side${loserSideNum}`] = loserResolved.name || 'Unknown';
       
-      parseSummary.resolvedFactions['side1'] = winnerResolved.name;
-      parseSummary.resolvedFactions['side2'] = loserResolved.name;
+      parseSummary.resolvedFactions[`side${winnerSideNum}`] = winnerResolved.name;
+      parseSummary.resolvedFactions[`side${loserSideNum}`] = loserResolved.name;
       parseSummary.factionsAreRanked = winnerResolved.isRanked && loserResolved.isRanked;
       
       if (winnerResolved.name !== winnerFactionRaw) {
-        console.log(`   ✅ Side 1: "${winnerFactionRaw}" → "${winnerResolved.name}" (ranked: ${winnerResolved.isRanked})`);
+        console.log(`   ✅ Winner (side ${winnerSideNum}): "${winnerFactionRaw}" → "${winnerResolved.name}" (ranked: ${winnerResolved.isRanked})`);
       } else {
-        console.log(`   ✅ Side 1: "${winnerResolved.name}" (ranked: ${winnerResolved.isRanked})`);
+        console.log(`   ✅ Winner (side ${winnerSideNum}): "${winnerResolved.name}" (ranked: ${winnerResolved.isRanked})`);
       }
       
       if (loserResolved.name !== loserFactionRaw) {
-        console.log(`   ✅ Side 2: "${loserFactionRaw}" → "${loserResolved.name}" (ranked: ${loserResolved.isRanked})`);
+        console.log(`   ✅ Loser (side ${loserSideNum}): "${loserFactionRaw}" → "${loserResolved.name}" (ranked: ${loserResolved.isRanked})`);
       } else {
-        console.log(`   ✅ Side 2: "${loserResolved.name}" (ranked: ${loserResolved.isRanked})`);
+        console.log(`   ✅ Loser (side ${loserSideNum}): "${loserResolved.name}" (ranked: ${loserResolved.isRanked})`);
       }
     }
 
