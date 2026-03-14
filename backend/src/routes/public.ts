@@ -450,14 +450,22 @@ router.get('/matches/recent', async (req, res) => {
         const players = parseSummary.forumPlayers || [];
         if (players.length < 2) continue;
         const resolvedFactions = parseSummary.resolvedFactions || {};
+
+        const winnerName2 = parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown';
+        const loserName2  = parseSummary.replayVictory?.loser_name  || players[1]?.user_name || 'Unknown';
+        const winnerPlayer2 = players.find((p: any) => p.user_name === winnerName2);
+        const loserPlayer2  = players.find((p: any) => p.user_name === loserName2);
+        const wFaction2 = (winnerPlayer2 ? resolvedFactions[`side${winnerPlayer2.side_number}`] : null) || 'Unknown';
+        const lFaction2 = (loserPlayer2  ? resolvedFactions[`side${loserPlayer2.side_number}`]  : null) || 'Unknown';
+
         formattedReplays.push({
           id: r.id,
           winner_id: null,
           loser_id: null,
-          winner_nickname: parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown',
-          loser_nickname: parseSummary.replayVictory?.loser_name || players[1]?.user_name || 'Unknown',
-          winner_faction: resolvedFactions.side1 || 'Unknown',
-          loser_faction: resolvedFactions.side2 || 'Unknown',
+          winner_nickname: winnerName2,
+          loser_nickname: loserName2,
+          winner_faction: wFaction2,
+          loser_faction: lFaction2,
           winner_side: parseSummary.replayVictory?.winner_side || null,
           map: parseSummary.resolvedMap || parseSummary.parsedMap || parseSummary.scenario || 'Unknown Map',
           status: 'pending_report',
@@ -747,19 +755,25 @@ router.get('/matches', async (req, res) => {
             || parseSummary.scenario
             || 'Unknown Map';
 
-          // Extract factions - USE resolvedFactions from parse_summary (side1/side2 structure)
+          // Extract factions - look up by player name → side_number → resolvedFactions
+          // This ensures correct faction assignment regardless of who won/lost
           const resolvedFactions = parseSummary.resolvedFactions || {};
 
-          // side1 = player 1, side2 = player 2
-          let winner_faction = resolvedFactions.side1 || 'Unknown';
-          let loser_faction = resolvedFactions.side2 || 'Unknown';
+          const winnerName = parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown';
+          const loserName  = parseSummary.replayVictory?.loser_name  || players[1]?.user_name || 'Unknown';
+
+          const winnerPlayer = players.find((p: any) => p.user_name === winnerName);
+          const loserPlayer  = players.find((p: any) => p.user_name === loserName);
+
+          const winner_faction = (winnerPlayer ? resolvedFactions[`side${winnerPlayer.side_number}`] : null) || 'Unknown';
+          const loser_faction  = (loserPlayer  ? resolvedFactions[`side${loserPlayer.side_number}`]  : null) || 'Unknown';
 
           const replayData = {
             id: r.id,
             winner_id: null,
             loser_id: null,
-            winner_nickname: parseSummary.replayVictory?.winner_name || players[0]?.user_name || 'Unknown',
-            loser_nickname: parseSummary.replayVictory?.loser_name || players[1]?.user_name || 'Unknown',
+            winner_nickname: winnerName,
+            loser_nickname: loserName,
             winner_faction: winner_faction,
             loser_faction: loser_faction,
             winner_side: parseSummary.replayVictory?.winner_side || null,
