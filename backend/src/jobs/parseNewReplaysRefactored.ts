@@ -45,6 +45,7 @@ interface ParseSummary {
   replayTournament: string | null;
   replayVictory: any | null;
   replayFactions: Record<string, string | null>;
+  wmlPlayerFactions: Record<string, string>; // player_name → faction from WML (used when forum has Custom)
   
   // Resolved (validated against assets)
   resolvedFactions: Record<string, string | null>; // Canonical names from factions table
@@ -269,6 +270,7 @@ export class ParseNewReplaysRefactorized {
       replayTournament: null,
       replayVictory: null,
       replayFactions: {},
+      wmlPlayerFactions: {},
       resolvedFactions: {},
       resolvedMap: null,
       factionsAreRanked: false,
@@ -388,11 +390,14 @@ export class ParseNewReplaysRefactorized {
           }
         }
 
-        // 5.3 (Optional) Extract factions from replay ONLY if forum had "Custom"
-        if (hasCustomFaction && parsed.victory) {
-          parseSummary.replayFactions.winner = parsed.victory.winner_faction || null;
-          parseSummary.replayFactions.loser = parsed.victory.loser_faction || null;
-          console.log(`   ✅ 5.3 Resolved Custom factions from replay: ${parseSummary.replayFactions.winner} vs ${parseSummary.replayFactions.loser}`);
+        // 5.3 (Optional) Build player_name → faction map from WML ONLY if forum had "Custom"
+        if (hasCustomFaction && parsed.players) {
+          for (const p of parsed.players) {
+            if (p.name && p.faction) {
+              parseSummary.wmlPlayerFactions[p.name] = p.faction;
+            }
+          }
+          console.log(`   ✅ 5.3 WML player factions: ${JSON.stringify(parseSummary.wmlPlayerFactions)}`);
         } else {
           console.log(`   ✅ Using forum factions (not Custom): ${Object.values(parseSummary.forumFactions).join(' vs ')}`);
         }
@@ -407,55 +412,32 @@ export class ParseNewReplaysRefactorized {
     }
 
     // ======== VALIDATE AND RESOLVE FACTIONS ========
+    // Rule: side↔player always comes from forum DB.
+    // Faction: use forum faction unless it's "Custom", in which case look up by player name in WML.
     console.log(`🔍 [PARSE] Validating factions against factions table...`);
-    
-    // Determine winner and loser using actual victory data (not just [0] and [1])
-    let winnerForumData = null;
-    let loserForumData = null;
-    
-    if (parseSummary.replayVictory) {
-      winnerForumData = parseSummary.forumPlayers.find(p => p.user_name === parseSummary.replayVictory.winner_name);
-      loserForumData = parseSummary.forumPlayers.find(p => p.user_name === parseSummary.replayVictory.loser_name);
-    }
-    
-    // Fallback if victory not detected or players not found by name
-    if (!winnerForumData || !loserForumData) {
-      winnerForumData = parseSummary.forumPlayers[0];
-      loserForumData = parseSummary.forumPlayers[1];
-    }
-    
-    if (winnerForumData && loserForumData) {
-      // Get the actual side numbers of winner and loser
-      const winnerSideNum = winnerForumData.side_number;
-      const loserSideNum = loserForumData.side_number;
-      
-      // Determine which factions to use: replay factions (Custom) or forum factions (not Custom)
-      const winnerFactionRaw = (hasCustomFaction && parseSummary.replayFactions.winner) || parseSummary.forumFactions[`side${winnerSideNum}`] || 'Unknown';
-      const loserFactionRaw = (hasCustomFaction && parseSummary.replayFactions.loser) || parseSummary.forumFactions[`side${loserSideNum}`] || 'Unknown';
-      
-      const winnerResolved = await this.resolveFaction(winnerFactionRaw);
-      const loserResolved = await this.resolveFaction(loserFactionRaw);
-      
-      // Set finalFactions using ACTUAL side numbers
-      parseSummary.finalFactions[`side${winnerSideNum}`] = winnerResolved.name || 'Unknown';
-      parseSummary.finalFactions[`side${loserSideNum}`] = loserResolved.name || 'Unknown';
-      
-      parseSummary.resolvedFactions[`side${winnerSideNum}`] = winnerResolved.name;
-      parseSummary.resolvedFactions[`side${loserSideNum}`] = loserResolved.name;
-      parseSummary.factionsAreRanked = winnerResolved.isRanked && loserResolved.isRanked;
-      
-      if (winnerResolved.name !== winnerFactionRaw) {
-        console.log(`   ✅ Winner (side ${winnerSideNum}): "${winnerFactionRaw}" → "${winnerResolved.name}" (ranked: ${winnerResolved.isRanked})`);
+    let allRanked = true;
+    for (const player of parseSummary.forumPlayers) {
+      const sideKey = `side${player.side_number}`;
+      const forumFaction = parseSummary.forumFactions[sideKey] || '';
+      const isCustom = forumFaction.toLowerCase().includes('custom');
+
+      const factionRaw = isCustom
+        ? (parseSummary.wmlPlayerFactions[player.user_name] || 'Unknown')
+        : forumFaction;
+
+      const resolved = await this.resolveFaction(factionRaw);
+
+      parseSummary.resolvedFactions[sideKey] = resolved.name;
+      parseSummary.finalFactions[sideKey] = resolved.name || 'Unknown';
+      if (!resolved.isRanked) allRanked = false;
+
+      if (resolved.name !== factionRaw) {
+        console.log(`   ✅ ${player.user_name} (side ${player.side_number}): "${factionRaw}" → "${resolved.name}" (ranked: ${resolved.isRanked})`);
       } else {
-        console.log(`   ✅ Winner (side ${winnerSideNum}): "${winnerResolved.name}" (ranked: ${winnerResolved.isRanked})`);
-      }
-      
-      if (loserResolved.name !== loserFactionRaw) {
-        console.log(`   ✅ Loser (side ${loserSideNum}): "${loserFactionRaw}" → "${loserResolved.name}" (ranked: ${loserResolved.isRanked})`);
-      } else {
-        console.log(`   ✅ Loser (side ${loserSideNum}): "${loserResolved.name}" (ranked: ${loserResolved.isRanked})`);
+        console.log(`   ✅ ${player.user_name} (side ${player.side_number}): "${resolved.name}" (ranked: ${resolved.isRanked})`);
       }
     }
+    parseSummary.factionsAreRanked = allRanked;
 
     // ======== VALIDATE AND RESOLVE MAP ========
     console.log(`🔍 [PARSE] Validating map against game_maps table...`);
