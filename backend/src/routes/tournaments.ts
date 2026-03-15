@@ -2234,23 +2234,192 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
     }
 
     // Verify the user is the tournament creator
-    const matchResult = await query(
-      `SELECT tm.*, t.creator_id FROM tournament_matches tm
-       JOIN tournaments t ON tm.tournament_id = t.id
-       WHERE tm.id = ? AND tm.tournament_id = ?`,
-      [matchId, tournamentId]
+    const tournamentResult = await query(
+      `SELECT creator_id FROM tournaments WHERE id = ?`,
+      [tournamentId]
     );
 
-    if (matchResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Match not found' });
+    if (tournamentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    const match = matchResult.rows[0];
-    const isCreator = match.creator_id === req.userId;
+    const creatorId = tournamentResult.rows[0].creator_id;
+    const isCreator = creatorId === req.userId;
 
     if (!isCreator) {
       return res.status(403).json({ error: 'Only the tournament organizer can determine match winners' });
     }
+
+    // Try to find match in tournament_round_matches first (the series itself)
+    let roundMatchResult = await query(
+      `SELECT * FROM tournament_round_matches WHERE id = ? AND tournament_id = ?`,
+      [matchId, tournamentId]
+    );
+
+    let isRoundMatch = false;
+    let roundId: string;
+    let match: any;
+
+    if (roundMatchResult.rows.length > 0) {
+      // Found as a tournament_round_matches (series) 
+      match = roundMatchResult.rows[0];
+      isRoundMatch = true;
+      roundId = match.round_id;
+
+      // Handle tournament_round_matches directly
+      if (winner_id !== match.player1_id && winner_id !== match.player2_id) {
+        return res.status(400).json({ error: 'Winner must be one of the series participants' });
+      }
+
+      const loser_id = winner_id === match.player1_id ? match.player2_id : match.player1_id;
+
+      // Update the tournament_round_matches to mark it as completed with winner
+      await query(
+        `UPDATE tournament_round_matches 
+         SET winner_id = ?, series_status = 'completed', updated_at = NOW()
+         WHERE id = ?`,
+        [winner_id, matchId]
+      );
+
+      // Get all tournament_matches for this series and mark them appropriately
+      const seriesMatches = await query(
+        `SELECT id, player1_id, player2_id, match_status FROM tournament_matches 
+         WHERE tournament_round_match_id = ? 
+         ORDER BY created_at`,
+        [matchId]
+      );
+
+      // Mark pending matches as completed with appropriate winners
+      for (const m of seriesMatches.rows) {
+        if (m.match_status === 'pending') {
+          // Determine who is the opponent for this match
+          const opponent = m.player1_id === winner_id ? m.player2_id : m.player1_id;
+          await query(
+            `UPDATE tournament_matches 
+             SET winner_id = ?, match_status = 'completed', played_at = NOW(),
+                 organizer_action = 'organizer_win', updated_at = NOW()
+             WHERE id = ?`,
+            [winner_id, m.id]
+          );
+        } else if (m.match_status !== 'completed') {
+          // Mark other non-completed matches as completed too
+          const opponent = m.player1_id === winner_id ? m.player2_id : m.player1_id;
+          await query(
+            `UPDATE tournament_matches 
+             SET winner_id = ?, match_status = 'completed', played_at = NOW(),
+                 organizer_action = 'organizer_win', updated_at = NOW()
+             WHERE id = ?`,
+            [winner_id, m.id]
+          );
+        }
+      }
+
+      // Update loser's tournament record
+      const tournamentModeResult = await query(
+        `SELECT tournament_mode FROM tournaments WHERE id = ?`,
+        [tournamentId]
+      );
+      
+      const isTeamTournament = tournamentModeResult.rows.length > 0 && tournamentModeResult.rows[0].tournament_mode === 'team';
+
+      if (isTeamTournament) {
+        // Update tournament_teams
+        const loserTeamId = loser_id;
+        const loserMatchCount = seriesMatches.rows.filter(m => m.match_status === 'pending').length;
+        if (loserMatchCount > 0) {
+          await query(
+            `UPDATE tournament_teams 
+             SET tournament_losses = tournament_losses + ? 
+             WHERE id = ?`,
+            [loserMatchCount, loserTeamId]
+          );
+        }
+
+        // Update winner's tournament record (team)
+        const winnerTeamId = winner_id;
+        const winnerMatchCount = seriesMatches.rows.filter(m => m.match_status === 'pending').length;
+        if (winnerMatchCount > 0) {
+          await query(
+            `UPDATE tournament_teams 
+             SET tournament_wins = tournament_wins + ?, tournament_points = tournament_points + ? 
+             WHERE id = ?`,
+            [winnerMatchCount, winnerTeamId]
+          );
+        }
+      } else {
+        // Update tournament_participants (1v1 tournaments)
+        const loserParticipantResult = await query(
+          `SELECT id FROM tournament_participants 
+           WHERE tournament_id = ? AND user_id = ?`,
+          [tournamentId, loser_id]
+        );
+
+        if (loserParticipantResult.rows.length > 0) {
+          const loserParticipantId = loserParticipantResult.rows[0].id;
+          const loserMatchCount = seriesMatches.rows.filter(m => m.match_status === 'pending').length;
+          if (loserMatchCount > 0) {
+            await query(
+              `UPDATE tournament_participants 
+               SET tournament_losses = tournament_losses + ? 
+               WHERE id = ?`,
+              [loserMatchCount, loserParticipantId]
+            );
+          }
+        }
+
+        // Update winner's tournament record
+        const winnerParticipantResult = await query(
+          `SELECT id FROM tournament_participants 
+           WHERE tournament_id = ? AND user_id = ?`,
+          [tournamentId, winner_id]
+        );
+
+        if (winnerParticipantResult.rows.length > 0) {
+          const winnerParticipantId = winnerParticipantResult.rows[0].id;
+          const winnerMatchCount = seriesMatches.rows.filter(m => m.match_status === 'pending').length;
+          if (winnerMatchCount > 0) {
+            await query(
+              `UPDATE tournament_participants 
+               SET tournament_wins = tournament_wins + ?, tournament_points = tournament_points + ? 
+               WHERE id = ?`,
+              [winnerMatchCount, winnerParticipantId]
+            );
+          }
+        }
+      }
+
+      // Check if round is complete
+      const roundNumberResult = await query(
+        `SELECT round_number, tournament_id FROM tournament_rounds WHERE id = ?`,
+        [roundId]
+      );
+      
+      if (roundNumberResult.rows.length > 0) {
+        const { round_number, tournament_id } = roundNumberResult.rows[0];
+        await checkAndCompleteRound(tournament_id, round_number);
+      }
+
+      console.log(`Tournament organizer ${req.userId} determined winner for tournament_round_match ${matchId}: ${winner_id} (loser: ${loser_id})`);
+
+      res.json({
+        message: 'Tournament round match (series) winner determined by organizer.',
+        match: { id: matchId, winner_id, series_status: 'completed' }
+      });
+      return;
+    }
+
+    // If not found in tournament_round_matches, try tournament_matches (individual game)
+    const matchResult = await query(
+      `SELECT * FROM tournament_matches WHERE id = ? AND tournament_id = ?`,
+      [matchId, tournamentId]
+    );
+
+    if (matchResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Match not found in either tournament_matches or tournament_round_matches' });
+    }
+
+    match = matchResult.rows[0];
+    roundId = match.round_id;
 
     // Verify winner is one of the match players
     if (winner_id !== match.player1_id && match.player2_id) {
@@ -2260,14 +2429,6 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
     }
 
     const loser_id = winner_id === match.player1_id ? match.player2_id : match.player1_id;
-
-    // Get round information
-    const roundResult = await query(
-      `SELECT round_id FROM tournament_matches WHERE id = ?`,
-      [matchId]
-    );
-
-    const roundId = roundResult.rows[0].round_id;
 
     // Get ALL matches of the loser in this round (including the selected one)
     const loserAllMatches = await query(
