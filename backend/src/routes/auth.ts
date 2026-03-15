@@ -19,7 +19,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Warn clearly if TEST_MODE is active
-    if (process.env.TEST_MODE === 'true' && process.env.NODE_ENV !== 'production') {
+    if (process.env.TEST_MODE === 'true' && process.env.NODE_ENV?.toLowerCase() !== 'production') {
       console.warn(`⚠️  [LOGIN] *** TEST_MODE IS ACTIVE — password validation is DISABLED ***`);
     }
 
