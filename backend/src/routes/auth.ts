@@ -18,6 +18,11 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
+    // Warn clearly if TEST_MODE is active
+    if (process.env.TEST_MODE === 'true' && process.env.NODE_ENV !== 'production') {
+      console.warn(`⚠️  [LOGIN] *** TEST_MODE IS ACTIVE — password validation is DISABLED ***`);
+    }
+
     // Normalize username to lowercase for case-insensitive comparison
     const normalizedUsername = username.toLowerCase();
 

@@ -196,6 +196,18 @@ export async function authenticatePhpbbUser(
       return { valid: false, error: banCheck.reason || 'user_banned' };
     }
 
+    // Skip password validation in TEST_MODE (never in production)
+    const isTestMode = process.env.TEST_MODE === 'true' && process.env.NODE_ENV !== 'production';
+    if (isTestMode) {
+      console.warn(`⚠️ [AUTH] TEST_MODE active — skipping password validation for user: ${username}`);
+      return {
+        valid: true,
+        user_id: phpbbUser.user_id,
+        username: phpbbUser.username.toLowerCase(),
+        email: phpbbUser.user_email,
+      };
+    }
+
     // Validate password
     console.log(`🔐 [AUTH] Validating password...`);
     const isPasswordValid = await validatePhpbbPassword(password, phpbbUser);
