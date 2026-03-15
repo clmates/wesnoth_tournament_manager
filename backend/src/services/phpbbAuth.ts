@@ -169,7 +169,8 @@ export function isUserBannedOrInactive(phpbbUser: PhpbbUser): { banned: boolean;
  */
 export async function authenticatePhpbbUser(
   username: string,
-  password: string
+  password: string,
+  skipPasswordCheck: boolean = false
 ): Promise<
   | {
       valid: true;
@@ -196,10 +197,9 @@ export async function authenticatePhpbbUser(
       return { valid: false, error: banCheck.reason || 'user_banned' };
     }
 
-    // Skip password validation in TEST_MODE (never in production)
-    const isTestMode = process.env.TEST_MODE === 'true' && process.env.NODE_ENV?.toLowerCase() !== 'production';
-    if (isTestMode) {
-      console.warn(`⚠️ [AUTH] TEST_MODE active — skipping password validation for user: ${username}`);
+    // Skip password validation if instructed (TEST_MODE logic handled by caller)
+    if (skipPasswordCheck) {
+      console.warn(`⚠️ [AUTH] Password check skipped for user: ${username}`);
       return {
         valid: true,
         user_id: phpbbUser.user_id,

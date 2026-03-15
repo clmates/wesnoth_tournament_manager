@@ -19,8 +19,9 @@ router.post('/login', async (req, res) => {
     }
 
     // Warn clearly if TEST_MODE is active
-    if (process.env.TEST_MODE === 'true' && process.env.NODE_ENV?.toLowerCase() !== 'production') {
-      console.warn(`⚠️  [LOGIN] *** TEST_MODE IS ACTIVE — password validation is DISABLED ***`);
+    const isTestMode = process.env.TEST_MODE === 'true' && process.env.NODE_ENV?.toLowerCase() !== 'production';
+    if (isTestMode) {
+      console.warn(`⚠️  [LOGIN] *** TEST_MODE IS ACTIVE — password validation may be skipped ***`);
     }
 
     // Normalize username to lowercase for case-insensitive comparison
@@ -28,8 +29,27 @@ router.post('/login', async (req, res) => {
 
     console.log(`🔐 [LOGIN] Attempting login for user: ${normalizedUsername}`);
 
+    // In TEST_MODE, determine if this user is privileged (admin/moderator) — always validate their password
+    let skipPasswordCheck = false;
+    if (isTestMode) {
+      const isPhpbbModerator = await checkUserIsForumModerator(normalizedUsername);
+
+      // Check tournament admin in users_extension (may not exist yet on first login)
+      const existingUserForAdminCheck = await queryTournament(
+        'SELECT is_admin FROM users_extension WHERE LOWER(nickname) = LOWER(?)',
+        [normalizedUsername]
+      ) as any[];
+      const isTournamentAdmin = existingUserForAdminCheck?.[0]?.is_admin ?? false;
+
+      if (isPhpbbModerator || isTournamentAdmin) {
+        console.warn(`⚠️  [LOGIN] TEST_MODE active but ${normalizedUsername} is admin/moderator — enforcing password validation`);
+      } else {
+        skipPasswordCheck = true;
+      }
+    }
+
     // Authenticate user against phpBB database
-    const authResult = await authenticatePhpbbUser(normalizedUsername, password);
+    const authResult = await authenticatePhpbbUser(normalizedUsername, password, skipPasswordCheck);
     
     if (!authResult.valid) {
       console.log(`❌ [LOGIN] Failed login for ${normalizedUsername}: ${authResult.error}`);
