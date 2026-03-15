@@ -10,6 +10,13 @@ import { calculateNewRating, calculateTrend } from '../utils/elo.js';
 import { getUserLevel } from '../utils/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 
+export interface CreateTournamentUnrankedMatchInput {
+  winnerId: string;
+  loserId: string;
+  linkedTournamentId: string;
+  linkedTournamentRoundMatchId: string;
+}
+
 export interface CreateMatchInput {
   winnerId: string;
   loserId: string;
@@ -220,4 +227,51 @@ export async function updateTournamentRoundMatch(
   }
 
   return { seriesCompleted: seriesOver, tournamentId: rm.tournament_id || null, roundId: rm.round_id || null };
+}
+
+/**
+ * Create an unranked tournament match record.
+ * Does NOT insert into the `matches` table and does NOT update ELO or global stats.
+ * Only inserts into `tournament_matches` and updates the `tournament_round_matches` series counters.
+ * Follows the same pattern as the manual confidence-1 confirm flow in routes/matches.ts.
+ */
+export async function createTournamentUnrankedMatch(
+  input: CreateTournamentUnrankedMatchInput
+): Promise<CreateMatchResult> {
+  try {
+    const rmResult = await query(
+      `SELECT tournament_id, round_id, player1_id, player2_id
+       FROM tournament_round_matches WHERE id = ?`,
+      [input.linkedTournamentRoundMatchId]
+    );
+
+    const rm = ((rmResult as any).rows || [])[0];
+    if (!rm) {
+      return { success: false, error: `tournament_round_match not found: ${input.linkedTournamentRoundMatchId}` };
+    }
+
+    const tournamentMatchId = uuidv4();
+    await query(
+      `INSERT INTO tournament_matches
+       (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, 'completed', CURRENT_TIMESTAMP, ?)`,
+      [
+        tournamentMatchId,
+        rm.tournament_id,
+        rm.round_id,
+        rm.player1_id,
+        rm.player2_id,
+        input.winnerId,
+        input.linkedTournamentRoundMatchId,
+      ]
+    );
+
+    console.log(`   ✅ [UNRANKED] tournament_matches entry created: ${tournamentMatchId}`);
+
+    await updateTournamentRoundMatch(input.linkedTournamentRoundMatchId, input.winnerId);
+
+    return { success: true, matchId: tournamentMatchId };
+  } catch (err) {
+    return { success: false, error: (err as any)?.message || String(err) };
+  }
 }
