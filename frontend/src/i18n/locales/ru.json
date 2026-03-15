@@ -179,6 +179,8 @@
   "label_level": "Уровень",
   "report": "Пожаловаться",
   "determine_winner": "Определить победителя",
+  "determine_winner_title": "Определить победителя",
+  "determine_winner_prompt": "Выберите победителя матча между {{p1}} и {{p2}}.",
   "confirm_dispute": "Подтвердить/оспорить",
   "view_match": "Просмотреть матч",
   "view_all": "Показать все →",

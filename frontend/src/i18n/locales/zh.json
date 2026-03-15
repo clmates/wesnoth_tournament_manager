@@ -179,6 +179,8 @@
   "label_level": "等级",
   "report": "报告",
   "determine_winner": "确定获胜者",
+  "determine_winner_title": "确定获胜者",
+  "determine_winner_prompt": "选择 {{p1}} 和 {{p2}} 之间比赛的获胜者。",
   "confirm_dispute": "确认/争议",
   "view_match": "查看比赛",
   "view_all": "查看全部 →",

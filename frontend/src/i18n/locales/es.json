@@ -182,6 +182,8 @@
   "label_level": "Nivel",
   "report": "Reportar",
   "determine_winner": "Determinar Ganador",
+  "determine_winner_title": "Determinar Ganador",
+  "determine_winner_prompt": "Selecciona el ganador de la partida entre {{p1}} y {{p2}}.",
   "confirm_dispute": "Confirmar/Disputar",
   "view_match": "Ver Partida",
   "view_all": "Ver todo →",

@@ -168,6 +168,8 @@
   "month": "Monat",
   "report": "Melden",
   "determine_winner": "Gewinner bestimmen",
+  "determine_winner_title": "Gewinner bestimmen",
+  "determine_winner_prompt": "Wählen Sie den Gewinner des Spiels zwischen {{p1}} und {{p2}}.",
   "confirm_dispute": "Bestätigen/Bestreiten",
   "view_match": "Spiel ansehen",
   "view_all": "Alle anzeigen →",

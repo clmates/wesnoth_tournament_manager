@@ -154,6 +154,8 @@
   "confirm_delete_tournament": "Are you sure you want to delete this tournament? Associated matches will be desvinculated but not deleted.",
   "report": "Report",
   "determine_winner": "Determine Winner",
+  "determine_winner_title": "Determine Winner",
+  "determine_winner_prompt": "Select the match winner between {{p1}} and {{p2}}.",
   "confirm_dispute": "Confirm/Dispute",
   "view_match": "View Match",
   "recent_games": "Recent Games",
