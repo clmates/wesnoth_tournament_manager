@@ -2343,7 +2343,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
             `UPDATE tournament_teams 
              SET tournament_wins = tournament_wins + ?, tournament_points = tournament_points + ? 
              WHERE id = ?`,
-            [winnerMatchCount, winnerTeamId]
+            [winnerMatchCount, winnerMatchCount, winnerTeamId]
           );
         }
       } else {
