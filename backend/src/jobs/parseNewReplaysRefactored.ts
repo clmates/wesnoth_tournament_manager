@@ -40,6 +40,7 @@ interface ParseSummary {
   forumAddon: any | null;
   forumPlayers: Array<any>;
   forumMap: string | null;
+  forumMapId: string | null;
   forumFactions: Record<string, string>;
   replayRankedMode: boolean;
   replayTournament: string | null;
@@ -265,6 +266,7 @@ export class ParseNewReplaysRefactorized {
       forumAddon: null,
       forumPlayers: [],
       forumMap: null,
+      forumMapId: null,
       forumFactions: {},
       replayRankedMode: false,
       replayTournament: null,
@@ -350,14 +352,17 @@ export class ParseNewReplaysRefactorized {
     // ======== STEP 3: Query forum for map/scenario ========
     console.log(`📋 [FORUM] Step 3: Querying map...`);
     const mapResult = await query(
-      `SELECT name FROM forum.wesnothd_game_content_info 
+      `SELECT id, name FROM forum.wesnothd_game_content_info 
        WHERE instance_uuid = ? AND game_id = ? AND type = 'scenario' LIMIT 1`,
       [replay.instance_uuid, replay.game_id]
     );
 
     if ((mapResult as any).rows?.length > 0) {
       parseSummary.forumMap = (mapResult as any).rows[0].name;
-      console.log(`   ✅ Map: ${parseSummary.forumMap}`);
+      const mapId = (mapResult as any).rows[0].id;
+      const mapIdWithoutPrefix = mapId.startsWith('multiplayer_') ? mapId.substring(12) : mapId;
+      parseSummary.forumMapId = mapIdWithoutPrefix;
+      console.log(`   ✅ Map: ${parseSummary.forumMap} (ID: ${mapIdWithoutPrefix})`);
     } else {
       parseSummary.forumMap = replay.game_name;
       console.log(`   ⚠️  No map in forum, using game_name: ${parseSummary.forumMap}`);
@@ -442,7 +447,8 @@ export class ParseNewReplaysRefactorized {
     // ======== VALIDATE AND RESOLVE MAP ========
     console.log(`🔍 [PARSE] Validating map against game_maps table...`);
     const mapRaw = parseSummary.forumMap || 'Unknown';
-    const mapResolved = await this.resolveMap(mapRaw);
+    const mapId = parseSummary.forumMapId || null;
+    const mapResolved = await this.resolveMap(mapRaw, mapId);
     parseSummary.finalMap = mapResolved.name;
     parseSummary.resolvedMap = mapResolved.name;
     parseSummary.mapIsRanked = mapResolved.isRanked;
@@ -900,7 +906,7 @@ export class ParseNewReplaysRefactorized {
    * Prefers ranked results: never stops early on an unranked match — saves it as
    * fallback and keeps searching for a ranked entry.
    */
-  private async resolveMap(mapName: string | null): Promise<{ name: string | null; isRanked: boolean }> {
+  private async resolveMap(mapName: string | null, mapId: string | null = null): Promise<{ name: string | null; isRanked: boolean }> {
     if (!mapName) {
       return { name: null, isRanked: false };
     }
@@ -927,6 +933,18 @@ export class ParseNewReplaysRefactorized {
     };
 
     try {
+      // 0. Try exact match by map ID (from forum wesnothd_game_content_info) - highest priority
+      if (mapId) {
+        let hit = await tryQuery(
+          `SELECT name, is_ranked FROM game_maps WHERE LOWER(game_map_id) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+          [mapId]
+        );
+        if (hit) {
+          console.log(`   📌 Matched by map ID: ${mapId} → ${hit.name}`);
+          return hit;
+        }
+      }
+
       // 1. Exact match on original name (ORDER BY is_ranked DESC so ranked rows come first)
       let hit = await tryQuery(
         `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
