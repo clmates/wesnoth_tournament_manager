@@ -2357,7 +2357,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         // Eliminate the losing team from the tournament (mark as not active)
         await query(
           `UPDATE tournament_teams 
-           SET participation_status = 'eliminated' 
+           SET status = 'eliminated' 
            WHERE id = ?`,
           [loserTeamId]
         );
