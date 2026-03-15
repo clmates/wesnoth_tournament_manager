@@ -935,7 +935,7 @@ export class ParseNewReplaysRefactorized {
     try {
       // 0. Try exact match by map ID (from forum wesnothd_game_content_info) - highest priority
       if (mapId) {
-        const mapIdWithoutPrefix = mapId.replace(/^multiplayer_/, '');
+        const mapIdWithoutPrefix = mapId.replace(/^multiplayer_/, '').replace(/_/g, ' ');
         let hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
           [mapIdWithoutPrefix]
