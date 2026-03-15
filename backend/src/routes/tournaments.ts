@@ -2273,12 +2273,19 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
 
       const loser_id = winner_id === match.player1_id ? match.player2_id : match.player1_id;
 
-      // Update the tournament_round_matches to mark it as completed with winner
+      // Determine which column was won (player1 or player2)
+      const isWinner_Player1 = winner_id === match.player1_id;
+      
+      // Update the tournament_round_matches with wins and mark as completed
       await query(
         `UPDATE tournament_round_matches 
-         SET winner_id = ?, series_status = 'completed', updated_at = NOW()
+         SET winner_id = ?, 
+             player1_wins = CASE WHEN player1_id = ? THEN player1_wins + 1 ELSE player1_wins END,
+             player2_wins = CASE WHEN player2_id = ? THEN player2_wins + 1 ELSE player2_wins END,
+             series_status = 'completed', 
+             updated_at = NOW()
          WHERE id = ?`,
-        [winner_id, matchId]
+        [winner_id, winner_id, winner_id, matchId]
       );
 
       // Get all tournament_matches for this series and mark them appropriately
@@ -2344,6 +2351,35 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
              SET tournament_wins = tournament_wins + ?, tournament_points = tournament_points + ? 
              WHERE id = ?`,
             [winnerMatchCount, winnerMatchCount, winnerTeamId]
+          );
+        }
+
+        // Eliminate the losing team from the tournament (mark as not active)
+        await query(
+          `UPDATE tournament_teams 
+           SET participation_status = 'eliminated' 
+           WHERE id = ?`,
+          [loserTeamId]
+        );
+
+        // Mark all remaining pending matches for the losing team as completed with loss
+        const loserPendingMatches = await query(
+          `SELECT id, player1_id, player2_id FROM tournament_matches 
+           WHERE tournament_round_match_id IN (
+             SELECT id FROM tournament_round_matches 
+             WHERE round_id = ? AND (player1_id = ? OR player2_id = ?)
+           ) AND match_status = 'pending'`,
+          [roundId, loserTeamId, loserTeamId]
+        );
+
+        for (const pendingMatch of loserPendingMatches.rows) {
+          const opponent = pendingMatch.player1_id === loserTeamId ? pendingMatch.player2_id : pendingMatch.player1_id;
+          await query(
+            `UPDATE tournament_matches 
+             SET winner_id = ?, match_status = 'completed', played_at = NOW(),
+                 organizer_action = 'organizer_loss', updated_at = NOW()
+             WHERE id = ?`,
+            [opponent, pendingMatch.id]
           );
         }
       } else {
