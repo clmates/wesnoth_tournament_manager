@@ -38,6 +38,15 @@ const CONFIDENCE_LABELS: Record<number, string> = {
   2: 'Auto',
 };
 
+function formatReplayDate(dateStr: string | null): string {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '—';
+  }
+}
+
 const AdminReplays: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -47,7 +56,7 @@ const AdminReplays: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [statusFilter, setStatusFilter] = useState('new');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [discarding, setDiscarding] = useState<string | null>(null);
   const [summaryModal, setSummaryModal] = useState<{ open: boolean; json: string; filename: string }>({ open: false, json: '', filename: '' });
 
@@ -152,6 +161,7 @@ const AdminReplays: React.FC = () => {
                   <th className="px-3 py-3 text-left font-semibold text-gray-800">Game ID</th>
                   <th className="px-3 py-3 text-left font-semibold text-gray-800">Instance UUID</th>
                   <th className="px-3 py-3 text-left font-semibold text-gray-800">Filename</th>
+                  <th className="px-3 py-3 text-left font-semibold text-gray-800">Replay Date</th>
                   <th className="px-3 py-3 text-left font-semibold text-gray-800">Confidence</th>
                   <th className="px-3 py-3 text-left font-semibold text-gray-800">Status</th>
                   <th className="px-3 py-3 text-left font-semibold text-gray-800">Parse Error</th>
@@ -174,6 +184,7 @@ const AdminReplays: React.FC = () => {
                       <td className="px-3 py-2 text-gray-700 max-w-[12rem] truncate" title={replay.replay_filename}>
                         {replay.replay_filename || '—'}
                       </td>
+                      <td className="px-3 py-2 text-gray-600 text-sm">{formatReplayDate(replay.detected_at)}</td>
                       <td className="px-3 py-2 text-gray-600 text-center">
                         {CONFIDENCE_LABELS[replay.integration_confidence] ?? replay.integration_confidence ?? '—'}
                       </td>

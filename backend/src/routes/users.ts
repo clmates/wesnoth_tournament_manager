@@ -299,6 +299,9 @@ router.put('/profile/ranked', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'enable_ranked must be a boolean' });
     }
 
+    const userResult = await query(`SELECT nickname FROM users_extension WHERE id = ?`, [req.userId]);
+    const nickname = userResult.rows[0]?.nickname || null;
+
     await query(
       `UPDATE users_extension SET enable_ranked = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [enable_ranked ? 1 : 0, req.userId]
@@ -307,6 +310,7 @@ router.put('/profile/ranked', authMiddleware, async (req: AuthRequest, res) => {
     await logAuditEvent({
       event_type: 'PROFILE_UPDATE',
       user_id: req.userId,
+      username: nickname,
       ip_address: getUserIP(req),
       user_agent: getUserAgent(req),
       details: { field: 'enable_ranked', value: enable_ranked }
