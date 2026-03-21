@@ -28,6 +28,7 @@ interface TournamentFormProps {
   unrankedMaps: string[];
   onUnrankedMapsChange: (mapIds: string[]) => void;
   isLoading?: boolean;
+  onCancel?: () => void;
 }
 
 const TournamentForm: React.FC<TournamentFormProps> = ({
@@ -40,6 +41,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
   unrankedMaps,
   onUnrankedMapsChange,
   isLoading = false,
+  onCancel,
 }) => {
   const { t } = useTranslation();
 
@@ -562,9 +564,18 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
       </div>
 
       <div className="flex w-full gap-2">
-        <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded w-full disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
+        <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded flex-1 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
           {isLoading ? t('loading') : (mode === 'create' ? t('tournament_create') : t('btn_confirm'))}
         </button>
+        {mode === 'edit' && onCancel && (
+          <button 
+            type="button"
+            onClick={onCancel}
+            className="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded flex-1"
+          >
+            {t('btn_cancel', 'Cancel')}
+          </button>
+        )}
       </div>
     </form>
   );

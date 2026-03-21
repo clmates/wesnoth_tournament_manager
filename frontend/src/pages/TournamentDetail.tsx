@@ -116,6 +116,7 @@ const TournamentDetail: React.FC = () => {
   const [unrankedMaps, setUnrankedMaps] = useState<Array<{ id: string; name: string }>>([]);
   const [allFactions, setAllFactions] = useState<Array<{ id: string; name: string }>>([]);
   const [allMaps, setAllMaps] = useState<Array<{ id: string; name: string }>>([]);
+  const [assetsLoaded, setAssetsLoaded] = useState(false);
   const [showTeamJoinModal, setShowTeamJoinModal] = useState(false);
   const [joiningTeamLoading, setJoiningTeamLoading] = useState(false);
   const [matchConfirmationMap, setMatchConfirmationMap] = useState<Record<string, string>>({});
@@ -301,8 +302,10 @@ const TournamentDetail: React.FC = () => {
             setUnrankedFactions(selectedRes.data.data.factions || []);
             setUnrankedMaps(selectedRes.data.data.maps || []);
           }
+          setAssetsLoaded(true);
         } catch (err) {
           console.error('Error fetching tournament assets:', err);
+          setAssetsLoaded(true);
         }
       };
       fetchAssets();
@@ -913,7 +916,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         {isCreator && !editMode && (
           <div className="flex flex-wrap gap-3">
             {tournament.status !== 'prepared' && tournament.status !== 'in_progress' && tournament.status !== 'finished' && (
-              <button onClick={() => setEditMode(true)} className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">{t('btn_edit', 'Edit')}</button>
+              <button 
+                onClick={() => setEditMode(true)} 
+                disabled={!assetsLoaded}
+                className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {t('btn_edit', 'Edit')}
+              </button>
             )}
 
             {tournament.status === 'registration_open' && (
@@ -946,25 +955,6 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
             )}
           </div>
         )}
-
-        {/* Edit mode buttons - Right side */}
-        {isCreator && editMode && tournament.status !== 'in_progress' && (
-          <div className="flex flex-wrap gap-3">
-            <button 
-              type="submit" 
-              form="tournament-form"
-              className="px-6 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-            >
-              {t('btn_confirm', 'Confirm')}
-            </button>
-            <button 
-              onClick={() => setEditMode(false)}
-              className="px-6 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-            >
-              {t('btn_cancel', 'Cancel')}
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Edit form - shown when in edit mode */}
@@ -989,6 +979,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
             const selected = allMaps.filter(m => mapIds.includes(m.id));
             setUnrankedMaps(selected);
           }}
+          onCancel={() => setEditMode(false)}
         />
       )}
 
