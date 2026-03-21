@@ -1651,7 +1651,7 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
 
     // Get tournament
     const tournamentResult = await query(
-      `SELECT id, organizer_id, tournament_mode, status
+      `SELECT id, creator_id, tournament_mode, status
        FROM tournaments WHERE id = ?`,
       [id]
     );
@@ -1663,7 +1663,7 @@ router.put('/tournaments/:id/unranked-assets', authMiddleware, async (req: AuthR
     const tournament = tournamentResult.rows[0];
 
     // Check authorization (must be organizer)
-    if (tournament.organizer_id !== req.userId) {
+    if (tournament.creator_id !== req.userId) {
       const userResult = await query(
         'SELECT is_admin FROM users_extension WHERE id = ?',
         [req.userId]
@@ -1767,7 +1767,7 @@ router.get('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, re
 
     // Get tournament and verify organizer
     const tournResult = await query(
-      'SELECT id, tournament_type, organizer_id FROM tournaments WHERE id = ?',
+      'SELECT id, tournament_type, creator_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -1782,7 +1782,7 @@ router.get('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, re
     }
 
     // Verify user is tournament organizer
-    if (tournament.organizer_id !== req.userId) {
+    if (tournament.creator_id !== req.userId) {
       return res.status(403).json({ success: false, error: 'Only organizer can manage teams' });
     }
 
@@ -1845,7 +1845,7 @@ router.post('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, r
 
     // Get tournament and verify organizer
     const tournResult = await query(
-      'SELECT id, tournament_type, organizer_id FROM tournaments WHERE id = ?',
+      'SELECT id, tournament_type, creator_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -1859,7 +1859,7 @@ router.post('/tournaments/:id/teams', authMiddleware, async (req: AuthRequest, r
       return res.status(400).json({ success: false, error: 'This endpoint is for team tournaments only' });
     }
 
-    if (tournament.organizer_id !== req.userId) {
+    if (tournament.creator_id !== req.userId) {
       return res.status(403).json({ success: false, error: 'Only organizer can create teams' });
     }
 
@@ -1898,7 +1898,7 @@ router.post('/tournaments/:id/teams/:teamId/members', authMiddleware, async (req
 
     // Verify organizer
     const tournResult = await query(
-      'SELECT organizer_id FROM tournaments WHERE id = ?',
+      'SELECT creator_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -1906,7 +1906,7 @@ router.post('/tournaments/:id/teams/:teamId/members', authMiddleware, async (req
       return res.status(404).json({ success: false, error: 'Tournament not found' });
     }
 
-    if (tournResult.rows[0].organizer_id !== req.userId) {
+    if (tournResult.rows[0].creator_id !== req.userId) {
       return res.status(403).json({ success: false, error: 'Only organizer can add members' });
     }
 
@@ -1944,7 +1944,7 @@ router.delete('/tournaments/:id/teams/:teamId/members/:playerId', authMiddleware
 
     // Verify organizer
     const tournResult = await query(
-      'SELECT organizer_id FROM tournaments WHERE id = ?',
+      'SELECT creator_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -1952,7 +1952,7 @@ router.delete('/tournaments/:id/teams/:teamId/members/:playerId', authMiddleware
       return res.status(404).json({ success: false, error: 'Tournament not found' });
     }
 
-    if (tournResult.rows[0].organizer_id !== req.userId) {
+    if (tournResult.rows[0].creator_id !== req.userId) {
       return res.status(403).json({ success: false, error: 'Only organizer can remove members' });
     }
 
@@ -1985,7 +1985,7 @@ router.post('/tournaments/:id/teams/:teamId/substitutes', authMiddleware, async 
 
     // Verify organizer
     const tournResult = await query(
-      'SELECT organizer_id FROM tournaments WHERE id = ?',
+      'SELECT creator_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -1993,7 +1993,7 @@ router.post('/tournaments/:id/teams/:teamId/substitutes', authMiddleware, async 
       return res.status(404).json({ success: false, error: 'Tournament not found' });
     }
 
-    if (tournResult.rows[0].organizer_id !== req.userId) {
+    if (tournResult.rows[0].creator_id !== req.userId) {
       return res.status(403).json({ success: false, error: 'Only organizer can add substitutes' });
     }
 
@@ -2024,7 +2024,7 @@ router.delete('/tournaments/:id/teams/:teamId', authMiddleware, async (req: Auth
 
     // Verify organizer
     const tournResult = await query(
-      'SELECT organizer_id FROM tournaments WHERE id = ?',
+      'SELECT creator_id FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -2032,7 +2032,7 @@ router.delete('/tournaments/:id/teams/:teamId', authMiddleware, async (req: Auth
       return res.status(404).json({ success: false, error: 'Tournament not found' });
     }
 
-    if (tournResult.rows[0].organizer_id !== req.userId) {
+    if (tournResult.rows[0].creator_id !== req.userId) {
       return res.status(403).json({ success: false, error: 'Only organizer can delete teams' });
     }
 
