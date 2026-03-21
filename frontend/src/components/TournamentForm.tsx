@@ -300,8 +300,8 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
           <div className="flex flex-col gap-2 mt-4">
             <label className="font-medium text-gray-700">{t('label_tournament_start_date', 'Tournament Start Date')}</label>
             <input
-              type="datetime-local"
-              value={formData.started_at ? formData.started_at.substring(0, 16) : ''}
+              type="date"
+              value={formData.started_at ? new Date(formData.started_at).toISOString().split('T')[0] : ''}
               onChange={(e) => onFormDataChange({ ...formData, started_at: e.target.value })}
               disabled={isLoading}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
