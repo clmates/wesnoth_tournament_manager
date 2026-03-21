@@ -237,7 +237,9 @@ const TournamentDetail: React.FC = () => {
         max_participants: tournamentRes.data.max_participants || 0,
         round_duration_days: tournamentRes.data.round_duration_days || 7,
         auto_advance_round: tournamentRes.data.auto_advance_round || false,
-        started_at: tournamentRes.data.started_at || '',
+        started_at: tournamentRes.data.started_at 
+          ? new Date(tournamentRes.data.started_at).toISOString().split('T')[0]
+          : '',
         general_rounds: tournamentRes.data.general_rounds || 0,
         final_rounds: tournamentRes.data.final_rounds || 0,
         general_rounds_format: tournamentRes.data.general_rounds_format || 'bo3',
