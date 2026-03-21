@@ -567,7 +567,20 @@ router.get('/data/countries', async (req, res) => {
 
     // Transform the response to include the country name in the requested language
     const countries = result.rows.map(row => {
-      const names = row.names_json || {};
+      let names: Record<string, string> = {};
+      
+      // Parse names_json if it's a string (JSON stored in DB)
+      if (typeof row.names_json === 'string') {
+        try {
+          names = JSON.parse(row.names_json);
+        } catch (e) {
+          console.warn('Failed to parse names_json for country', row.code);
+          names = {};
+        }
+      } else if (typeof row.names_json === 'object') {
+        names = row.names_json;
+      }
+      
       const name = names[lang] || names['en'] || 'Unknown';
       
       return {
