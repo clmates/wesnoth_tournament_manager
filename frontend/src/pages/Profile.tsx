@@ -30,7 +30,7 @@ const Profile: React.FC = () => {
   const [updatingRanked, setUpdatingRanked] = useState(false);
 
   const languages = useMemo(() => [
-    { code: 'en', name: 'English', countryCode: 'us' },
+    { code: 'en', name: 'English', countryCode: 'gb' },
     { code: 'es', name: 'Español', countryCode: 'es' },
     { code: 'zh', name: '中文', countryCode: 'cn' },
     { code: 'de', name: 'Deutsch', countryCode: 'de' },

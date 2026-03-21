@@ -14,7 +14,7 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const languages = [
-    { code: 'en', name: 'English', countryCode: 'us' },
+    { code: 'en', name: 'English', countryCode: 'gb' },
     { code: 'es', name: 'Español', countryCode: 'es' },
     { code: 'zh', name: '中文', countryCode: 'cn' },
     { code: 'de', name: 'Deutsch', countryCode: 'de' },
