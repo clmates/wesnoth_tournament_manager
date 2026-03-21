@@ -794,7 +794,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <p><strong>{t('label_created')}:</strong> {formatDate(tournament.created_at)}</p>
         {tournament.started_at && <p><strong>{t('label_started')}:</strong> {formatDate(tournament.started_at)}</p>}
         {tournament.finished_at && <p><strong>{t('label_finished')}:</strong> {formatDate(tournament.finished_at)}</p>}
-        <p><strong>{t('label_description')}:</strong> {tournament.description}</p>
+        <div><strong>{t('label_description')}:</strong> <p className="whitespace-pre-wrap">{tournament.description}</p></div>
       </div>
 
       {/* Tournament Assets Section */}
