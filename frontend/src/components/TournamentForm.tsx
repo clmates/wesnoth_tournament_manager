@@ -78,7 +78,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
   };
 
   return (
-    <form className="bg-white rounded-lg shadow-md p-8 space-y-6" onSubmit={onSubmit}>
+    <form id="tournament-form" className="bg-white rounded-lg shadow-md p-8 space-y-6" onSubmit={onSubmit}>
       {/* SECTION 1: BASIC INFORMATION */}
       <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-white">
         <h3 className="mb-4 font-semibold text-gray-800">{t('tournament.basic_info', 'Basic Information')}</h3>
