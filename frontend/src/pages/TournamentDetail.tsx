@@ -509,6 +509,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     try {
       // Build update object, excluding started_at if empty
       const updateObj: any = {
+        tournament_type: editData.tournament_type,
         description: editData.description,
         max_participants: editData.max_participants,
         general_rounds: editData.general_rounds,

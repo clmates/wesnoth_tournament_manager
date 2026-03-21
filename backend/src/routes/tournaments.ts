@@ -332,6 +332,7 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const {
+      tournament_type,
       description,
       max_participants,
       round_duration_days,
@@ -358,9 +359,25 @@ router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Only the tournament creator can update this tournament' });
     }
 
+    const currentStatus = tournamentResult.rows[0].status;
+
+    // Validate tournament_type change is only allowed in registration_open or registration_closed states
+    if (tournament_type !== undefined) {
+      if (currentStatus !== 'registration_open' && currentStatus !== 'registration_closed') {
+        return res.status(400).json({ 
+          error: `Cannot change tournament format. Tournament format can only be changed when in registration_open or registration_closed state. Current status: ${currentStatus}` 
+        });
+      }
+    }
+
     // Build update query dynamically
     const updates: string[] = [];
     const values: any[] = [];
+
+    if (tournament_type !== undefined) {
+      updates.push(`tournament_type = ?`);
+      values.push(tournament_type);
+    }
 
     if (description !== undefined) {
       updates.push(`description = ?`);

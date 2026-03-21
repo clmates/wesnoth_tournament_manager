@@ -51,7 +51,30 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
   };
 
   const handleTournamentTypeChange = (newType: string) => {
-    onFormDataChange({ ...formData, tournament_type: newType });
+    const updatedData = { ...formData, tournament_type: newType };
+
+    // Reset round values based on new format to their creation defaults
+    if (newType === 'elimination') {
+      updatedData.general_rounds_format = 'bo3';
+      updatedData.final_rounds_format = 'bo5';
+      updatedData.general_rounds = 0;
+      updatedData.final_rounds = 0;
+    } else if (newType === 'league') {
+      updatedData.general_rounds = 1;
+      updatedData.final_rounds = 0;
+      updatedData.general_rounds_format = 'bo3';
+    } else if (newType === 'swiss') {
+      updatedData.general_rounds = 1;
+      updatedData.final_rounds = 0;
+      updatedData.general_rounds_format = 'bo3';
+    } else if (newType === 'swiss_elimination') {
+      updatedData.general_rounds = 1;
+      updatedData.final_rounds = 1;
+      updatedData.general_rounds_format = 'bo3';
+      updatedData.final_rounds_format = 'bo5';
+    }
+
+    onFormDataChange(updatedData);
   };
 
   return (
@@ -136,7 +159,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
               value={formData.tournament_type}
               onChange={(e) => handleTournamentTypeChange(e.target.value)}
               required
-              disabled={isLoading || mode === 'edit'}
+              disabled={isLoading}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
             >
               <option value="elimination">{t('option_type_elimination', 'Elimination')}</option>
