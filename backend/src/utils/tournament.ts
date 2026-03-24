@@ -1141,30 +1141,39 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     let byesProcessed = 0;
 
     for (const pairing of pairings) {
-      // Handle bye (automatic advancement for odd player count)
+     // Handle bye (automatic advancement for odd player count)
       if (pairing.is_bye || pairing.player2_id === null) {
         console.log(`✅ BYE: ${tournament.tournament_mode === 'team' ? 'Team' : 'Player'} ${pairing.player1_id} advances automatically to next round`);
         byesProcessed++;
         
-        // Register automatic win for bye player
-        if (isteamMode) {
-          await query(
-            `UPDATE tournament_teams 
-             SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
-                 tournament_points = COALESCE(tournament_points, 0) + 1
-             WHERE tournament_id = ? AND id = ?`,
-            [tournamentId, pairing.player1_id]
-          );
-          console.log(`  → Team ${pairing.player1_id}: +1 win, +1 point`);
+        // In League tournaments, byes don't award points (all teams play same number of matches)
+        // In Swiss/Swiss-Elimination, byes award 1 point (automatic win)
+        const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+        const shouldAwardPointsForBye = tournamentType !== 'league';
+        
+        // Register automatic win for bye player (unless it's a league tournament)
+        if (shouldAwardPointsForBye) {
+          if (isteamMode) {
+            await query(
+              `UPDATE tournament_teams 
+               SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                   tournament_points = COALESCE(tournament_points, 0) + 1
+               WHERE tournament_id = ? AND id = ?`,
+              [tournamentId, pairing.player1_id]
+            );
+            console.log(`  → Team ${pairing.player1_id}: +1 win, +1 point`);
+          } else {
+            await query(
+              `UPDATE tournament_participants 
+               SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                   tournament_points = COALESCE(tournament_points, 0) + 1
+               WHERE tournament_id = ? AND user_id = ?`,
+              [tournamentId, pairing.player1_id]
+            );
+            console.log(`  → Player ${pairing.player1_id}: +1 win, +1 point`);
+          }
         } else {
-          await query(
-            `UPDATE tournament_participants 
-             SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
-                 tournament_points = COALESCE(tournament_points, 0) + 1
-             WHERE tournament_id = ? AND user_id = ?`,
-            [tournamentId, pairing.player1_id]
-          );
-          console.log(`  → Player ${pairing.player1_id}: +1 win, +1 point`);
+          console.log(`  → League tournament: No automatic points awarded for bye`);
         }
         continue;
       }
