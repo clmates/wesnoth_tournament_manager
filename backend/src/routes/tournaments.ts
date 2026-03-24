@@ -1322,14 +1322,37 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Tournament must be registration_closed before preparation' });
     }
 
-    // Get number of accepted participants
-    const participantsResult = await query(
-      `SELECT COUNT(*) as count FROM tournament_participants 
-       WHERE tournament_id = ? AND participation_status = 'accepted'`,
+    // Get tournament_mode to determine if counting teams or individual participants
+    const tournamentModeCheck = await query(
+      'SELECT tournament_mode FROM tournaments WHERE id = ?',
       [id]
     );
-    const participantCount = participantsResult.rows[0]?.count || 0;
-    console.log(`[PREPARE] Participant count: ${participantCount}`);
+    const tournamentMode = tournamentModeCheck.rows[0]?.tournament_mode || 'individual';
+
+    // Get number of accepted participants (for team tournaments: count teams; for 1v1: count individuals)
+    let participantCount = 0;
+    
+    if (tournamentMode === 'team') {
+      // For team tournaments: count accepted teams (teams where all members are accepted)
+      const teamsResult = await query(
+        `SELECT COUNT(DISTINCT tt.id) as count 
+         FROM tournament_teams tt
+         WHERE tt.tournament_id = ?
+         AND tt.status = 'active'`,
+        [id]
+      );
+      participantCount = teamsResult.rows[0]?.count || 0;
+      console.log(`[PREPARE] Team tournament: ${participantCount} active teams`);
+    } else {
+      // For individual tournaments: count accepted participants
+      const participantsResult = await query(
+        `SELECT COUNT(*) as count FROM tournament_participants 
+         WHERE tournament_id = ? AND participation_status = 'accepted'`,
+        [id]
+      );
+      participantCount = participantsResult.rows[0]?.count || 0;
+      console.log(`[PREPARE] Individual tournament: ${participantCount} accepted participants`);
+    }
 
     // Calculate maximum rounds needed based on tournament type
     // Only elimination formats have a mathematical limit
