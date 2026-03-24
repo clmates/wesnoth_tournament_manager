@@ -1161,7 +1161,7 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
     if (tournament.tournament_mode === 'team') {
       // For team tournaments: count complete teams (all members accepted)
       const teamsCheckResult = await query(
-        `SELECT tt.id, COUNT(tp.id) as member_count, SUM(CASE WHEN tp.participation_status = 'accepted' THEN 1 ELSE 0 END) as accepted_count
+        `SELECT tt.id, COUNT(tp.id) as member_count, COALESCE(SUM(CASE WHEN tp.participation_status = 'accepted' THEN 1 ELSE 0 END), 0) as accepted_count
          FROM tournament_teams tt
          LEFT JOIN tournament_participants tp ON tt.id = tp.team_id
          WHERE tt.tournament_id = ?
