@@ -1169,10 +1169,23 @@ router.post('/:id/close-registration', authMiddleware, async (req: AuthRequest, 
         [id]
       );
 
+      // Debug: Log raw data
+      console.log(`[CLOSE_REGISTRATION] Raw teams data:`, JSON.stringify(teamsCheckResult.rows.slice(0, 2)));
+
       // Count complete teams (all members accepted)
-      const completeTeams = teamsCheckResult.rows.filter((team: any) => 
-        team.member_count === team.accepted_count && team.member_count > 0
-      );
+      // Use explicit number conversion to handle potential string/number type issues
+      const completeTeams = teamsCheckResult.rows.filter((team: any) => {
+        const memberCount = parseInt(team.member_count, 10) || 0;
+        const acceptedCount = parseInt(team.accepted_count, 10) || 0;
+        const isComplete = memberCount === acceptedCount && memberCount > 0;
+        
+        // Log first few teams for debugging
+        if (teamsCheckResult.rows.indexOf(team) < 2) {
+          console.log(`[CLOSE_REGISTRATION] Team ${team.id}: members=${memberCount}, accepted=${acceptedCount}, complete=${isComplete}`);
+        }
+        
+        return isComplete;
+      });
 
       participantCount = completeTeams.length;
 
