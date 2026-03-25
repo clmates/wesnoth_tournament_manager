@@ -791,9 +791,10 @@ async function generateSwissMatches(
  * Works correctly for both even and odd participant counts
  * 
  * Algorithm: Circular rotation (Berger tables)
- * - For N participants: N rounds (odd) or N rounds (even, rotated)
+ * - For N participants: N-1 rounds (even) or N rounds (odd, with dummy bye)
  * - One participant gets a bye each round (odd counts only)
  * - Deterministic: no random shuffle, mathematically complete
+ * - All (N choose 2) pairings guaranteed
  */
 function generateLeagueMatchesBerger(
   participants: any[],
@@ -810,59 +811,51 @@ function generateLeagueMatchesBerger(
 
   const n = participants.length;
   const isOdd = n % 2 === 1;
-  const activeCount = isOdd ? n - 1 : n;
   
-  // For odd counts, determine who gets bye in this round
-  // Use rotation: (roundNumber - 1 + n - 1) % n selects different participant each round
-  const byeIndex = isOdd ? (roundNumber - 1) % n : -1;
+  // Build a team list with original participants (with user_id property)
+  let teams = [...participants];
   let byePlayer: any = null;
   
-  // Create active participants list (excluding bye if odd count)
-  const active: any[] = [];
-  for (let i = 0; i < n; i++) {
-    if (i !== byeIndex) {
-      active.push(participants[i]);
-    } else if (isOdd) {
-      byePlayer = participants[i];
-    }
+  // If odd count, add a dummy bye marker
+  if (isOdd) {
+    teams.push({ user_id: 'BYE', elo_rating: 0 });
   }
-
-  // Berger algorithm: circular pairing
-  // For round r (1-indexed):
-  // - Fix position 0
-  // - Rotate other positions clockwise
-  // - Pair (0,n-1), (1,n-2), ... up middle
   
-  const positions = [...Array(activeCount).keys()];
+  const numTeams = teams.length;
   
-  // Rotate positions for this round (all except position 0)
+  // Apply rotation for this specific round
+  // Fixed team stays at index 0, rotate the rest
   if (roundNumber > 1) {
-    const toRotate = positions.slice(1);
-    // Rotate right by (roundNumber - 1)
-    const rotateAmount = ((roundNumber - 1) % (activeCount - 1 || 1));
-    for (let shift = 0; shift < rotateAmount; shift++) {
-      toRotate.unshift(toRotate.pop()!);
-    }
-    positions.splice(1, activeCount - 1, ...toRotate);
+    const last = teams.pop()!;
+    const rotated = teams.splice(1);
+    rotated.unshift(last);
+    teams.splice(1, 0, ...rotated);
   }
-
-  // Create pairings from positions
-  for (let i = 0; i < activeCount / 2; i++) {
-    const idx1 = positions[i];
-    const idx2 = positions[activeCount - 1 - i];
+  
+  // Create pairings by mirroring positions
+  // Position 0 pairs with position n-1, position 1 pairs with n-2, etc.
+  for (let i = 0; i < numTeams / 2; i++) {
+    const p1 = teams[i];
+    const p2 = teams[numTeams - 1 - i];
     
-    if (idx1 < active.length && idx2 < active.length) {
+    // Check if either is the bye marker
+    if (p1.user_id === 'BYE') {
+      byePlayer = p2;
+    } else if (p2.user_id === 'BYE') {
+      byePlayer = p1;
+    } else {
+      // Regular match
       matches.push({
         tournament_id: tournamentId,
         round_id: roundId,
-        player1_id: active[idx1].user_id,
-        player2_id: active[idx2].user_id,
+        player1_id: p1.user_id,
+        player2_id: p2.user_id,
       });
     }
   }
-
-  // Add bye if odd count
-  if (byePlayer) {
+  
+  // Add bye match if odd count
+  if (isOdd && byePlayer) {
     matches.push({
       tournament_id: tournamentId,
       round_id: roundId,
