@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../config/database.js';
 import { authMiddleware, moderatorOrAdminMiddleware, AuthRequest } from '../middleware/auth.js';
-import { activateRound, checkAndCompleteRound, getWinnerAndRunnerUp } from '../utils/tournament.js';
+import { activateRound, checkAndCompleteRound, getWinnerAndRunnerUp, preGenerateLeagueMatches } from '../utils/tournament.js';
 import discordService from '../services/discordService.js';
 import { randomUUID } from 'crypto';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
@@ -1615,6 +1615,18 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
         [randomUUID(), id, round.roundNumber, round.roundType, round.matchFormat, round.label, round.description, round.classification, round.playersRemaining ?? null, round.playersAdvancing ?? null]
       );
       console.log(`[PREPARE] Round ${round.roundNumber} inserted successfully`);
+    }
+
+    // Pre-generate all league tournament matches if league type
+    if (tournamentType === 'league') {
+      try {
+        console.log(`[PREPARE] Pre-generating all league matches...`);
+        await preGenerateLeagueMatches(id);
+        console.log(`[PREPARE] League matches pre-generated successfully`);
+      } catch (preGenErr) {
+        console.error(`[PREPARE] Warning: Could not pre-generate league matches:`, preGenErr);
+        // Don't fail tournament preparation if pre-generation fails, but log it
+      }
     }
 
     // Update tournament status

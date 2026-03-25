@@ -870,6 +870,125 @@ function generateLeagueMatchesBerger(
 }
 
 /**
+ * Pre-generates ALL league tournament matches for ALL rounds at tournament preparation time
+ * This ensures complete Berger schedule is created upfront, not on-demand per round
+ * 
+ * For league tournaments:
+ * - Fetches all tournament rounds
+ * - Fetches all participants
+ * - For each round, generates Berger-scheduled matches
+ * - Inserts all matches into tournament_round_matches table
+ */
+export async function preGenerateLeagueMatches(
+  tournamentId: string
+): Promise<boolean> {
+  try {
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`📋 [PRE_GENERATE] Starting pre-generation of all league matches`);
+    console.log(`${'='.repeat(80)}`);
+    console.log(`Tournament ID: ${tournamentId}`);
+
+    // Get tournament info
+    const tournResult = await query(
+      `SELECT tournament_type, tournament_mode, best_of FROM tournaments WHERE id = ?`,
+      [tournamentId]
+    );
+    
+    if (tournResult.rows.length === 0) {
+      throw new Error(`Tournament ${tournamentId} not found`);
+    }
+
+    const tournament = tournResult.rows[0];
+    if (tournament.tournament_type !== 'league') {
+      console.log(`[PRE_GENERATE] Not a league tournament, skipping pre-generation`);
+      return true;
+    }
+
+    const tournamentMode = tournament.tournament_mode;
+    console.log(`Tournament Mode: ${tournamentMode}`);
+
+    // Get all rounds
+    const roundsResult = await query(
+      `SELECT id, round_number FROM tournament_rounds WHERE tournament_id = ? ORDER BY round_number ASC`,
+      [tournamentId]
+    );
+    
+    const rounds = roundsResult.rows;
+    console.log(`Found ${rounds.length} rounds to generate matches for`);
+
+    // Get all participants (sorted by user_id for consistency)
+    let participantsResult;
+    if (tournamentMode === 'team') {
+      participantsResult = await query(
+        `SELECT id as user_id, 0 as elo_rating FROM tournament_teams WHERE tournament_id = ? ORDER BY id ASC`,
+        [tournamentId]
+      );
+    } else {
+      participantsResult = await query(
+        `SELECT tp.user_id, COALESCE(u.elo_rating, 1600) as elo_rating
+         FROM tournament_participants tp
+         LEFT JOIN users_extension u ON tp.user_id = u.id
+         WHERE tp.tournament_id = ? AND tp.participation_status = 'accepted'
+         ORDER BY tp.user_id ASC`,
+        [tournamentId]
+      );
+    }
+
+    const participants = participantsResult.rows;
+    console.log(`Found ${participants.length} participants`);
+
+    if (participants.length < 2) {
+      throw new Error(`Not enough participants (${participants.length}) for league tournament`);
+    }
+
+    // Pre-generate matches for all rounds
+    let totalMatchesCreated = 0;
+    for (const round of rounds) {
+      const roundNumber = round.round_number;
+      console.log(`\n[PRE_GENERATE] Generating matches for Round ${roundNumber}...`);
+
+      // Generate Berger matches for this specific round
+      const matches = generateLeagueMatchesBerger(
+        participants,
+        tournamentId,
+        round.id,
+        roundNumber,
+        tournamentMode
+      );
+
+      console.log(`[PRE_GENERATE] Generated ${matches.length} pairings for Round ${roundNumber}`);
+
+      // Insert all matches for this round
+      for (const match of matches) {
+        await query(
+          `INSERT INTO tournament_round_matches (id, tournament_id, round_id, player1_id, player2_id, best_of, wins_required, series_status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'in_progress')`,
+          [
+            randomUUID(),
+            match.tournament_id,
+            match.round_id,
+            match.player1_id,
+            match.player2_id,
+            tournament.best_of || 3,
+            Math.ceil((tournament.best_of || 3) / 2)
+          ]
+        );
+      }
+
+      totalMatchesCreated += matches.length;
+    }
+
+    console.log(`\n[PRE_GENERATE] ✅ Created ${totalMatchesCreated} total round-matches across all rounds`);
+    console.log(`${'='.repeat(80)}\n`);
+    return true;
+
+  } catch (error) {
+    console.error(`❌ Error in preGenerateLeagueMatches:`, error);
+    throw error;
+  }
+}
+
+/**
  * Generates League matches
  * All participants play each round, new pairings each time
  */
