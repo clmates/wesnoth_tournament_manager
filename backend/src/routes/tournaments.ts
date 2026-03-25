@@ -1471,11 +1471,11 @@ router.post('/:id/prepare', authMiddleware, async (req: AuthRequest, res) => {
     else if (tournamentType === 'league') {
       const leagueFormat = totalGeneralRounds; // 1 or 2
       // For round-robin: each player plays each other player once per format iteration
-      // Rounds needed = (n-1) * format, where n = number of participants
-      // This works for both even and odd number of players
-      // With odd players: one "bye" per round, players rotate
+      // Rounds needed = n * format, where n = number of participants
+      // With odd players: one "bye" per round, one player rests each round
       // With even players: all players play each round
-      totalGeneralRounds = (participantCount - 1) * leagueFormat;
+      // In both cases, need n rounds so each participant plays all others
+      totalGeneralRounds = participantCount * leagueFormat;
     }
 
     // Determine round classification based on tournament type
@@ -1882,14 +1882,31 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
       // Post matchups notification to Discord
       if (tournament.discord_thread_id) {
         try {
-          const matchupsResult = await query(
-            `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
-             FROM tournament_round_matches trm
-             LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
-             LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
-             WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = ? AND round_number = 1)`,
-            [id]
-          );
+          // Detect tournament mode to fetch correct names
+          const isTeamMode = tournament.tournament_mode === 'team';
+          
+          let matchupsResult;
+          if (isTeamMode) {
+            // Team mode: JOIN with tournament_teams
+            matchupsResult = await query(
+              `SELECT trm.player1_id, trm.player2_id, tt1.name as player1_nickname, tt2.name as player2_nickname
+               FROM tournament_round_matches trm
+               LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
+               LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
+               WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = ? AND round_number = 1)`,
+              [id]
+            );
+          } else {
+            // Individual mode: JOIN with users_extension
+            matchupsResult = await query(
+              `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
+               FROM tournament_round_matches trm
+               LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
+               LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
+               WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = ? AND round_number = 1)`,
+              [id]
+            );
+          }
           
           if (matchupsResult.rows.length > 0) {
             const matchups = matchupsResult.rows.map(m => ({
@@ -2938,14 +2955,35 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
 
       // Post matchups notification to Discord
       try {
-        const matchupsResult = await query(
-          `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
-           FROM tournament_round_matches trm
-           LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
-           LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
-           WHERE trm.round_id = ?`,
-          [nextRoundId]
+        // Detect tournament mode to fetch correct names
+        const tmodeResult = await query(
+          'SELECT tournament_mode FROM tournaments WHERE id = ?',
+          [id]
         );
+        const isTeamMode = tmodeResult.rows[0]?.tournament_mode === 'team';
+        
+        let matchupsResult;
+        if (isTeamMode) {
+          // Team mode: JOIN with tournament_teams
+          matchupsResult = await query(
+            `SELECT trm.player1_id, trm.player2_id, tt1.name as player1_nickname, tt2.name as player2_nickname
+             FROM tournament_round_matches trm
+             LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
+             LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
+             WHERE trm.round_id = ?`,
+            [nextRoundId]
+          );
+        } else {
+          // Individual mode: JOIN with users_extension
+          matchupsResult = await query(
+            `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
+             FROM tournament_round_matches trm
+             LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
+             LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
+             WHERE trm.round_id = ?`,
+            [nextRoundId]
+          );
+        }
         
         if (matchupsResult.rows.length > 0) {
           const matchups = matchupsResult.rows.map(m => ({
