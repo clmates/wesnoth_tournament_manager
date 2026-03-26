@@ -798,7 +798,7 @@ router.post('/replays/:replayId/reprocess', moderatorOrAdminMiddleware, async (r
 
     await logAuditEvent({
       event_type: 'REPLAY_REPROCESS_REQUESTED',
-      user_id: req.userId,
+      username: req.username,
       ip_address: getUserIP(req),
       user_agent: getUserAgent(req),
       details: { replay_id: replayId, filename: replay.replay_filename, previous_status: replay.parse_status }

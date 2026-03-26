@@ -153,7 +153,7 @@ export default function AdminAudit() {
   return (
     <>
       <UserProfileNav />
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="w-full mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">🔒 Audit Logs</h1>
 
       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">{error}</div>}
