@@ -975,19 +975,41 @@ export async function preGenerateLeagueMatches(
       const winsRequired = Math.ceil(bestOf / 2);
       
       for (const match of matches) {
-        await query(
-          `INSERT INTO tournament_round_matches (id, tournament_id, round_id, player1_id, player2_id, best_of, wins_required, series_status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'in_progress')`,
-          [
-            randomUUID(),
-            match.tournament_id,
-            match.round_id,
-            match.player1_id,
-            match.player2_id,
-            bestOf,
-            winsRequired
-          ]
-        );
+        const roundMatchId = randomUUID();
+        
+        // Skip insertion for bye matches (player2_id is null)
+        if (match.player2_id !== null) {
+          // Insert into tournament_round_matches
+          await query(
+            `INSERT INTO tournament_round_matches (id, tournament_id, round_id, player1_id, player2_id, best_of, wins_required, series_status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'in_progress')`,
+            [
+              roundMatchId,
+              match.tournament_id,
+              match.round_id,
+              match.player1_id,
+              match.player2_id,
+              bestOf,
+              winsRequired
+            ]
+          );
+
+          // Insert individual tournament_matches (one per needed win)
+          for (let i = 0; i < winsRequired; i++) {
+            await query(
+              `INSERT INTO tournament_matches (id, tournament_id, round_id, player1_id, player2_id, match_status, tournament_round_match_id)
+               VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+              [
+                randomUUID(),
+                match.tournament_id,
+                match.round_id,
+                match.player1_id,
+                match.player2_id,
+                roundMatchId
+              ]
+            );
+          }
+        }
       }
 
       totalMatchesCreated += matches.length;
@@ -1309,119 +1331,130 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
     console.log(`[ACTIVATE_ROUND] Retrieved ${participants.length} participants for round ${roundNumber}`);
     console.log(`[ACTIVATE_ROUND] Best Of format: ${bestOf} (wins required: ${winsRequired})`);
 
-    // Generate pairings based on round number and tournament type
-    let pairings;
-    if (roundNumber === 1) {
-      // First round: pair all participants
-      pairings = generateFirstRoundMatches(participants, tournamentId, round.id, tournament.tournament_mode);
+    const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+
+    // For league tournaments, all matches are pre-generated during tournament preparation
+    // Just change the status to in_progress
+    if (tournamentType === 'league') {
+      console.log(`[ACTIVATE_ROUND] League tournament: skipping match generation (pre-generated during preparation)`);
+      console.log(`[ACTIVATE_ROUND] Simply marking round as in_progress...`);
     } else {
-      // Subsequent rounds: depends on tournament type AND round type
-      const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
-      
-      // Get the round type to determine if we're in final phase
-      const roundTypeResult = await query(
-        `SELECT round_type FROM tournament_rounds WHERE id = ?`,
-        [round.id]
-      );
-      const roundType = roundTypeResult.rows[0]?.round_type?.toLowerCase() || 'general';
-      
-      console.log(`\n[GENERATE_PAIRINGS] Round ${roundNumber}:`);
-      console.log(`  Tournament Type: ${tournamentType}`);
-      console.log(`  Round Type: ${roundType}`);
-      console.log(`  Participants: ${participants.length}`);
-      
-      if (tournamentType === 'elimination') {
-        // Elimination: pair winners from previous round
-        console.log(`  → Using ELIMINATION pairings`);
-        pairings = generateEliminationMatches(participants, tournamentId, round.id, tournament.tournament_mode);
-      } else if (tournamentType === 'swiss_elimination' && roundType !== 'general') {
-        // Swiss-Elimination Mix in final phase (not Swiss): use elimination pairings with Swiss seeding
-        console.log(`  → Using ELIMINATION pairings with Swiss seeding (Swiss-Elimination final phase)`);
-        pairings = generateEliminationMatches(participants, tournamentId, round.id, tournament.tournament_mode, true);
-      } else if (tournamentType === 'swiss' || tournamentType === 'swiss_elimination') {
-        // Swiss: use Swiss pairing system for all participants still in tournament
-        console.log(`  → Using SWISS pairings`);
-        pairings = await generateSwissMatches(participants, tournamentId, round.id, roundNumber, tournament.tournament_mode);
-      } else {
-        // League: all participants play each other using Berger algorithm
-        console.log(`  → Using LEAGUE pairings (Berger round-robin algorithm)`);
-        pairings = generateLeagueMatchesBerger(participants, tournamentId, round.id, roundNumber, tournament.tournament_mode);
-      }
-      
-      console.log(`  Generated ${pairings.length} total pairings`);
-      const byeCount = pairings.filter(p => p.is_bye || p.player2_id === null).length;
-      const matchCount = pairings.length - byeCount;
-      console.log(`  → ${matchCount} actual matches, ${byeCount} byes`);
-    }
+      // Non-league tournaments: generate matches on-demand
 
-    console.log(`[ACTIVATE_ROUND] Processing ${pairings.length} pairings...`);
-    let matchesCreated = 0;
-    let byesProcessed = 0;
-
-    for (const pairing of pairings) {
-     // Handle bye (automatic advancement for odd player count)
-      if (pairing.is_bye || pairing.player2_id === null) {
-        console.log(`✅ BYE: ${tournament.tournament_mode === 'team' ? 'Team' : 'Player'} ${pairing.player1_id} advances automatically to next round`);
-        byesProcessed++;
-        
-        // In League tournaments, byes don't award points (all teams play same number of matches)
-        // In Swiss/Swiss-Elimination, byes award 1 point (automatic win)
-        const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
-        const shouldAwardPointsForBye = tournamentType !== 'league';
-        
-        // Register automatic win for bye player (unless it's a league tournament)
-        if (shouldAwardPointsForBye) {
-          if (isteamMode) {
-            await query(
-              `UPDATE tournament_teams 
-               SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
-                   tournament_points = COALESCE(tournament_points, 0) + 1
-               WHERE tournament_id = ? AND id = ?`,
-              [tournamentId, pairing.player1_id]
-            );
-            console.log(`  → Team ${pairing.player1_id}: +1 win, +1 point`);
+      // Generate pairings based on round number and tournament type
+          let pairings;
+          if (roundNumber === 1) {
+            // First round: pair all participants
+            pairings = generateFirstRoundMatches(participants, tournamentId, round.id, tournament.tournament_mode);
           } else {
-            await query(
-              `UPDATE tournament_participants 
-               SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
-                   tournament_points = COALESCE(tournament_points, 0) + 1
-               WHERE tournament_id = ? AND user_id = ?`,
-              [tournamentId, pairing.player1_id]
+            // Subsequent rounds: depends on tournament type AND round type
+            const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+      
+            // Get the round type to determine if we're in final phase
+            const roundTypeResult = await query(
+              `SELECT round_type FROM tournament_rounds WHERE id = ?`,
+              [round.id]
             );
-            console.log(`  → Player ${pairing.player1_id}: +1 win, +1 point`);
+            const roundType = roundTypeResult.rows[0]?.round_type?.toLowerCase() || 'general';
+      
+            console.log(`\n[GENERATE_PAIRINGS] Round ${roundNumber}:`);
+            console.log(`  Tournament Type: ${tournamentType}`);
+            console.log(`  Round Type: ${roundType}`);
+            console.log(`  Participants: ${participants.length}`);
+      
+            if (tournamentType === 'elimination') {
+              // Elimination: pair winners from previous round
+              console.log(`  → Using ELIMINATION pairings`);
+              pairings = generateEliminationMatches(participants, tournamentId, round.id, tournament.tournament_mode);
+            } else if (tournamentType === 'swiss_elimination' && roundType !== 'general') {
+              // Swiss-Elimination Mix in final phase (not Swiss): use elimination pairings with Swiss seeding
+              console.log(`  → Using ELIMINATION pairings with Swiss seeding (Swiss-Elimination final phase)`);
+              pairings = generateEliminationMatches(participants, tournamentId, round.id, tournament.tournament_mode, true);
+            } else if (tournamentType === 'swiss' || tournamentType === 'swiss_elimination') {
+              // Swiss: use Swiss pairing system for all participants still in tournament
+              console.log(`  → Using SWISS pairings`);
+              pairings = await generateSwissMatches(participants, tournamentId, round.id, roundNumber, tournament.tournament_mode);
+            } else {
+              // League: all participants play each other using Berger algorithm
+              console.log(`  → Using LEAGUE pairings (Berger round-robin algorithm)`);
+              pairings = generateLeagueMatchesBerger(participants, tournamentId, round.id, roundNumber, tournament.tournament_mode);
+            }
+      
+            console.log(`  Generated ${pairings.length} total pairings`);
+            const byeCount = pairings.filter(p => p.is_bye || p.player2_id === null).length;
+            const matchCount = pairings.length - byeCount;
+            console.log(`  → ${matchCount} actual matches, ${byeCount} byes`);
           }
-        } else {
-          console.log(`  → League tournament: No automatic points awarded for bye`);
-        }
-        continue;
-      }
 
-      // Create tournament_round_matches entry
-      const roundMatchId = randomUUID();
-      await query(
-        `INSERT INTO tournament_round_matches 
-         (id, tournament_id, round_id, player1_id, player2_id, best_of, wins_required, series_status, matches_scheduled)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'in_progress', ?)`,
-        [roundMatchId, tournamentId, round.id, pairing.player1_id, pairing.player2_id, bestOf, winsRequired, winsRequired]
-      );
+          console.log(`[ACTIVATE_ROUND] Processing ${pairings.length} pairings...`);
+          let matchesCreated = 0;
+          let byesProcessed = 0;
 
-      // Create initial tournament_matches entries (exactly wins_required matches)
-      // For Bo3: 2 matches (need 2 wins), for Bo5: 3 matches (need 3 wins)
-      const matchesToCreate = winsRequired;
-      for (let i = 0; i < matchesToCreate; i++) {
-        await query(
-          `INSERT INTO tournament_matches 
-           (id, tournament_id, round_id, player1_id, player2_id, match_status, tournament_round_match_id)
-           VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
-          [randomUUID(), tournamentId, round.id, pairing.player1_id, pairing.player2_id, roundMatchId]
-        );
-      }
+          for (const pairing of pairings) {
+           // Handle bye (automatic advancement for odd player count)
+            if (pairing.is_bye || pairing.player2_id === null) {
+              console.log(`✅ BYE: ${tournament.tournament_mode === 'team' ? 'Team' : 'Player'} ${pairing.player1_id} advances automatically to next round`);
+              byesProcessed++;
+        
+              // In League tournaments, byes don't award points (all teams play same number of matches)
+              // In Swiss/Swiss-Elimination, byes award 1 point (automatic win)
+              const tournamentType = tournament.tournament_type?.toLowerCase() || 'elimination';
+              const shouldAwardPointsForBye = tournamentType !== 'league';
+        
+              // Register automatic win for bye player (unless it's a league tournament)
+              if (shouldAwardPointsForBye) {
+                if (isteamMode) {
+                  await query(
+                    `UPDATE tournament_teams 
+                     SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                         tournament_points = COALESCE(tournament_points, 0) + 1
+                     WHERE tournament_id = ? AND id = ?`,
+                    [tournamentId, pairing.player1_id]
+                  );
+                  console.log(`  → Team ${pairing.player1_id}: +1 win, +1 point`);
+                } else {
+                  await query(
+                    `UPDATE tournament_participants 
+                     SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+                         tournament_points = COALESCE(tournament_points, 0) + 1
+                     WHERE tournament_id = ? AND user_id = ?`,
+                    [tournamentId, pairing.player1_id]
+                  );
+                  console.log(`  → Player ${pairing.player1_id}: +1 win, +1 point`);
+                }
+              } else {
+                console.log(`  → League tournament: No automatic points awarded for bye`);
+              }
+              continue;
+            }
 
-      console.log(`Created ${matchesToCreate} initial matches for round_match ${roundMatchId} (Bo${bestOf}, needs ${winsRequired} wins)`);
-      matchesCreated++;
+            // Create tournament_round_matches entry
+            const roundMatchId = randomUUID();
+            await query(
+              `INSERT INTO tournament_round_matches 
+               (id, tournament_id, round_id, player1_id, player2_id, best_of, wins_required, series_status, matches_scheduled)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'in_progress', ?)`,
+              [roundMatchId, tournamentId, round.id, pairing.player1_id, pairing.player2_id, bestOf, winsRequired, winsRequired]
+            );
+
+            // Create initial tournament_matches entries (exactly wins_required matches)
+            // For Bo3: 2 matches (need 2 wins), for Bo5: 3 matches (need 3 wins)
+            const matchesToCreate = winsRequired;
+            for (let i = 0; i < matchesToCreate; i++) {
+              await query(
+                `INSERT INTO tournament_matches 
+                 (id, tournament_id, round_id, player1_id, player2_id, match_status, tournament_round_match_id)
+                 VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+                [randomUUID(), tournamentId, round.id, pairing.player1_id, pairing.player2_id, roundMatchId]
+              );
+            }
+
+            console.log(`Created ${matchesToCreate} initial matches for round_match ${roundMatchId} (Bo${bestOf}, needs ${winsRequired} wins)`);
+            matchesCreated++;
+          }
+
+          console.log(`[ACTIVATE_ROUND] Summary: Created ${matchesCreated} series, ${byesProcessed} byes`);
     }
-
-    console.log(`[ACTIVATE_ROUND] Summary: Created ${matchesCreated} series, ${byesProcessed} byes`);
 
     // Update round status to in_progress
     await query(
@@ -1441,7 +1474,12 @@ export async function activateRound(tournamentId: string, roundNumber: number): 
       await recalculateParticipantRankings(tournamentId);
     }
 
-    console.log(`✅ [ACTIVATE_ROUND] Round ${roundNumber} successfully activated with ${pairings.length} pairings (${matchesCreated} matches + ${byesProcessed} byes), best_of: ${bestOf}`);
+    // Summary logged in else block for non-league, league tournaments skip match generation
+    if (tournamentType !== 'league') {
+      console.log(`✅ [ACTIVATE_ROUND] Round ${roundNumber} successfully activated, best_of: ${bestOf}`);
+    } else {
+      console.log(`✅ [ACTIVATE_ROUND] League Round ${roundNumber} marked as in_progress (matches pre-generated), best_of: ${bestOf}`);
+    }
     return true;
   } catch (error) {
     console.error('Error activating round:', error);
