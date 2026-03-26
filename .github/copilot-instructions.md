@@ -169,7 +169,9 @@ cd frontend && npm install && npm run dev
 - **Do not create analysis files or documentation unless explicitly requested.** Propose any files you plan to create and wait for confirmation.
 
 ### Git
-- **Never run git commands (commit, merge, push, etc.) automatically.** Only describe the command and its purpose; do not execute unless explicitly asked.
+- **Always check the current git branch before any commit.** Run `git branch --show-current` first.
+- **Never commit automatically if the current branch is not `test`**, unless the user explicitly asks to commit on that branch. If the branch is not `test`, describe the commit command and wait for confirmation before executing it.
+- **Never run other git commands (merge, push, rebase, etc.) automatically.** Only describe the command and its purpose; do not execute unless explicitly asked.
 
 ### Files and Configuration
 - **Do not modify `.env`, `.gitignore`, or other critical config files without confirmation.**
