@@ -133,7 +133,7 @@ const AdminReplays: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="w-full mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">
           {t('admin.replays_title', 'Manage Replays')}
         </h1>
