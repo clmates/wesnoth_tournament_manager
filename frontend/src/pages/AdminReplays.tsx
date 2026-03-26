@@ -62,6 +62,7 @@ const AdminReplays: React.FC = () => {
   const [message, setMessage] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [discarding, setDiscarding] = useState<string | null>(null);
+  const [reprocessing, setReprocessing] = useState<string | null>(null);
   const [summaryModal, setSummaryModal] = useState<{ open: boolean; json: string; filename: string }>({ open: false, json: '', filename: '' });
 
   useEffect(() => {
@@ -99,6 +100,21 @@ const AdminReplays: React.FC = () => {
       setError(err.response?.data?.error || 'Failed to discard replay');
     } finally {
       setDiscarding(null);
+    }
+  };
+
+  const handleReprocess = async (replayId: string, filename: string) => {
+    if (!window.confirm(t('label_replay_reprocess_confirm'))) return;
+    setReprocessing(replayId);
+    try {
+      await adminService.reprocessReplay(replayId);
+      setMessage(t('label_replay_reprocess_success'));
+      setTimeout(() => setMessage(''), 4000);
+      fetchReplays();
+    } catch (err: any) {
+      setError(err.response?.data?.error || t('label_replay_reprocess_error'));
+    } finally {
+      setReprocessing(null);
     }
   };
 
@@ -221,6 +237,16 @@ const AdminReplays: React.FC = () => {
                               onClick={() => handleForceDiscard(replay.id, replay.replay_filename || replay.id)}
                             >
                               {discarding === replay.id ? '…' : 'Discard'}
+                            </button>
+                          )}
+                          {/* Reprocess */}
+                          {['error', 'failed', 'rejected', 'parsed', 'skipped', 'discarded'].includes(replay.parse_status) && !replay.match_id && (
+                            <button
+                              className="px-2 py-1 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:opacity-50"
+                              disabled={reprocessing === replay.id}
+                              onClick={() => handleReprocess(replay.id, replay.replay_filename || replay.id)}
+                            >
+                              {reprocessing === replay.id ? '…' : t('button_reprocess')}
                             </button>
                           )}
                         </div>

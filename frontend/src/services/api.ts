@@ -233,6 +233,7 @@ export const adminService = {
   // Replays
   getReplays: (params?: any) => api.get('/admin/replays', { params }),
   forceDiscardReplay: (replayId: string) => api.post(`/admin/replays/${replayId}/force-discard`),
+  reprocessReplay: (replayId: string) => api.post(`/admin/replays/${replayId}/reprocess`),
   
   // News/Announcements
   getNews: () => api.get('/admin/news'),

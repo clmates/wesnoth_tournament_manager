@@ -755,6 +755,62 @@ router.post('/replays/:replayId/force-discard', moderatorOrAdminMiddleware, asyn
   }
 });
 
+// Reprocess a replay — reset it to 'new' so the parse job picks it up again
+router.post('/replays/:replayId/reprocess', moderatorOrAdminMiddleware, async (req: AuthRequest, res) => {
+  try {
+    const { replayId } = req.params;
+
+    const replayResult = await query(
+      `SELECT id, parse_status, match_id, replay_filename FROM replays WHERE id = ? AND deleted_at IS NULL`,
+      [replayId]
+    );
+    if (replayResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Replay not found' });
+    }
+
+    const replay = replayResult.rows[0];
+
+    if (replay.match_id) {
+      return res.status(400).json({ error: 'Cannot reprocess a replay that already has a linked match' });
+    }
+
+    const allowedStatuses = ['error', 'failed', 'rejected', 'parsed', 'skipped', 'discarded'];
+    if (!allowedStatuses.includes(replay.parse_status)) {
+      return res.status(400).json({
+        error: `Cannot reprocess replay with status '${replay.parse_status}'. Allowed: ${allowedStatuses.join(', ')}`
+      });
+    }
+
+    await query(
+      `UPDATE replays
+       SET parse_status = 'new',
+           parsed = 0,
+           parse_error_message = NULL,
+           parse_summary = NULL,
+           integration_confidence = NULL,
+           need_integration = 0,
+           parsing_started_at = NULL,
+           parsing_completed_at = NULL,
+           updated_at = NOW()
+       WHERE id = ?`,
+      [replayId]
+    );
+
+    await logAuditEvent({
+      event_type: 'REPLAY_REPROCESS_REQUESTED',
+      user_id: req.userId,
+      ip_address: getUserIP(req),
+      user_agent: getUserAgent(req),
+      details: { replay_id: replayId, filename: replay.replay_filename, previous_status: replay.parse_status }
+    });
+
+    res.json({ status: 'success', message: 'Replay queued for reprocessing', replay_id: replayId });
+  } catch (error) {
+    console.error('Reprocess replay error:', error);
+    res.status(500).json({ error: 'Failed to reprocess replay' });
+  }
+});
+
 // ============================================================
 // MAPS MANAGEMENT
 // ============================================================

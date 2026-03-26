@@ -184,7 +184,8 @@
 
 ### Replays
 - `[GET] /api/admin/replays` — Private (admin + moderator) — query: `{status?, limit?, offset?}` — List replays with filtering.
-- `[POST] /api/admin/replays/:replayId/force-discard` — Private (admin + moderator) — Force-discard a replay with status `new`, `parsed`, or `error`.
+- `[POST] /api/admin/replays/:replayId/force-discard` — Private (admin + moderator) — Force-discard a replay with status `new`, `parsed`, or `error`. Sets `parse_status='rejected'`.
+- `[POST] /api/admin/replays/:replayId/reprocess` — Private (admin + moderator) — Requeue a replay for reprocessing. Allowed statuses: `error`, `failed`, `rejected`, `parsed`, `skipped`, `discarded`. Blocked if replay has a `match_id`. Resets `parse_status='new'` and clears parse fields so the background job picks it up again within 30 seconds.
 
 ### Statistics & Debug
 - `[POST] /api/admin/recalculate-all-stats` — Private (admin) — Recalculate all player statistics.
