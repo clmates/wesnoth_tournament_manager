@@ -789,12 +789,15 @@ async function generateSwissMatches(
  * Generates League matches using Berger (round-robin) algorithm
  * Ensures all participants play against all others exactly once per format
  * Works correctly for both even and odd participant counts
+/**
+ * Generates League matches using Berger algorithm for a specific round
+ * Berger algorithm: Fixed participant at position 0, rotate all others clockwise
  * 
  * Algorithm: Circular rotation (Berger tables)
- * - For N participants: N-1 rounds (even) or N rounds (odd, with dummy bye)
+ * - For N participants: N rounds (with dummy bye for odd counts)
  * - One participant gets a bye each round (odd counts only)
  * - Deterministic: no random shuffle, mathematically complete
- * - All (N choose 2) pairings guaranteed
+ * - All (N choose 2) pairings guaranteed exactly once
  */
 function generateLeagueMatchesBerger(
   participants: any[],
@@ -813,23 +816,36 @@ function generateLeagueMatchesBerger(
   const isOdd = n % 2 === 1;
   
   // Build a team list with original participants (with user_id property)
+  // Always start fresh from participants, apply rotation based on roundNumber
   let teams = [...participants];
   let byePlayer: any = null;
   
-  // If odd count, add a dummy bye marker
+  // If odd count, add a dummy bye marker at the end
   if (isOdd) {
     teams.push({ user_id: 'BYE', elo_rating: 0 });
   }
   
   const numTeams = teams.length;
   
-  // Apply rotation for this specific round
-  // Fixed team stays at index 0, rotate the rest
+  // BERGER ROTATION: Fix position 0, rotate all others right by (roundNumber - 1)
+  // Round 1: no rotation (teams[0] fixed, teams[1..n-1] in original order)
+  // Round 2: rotate teams[1..n-1] right by 1
+  // Round 3: rotate teams[1..n-1] right by 2
+  // etc.
+  
   if (roundNumber > 1) {
-    const last = teams.pop()!;
-    const rotated = teams.splice(1);
-    rotated.unshift(last);
-    teams.splice(1, 0, ...rotated);
+    // Rotate the list (except position 0): teams[1..n-1] move right by (roundNumber-1) steps
+    const fixedFirst = teams[0];
+    const rest = teams.slice(1);
+    const rotateBy = ((roundNumber - 1) % (numTeams - 1));
+    
+    // Right rotation: take last rotateBy items and move to front
+    const rotated = [
+      ...rest.slice(-rotateBy),
+      ...rest.slice(0, -rotateBy)
+    ];
+    
+    teams = [fixedFirst, ...rotated];
   }
   
   // Create pairings by mirroring positions
