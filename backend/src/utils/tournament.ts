@@ -890,7 +890,7 @@ export async function preGenerateLeagueMatches(
 
     // Get tournament info
     const tournResult = await query(
-      `SELECT tournament_type, tournament_mode, best_of FROM tournaments WHERE id = ?`,
+      `SELECT tournament_type, tournament_mode FROM tournaments WHERE id = ?`,
       [tournamentId]
     );
     
@@ -907,14 +907,18 @@ export async function preGenerateLeagueMatches(
     const tournamentMode = tournament.tournament_mode;
     console.log(`Tournament Mode: ${tournamentMode}`);
 
-    // Get all rounds
+    // Get all rounds (including format)
     const roundsResult = await query(
-      `SELECT id, round_number FROM tournament_rounds WHERE tournament_id = ? ORDER BY round_number ASC`,
+      `SELECT id, round_number, match_format FROM tournament_rounds WHERE tournament_id = ? ORDER BY round_number ASC`,
       [tournamentId]
     );
     
     const rounds = roundsResult.rows;
     console.log(`Found ${rounds.length} rounds to generate matches for`);
+
+    if (rounds.length === 0) {
+      throw new Error(`No rounds found for tournament ${tournamentId}`);
+    }
 
     // Get all participants (sorted by user_id for consistency)
     let participantsResult;
@@ -941,6 +945,14 @@ export async function preGenerateLeagueMatches(
       throw new Error(`Not enough participants (${participants.length}) for league tournament`);
     }
 
+    // Map format strings to best_of values
+    const formatMap: { [key: string]: number } = {
+      'bo1': 1,
+      'bo3': 3,
+      'bo5': 5,
+      'bo7': 7,
+    };
+
     // Pre-generate matches for all rounds
     let totalMatchesCreated = 0;
     for (const round of rounds) {
@@ -959,6 +971,9 @@ export async function preGenerateLeagueMatches(
       console.log(`[PRE_GENERATE] Generated ${matches.length} pairings for Round ${roundNumber}`);
 
       // Insert all matches for this round
+      const bestOf = formatMap[round.match_format] || 3;
+      const winsRequired = Math.ceil(bestOf / 2);
+      
       for (const match of matches) {
         await query(
           `INSERT INTO tournament_round_matches (id, tournament_id, round_id, player1_id, player2_id, best_of, wins_required, series_status)
@@ -969,8 +984,8 @@ export async function preGenerateLeagueMatches(
             match.round_id,
             match.player1_id,
             match.player2_id,
-            tournament.best_of || 3,
-            Math.ceil((tournament.best_of || 3) / 2)
+            bestOf,
+            winsRequired
           ]
         );
       }
