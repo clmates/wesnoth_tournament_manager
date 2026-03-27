@@ -740,7 +740,12 @@ export class ParseNewReplaysRefactorized {
 
     console.log(`   ✅ [TOURNAMENT LINK] Using detected tournament: "${tournament.name}" (id=${tournament.id}, mode=${tournament.tournament_mode})`);
 
-    // For team tournaments, use different logic (no winner/loser detection)
+    // ========== TEAM TOURNAMENTS ==========
+    // For team tournaments: cannot determine winner without knowing side-to-team mapping
+    // Always mark as confidence=1 and let players confirm via UI
+    // ========== 1V1 TOURNAMENTS ==========
+    // For 1v1 tournaments: can determine winner from parsed replay data
+    // Use confidence level from victory detection (may be 1 or 2)
     if (tournament.tournament_mode === 'team') {
       return await this.linkToTeamTournament(replay, parseSummary, tournament);
     }
@@ -812,7 +817,17 @@ export class ParseNewReplaysRefactorized {
 
   /**
    * Link team tournament replays without determining winner/loser
-   * Requires manual confirmation (confidence = 1)
+   * 
+   * CRITICAL: For team tournaments, we CANNOT reliably determine which team won
+   * because we don't know the side-to-team mapping. Example:
+   * - Game has sides 1,2,3,4 - but we don't know which pairs are allied
+   * - Isars Cross: sides (1,4) vs (2,3), but parser sees "side 1 won"
+   * - Without knowing the alliance structure, we can't map side 1 to its team
+   * 
+   * Solution: ALWAYS mark as confidence=1 (requires manual confirmation)
+   * Players will confirm the result via UI, then updateTournamentRoundMatch() handles progression
+   * 
+   * In contrast, 1v1 tournaments CAN determine winner reliably (two players, clear victory)
    */
   private async linkToTeamTournament(replay: UnparsedReplay, parseSummary: ParseSummary, tournament: any): Promise<boolean> {
     console.log(`   [TEAM TOURNAMENT] Extracting all players and their teams...`);
