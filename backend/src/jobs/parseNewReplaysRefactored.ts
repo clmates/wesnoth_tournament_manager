@@ -468,19 +468,21 @@ export class ParseNewReplaysRefactorized {
     }
 
     if (hasTournamentFlag || (!parseSummary.replayRankedMode)) {
-      // Any case involving a tournament: look up the tournament in DB by game_name
-      const gameName = (replay.game_name || '').toLowerCase();
+      // Any case involving a tournament: look up the tournament in DB
+      // First, try to use the tournament_name extracted from WML
+      let searchName = parseSummary.replayTournament || (replay.game_name || '').toLowerCase();
+      
       const tournResult = await query(
         `SELECT id, name, tournament_mode FROM tournaments
-         WHERE status = 'in_progress' AND LOCATE(LOWER(name), ?) > 0
-         ORDER BY LENGTH(name) DESC LIMIT 5`,
-        [gameName]
+         WHERE status = 'in_progress' AND LOWER(name) = LOWER(?)
+         LIMIT 1`,
+        [searchName]
       );
       const tournaments = (tournResult as any).rows || [];
 
       if (tournaments.length === 0) {
         parseSummary.matchType = 'rejected';
-        console.log(`   ❌ Tournament flag set but no matching in-progress tournament found in game_name → REJECTED`);
+        console.log(`   ❌ Tournament flag set but no matching in-progress tournament found (searched: "${searchName}") → REJECTED`);
         return parseSummary;
       }
 

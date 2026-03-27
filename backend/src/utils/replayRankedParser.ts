@@ -320,6 +320,16 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
         tournament = scenarioData.tournament === 'yes';
         tournamentName = tournament ? (scenarioData.tournament_name as string | undefined) : undefined;
 
+        // Fallback to root-level scenario field if tournament=yes but no tournament_name
+        // (only if scenario is actually an object, not a string)
+        if (tournament && !tournamentName && typeof scenario === 'object') {
+          const rootScenario = wml.scenario as string | undefined;
+          if (rootScenario && typeof rootScenario === 'string') {
+            tournamentName = rootScenario;
+            console.log(`   ℹ️  Using root-level scenario field as tournament_name: "${tournamentName}"`);
+          }
+        }
+
         return {
           ranked_mode: rankedMode,
           tournament,
@@ -340,6 +350,16 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
         if (rankedMode || tournament) {
           console.log(`✅ [RANKED PARSE] Found addon config in [replay_start][variables]`);
           console.log(`   ranked_mode: ${rankedMode}, tournament: ${tournament}`);
+          
+          // Fallback to root-level scenario field if tournament=yes but no tournament_name
+          if (tournament && !tournamentName) {
+            const rootScenario = wml.scenario as string | undefined;
+            if (rootScenario && typeof rootScenario === 'string') {
+              tournamentName = rootScenario;
+              console.log(`   ℹ️  Using root-level scenario field as tournament_name: "${tournamentName}"`);
+            }
+          }
+          
           return {
             ranked_mode: rankedMode,
             tournament,
@@ -361,6 +381,16 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
         if (rankedMode || tournament) {
           console.log(`✅ [RANKED PARSE] Found addon config in [carryover_sides_start][variables]`);
           console.log(`   ranked_mode: ${rankedMode}, tournament: ${tournament}`);
+          
+          // Fallback to root-level scenario field if tournament=yes but no tournament_name
+          if (tournament && !tournamentName) {
+            const rootScenario = wml.scenario as string | undefined;
+            if (rootScenario && typeof rootScenario === 'string') {
+              tournamentName = rootScenario;
+              console.log(`   ℹ️  Using root-level scenario field as tournament_name: "${tournamentName}"`);
+            }
+          }
+          
           return {
             ranked_mode: rankedMode,
             tournament,
@@ -376,6 +406,15 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
       rankedMode = rootScenarioData.ranked_mode === 'yes';
       tournament = rootScenarioData.tournament === 'yes';
       tournamentName = tournament ? (rootScenarioData.tournament_name as string | undefined) : undefined;
+
+      // Fallback to root-level scenario field if tournament=yes but no tournament_name
+      if (tournament && !tournamentName) {
+        const rootScenario = wml.scenario as string | undefined;
+        if (rootScenario && typeof rootScenario === 'string') {
+          tournamentName = rootScenario;
+          console.log(`   ℹ️  Using root-level scenario field as tournament_name: "${tournamentName}"`);
+        }
+      }
 
       return {
         ranked_mode: rankedMode,
