@@ -448,7 +448,52 @@ function extractPlayers(wml: WmlNode): Array<{ side: number; name: string; facti
       return players;
     }
 
-    // Fallback attempt 2: Look for [old_side*] inside [carryover_sides_start] > [variables]
+    // Fallback attempt 2: Look for [old_side*] inside [replay_start] > [variables]
+    // This is where they are stored in some replays (e.g., early turns before carryover)
+    console.log(`🔍 [EXTRACT PLAYERS] Searching in replay_start > variables...`);
+    const replayStart = wml.replay_start as WmlNode | undefined;
+    if (replayStart) {
+      const variablesInReplayStart = replayStart.variables as WmlNode | WmlNode[] | undefined;
+      const variablesArray = Array.isArray(variablesInReplayStart) ? variablesInReplayStart : [variablesInReplayStart];
+      
+      for (const variables of variablesArray) {
+        if (!variables) continue;
+        
+        console.log(`   Found [variables] in replay_start, checking for old_side...`);
+        for (let sideNum = 1; sideNum <= 10; sideNum++) {
+          const oldSideKey = `old_side${sideNum}`;
+          const oldSide = variables[oldSideKey] as WmlNode | undefined;
+
+          if (!oldSide) {
+            if (sideNum > 1) {
+              break;
+            }
+            continue;
+          }
+
+          foundOldSides = true;
+          const playerName = (oldSide['current_player'] as string) || `Player${sideNum}`;
+          const faction = (oldSide['faction'] as string) || (oldSide['faction_name'] as string) || 'Unknown';
+
+          players.push({
+            side: sideNum,
+            name: playerName,
+            faction
+          });
+
+          console.log(`   [replay_start][variables][old_side${sideNum}] ${playerName} (${faction})`);
+        }
+
+        if (foundOldSides) {
+          console.log(`✅ [EXTRACT PLAYERS] Found ${players.length} players from old_side format (replay_start > variables)`);
+          return players;
+        }
+      }
+    } else {
+      console.log(`   No [replay_start] found in root`);
+    }
+
+    // Fallback attempt 3: Look for [old_side*] inside [carryover_sides_start] > [variables]
     // This is where they are stored after turn 1 carryover
     console.log(`🔍 [EXTRACT PLAYERS] Searching in carryover_sides_start > variables...`);
     const carryoverSidesStart = wml.carryover_sides_start as WmlNode | WmlNode[] | undefined;
@@ -504,7 +549,7 @@ function extractPlayers(wml: WmlNode): Array<{ side: number; name: string; facti
       console.log(`   No [carryover_sides_start] found in root`);
     }
 
-    // Fallback attempt 3: Look for [old_side*] inside [scenario] (alternative structure)
+    // Fallback attempt 4: Look for [old_side*] inside [scenario] (alternative structure)
     console.log(`🔍 [EXTRACT PLAYERS] Searching in scenario...`);
     const scenario = wml.scenario as WmlNode | undefined;
     if (scenario) {
