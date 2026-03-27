@@ -328,7 +328,28 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
       }
     }
 
-    // Strategy 2: Try [carryover_sides_start] > [variables]
+    // Strategy 2: Try [replay_start] > [variables]
+    const replayStart = wml.replay_start as WmlNode | undefined;
+    if (replayStart) {
+      const variables = replayStart.variables as WmlNode | undefined;
+      if (variables) {
+        rankedMode = variables.ranked_mode === 'yes';
+        tournament = variables.tournament === 'yes';
+        tournamentName = tournament ? (variables.tournament_name as string | undefined) : undefined;
+
+        if (rankedMode || tournament) {
+          console.log(`✅ [RANKED PARSE] Found addon config in [replay_start][variables]`);
+          console.log(`   ranked_mode: ${rankedMode}, tournament: ${tournament}`);
+          return {
+            ranked_mode: rankedMode,
+            tournament,
+            tournament_name: tournament ? tournamentName : undefined
+          };
+        }
+      }
+    }
+
+    // Strategy 3: Try [carryover_sides_start] > [variables]
     const carryoverSidesStart = wml.carryover_sides_start as WmlNode | undefined;
     if (carryoverSidesStart) {
       const variables = carryoverSidesStart.variables as WmlNode | undefined;
@@ -349,7 +370,7 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
       }
     }
 
-    // Strategy 3: Try root-level scenario_data
+    // Strategy 4: Try root-level scenario_data
     const rootScenarioData = wml['scenario_data'] as WmlNode | undefined;
     if (rootScenarioData) {
       rankedMode = rootScenarioData.ranked_mode === 'yes';
@@ -365,7 +386,7 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
 
     // Fallback: No addon config found in WML
     // The addon presence may have been confirmed at forum DB level
-    console.warn('⚠️  [RANKED PARSE] No addon config found in WML (checked [scenario][scenario_data], [carryover_sides_start][variables], root [scenario_data])');
+    console.warn('⚠️  [RANKED PARSE] No addon config found in WML (checked [scenario][scenario_data], [replay_start][variables], [carryover_sides_start][variables], root [scenario_data])');
     return {
       ranked_mode: false,
       tournament: false,
