@@ -740,6 +740,12 @@ export class ParseNewReplaysRefactorized {
 
     console.log(`   ✅ [TOURNAMENT LINK] Using detected tournament: "${tournament.name}" (id=${tournament.id}, mode=${tournament.tournament_mode})`);
 
+    // For team tournaments, use different logic (no winner/loser detection)
+    if (tournament.tournament_mode === 'team') {
+      return await this.linkToTeamTournament(replay, parseSummary, tournament);
+    }
+
+    // For 1v1 tournaments, use winner/loser detection
     // Resolve winner and loser user IDs from parseSummary
     const winnerName = parseSummary.replayVictory?.winner_name;
     const loserName  = parseSummary.replayVictory?.loser_name;
@@ -773,56 +779,22 @@ export class ParseNewReplaysRefactorized {
       return false;
     }
 
-    let roundMatchResult: any;
-
-    if (tournament.tournament_mode === 'team') {
-      // Team tournament: find each player's team and search by team IDs
-      const winnerParticipant = participants.find((p: any) => p.user_id === winnerUser.id);
-      const loserParticipant  = participants.find((p: any) => p.user_id === loserUser.id);
-
-      const winnerTeamId = winnerParticipant?.team_id;
-      const loserTeamId  = loserParticipant?.team_id;
-
-      if (!winnerTeamId || !loserTeamId) {
-        console.log(`   ❌ [TOURNAMENT LINK] Players are not assigned to teams (winner team=${winnerTeamId}, loser team=${loserTeamId})`);
-        return false;
-      }
-
-      console.log(`   🏅 [TOURNAMENT LINK] Team match: winner team=${winnerTeamId}, loser team=${loserTeamId}`);
-
-      roundMatchResult = await query(
-        `SELECT trm.id, trm.team1_id, trm.team2_id
-         FROM tournament_round_matches trm
-         JOIN tournament_rounds tr ON trm.round_id = tr.id
-         WHERE trm.tournament_id = ?
-           AND trm.series_status = 'in_progress'
-           AND tr.round_status = 'in_progress'
-           AND (
-             (trm.team1_id = ? AND trm.team2_id = ?)
-             OR
-             (trm.team1_id = ? AND trm.team2_id = ?)
-           )
-         LIMIT 1`,
-        [tournament.id, winnerTeamId, loserTeamId, loserTeamId, winnerTeamId]
-      );
-    } else {
-      // 1v1 tournament: search by player IDs directly
-      roundMatchResult = await query(
-        `SELECT trm.id, trm.player1_id, trm.player2_id
-         FROM tournament_round_matches trm
-         JOIN tournament_rounds tr ON trm.round_id = tr.id
-         WHERE trm.tournament_id = ?
-           AND trm.series_status = 'in_progress'
-           AND tr.round_status = 'in_progress'
-           AND (
-             (trm.player1_id = ? AND trm.player2_id = ?)
-             OR
-             (trm.player1_id = ? AND trm.player2_id = ?)
-           )
-         LIMIT 1`,
-        [tournament.id, winnerUser.id, loserUser.id, loserUser.id, winnerUser.id]
-      );
-    }
+    // 1v1 tournament: search by player IDs directly
+    const roundMatchResult = await query(
+      `SELECT trm.id, trm.player1_id, trm.player2_id
+       FROM tournament_round_matches trm
+       JOIN tournament_rounds tr ON trm.round_id = tr.id
+       WHERE trm.tournament_id = ?
+         AND trm.series_status = 'in_progress'
+         AND tr.round_status = 'in_progress'
+         AND (
+           (trm.player1_id = ? AND trm.player2_id = ?)
+           OR
+           (trm.player1_id = ? AND trm.player2_id = ?)
+         )
+       LIMIT 1`,
+      [tournament.id, winnerUser.id, loserUser.id, loserUser.id, winnerUser.id]
+    );
 
     const roundMatches = (roundMatchResult as any).rows || [];
     if (roundMatches.length === 0) {
@@ -835,6 +807,117 @@ export class ParseNewReplaysRefactorized {
 
     parseSummary.linkedTournamentId           = tournament.id;
     parseSummary.linkedTournamentRoundMatchId = roundMatch.id;
+    return true;
+  }
+
+  /**
+   * Link team tournament replays without determining winner/loser
+   * Requires manual confirmation (confidence = 1)
+   */
+  private async linkToTeamTournament(replay: UnparsedReplay, parseSummary: ParseSummary, tournament: any): Promise<boolean> {
+    console.log(`   [TEAM TOURNAMENT] Extracting all players and their teams...`);
+
+    // Get ALL players in the replay
+    const forumPlayers = parseSummary.forumPlayers;
+    if (forumPlayers.length < 2) {
+      console.log(`   ❌ [TEAM TOURNAMENT] Not enough players in replay (${forumPlayers.length})`);
+      return false;
+    }
+
+    // Map each player to their UUID
+    const playerPromises = forumPlayers.map((p: any) => this.getUserDataByNickname(p.user_name));
+    const users = await Promise.all(playerPromises);
+
+    // Verify all players were found
+    const notFound = forumPlayers.filter((p: any, i: number) => !users[i]);
+    if (notFound.length > 0) {
+      console.log(`   ❌ [TEAM TOURNAMENT] Players not found in users_extension: ${notFound.map((p: any) => p.user_name).join(', ')}`);
+      return false;
+    }
+
+    const userIds = users.map((u: any) => u.id);
+
+    // Get participants with their teams
+    console.log(`   [TEAM TOURNAMENT] Querying tournament_participants for ${userIds.length} players...`);
+    const participantsResult = await query(
+      `SELECT user_id, team_id FROM tournament_participants
+       WHERE tournament_id = ?
+         AND user_id IN (${userIds.map(() => '?').join(',')})
+         AND status = 'active'
+         AND participation_status = 'accepted'`,
+      [tournament.id, ...userIds]
+    );
+
+    const participants = (participantsResult as any).rows || [];
+    if (participants.length < 2) {
+      console.log(`   ❌ [TEAM TOURNAMENT] Not enough active participants (found ${participants.length}/${userIds.length})`);
+      return false;
+    }
+
+    // Extract unique teams from participants
+    const teamIds = new Set(participants.map((p: any) => p.team_id));
+    console.log(`   [TEAM TOURNAMENT] Found ${teamIds.size} unique team(s): ${Array.from(teamIds).join(', ')}`);
+
+    if (teamIds.size !== 2) {
+      console.log(`   ❌ [TEAM TOURNAMENT] Expected exactly 2 teams, found ${teamIds.size}`);
+      return false;
+    }
+
+    const teams = Array.from(teamIds);
+    const team1 = teams[0];
+    const team2 = teams[1];
+
+    console.log(`   ✅ [TEAM TOURNAMENT] Teams identified: ${team1} vs ${team2}`);
+
+    // Find active round
+    console.log(`   [TEAM TOURNAMENT] Searching for active round...`);
+    const roundResult = await query(
+      `SELECT id FROM tournament_rounds
+       WHERE tournament_id = ?
+         AND round_status = 'in_progress'
+       LIMIT 1`,
+      [tournament.id]
+    );
+
+    const rounds = (roundResult as any).rows || [];
+    if (rounds.length === 0) {
+      console.log(`   ❌ [TEAM TOURNAMENT] No active round found`);
+      return false;
+    }
+
+    const roundId = rounds[0].id;
+    console.log(`   ✅ [TEAM TOURNAMENT] Active round: ${roundId}`);
+
+    // Search for tournament_round_match with these 2 teams
+    console.log(`   [TEAM TOURNAMENT] Searching for tournament_round_match between teams...`);
+    const roundMatchResult = await query(
+      `SELECT id, player1_id, player2_id FROM tournament_round_matches
+       WHERE tournament_id = ?
+         AND round_id = ?
+         AND series_status = 'in_progress'
+         AND (
+           (player1_id = ? AND player2_id = ?)
+           OR
+           (player1_id = ? AND player2_id = ?)
+         )
+       LIMIT 1`,
+      [tournament.id, roundId, team1, team2, team2, team1]
+    );
+
+    const roundMatches = (roundMatchResult as any).rows || [];
+    if (roundMatches.length === 0) {
+      console.log(`   ❌ [TEAM TOURNAMENT] No pending tournament_round_match found between teams ${team1} and ${team2}`);
+      return false;
+    }
+
+    const roundMatch = roundMatches[0];
+    console.log(`   ✅ [TEAM TOURNAMENT] Linked to round_match id=${roundMatch.id}`);
+
+    parseSummary.linkedTournamentId           = tournament.id;
+    parseSummary.linkedTournamentRoundMatchId = roundMatch.id;
+    parseSummary.confidenceLevel              = 1;  // Requires manual confirmation
+    console.log(`   ℹ️  [TEAM TOURNAMENT] Marked as confidence=1 (requires manual confirmation)`);
+
     return true;
   }
 
