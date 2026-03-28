@@ -2776,7 +2776,15 @@ router.get('/:tournamentId/matches', async (req, res) => {
         tm.loser_rating,
         tm.replay_file_path,
         tm.replay_downloads as replay_downloads,
-        TRUE as is_team_mode
+        TRUE as is_team_mode,
+        pr.id as pending_replay_id,
+        pr.parse_summary as pending_replay_summary,
+        pr.integration_confidence as pending_replay_confidence,
+        pr.need_integration as pending_replay_need_integration,
+        pr.replay_url as pending_replay_url,
+        pr.replay_filename as pending_replay_filename,
+        pr.game_name as pending_replay_game_name,
+        pr.cancel_requested_by as pending_replay_cancel_requested_by
       `;
       joinClause = `
         FROM tournament_matches tm
@@ -2784,6 +2792,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
         LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
         LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
+        LEFT JOIN replays pr ON pr.tournament_id = tm.tournament_id AND pr.match_id = tm.match_id AND pr.integration_confidence = 1 AND pr.need_integration = 1
       `;
     } else if (tournamentMode === 'unranked') {
       // Unranked 1v1: get player names from users, match details from tournament_matches (match_id is NULL for unranked, so NO matches table data)
@@ -2812,7 +2821,15 @@ router.get('/:tournamentId/matches', async (req, res) => {
         tm.loser_rating,
         tm.replay_file_path,
         tm.replay_downloads as replay_downloads,
-        FALSE as is_team_mode
+        FALSE as is_team_mode,
+        pr.id as pending_replay_id,
+        pr.parse_summary as pending_replay_summary,
+        pr.integration_confidence as pending_replay_confidence,
+        pr.need_integration as pending_replay_need_integration,
+        pr.replay_url as pending_replay_url,
+        pr.replay_filename as pending_replay_filename,
+        pr.game_name as pending_replay_game_name,
+        pr.cancel_requested_by as pending_replay_cancel_requested_by
       `;
       joinClause = `
         FROM tournament_matches tm
@@ -2820,6 +2837,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
         LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
         LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
         LEFT JOIN users_extension uw ON tm.winner_id = uw.id
+        LEFT JOIN replays pr ON pr.tournament_id = tm.tournament_id AND pr.match_id = tm.match_id AND pr.integration_confidence = 1 AND pr.need_integration = 1
       `;
     } else {
       // Ranked 1v1: get player names from users, match details from matches table (via match_id link)
