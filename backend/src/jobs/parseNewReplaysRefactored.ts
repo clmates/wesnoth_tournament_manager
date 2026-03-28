@@ -469,9 +469,10 @@ export class ParseNewReplaysRefactorized {
       console.log(`   ℹ️  ranked_mode=false (unranked)`);
       
       if (!parseSummary.replayTournamentFlag) {
-        // No tournament flag → could be direct unranked or rejected
-        console.log(`   ℹ️  tournament_flag=false → No tournament found`);
-        // Will be determined later based on other factors
+        // No tournament flag → unranked without tournament is not accepted
+        console.log(`   ❌ tournament_flag=false → Unranked replays must be part of a tournament → REJECTED`);
+        parseSummary.matchType = 'rejected';
+        return parseSummary;
       } else {
         // tournament_flag=true → search for unranked/team tournament
         console.log(`   ℹ️  tournament_flag=true → Searching for unranked/team tournament...`);
@@ -480,7 +481,9 @@ export class ParseNewReplaysRefactorized {
         console.log(`   [TOURNAMENT] Searching by game_name: "${searchName}"`);
         
         if (!searchName) {
-          console.log(`   ⚠️  No game_name available, cannot link tournament`);
+          console.log(`   ⚠️  No game_name available, cannot link tournament → REJECTED`);
+          parseSummary.matchType = 'rejected';
+          return parseSummary;
         } else {
           const tournResult = await query(
             `SELECT id, name, tournament_mode FROM tournaments
@@ -497,7 +500,9 @@ export class ParseNewReplaysRefactorized {
             parseSummary.matchType = 'tournament_unranked';
             console.log(`   ✅ Found ${tournament.tournament_mode} tournament → TOURNAMENT_UNRANKED`);
           } else {
-            console.log(`   ⚠️  No tournament found by game_name`);
+            console.log(`   ❌ No tournament found by game_name → REJECTED`);
+            parseSummary.matchType = 'rejected';
+            return parseSummary;
           }
         }
       }
