@@ -1,5 +1,40 @@
 # Database Schema Reference
 
+## Quick Reference for SQL Queries
+
+> **When writing any SQL queries, consult the full schema details below.** Key tables are listed in alphabetical order by schema. For detailed column definitions, use `DESCRIBE table_name` or see the relevant sections below.
+
+### Tournament Schema — Key Tables
+| Table | Purpose | Primary Key | Important Columns |
+|---|---|---|---|
+| `users_extension` | Player profiles | `id` | `user_id`, `nickname`, `elo`, `level`, `is_admin` |
+| `matches` | Direct matches (1v1) | `id` | `player1_id`, `player2_id`, `winner_id`, `loser_id`, `status` |
+| `tournaments` | Tournament records | `id` | `name`, `tournament_mode`, `tournament_type`, `status`, `created_by` |
+| `tournament_participants` | Players in tournaments | `id` | `user_id`, `team_id`, `status` |
+| `tournament_rounds` | Tournament rounds | `id` | `round_number`, `match_format`, `round_status` |
+| `tournament_matches` | Matches within tournaments | `id` | `player1_id`, `player2_id`, `winner_id`, `match_id`, `status`, `match_status` |
+| `tournament_teams` | Team records (2v2) | `id` | `name`, `tournament_id`, `status` |
+| `tournament_round_matches` | Round-level match aggregates | `id` | `player1_id`, `player2_id`, `winner_id` |
+| `replays` | Discovered replays | `id` | `replay_file_path`, `parse_status`, `parsed_data` |
+| `game_maps` | Valid maps | `id` | `name`, `is_ranked` |
+| `factions` | Valid factions | `id` | `name`, `is_ranked` |
+| `balance_events` | Balance patches | `id` | `event_name`, `affected_factions`, `affected_maps` |
+| `system_settings` | Config key-value | `id` | `setting_key`, `setting_value` |
+| `migrations` | Migration tracking | `id` | `name`, `executed_at` |
+
+### Forum Schema — Key Tables (READ-ONLY)
+| Table | Purpose | Primary Key | Important Columns |
+|---|---|---|---|
+| `phpbb3_users` | User accounts | `user_id` (int) | `username`, `username_clean`, `user_email`, `user_password` |
+| `phpbb3_banlist` | User bans | `ban_id` | `ban_userid`, `ban_start`, `ban_end` |
+| `phpbb3_user_group` | User group membership | (group_id, user_id) | `group_id`, `user_id` |
+| `wesnothd_game_info` | Game sessions | (INSTANCE_UUID, GAME_ID) | `GAME_NAME`, `START_TIME`, `END_TIME`, `REPLAY_NAME` |
+| `wesnothd_game_player_info` | Game players | (INSTANCE_UUID, GAME_ID, SIDE_NUMBER) | `USER_ID`, `FACTION`, `USER_NAME` |
+| `wesnothd_game_content_info` | Game addons | (INSTANCE_UUID, GAME_ID, TYPE, ID, ADDON_ID) | `TYPE`, `ADDON_ID`, `ADDON_VERSION` |
+| `wesnothd_extra_data` | Moderator flags | `username` | `user_is_moderator`, `user_lastvisit` |
+
+---
+
 ## Architecture Overview
 
 The application uses **two MariaDB schemas** on the same server:

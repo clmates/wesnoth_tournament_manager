@@ -144,8 +144,26 @@ Advanced web manager for competitive Wesnoth tournaments. Features:
 
 ## Reference Files
 - `API_ENDPOINTS.md` — API endpoint reference
-- `DB_SCHEMA.md` / `DB_SCHEMA_EN.md` — Database schema
+- **`DB_SCHEMA.md`** — **Complete database schema reference.** Always consult this file when writing SQL queries. It includes quick tables showing all columns, keys, and relationships for both `tournament` and `forum` schemas.
 - `NAV_INDEX_EN.md` — Frontend navigation ↔ API index
+
+---
+
+## Database Query Guidelines
+
+When writing SQL queries to the database:
+1. **Always consult `DB_SCHEMA.md`** — it contains the authoritative column names, types, and keys for all tables
+2. **Use exact column names** — typos cause silent failures in MariaDB
+3. **Respect the two-schema split**:
+   - `tournament` schema: Full control, use migrations
+   - `forum` schema: READ-ONLY, never modify (managed by wesnoth.org team)
+4. **Key relationships**:
+   - User lookup: `forum.phpbb3_users.user_id` ↔ `tournament.users_extension.user_id`
+   - Team tournaments: `tournament_matches.player1_id` and `player2_id` store **TEAM UUIDs**, not player UUIDs
+   - Ranked tournaments: `tournament_matches.match_id` links to `matches.id`
+   - Unranked tournaments: `tournament_matches.match_id` is NULL
+5. **Status fields**: `tournament_matches` has both `match_status` (pending/completed) and `status` (unconfirmed/confirmed/disputed)
+6. **Replays**: Read from `wesnothd_game_info` and `wesnothd_game_player_info` (forum schema), write to `replays` and `tournament_matches` (tournament schema)
 
 ---
 
