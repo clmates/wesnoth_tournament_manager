@@ -487,17 +487,11 @@ export class ParseNewReplaysRefactorized {
           parseSummary.detectedTournament = tournament;
           console.log(`   🏆 Detected tournament: "${tournament.name}" (mode=${tournament.tournament_mode})`);
 
-          if (tournament.tournament_mode === 'unranked') {
-            // ranked_mode=false + tournament is unranked → tournament_unranked
-            parseSummary.matchType = 'tournament_unranked';
-            console.log(`   ✅ ranked_mode=false + tournament unranked → TOURNAMENT_UNRANKED`);
-            // Continue processing (linkToTournament will validate team/player linking)
-          } else {
-            // ranked_mode=false but tournament is ranked → mismatch
-            parseSummary.matchType = 'rejected';
-            console.log(`   ❌ ranked_mode=false but tournament mode is "${tournament.tournament_mode}" → REJECTED (mismatch)`);
-            return parseSummary;
-          }
+          // ranked_mode=false means unranked; any tournament found is valid
+          // Tournament modes are: team, 1v1, league, swiss, elimination (all are unranked when ranked_mode=false)
+          parseSummary.matchType = 'tournament_unranked';
+          console.log(`   ✅ ranked_mode=false + found tournament (${tournament.tournament_mode} mode) → TOURNAMENT_UNRANKED`);
+          // Continue processing (linkToTournament will validate team/player linking)
         } else {
           // Not found by game_name - still mark as potential tournament for linkToTournament
           console.log(`   ⚠️  No tournament found by game_name, will try linkToTournament by players...`);
