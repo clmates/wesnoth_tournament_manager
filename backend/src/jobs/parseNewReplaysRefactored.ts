@@ -1040,34 +1040,44 @@ export class ParseNewReplaysRefactorized {
       teamNamesMap[row.id] = row.name;
     });
     
-    // Create a map of nickname -> user_id (UUID) from participants
-    const participantByNickname: Record<string, { user_id: string; team_id: string }> = {};
-    for (const participant of participants) {
-      // Get the user info by their UUID
-      const userInfo = users.find((u: any) => u && u.id === participant.user_id);
-      if (userInfo) {
-        participantByNickname[userInfo.nickname] = {
-          user_id: participant.user_id,
-          team_id: participant.team_id
-        };
-      }
-    }
+    // Get user nicknames to UUID mapping from users_extension
+    const nicknames = forumPlayers.map((fp: any) => fp.user_name);
+    const usersExtResult = await query(
+      `SELECT id, nickname FROM users_extension
+       WHERE nickname IN (${nicknames.map(() => '?').join(',')})`,
+      nicknames
+    );
     
-    console.log(`   [TEAM TOURNAMENT] Debug: participantByNickname = ${JSON.stringify(participantByNickname)}`);
+    const usersExtRows = (usersExtResult as any).rows || [];
+    const nicknameToUUID: Record<string, string> = {};
+    usersExtRows.forEach((row: any) => {
+      nicknameToUUID[row.nickname] = row.id;
+    });
+    
+    console.log(`   [TEAM TOURNAMENT] Debug: nicknameToUUID = ${JSON.stringify(nicknameToUUID)}`);
+    
+    // Create a map of UUID to team_id
+    const uuidToTeamId: Record<string, string> = {};
+    participants.forEach((p: any) => {
+      uuidToTeamId[p.user_id] = p.team_id;
+    });
+    
+    console.log(`   [TEAM TOURNAMENT] Debug: uuidToTeamId = ${JSON.stringify(uuidToTeamId)}`);
     
     // Build detectedTeams for both teams
     for (const currentTeamId of [team1, team2]) {
       const teamName = teamNamesMap[currentTeamId] || 'Unknown Team';
       
-      // Get player names and sides from forumPlayers
+      // Get player names and sides from forumPlayers that belong to this team
       const playerNicknames: string[] = [];
       const playerSides: number[] = [];
       const playerFactions: string[] = [];
       
       for (const forumPlayer of forumPlayers) {
-        const participantInfo = participantByNickname[forumPlayer.user_name];
+        const uuid = nicknameToUUID[forumPlayer.user_name];
+        const teamId = uuid ? uuidToTeamId[uuid] : null;
         
-        if (participantInfo && participantInfo.team_id === currentTeamId) {
+        if (teamId === currentTeamId) {
           console.log(`      [TEAM TOURNAMENT] Found ${forumPlayer.user_name} in team ${currentTeamId}`);
           playerNicknames.push(forumPlayer.user_name);
           playerSides.push(forumPlayer.side_number);
