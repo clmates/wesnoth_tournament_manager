@@ -19,6 +19,8 @@ function parseReplaySummary(summaryJson: string | null): {
   winnerFaction: string | null;
   loserFaction: string | null;
   winnerSide: number | null;
+  winnerTeamName: string | null;
+  loserTeamName: string | null;
 } {
   const empty = {
     winnerName: null,
@@ -27,6 +29,8 @@ function parseReplaySummary(summaryJson: string | null): {
     winnerFaction: null,
     loserFaction: null,
     winnerSide: null,
+    winnerTeamName: null,
+    loserTeamName: null,
   };
   
   if (!summaryJson) return empty;
@@ -34,6 +38,7 @@ function parseReplaySummary(summaryJson: string | null): {
   try {
     const summary = JSON.parse(summaryJson);
     const victory = summary.replayVictory;
+    const teams = summary.teams || {};
     
     return {
       winnerName: victory?.winner_name || null,
@@ -42,6 +47,8 @@ function parseReplaySummary(summaryJson: string | null): {
       winnerFaction: victory?.winner_faction || null,
       loserFaction: victory?.loser_faction || null,
       winnerSide: victory?.winner_side || null,
+      winnerTeamName: victory?.winner_side ? teams[victory.winner_side] || null : null,
+      loserTeamName: victory?.loser_side ? teams[victory.loser_side] || null : null,
     };
   } catch {
     return empty;
@@ -1528,26 +1535,52 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                            // Check if this is a pending replay (not yet confirmed)
                            const isPendingReplay = match.pending_replay_id && match.pending_replay_confidence === 1 && !match.winner_id && match.pending_replay_need_integration;
                            
-                           // Extract replay data if pending
-                           let replayData = { winnerName: null, loserName: null, map: null, winnerFaction: null, loserFaction: null, winnerSide: null };
-                           if (isPendingReplay && match.pending_replay_summary) {
-                             replayData = parseReplaySummary(match.pending_replay_summary);
-                           }
+                            // Extract replay data if pending
+                            let replayData = { winnerName: null, loserName: null, map: null, winnerFaction: null, loserFaction: null, winnerSide: null, winnerTeamName: null, loserTeamName: null };
+                            if (isPendingReplay && match.pending_replay_summary) {
+                              replayData = parseReplaySummary(match.pending_replay_summary);
+                            }
                            
-                           // Use replay data if pending, otherwise use match data
-                           const winnerNickname = isPendingReplay ? replayData.winnerName : match.winner_nickname;
-                           const loserNickname = isPendingReplay ? replayData.loserName : (match.winner_nickname === match.player1_nickname ? match.player2_nickname : match.player1_nickname);
+                            // Use replay data if pending, otherwise use match data
+                            // For team tournaments, determine winner/loser by matching sides to tournament_round_match teams
+                            // In team mode: player1_id and player2_id are team IDs, not user IDs
+                            let winnerNickname = '';
+                            let loserNickname = '';
+                            let winnerId = '';
+                            let loserId = '';
+                            
+                            if (isPendingReplay && match.is_team_mode) {
+                              // For team tournaments, use tournament_round_match player1/player2 (team IDs and names)
+                              // replayData.winnerSide tells us which side won (1 or 2)
+                              // Side 1 → player1, Side 2 → player2 (typical for team tournaments)
+                              if (replayData.winnerSide === 1) {
+                                winnerNickname = match.player1_nickname || '';
+                                winnerId = match.player1_id;
+                                loserNickname = match.player2_nickname || '';
+                                loserId = match.player2_id;
+                              } else {
+                                winnerNickname = match.player2_nickname || '';
+                                winnerId = match.player2_id;
+                                loserNickname = match.player1_nickname || '';
+                                loserId = match.player1_id;
+                              }
+                            } else if (isPendingReplay) {
+                              // For non-team tournaments, use player names from replay
+                              winnerNickname = replayData.winnerName || '';
+                              loserNickname = replayData.loserName || '';
+                              winnerId = match.player1_id;
+                              loserId = match.player2_id;
+                            } else {
+                              // For confirmed matches, use standard data
+                              winnerNickname = match.winner_nickname || '';
+                              loserNickname = (match.winner_nickname === match.player1_nickname ? match.player2_nickname : match.player1_nickname) || '';
+                              winnerId = (match.winner_nickname === match.player1_nickname ? match.player1_id : match.player2_id);
+                              loserId = (match.winner_nickname === match.player1_nickname ? match.player2_id : match.player1_id);
+                            }
+                           
                            const displayMap = isPendingReplay ? replayData.map : match.map;
                            const winnerFaction = isPendingReplay ? replayData.winnerFaction : match.winner_faction;
                            const loserFaction = isPendingReplay ? replayData.loserFaction : match.loser_faction;
-                           
-                           // For logic purposes, use standard winner/loser determination
-                           const loserId = match.winner_nickname === match.player1_nickname 
-                             ? match.player2_id 
-                             : match.player1_id;
-                           const winnerId = match.winner_nickname === match.player1_nickname 
-                             ? match.player1_id 
-                             : match.player2_id;
                            
                            // Determine if current user is the loser (for team mode, check team_id)
                            let isCurrentUserLoser = false;
@@ -1652,7 +1685,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                          >
                                            ✗ {t('i_lost') || 'I Lost'}
                                          </button>
-                                       </>
+                                       {match.pending_replay_url && (
+                                            <a
+                                              href={match.pending_replay_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                              title={t('download_replay')}
+                                            >
+                                              ⬇️
+                                            </a>
+                                          )}</>
                                      ) : isPendingReplay && (userId === loserId || (match.is_team_mode && userTeamId === loserId)) ? (
                                        <>
                                          <button
@@ -1677,7 +1720,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                          >
                                            ✗ {t('i_lost') || 'I Lost'}
                                          </button>
-                                       </>
+                                       {match.pending_replay_url && (
+                                            <a
+                                              href={match.pending_replay_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                              title={t('download_replay')}
+                                            >
+                                              ⬇️
+                                            </a>
+                                          )}</>
                                      ) : hasReportedMatch ? (
                                        <>
                                          <button
