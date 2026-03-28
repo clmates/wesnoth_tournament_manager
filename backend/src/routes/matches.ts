@@ -1371,6 +1371,59 @@ router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => 
   }
 });
 
+// Helper function to extract map and faction data from replay parse_summary
+function extractMapAndFactionsFromReplay(parseSummary: any, winnerName: string, loserName: string): {
+  map: string | null;
+  winnerFaction: string | null;
+  loserFaction: string | null;
+} {
+  try {
+    const forumMap = parseSummary?.forumMap || null;
+    let winnerFaction: string | null = null;
+    let loserFaction: string | null = null;
+
+    const detectedTeams = parseSummary?.detectedTeams;
+    
+    // If detectedTeams is available (team tournament), get factions from there
+    if (detectedTeams && typeof detectedTeams === 'object') {
+      // Find which team the winner belongs to
+      let winnerTeam: any = null;
+      let loserTeam: any = null;
+      
+      // Check each team to see if winner/loser player is in their members
+      Object.values(detectedTeams).forEach((team: any) => {
+        if (team.members && Array.isArray(team.members) && team.members.includes(winnerName)) {
+          winnerTeam = team;
+        }
+        if (team.members && Array.isArray(team.members) && team.members.includes(loserName)) {
+          loserTeam = team;
+        }
+      });
+      
+      if (winnerTeam && winnerTeam.factions && Array.isArray(winnerTeam.factions)) {
+        winnerFaction = winnerTeam.factions.join(', ');
+      }
+      
+      if (loserTeam && loserTeam.factions && Array.isArray(loserTeam.factions)) {
+        loserFaction = loserTeam.factions.join(', ');
+      }
+    } else {
+      // Single player tournament or non-team mode
+      winnerFaction = parseSummary?.replayVictory?.winner_faction || null;
+      loserFaction = parseSummary?.replayVictory?.loser_faction || null;
+    }
+
+    return {
+      map: forumMap,
+      winnerFaction,
+      loserFaction,
+    };
+  } catch (error) {
+    console.error('❌ Error extracting map/factions from replay:', error);
+    return { map: null, winnerFaction: null, loserFaction: null };
+  }
+}
+
 // ============================================================================
 // POST endpoint to report a confidence=1 replay (unparsed match)
 // User says "I won" or "I lost" to help determine the winner
@@ -1750,8 +1803,18 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     }
 
     // STEP 2: Create/update tournament_matches entry (use mapped winnerIdForTournament)
+    let tournamentMatchId: string | null = null;  // Track the tournament_match ID for replay linking
+    
     if (replay.tournament_round_match_id) {
       console.log(`🎯 [CONFIDENCE-1] Processing tournament_matches for round match ${replay.tournament_round_match_id}`);
+      
+      // Extract map and faction data from replay
+      const { map, winnerFaction, loserFaction } = extractMapAndFactionsFromReplay(
+        parseSummary,
+        player1.user_name,
+        player2.user_name
+      );
+      console.log(`🎯 [CONFIDENCE-1] Extracted match data:`, { map, winnerFaction, loserFaction });
       
       // Get tournament_round_match details AND tournament type
       const roundMatchResult = await query(
@@ -1784,11 +1847,13 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
           if (existingMatchResult.rows.length > 0) {
             // UPDATE existing record (expected for league)
             const existingId = (existingMatchResult as any).rows[0].id;
+            tournamentMatchId = existingId;  // Save for replay linking
             await query(
               `UPDATE tournament_matches 
-               SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP
+               SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP,
+                   map = ?, winner_faction = ?, loser_faction = ?
                WHERE id = ?`,
-              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, existingId]
+              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, existingId]
             );
             console.log(`✅ [CONFIDENCE-1] League tournament_matches updated: ${existingId}`);
           } else {
@@ -1804,32 +1869,38 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
           if (existingMatchResult.rows.length > 0) {
             // UPDATE existing record (resumable match)
             const existingId = (existingMatchResult as any).rows[0].id;
+            tournamentMatchId = existingId;  // Save for replay linking
             await query(
               `UPDATE tournament_matches 
-               SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP
+               SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP,
+                   map = ?, winner_faction = ?, loser_faction = ?
                WHERE id = ?`,
-              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, existingId]
+              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, existingId]
             );
             console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches updated (resumable): ${existingId}`);
           } else {
             // INSERT new record (normal case for non-league)
-            const tournamentMatchId = uuidv4();
+            const newTournamentMatchId = uuidv4();
+            tournamentMatchId = newTournamentMatchId;  // Save for replay linking
             await query(
               `INSERT INTO tournament_matches 
-               (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?)`,
+               (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id, map, winner_faction, loser_faction)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?, ?, ?, ?)`,
               [
-                tournamentMatchId,
+                newTournamentMatchId,
                 roundMatch.tournament_id,
                 roundMatch.round_id,
                 roundMatch.player1_id,
                 roundMatch.player2_id,
                 tournamentMode === 'ranked' ? matchId : null,
                 winnerIdForTournament,
-                replay.tournament_round_match_id
+                replay.tournament_round_match_id,
+                map,
+                winnerFaction,
+                loserFaction
               ]
             );
-            console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches created: ${tournamentMatchId}`);
+            console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches created: ${newTournamentMatchId}`);
           }
         }
       }
@@ -1881,6 +1952,19 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         }
       }
     }
+
+    // Mark replay as reported with proper status
+    // For ranked matches: tournament_mode='ranked' && tournamentMode='ranked' → use match_id (direct match)
+    // For unranked tournament: tournament_mode='team'/'individual' → use tournament_match_id
+    await query(
+      `UPDATE replays 
+       SET parse_status = 'completed', 
+           need_integration = 0,
+           tournament_match_id = ?,
+           updated_at = NOW() 
+       WHERE id = ?`,
+      [tournamentMatchId, replayId]
+    );
 
     console.log(`✅ [CONFIDENCE-1] Match reported successfully: ${winnerId} (+${eloChange} ELO) vs ${loserId}`);
     res.status(201).json({ 
