@@ -1040,42 +1040,38 @@ export class ParseNewReplaysRefactorized {
       teamNamesMap[row.id] = row.name;
     });
     
-    // Create a map of forum user_id to forum player data
-    const forumPlayerByUserId: Record<number, any> = {};
-    forumPlayers.forEach((fp: any) => {
-      forumPlayerByUserId[fp.user_id] = fp;
-    });
+    // Create a map of nickname -> user_id (UUID) from participants
+    const participantByNickname: Record<string, { user_id: string; team_id: string }> = {};
+    for (const participant of participants) {
+      // Get the user info by their UUID
+      const userInfo = users.find((u: any) => u && u.id === participant.user_id);
+      if (userInfo) {
+        participantByNickname[userInfo.nickname] = {
+          user_id: participant.user_id,
+          team_id: participant.team_id
+        };
+      }
+    }
     
-    console.log(`   [TEAM TOURNAMENT] Debug: forumPlayerByUserId keys = ${Object.keys(forumPlayerByUserId).join(', ')}`);
-    console.log(`   [TEAM TOURNAMENT] Debug: users array length = ${users.length}`);
-    console.log(`   [TEAM TOURNAMENT] Debug: users = ${JSON.stringify(users.map((u: any) => ({ id: u?.id, user_id: u?.user_id, nickname: u?.nickname })))}`);
+    console.log(`   [TEAM TOURNAMENT] Debug: participantByNickname = ${JSON.stringify(participantByNickname)}`);
     
     // Build detectedTeams for both teams
     for (const currentTeamId of [team1, team2]) {
-      const teamPlayers = participants.filter((p: any) => p.team_id === currentTeamId);
       const teamName = teamNamesMap[currentTeamId] || 'Unknown Team';
       
-      console.log(`   [TEAM TOURNAMENT] Processing team ${teamName}: teamPlayers = ${JSON.stringify(teamPlayers)}`);
-      
-      // Get player names and sides from forumPlayers using user mapping
+      // Get player names and sides from forumPlayers
       const playerNicknames: string[] = [];
       const playerSides: number[] = [];
       const playerFactions: string[] = [];
       
-      for (const participant of teamPlayers) {
-        console.log(`      [TEAM TOURNAMENT] Looking for participant user_id=${participant.user_id}`);
-        // participant.user_id is the UUID, find the forum player by matching userIds
-        const matchingUser = users.find((u: any) => u && u.id === participant.user_id);
-        console.log(`      [TEAM TOURNAMENT] Found matchingUser: ${matchingUser ? JSON.stringify({id: matchingUser.id, user_id: matchingUser.user_id, nickname: matchingUser.nickname}) : 'NOT FOUND'}`);
+      for (const forumPlayer of forumPlayers) {
+        const participantInfo = participantByNickname[forumPlayer.user_name];
         
-        if (matchingUser && forumPlayerByUserId[matchingUser.user_id]) {
-          const forumPlayer = forumPlayerByUserId[matchingUser.user_id];
-          console.log(`      [TEAM TOURNAMENT] Found forumPlayer: ${JSON.stringify({user_name: forumPlayer.user_name, side_number: forumPlayer.side_number, faction: forumPlayer.faction})}`);
+        if (participantInfo && participantInfo.team_id === currentTeamId) {
+          console.log(`      [TEAM TOURNAMENT] Found ${forumPlayer.user_name} in team ${currentTeamId}`);
           playerNicknames.push(forumPlayer.user_name);
           playerSides.push(forumPlayer.side_number);
           playerFactions.push(forumPlayer.faction);
-        } else {
-          console.log(`      [TEAM TOURNAMENT] ❌ No forumPlayer found for user_id=${matchingUser?.user_id}`);
         }
       }
       
