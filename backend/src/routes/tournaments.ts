@@ -2766,10 +2766,10 @@ router.get('/:tournamentId/matches', async (req, res) => {
         tt2.name as player2_nickname,
         tt_winner.name as winner_nickname,
         (CASE WHEN tm.player1_id = tm.winner_id THEN tt2.name ELSE tt1.name END) as loser_nickname,
-        tm.status as match_status_from_matches,
-        COALESCE(tm.map, JSON_UNQUOTE(JSON_EXTRACT(r.parse_summary, '$.forumMap'))) as map,
-        NULL as winner_faction,
-        NULL as loser_faction,
+        NULL as match_status_from_matches,
+        tm.map,
+        tm.winner_faction,
+        tm.loser_faction,
         tm.winner_comments,
         tm.loser_comments,
         tm.winner_rating,
@@ -2794,7 +2794,6 @@ router.get('/:tournamentId/matches', async (req, res) => {
         LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
         LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
-        LEFT JOIN replays r ON tm.tournament_round_match_id = r.tournament_round_match_id AND r.parse_status = 'completed'
       `;
     } else if (tournamentMode === 'unranked') {
       // Unranked 1v1: get player names from users, match details from tournament_matches (match_id is NULL for unranked, so NO matches table data)
@@ -2813,7 +2812,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
         u2.nickname as player2_nickname,
         uw.nickname as winner_nickname,
         (CASE WHEN tm.player1_id = tm.winner_id THEN u2.nickname ELSE u1.nickname END) as loser_nickname,
-        tm.status as match_status_from_matches,
+        NULL as match_status_from_matches,
         tm.map,
         tm.winner_faction,
         tm.loser_faction,
