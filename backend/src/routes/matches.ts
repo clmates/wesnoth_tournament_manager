@@ -813,10 +813,9 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
     if (isUnranked && tournamentMatchId && !isWinner && !isLoser) {
       // Check if this is a team tournament and get user's team_id
       const userTeamResult = await query(
-        `SELECT tt.id as team_id 
-         FROM tournament_teams tt 
-         JOIN tournament_team_members ttm ON tt.id = ttm.team_id 
-         WHERE ttm.player_id = ? AND tt.tournament_id = ?`,
+        `SELECT tp.team_id 
+         FROM tournament_participants tp 
+         WHERE tp.user_id = ? AND tp.tournament_id = ?`,
         [req.userId, match.tournament_id]
       );
       
