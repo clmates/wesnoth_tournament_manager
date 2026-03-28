@@ -815,16 +815,28 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
       }
 
       if (isUnranked) {
-        // UNRANKED: update only tournament_matches
-        await query(
-          `UPDATE tournament_matches 
-           SET loser_comments = ?, 
-               loser_rating = ?,
-               match_status = 'completed',
-               updated_at = CURRENT_TIMESTAMP 
-           WHERE id = ?`,
-          [comments || null, rating || null, id]
-        );
+        // UNRANKED: update only tournament_matches based on winner/loser
+        if (isWinner) {
+          await query(
+            `UPDATE tournament_matches 
+             SET winner_comments = ?, 
+                 winner_rating = ?,
+                 match_status = 'completed',
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+            [comments || null, rating || null, id]
+          );
+        } else {
+          await query(
+            `UPDATE tournament_matches 
+             SET loser_comments = ?, 
+                 loser_rating = ?,
+                 match_status = 'completed',
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?`,
+            [comments || null, rating || null, id]
+          );
+        }
       } else {
         // RANKED: update matches table with appropriate columns based on winner/loser
         if (isWinner) {
