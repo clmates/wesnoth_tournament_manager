@@ -1458,7 +1458,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               {/* Completed Matches Section */}
               <div className="mb-8">
                 <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-500">{t('matches.completed')}</h3>
-                {matches.filter((m) => m.match_status === 'completed').length > 0 ? (
+                {matches.filter((m) => m.match_status === 'completed' || (m.pending_replay_id && m.pending_replay_confidence === 1 && !m.winner_id && m.pending_replay_need_integration)).length > 0 ? (
                   <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-200">
@@ -1472,7 +1472,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     </thead>
                     <tbody>
                       {matches
-                        .filter((m) => m.match_status === 'completed')
+                        .filter((m) => m.match_status === 'completed' || (m.pending_replay_id && m.pending_replay_confidence === 1 && !m.winner_id && m.pending_replay_need_integration))
                         .sort((a, b) => {
                           const roundDiff = (b.round_number || 0) - (a.round_number || 0);
                           return roundDiff !== 0 ? roundDiff : new Date(b.played_at || '').getTime() - new Date(a.played_at || '').getTime();

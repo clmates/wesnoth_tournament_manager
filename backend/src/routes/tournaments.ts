@@ -2777,14 +2777,16 @@ router.get('/:tournamentId/matches', async (req, res) => {
         tm.replay_file_path,
         tm.replay_downloads as replay_downloads,
         TRUE as is_team_mode,
-        pr.id as pending_replay_id,
-        pr.parse_summary as pending_replay_summary,
-        pr.integration_confidence as pending_replay_confidence,
-        pr.need_integration as pending_replay_need_integration,
-        pr.replay_url as pending_replay_url,
-        pr.replay_filename as pending_replay_filename,
-        pr.game_name as pending_replay_game_name,
-        pr.cancel_requested_by as pending_replay_cancel_requested_by
+        NULL as pending_replay_id,
+        NULL as pending_replay_summary,
+        NULL as pending_replay_confidence,
+        NULL as pending_replay_need_integration,
+        NULL as pending_replay_url,
+        NULL as pending_replay_filename,
+        NULL as pending_replay_game_name,
+        NULL as pending_replay_cancel_requested_by,
+        tm.created_at,
+        tm.updated_at
       `;
       joinClause = `
         FROM tournament_matches tm
@@ -2792,7 +2794,6 @@ router.get('/:tournamentId/matches', async (req, res) => {
         LEFT JOIN tournament_teams tt1 ON tm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON tm.player2_id = tt2.id
         LEFT JOIN tournament_teams tt_winner ON tm.winner_id = tt_winner.id
-        LEFT JOIN replays pr ON pr.tournament_id = tm.tournament_id AND pr.match_id = tm.match_id AND pr.integration_confidence = 1 AND pr.need_integration = 1
       `;
     } else if (tournamentMode === 'unranked') {
       // Unranked 1v1: get player names from users, match details from tournament_matches (match_id is NULL for unranked, so NO matches table data)
@@ -2822,14 +2823,16 @@ router.get('/:tournamentId/matches', async (req, res) => {
         tm.replay_file_path,
         tm.replay_downloads as replay_downloads,
         FALSE as is_team_mode,
-        pr.id as pending_replay_id,
-        pr.parse_summary as pending_replay_summary,
-        pr.integration_confidence as pending_replay_confidence,
-        pr.need_integration as pending_replay_need_integration,
-        pr.replay_url as pending_replay_url,
-        pr.replay_filename as pending_replay_filename,
-        pr.game_name as pending_replay_game_name,
-        pr.cancel_requested_by as pending_replay_cancel_requested_by
+        NULL as pending_replay_id,
+        NULL as pending_replay_summary,
+        NULL as pending_replay_confidence,
+        NULL as pending_replay_need_integration,
+        NULL as pending_replay_url,
+        NULL as pending_replay_filename,
+        NULL as pending_replay_game_name,
+        NULL as pending_replay_cancel_requested_by,
+        tm.created_at,
+        tm.updated_at
       `;
       joinClause = `
         FROM tournament_matches tm
@@ -2837,7 +2840,6 @@ router.get('/:tournamentId/matches', async (req, res) => {
         LEFT JOIN users_extension u1 ON tm.player1_id = u1.id
         LEFT JOIN users_extension u2 ON tm.player2_id = u2.id
         LEFT JOIN users_extension uw ON tm.winner_id = uw.id
-        LEFT JOIN replays pr ON pr.tournament_id = tm.tournament_id AND pr.match_id = tm.match_id AND pr.integration_confidence = 1 AND pr.need_integration = 1
       `;
     } else {
       // Ranked 1v1: get player names from users, match details from matches table (via match_id link)
@@ -2866,7 +2868,17 @@ router.get('/:tournamentId/matches', async (req, res) => {
         m.loser_rating,
         m.replay_file_path,
         m.replay_downloads,
-        FALSE as is_team_mode
+        FALSE as is_team_mode,
+        NULL as pending_replay_id,
+        NULL as pending_replay_summary,
+        NULL as pending_replay_confidence,
+        NULL as pending_replay_need_integration,
+        NULL as pending_replay_url,
+        NULL as pending_replay_filename,
+        NULL as pending_replay_game_name,
+        NULL as pending_replay_cancel_requested_by,
+        tm.created_at,
+        tm.updated_at
       `;
       joinClause = `
         FROM tournament_matches tm
@@ -2879,7 +2891,8 @@ router.get('/:tournamentId/matches', async (req, res) => {
       `;
     }
 
-    const result = await query(
+    // Query 1: Get completed matches from tournament_matches
+    const matchesResult = await query(
       `SELECT ${selectClause}
        ${joinClause}
        WHERE tm.tournament_id = ?
@@ -2887,7 +2900,125 @@ router.get('/:tournamentId/matches', async (req, res) => {
       [tournamentId]
     );
 
-    res.json(result.rows);
+    // Query 2: Get pending replays (confidence=1, match_id IS NULL) associated with tournament_round_matches
+    // These are pending confirmation and should be displayed in "completed matches" section with yellow highlighting
+    let pendingReplaysQuery = '';
+    let pendingReplaysResult: any = { rows: [] };
+
+    if (tournamentMode === 'team') {
+      pendingReplaysQuery = `
+        SELECT
+          pr.id as id,
+          pr.tournament_id,
+          trm.round_id,
+          trm.player1_id,
+          trm.player2_id,
+          NULL as winner_id,
+          NULL as match_id,
+          'pending' as match_status,
+          NULL as played_at,
+          tr.round_number,
+          tt1.name as player1_nickname,
+          tt2.name as player2_nickname,
+          NULL as winner_nickname,
+          NULL as loser_nickname,
+          'unconfirmed' as match_status_from_matches,
+          NULL as map,
+          NULL as winner_faction,
+          NULL as loser_faction,
+          NULL as winner_comments,
+          NULL as loser_comments,
+          NULL as winner_rating,
+          NULL as loser_rating,
+          pr.replay_file_path,
+          0 as replay_downloads,
+          TRUE as is_team_mode,
+          pr.id as pending_replay_id,
+          pr.parse_summary as pending_replay_summary,
+          pr.integration_confidence as pending_replay_confidence,
+          pr.need_integration as pending_replay_need_integration,
+          pr.replay_url as pending_replay_url,
+          pr.replay_filename as pending_replay_filename,
+          pr.game_name as pending_replay_game_name,
+          pr.cancel_requested_by as pending_replay_cancel_requested_by
+        FROM replays pr
+        JOIN tournament_round_matches trm ON pr.tournament_round_match_id = trm.id
+        JOIN tournament_rounds tr ON trm.round_id = tr.id
+        LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
+        LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
+        WHERE pr.tournament_id = ?
+          AND pr.tournament_round_match_id IS NOT NULL
+          AND pr.match_id IS NULL
+          AND pr.parse_status = 'parsed'
+          AND pr.integration_confidence = 1
+        ORDER BY tr.round_number ASC, pr.created_at ASC
+      `;
+      pendingReplaysResult = await query(pendingReplaysQuery, [tournamentId]);
+    } else if (tournamentMode === 'unranked') {
+      pendingReplaysQuery = `
+        SELECT
+          pr.id as id,
+          pr.tournament_id,
+          trm.round_id,
+          trm.player1_id,
+          trm.player2_id,
+          NULL as winner_id,
+          NULL as match_id,
+          'pending' as match_status,
+          NULL as played_at,
+          tr.round_number,
+          u1.nickname as player1_nickname,
+          u2.nickname as player2_nickname,
+          NULL as winner_nickname,
+          NULL as loser_nickname,
+          'unconfirmed' as match_status_from_matches,
+          NULL as map,
+          NULL as winner_faction,
+          NULL as loser_faction,
+          NULL as winner_comments,
+          NULL as loser_comments,
+          NULL as winner_rating,
+          NULL as loser_rating,
+          pr.replay_file_path,
+          0 as replay_downloads,
+          FALSE as is_team_mode,
+          pr.id as pending_replay_id,
+          pr.parse_summary as pending_replay_summary,
+          pr.integration_confidence as pending_replay_confidence,
+          pr.need_integration as pending_replay_need_integration,
+          pr.replay_url as pending_replay_url,
+          pr.replay_filename as pending_replay_filename,
+          pr.game_name as pending_replay_game_name,
+          pr.cancel_requested_by as pending_replay_cancel_requested_by
+        FROM replays pr
+        JOIN tournament_round_matches trm ON pr.tournament_round_match_id = trm.id
+        JOIN tournament_rounds tr ON trm.round_id = tr.id
+        LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
+        LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
+        WHERE pr.tournament_id = ?
+          AND pr.tournament_round_match_id IS NOT NULL
+          AND pr.match_id IS NULL
+          AND pr.parse_status = 'parsed'
+          AND pr.integration_confidence = 1
+        ORDER BY tr.round_number ASC, pr.created_at ASC
+      `;
+      pendingReplaysResult = await query(pendingReplaysQuery, [tournamentId]);
+    }
+    // For ranked tournaments, we don't show pending replays in this endpoint (ranked matches go through direct match flow)
+
+    // Combine results and sort
+    const allMatches = [...matchesResult.rows, ...pendingReplaysResult.rows];
+    
+    // Sort combined results by round number and created_at
+    allMatches.sort((a, b) => {
+      if (a.round_number !== b.round_number) {
+        return a.round_number - b.round_number;
+      }
+      return new Date(a.created_at || a.updated_at || 0).getTime() - 
+             new Date(b.created_at || b.updated_at || 0).getTime();
+    });
+
+    res.json(allMatches);
   } catch (error) {
     console.error('Error fetching tournament matches:', error);
     res.status(500).json({ error: 'Failed to fetch tournament matches' });
