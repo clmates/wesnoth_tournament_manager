@@ -1714,7 +1714,42 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       [tournamentMode === 'ranked' ? matchId : null, replayId]
     );
 
-    // If this replay is linked to a tournament_round_match, create/update tournament_matches entry
+    // STEP 1: If this replay is linked to a tournament_round_match, map winner ID properly
+    let winnerIdForTournament = winnerId;  // Default: player ID for 1v1 tournaments
+    
+    if (replay.tournament_round_match_id) {
+      const tmodeResult = await query(
+        `SELECT t.tournament_mode, t.id as tournament_id 
+         FROM tournaments t 
+         JOIN tournament_rounds tr ON tr.tournament_id = t.id 
+         JOIN tournament_round_matches trm ON trm.round_id = tr.id
+         WHERE trm.id = ?`,
+        [replay.tournament_round_match_id]
+      );
+      
+      if (tmodeResult.rows.length > 0) {
+        const { tournament_mode, tournament_id } = (tmodeResult as any).rows[0];
+        
+        if (tournament_mode === 'team') {
+          // Team tournament: map winning player to their team_id
+          const teamResult = await query(
+            `SELECT team_id FROM tournament_participants 
+             WHERE tournament_id = ? AND user_id = ?`,
+            [tournament_id, winnerId]
+          );
+          
+          if (teamResult.rows.length > 0) {
+            winnerIdForTournament = (teamResult as any).rows[0].team_id;
+            console.log(`🎯 [CONFIDENCE-1] Team tournament detected. Mapped player ${winnerId} → team ${winnerIdForTournament}`);
+          } else {
+            console.error(`❌ [CONFIDENCE-1] Team tournament but player not found in tournament_participants`);
+            return res.status(400).json({ error: 'Player not in tournament team' });
+          }
+        }
+      }
+    }
+
+    // STEP 2: Create/update tournament_matches entry (use mapped winnerIdForTournament)
     if (replay.tournament_round_match_id) {
       console.log(`🎯 [CONFIDENCE-1] Processing tournament_matches for round match ${replay.tournament_round_match_id}`);
       
@@ -1753,7 +1788,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
               `UPDATE tournament_matches 
                SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP
                WHERE id = ?`,
-              [tournamentMode === 'ranked' ? matchId : null, winnerId, existingId]
+              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, existingId]
             );
             console.log(`✅ [CONFIDENCE-1] League tournament_matches updated: ${existingId}`);
           } else {
@@ -1773,7 +1808,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
               `UPDATE tournament_matches 
                SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP
                WHERE id = ?`,
-              [tournamentMode === 'ranked' ? matchId : null, winnerId, existingId]
+              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, existingId]
             );
             console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches updated (resumable): ${existingId}`);
           } else {
@@ -1790,7 +1825,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
                 roundMatch.player1_id,
                 roundMatch.player2_id,
                 tournamentMode === 'ranked' ? matchId : null,
-                winnerId,
+                winnerIdForTournament,
                 replay.tournament_round_match_id
               ]
             );
@@ -1814,53 +1849,20 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       console.log(`✅ [CONFIDENCE-1] Tournament match ${tournament_match_id} updated with match_id ${matchId}`);
     }
 
-    // If this replay is linked to a tournament_round_match, update series + participant stats
+    // STEP 3: Update tournament series and participant stats (use mapped winnerIdForTournament)
     console.log(`🎯 [CONFIDENCE-1] Checking tournament_round_match:`, {
       tournament_round_match_id: replay.tournament_round_match_id,
-      will_update: !!replay.tournament_round_match_id
+      will_update: !!replay.tournament_round_match_id,
+      isMappedTeamId: winnerIdForTournament !== winnerId
     });
     
-        if (replay.tournament_round_match_id) {
-      // For team tournaments: need to pass team_id, not player_id
-      // Get tournament_mode and map player to team if needed
-      let winnerIdForMatch = winnerId;  // Default: player ID
-      
-      const tmodeResult = await query(
-        `SELECT t.tournament_mode, t.id as tournament_id 
-         FROM tournaments t 
-         JOIN tournament_rounds tr ON tr.tournament_id = t.id 
-         JOIN tournament_round_matches trm ON trm.round_id = tr.id
-         WHERE trm.id = ?`,
-        [replay.tournament_round_match_id]
-      );
-      
-      if (tmodeResult.rows.length > 0) {
-        const { tournament_mode, tournament_id } = (tmodeResult as any).rows[0];
-        
-        if (tournament_mode === 'team') {
-          // Team tournament: map winning player to their team_id
-          const teamResult = await query(
-            `SELECT team_id FROM tournament_participants 
-             WHERE tournament_id = ? AND user_id = ?`,
-            [tournament_id, winnerId]
-          );
-          
-          if (teamResult.rows.length > 0) {
-            winnerIdForMatch = (teamResult as any).rows[0].team_id;
-            console.log(`🎯 [CONFIDENCE-1] Team tournament detected. Mapped player ${winnerId} → team ${winnerIdForMatch}`);
-          } else {
-            console.error(`❌ [CONFIDENCE-1] Team tournament but player not found in tournament_participants`);
-            return res.status(400).json({ error: 'Player not in tournament team' });
-          }
-        }
-      }
-      
+    if (replay.tournament_round_match_id) {
       console.log(`🎯 [CONFIDENCE-1] Calling updateTournamentRoundMatch with:`, {
         roundMatchId: replay.tournament_round_match_id,
-        winnerId: winnerIdForMatch,
-        isMappedTeamId: winnerIdForMatch !== winnerId
+        winnerId: winnerIdForTournament,
+        isMappedTeamId: winnerIdForTournament !== winnerId
       });
-      const seriesResult = await updateTournamentRoundMatch(replay.tournament_round_match_id, winnerIdForMatch);
+      const seriesResult = await updateTournamentRoundMatch(replay.tournament_round_match_id, winnerIdForTournament);
       console.log(`🎯 [CONFIDENCE-1] updateTournamentRoundMatch returned:`, seriesResult);
       
       if (seriesResult.seriesCompleted && seriesResult.tournamentId) {
