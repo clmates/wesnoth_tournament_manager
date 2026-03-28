@@ -1768,12 +1768,47 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       will_update: !!replay.tournament_round_match_id
     });
     
-    if (replay.tournament_round_match_id) {
+        if (replay.tournament_round_match_id) {
+      // For team tournaments: need to pass team_id, not player_id
+      // Get tournament_mode and map player to team if needed
+      let winnerIdForMatch = winnerId;  // Default: player ID
+      
+      const tmodeResult = await query(
+        `SELECT t.tournament_mode, t.id as tournament_id 
+         FROM tournaments t 
+         JOIN tournament_rounds tr ON tr.tournament_id = t.id 
+         JOIN tournament_round_matches trm ON trm.round_id = tr.id
+         WHERE trm.id = ?`,
+        [replay.tournament_round_match_id]
+      );
+      
+      if (tmodeResult.rows.length > 0) {
+        const { tournament_mode, tournament_id } = (tmodeResult as any).rows[0];
+        
+        if (tournament_mode === 'team') {
+          // Team tournament: map winning player to their team_id
+          const teamResult = await query(
+            `SELECT team_id FROM tournament_participants 
+             WHERE tournament_id = ? AND user_id = ?`,
+            [tournament_id, winnerId]
+          );
+          
+          if (teamResult.rows.length > 0) {
+            winnerIdForMatch = (teamResult as any).rows[0].team_id;
+            console.log(`🎯 [CONFIDENCE-1] Team tournament detected. Mapped player ${winnerId} → team ${winnerIdForMatch}`);
+          } else {
+            console.error(`❌ [CONFIDENCE-1] Team tournament but player not found in tournament_participants`);
+            return res.status(400).json({ error: 'Player not in tournament team' });
+          }
+        }
+      }
+      
       console.log(`🎯 [CONFIDENCE-1] Calling updateTournamentRoundMatch with:`, {
         roundMatchId: replay.tournament_round_match_id,
-        winnerId
+        winnerId: winnerIdForMatch,
+        isMappedTeamId: winnerIdForMatch !== winnerId
       });
-      const seriesResult = await updateTournamentRoundMatch(replay.tournament_round_match_id, winnerId);
+      const seriesResult = await updateTournamentRoundMatch(replay.tournament_round_match_id, winnerIdForMatch);
       console.log(`🎯 [CONFIDENCE-1] updateTournamentRoundMatch returned:`, seriesResult);
       
       if (seriesResult.seriesCompleted && seriesResult.tournamentId) {
