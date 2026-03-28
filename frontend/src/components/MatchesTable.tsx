@@ -235,9 +235,6 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>S{match.winner_side}</span>
                         )}
                       </div>
-                      <div className="text-xs text-yellow-600 italic">
-                        {t('replay_auto_detected')}
-                      </div>
                     </div>
                   </td>
 
@@ -252,15 +249,11 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                           <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>S{match.winner_side === 1 ? 2 : 1}</span>
                         )}
                       </div>
-                      <div className="text-xs text-yellow-600 italic">
-                        {t('replay_auto_detected')}
-                      </div>
                     </div>
                   </td>
 
                   <td className="px-4 py-3 text-sm">
                     <div className="font-semibold text-yellow-900">{map}</div>
-                    <div className="text-xs text-yellow-600 mt-1">{t('replay_unparsed')}</div>
                     {(match.replay_filename || match.game_name) && (
                       <div className="text-xs text-yellow-700 mt-1 font-mono bg-yellow-100 px-2 py-1 rounded truncate max-w-[200px]" title={match.replay_filename || match.game_name}>
                         📄 {match.replay_filename || match.game_name}

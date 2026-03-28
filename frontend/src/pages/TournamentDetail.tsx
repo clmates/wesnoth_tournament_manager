@@ -1670,7 +1670,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                  <div className="flex flex-col gap-2">
                                    <div>
                                      {isPendingReplay ? (
-                                       <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-yellow-500">🎬 {t('replay_auto_detected') || 'Replay Auto-Detected'}</span>
+                                       <></>
                                      ) : isAdminDetermined ? (
                                        <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-purple-500">{t('admin_tag')}</span>
                                      ) : confirmationStatus === 'confirmed' ? (
