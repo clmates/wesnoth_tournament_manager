@@ -1046,10 +1046,16 @@ export class ParseNewReplaysRefactorized {
       forumPlayerByUserId[fp.user_id] = fp;
     });
     
+    console.log(`   [TEAM TOURNAMENT] Debug: forumPlayerByUserId keys = ${Object.keys(forumPlayerByUserId).join(', ')}`);
+    console.log(`   [TEAM TOURNAMENT] Debug: users array length = ${users.length}`);
+    console.log(`   [TEAM TOURNAMENT] Debug: users = ${JSON.stringify(users.map((u: any) => ({ id: u?.id, user_id: u?.user_id, nickname: u?.nickname })))}`);
+    
     // Build detectedTeams for both teams
     for (const currentTeamId of [team1, team2]) {
       const teamPlayers = participants.filter((p: any) => p.team_id === currentTeamId);
       const teamName = teamNamesMap[currentTeamId] || 'Unknown Team';
+      
+      console.log(`   [TEAM TOURNAMENT] Processing team ${teamName}: teamPlayers = ${JSON.stringify(teamPlayers)}`);
       
       // Get player names and sides from forumPlayers using user mapping
       const playerNicknames: string[] = [];
@@ -1057,13 +1063,19 @@ export class ParseNewReplaysRefactorized {
       const playerFactions: string[] = [];
       
       for (const participant of teamPlayers) {
+        console.log(`      [TEAM TOURNAMENT] Looking for participant user_id=${participant.user_id}`);
         // participant.user_id is the UUID, find the forum player by matching userIds
-        const matchingUser = users.find((u: any) => u.id === participant.user_id);
+        const matchingUser = users.find((u: any) => u && u.id === participant.user_id);
+        console.log(`      [TEAM TOURNAMENT] Found matchingUser: ${matchingUser ? JSON.stringify({id: matchingUser.id, user_id: matchingUser.user_id, nickname: matchingUser.nickname}) : 'NOT FOUND'}`);
+        
         if (matchingUser && forumPlayerByUserId[matchingUser.user_id]) {
           const forumPlayer = forumPlayerByUserId[matchingUser.user_id];
+          console.log(`      [TEAM TOURNAMENT] Found forumPlayer: ${JSON.stringify({user_name: forumPlayer.user_name, side_number: forumPlayer.side_number, faction: forumPlayer.faction})}`);
           playerNicknames.push(forumPlayer.user_name);
           playerSides.push(forumPlayer.side_number);
           playerFactions.push(forumPlayer.faction);
+        } else {
+          console.log(`      [TEAM TOURNAMENT] ❌ No forumPlayer found for user_id=${matchingUser?.user_id}`);
         }
       }
       
