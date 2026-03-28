@@ -547,69 +547,76 @@ export class ParseNewReplaysRefactorized {
       }
     }
 
-    // ======== VALIDATE AND RESOLVE FACTIONS (only for ranked paths) ========
-    console.log(`🔍 [PARSE] Validating factions against factions table...`);
-    let allRanked = true;
-    for (const player of parseSummary.forumPlayers) {
-      const sideKey = `side${player.side_number}`;
-      const forumFaction = parseSummary.forumFactions[sideKey] || '';
-      const isCustom = forumFaction.toLowerCase().includes('custom');
-
-      const factionRaw = isCustom
-        ? (parseSummary.wmlPlayerFactions[player.user_name] || 'Unknown')
-        : forumFaction;
-
-      const resolved = await this.resolveFaction(factionRaw);
-
-      parseSummary.resolvedFactions[sideKey] = resolved.name;
-      parseSummary.finalFactions[sideKey] = resolved.name || 'Unknown';
-      if (!resolved.isRanked) allRanked = false;
-
-      if (resolved.name !== factionRaw) {
-        console.log(`   ✅ ${player.user_name} (side ${player.side_number}): "${factionRaw}" → "${resolved.name}" (ranked: ${resolved.isRanked})`);
-      } else {
-        console.log(`   ✅ ${player.user_name} (side ${player.side_number}): "${resolved.name}" (ranked: ${resolved.isRanked})`);
-      }
-    }
-    parseSummary.factionsAreRanked = allRanked;
-
-    // ======== VALIDATE AND RESOLVE MAP ========
-    console.log(`🔍 [PARSE] Validating map against game_maps table...`);
-    const mapRaw = parseSummary.forumMap || 'Unknown';
-    const mapId = parseSummary.forumMapId || null;
-    const mapResolved = await this.resolveMap(mapRaw, mapId);
-    parseSummary.finalMap = mapResolved.name;
-    parseSummary.resolvedMap = mapResolved.name;
-    parseSummary.mapIsRanked = mapResolved.isRanked;
-
-    if (mapResolved.name !== mapRaw) {
-      console.log(`   ✅ Map: "${mapRaw}" → "${mapResolved.name}" (ranked: ${mapResolved.isRanked})`);
+    // ======== VALIDATE AND RESOLVE FACTIONS AND MAP ========
+    // Only needed for ranked matches and ranked tournaments
+    // Team tournaments skip asset validation (only users, teams, rounds, matches)
+    if (parseSummary.matchType === 'tournament_unranked') {
+      // Team tournament - skip asset validation
+      console.log(`🔍 [PARSE] Skipping asset validation (team tournament)`);
+      // matchType remains 'tournament_unranked', will proceed to linkToTournament
     } else {
-      console.log(`   ✅ Map: "${mapResolved.name}" (ranked: ${mapResolved.isRanked})`);
-    }
+      // Need to validate factions and map for ranked paths
+      console.log(`🔍 [PARSE] Validating factions against factions table...`);
+      let allRanked = true;
+      for (const player of parseSummary.forumPlayers) {
+        const sideKey = `side${player.side_number}`;
+        const forumFaction = parseSummary.forumFactions[sideKey] || '';
+        const isCustom = forumFaction.toLowerCase().includes('custom');
 
-    // ======== FINALIZE MATCH TYPE for ranked paths ========
-    if (parseSummary.detectedTournament) {
-      // ranked_mode=true + ranked tournament: validate assets
-      if (parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
-        parseSummary.matchType = 'tournament_ranked';
-        console.log(`   ✅ ranked_mode=true + ranked tournament + ranked assets → TOURNAMENT_RANKED`);
-      } else {
-        parseSummary.matchType = 'rejected';
-        console.log(`   ❌ ranked tournament but assets are not ranked → REJECTED`);
+        const factionRaw = isCustom
+          ? (parseSummary.wmlPlayerFactions[player.user_name] || 'Unknown')
+          : forumFaction;
+
+        const resolved = await this.resolveFaction(factionRaw);
+
+        parseSummary.resolvedFactions[sideKey] = resolved.name;
+        parseSummary.finalFactions[sideKey] = resolved.name || 'Unknown';
+        if (!resolved.isRanked) allRanked = false;
+
+        if (resolved.name !== factionRaw) {
+          console.log(`   ✅ ${player.user_name} (side ${player.side_number}): "${factionRaw}" → "${resolved.name}" (ranked: ${resolved.isRanked})`);
+        } else {
+          console.log(`   ✅ ${player.user_name} (side ${player.side_number}): "${resolved.name}" (ranked: ${resolved.isRanked})`);
+        }
       }
-    } else {
-      // Generic ranked match (no tournament)
-      const eligibilityRejection = await this.checkRankedEligibility(parseSummary.forumPlayers);
-      if (eligibilityRejection) {
-        parseSummary.matchType = 'rejected';
-        console.log(`   ❌ ${eligibilityRejection} → REJECTED`);
-      } else if (parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
-        parseSummary.matchType = 'ranked';
-        console.log(`   ✅ ranked_mode=true, factions ranked, map ranked → RANKED`);
+      parseSummary.factionsAreRanked = allRanked;
+
+      // ======== VALIDATE AND RESOLVE MAP ========
+      console.log(`🔍 [PARSE] Validating map against game_maps table...`);
+      const mapRaw = parseSummary.forumMap || 'Unknown';
+      const mapId = parseSummary.forumMapId || null;
+      const mapResolved = await this.resolveMap(mapRaw, mapId);
+      parseSummary.finalMap = mapResolved.name;
+      parseSummary.resolvedMap = mapResolved.name;
+      parseSummary.mapIsRanked = mapResolved.isRanked;
+
+      if (mapResolved.name !== mapRaw) {
+        console.log(`   ✅ Map: "${mapRaw}" → "${mapResolved.name}" (ranked: ${mapResolved.isRanked})`);
       } else {
-        parseSummary.matchType = 'rejected';
-        console.log(`   ❌ ranked_mode=true but assets not ranked and no tournament → REJECTED`);
+        console.log(`   ✅ Map: "${mapResolved.name}" (ranked: ${mapResolved.isRanked})`);
+      }
+
+      // ======== FINALIZE MATCH TYPE for ranked paths ========
+      if (parseSummary.matchType === 'tournament_ranked') {
+        // ranked_mode=true + ranked tournament: validate assets
+        if (parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
+          console.log(`   ✅ ranked tournament + ranked assets → TOURNAMENT_RANKED`);
+        } else {
+          parseSummary.matchType = 'rejected';
+          console.log(`   ❌ ranked tournament but assets are not ranked → REJECTED`);
+        }
+      } else if (parseSummary.matchType === 'ranked') {
+        // Direct ranked match - validate assets and eligibility
+        const eligibilityRejection = await this.checkRankedEligibility(parseSummary.forumPlayers);
+        if (eligibilityRejection) {
+          parseSummary.matchType = 'rejected';
+          console.log(`   ❌ ${eligibilityRejection} → REJECTED`);
+        } else if (parseSummary.factionsAreRanked && parseSummary.mapIsRanked) {
+          console.log(`   ✅ Direct ranked match + ranked assets → RANKED`);
+        } else {
+          parseSummary.matchType = 'rejected';
+          console.log(`   ❌ ranked mode but assets not ranked and no tournament → REJECTED`);
+        }
       }
     }
 
