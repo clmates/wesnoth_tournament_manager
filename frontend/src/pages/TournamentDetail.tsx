@@ -24,6 +24,7 @@ function parseReplaySummary(summaryJson: string | null): {
   winnerTeamFactions: string[] | null;
   loserTeamFactions: string[] | null;
   wmlTeams: Record<string, string> | null;
+  detectedTeams: Record<string, any> | null;
 } {
   const empty = {
     winnerName: null,
@@ -37,6 +38,7 @@ function parseReplaySummary(summaryJson: string | null): {
     winnerTeamFactions: null,
     loserTeamFactions: null,
     wmlTeams: null,
+    detectedTeams: null,
   };
   
   if (!summaryJson) return empty;
@@ -44,38 +46,40 @@ function parseReplaySummary(summaryJson: string | null): {
   try {
     const summary = JSON.parse(summaryJson);
     const victory = summary.replayVictory;
-    const teams = summary.teams || {};
+    const detectedTeams = summary.detectedTeams || null;
     const wmlTeams = summary.wmlTeams || {};
-    const forumPlayers = summary.forumPlayers || [];
     
-    // Build a map of side_number -> faction from forum players
-    const sideFactions: Record<number, string> = {};
-    forumPlayers.forEach((p: any) => {
-      if (p.side_number && p.faction) {
-        sideFactions[p.side_number] = p.faction;
+    let winnerTeamFactions: string[] | null = null;
+    let loserTeamFactions: string[] | null = null;
+    let winnerTeamName: string | null = null;
+    let loserTeamName: string | null = null;
+    
+    // If detectedTeams is available (team tournament), use it to get faction info
+    if (detectedTeams && typeof detectedTeams === 'object') {
+      // Find which team the winner belongs to
+      let winnerTeam: any = null;
+      let loserTeam: any = null;
+      
+      // Check each team to see if winner player is in their members
+      Object.values(detectedTeams).forEach((team: any) => {
+        if (team.members && Array.isArray(team.members) && team.members.includes(victory?.winner_name)) {
+          winnerTeam = team;
+        }
+        if (team.members && Array.isArray(team.members) && team.members.includes(victory?.loser_name)) {
+          loserTeam = team;
+        }
+      });
+      
+      if (winnerTeam) {
+        winnerTeamName = winnerTeam.team_name;
+        winnerTeamFactions = winnerTeam.factions || null;
       }
-    });
-    
-    // Get the team name for winner and loser sides
-    const winnerTeamWml = victory?.winner_side ? wmlTeams[victory.winner_side] : null;
-    const loserTeamWml = victory?.loser_side ? wmlTeams[victory.loser_side] : null;
-    
-    // Find all sides that belong to winner and loser teams
-    const winnerTeamSides: number[] = [];
-    const loserTeamSides: number[] = [];
-    
-    Object.entries(wmlTeams).forEach(([sideStr, teamName]) => {
-      const side = parseInt(sideStr);
-      if (teamName === winnerTeamWml) {
-        winnerTeamSides.push(side);
-      } else if (teamName === loserTeamWml) {
-        loserTeamSides.push(side);
+      
+      if (loserTeam) {
+        loserTeamName = loserTeam.team_name;
+        loserTeamFactions = loserTeam.factions || null;
       }
-    });
-    
-    // Get factions for all sides in each team
-    const winnerTeamFactions = winnerTeamSides.map(side => sideFactions[side]).filter(Boolean);
-    const loserTeamFactions = loserTeamSides.map(side => sideFactions[side]).filter(Boolean);
+    }
     
     return {
       winnerName: victory?.winner_name || null,
@@ -84,11 +88,12 @@ function parseReplaySummary(summaryJson: string | null): {
       winnerFaction: victory?.winner_faction || null,
       loserFaction: victory?.loser_faction || null,
       winnerSide: victory?.winner_side || null,
-      winnerTeamName: victory?.winner_side ? teams[victory.winner_side] || null : null,
-      loserTeamName: victory?.loser_side ? teams[victory.loser_side] || null : null,
-      winnerTeamFactions: winnerTeamFactions.length > 0 ? winnerTeamFactions : null,
-      loserTeamFactions: loserTeamFactions.length > 0 ? loserTeamFactions : null,
+      winnerTeamName,
+      loserTeamName,
+      winnerTeamFactions,
+      loserTeamFactions,
       wmlTeams,
+      detectedTeams,
     };
   } catch {
     return empty;
@@ -1579,7 +1584,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                            const isPendingReplay = match.pending_replay_id && match.pending_replay_confidence === 1 && !match.winner_id && match.pending_replay_need_integration;
                            
                             // Extract replay data if pending
-                            let replayData = { winnerName: null, loserName: null, map: null, winnerFaction: null, loserFaction: null, winnerSide: null, winnerTeamName: null, loserTeamName: null, winnerTeamFactions: null, loserTeamFactions: null, wmlTeams: null };
+                            let replayData = { winnerName: null, loserName: null, map: null, winnerFaction: null, loserFaction: null, winnerSide: null, winnerTeamName: null, loserTeamName: null, winnerTeamFactions: null, loserTeamFactions: null, wmlTeams: null, detectedTeams: null };
                             if (isPendingReplay && match.pending_replay_summary) {
                               replayData = parseReplaySummary(match.pending_replay_summary);
                             }
@@ -1689,20 +1694,39 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                <td className="px-4 py-3 text-gray-700">
                                  <div className="flex flex-col gap-1">
                                    <span>{displayMap || '-'}</span>
-                                   {isPendingReplay && match.is_team_mode && replayData.winnerTeamFactions ? (
+                                   {isPendingReplay && match.is_team_mode && replayData.detectedTeams ? (
                                       <div className="flex flex-col gap-2 text-xs text-gray-600 mt-1">
-                                        <div className="flex flex-wrap gap-1 items-center">
-                                          <span className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold">S1 ({match.player1_nickname})</span>
-                                          {replayData.winnerTeamFactions.map((faction, idx) => (
-                                            <span key={idx} className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{faction}</span>
-                                          ))}
-                                        </div>
-                                        <div className="flex flex-wrap gap-1 items-center">
-                                          <span className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-semibold">S2 ({match.player2_nickname})</span>
-                                          {replayData.loserTeamFactions?.map((faction, idx) => (
-                                            <span key={idx} className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 rounded">{faction}</span>
-                                          ))}
-                                        </div>
+                                        {(() => {
+                                          // Determine S1 and S2 teams based on WML team names
+                                          let s1Team: any = null;
+                                          let s2Team: any = null;
+                                          
+                                          Object.values(replayData.detectedTeams).forEach((team: any) => {
+                                            if (team.sides && team.sides.includes(1)) s1Team = team;
+                                            if (team.sides && team.sides.includes(2)) s2Team = team;
+                                          });
+                                          
+                                          return (
+                                            <>
+                                              {s1Team && (
+                                                <div className="flex flex-wrap gap-1 items-center">
+                                                  <span className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold">S1 ({s1Team.team_wml_name})</span>
+                                                  {s1Team.factions?.map((faction, idx) => (
+                                                    <span key={idx} className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{faction}</span>
+                                                  ))}
+                                                </div>
+                                              )}
+                                              {s2Team && (
+                                                <div className="flex flex-wrap gap-1 items-center">
+                                                  <span className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-semibold">S2 ({s2Team.team_wml_name})</span>
+                                                  {s2Team.factions?.map((faction, idx) => (
+                                                    <span key={idx} className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 rounded">{faction}</span>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </>
+                                          );
+                                        })()}
                                       </div>
                                     ) : (
                                       <div className="flex flex-wrap gap-1 items-center text-xs text-gray-600 mt-1">
