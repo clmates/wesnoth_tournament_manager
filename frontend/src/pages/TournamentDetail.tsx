@@ -1382,11 +1382,11 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               {rounds.length > 0 ? (
                   <>
                     {rounds.map((round) => {
-                      const roundMatchesForRound = roundMatches.filter(
-                        (m) => m.round_id === round.id && m.series_status !== "completed"
+                      const scheduledMatches = matches.filter(
+                        (m) => m.round_id === round.id && m.match_status === 'pending'
                       );
                       
-                      if (roundMatchesForRound.length === 0) return null;
+                      if (scheduledMatches.length === 0) return null;
                       
                       return (
                         <div key={round.id} className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
@@ -1401,23 +1401,15 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           <table className="w-full text-sm">
                             <thead className="bg-gray-200">
                               <tr>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{roundMatchesForRound.length > 0 && roundMatchesForRound[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{scheduledMatches.length > 0 && scheduledMatches[0].is_team_mode ? t('label_team1') : t('label_player1')}</th>
                                 <th className="px-4 py-3 text-center font-semibold text-gray-700">vs</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{roundMatchesForRound.length > 0 && roundMatchesForRound[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_play_before')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{scheduledMatches.length > 0 && scheduledMatches[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
+                                <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_map')}</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_status')}</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {roundMatchesForRound.map((match) => {
-                                // Calculate play before date: round_start_date + round_duration_days
-                                let playBeforeDate = '-';
-                                if (round.round_start_date && tournament?.round_duration_days) {
-                                  const startDate = new Date(round.round_start_date);
-                                  const endDate = new Date(startDate.getTime() + (tournament.round_duration_days * 24 * 60 * 60 * 1000));
-                                  playBeforeDate = formatDate(endDate.toISOString());
-                                }
-
+                              {scheduledMatches.map((match) => {
                                 // Check if current user is one of the players/teams
                                 let isPlayer = false;
                                 if (match.is_team_mode) {
@@ -1427,116 +1419,26 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   // 1v1 mode: compare user_id directly
                                   isPlayer = userId === match.player1_id || userId === match.player2_id;
                                 }
-
-                                console.log('Match Debug:', {
-                                  matchId: match.id,
-                                  player1_id: match.player1_id,
-                                  player2_id: match.player2_id,
-                                  userId: userId,
-                                  isPlayer: isPlayer,
-                                  match_status: match.match_status,
-                                  round_status: round.round_status,
-                                  is_team_mode: match.is_team_mode
-                                });
                                 
                                 return (
                                   <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                                     <td className="px-4 py-3 text-gray-700">
                                       <div className="flex items-center gap-2">
                                         <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
-                                        <StarDisplay rating={match.player1_rating} size="sm" />
                                       </div>
                                     </td>
                                     <td className="px-4 py-3 text-gray-700">vs</td>
                                     <td className="px-4 py-3 text-gray-700">
                                       <div className="flex items-center gap-2">
                                         <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
-                                        <StarDisplay rating={match.player2_rating} size="sm" />
                                       </div>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-700">{playBeforeDate}</td>
+                                    <td className="px-4 py-3 text-gray-700">{match.map || '-'}</td>
                                     <td className="px-4 py-3 text-gray-700">
                                       <div className="flex gap-2 items-center flex-wrap">
                                         <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold text-white bg-yellow-500">
                                            {t('option_pending')}
                                          </span>
-                                                                                {/* Inline replay confirmation for auto-detected matches */}
-                                        {match.pending_replay_id && !!match.pending_replay_need_integration && !match.winner_id && (() => {
-                                          console.log(`🎬 [RENDER] Match ${match.id} has replay:`, {
-                                            pending_replay_id: match.pending_replay_id,
-                                            pending_replay_need_integration: match.pending_replay_need_integration,
-                                            winner_id: match.winner_id,
-                                            summary_snippet: match.pending_replay_summary ? match.pending_replay_summary.substring(0, 100) : null
-                                          });
-                                          const summary = (() => { try { return JSON.parse(match.pending_replay_summary); } catch { return null; } })();
-                                          const replayObj = {
-                                            id: match.pending_replay_id,
-                                            player1_nickname: match.player1_nickname,
-                                            player2_nickname: match.player2_nickname,
-                                            map: summary?.finalMap || summary?.resolvedMap || '',
-                                            winner_faction: summary?.finalFactions?.side1 || '',
-                                            loser_faction: summary?.finalFactions?.side2 || '',
-                                            tournament_match_id: null,
-                                            tournament_round_match_id: match.id,
-                                            replay_url: match.pending_replay_url || null,
-                                            replay_filename: match.pending_replay_filename || null,
-                                            game_name: match.pending_replay_game_name || null,
-                                            cancel_requested_by: match.pending_replay_cancel_requested_by || null,
-                                          };
-                                          const isInvolved = user && (user.id === match.player1_id || user.id === match.player2_id);
-                                          return (
-                                            <div className="flex flex-col gap-1 mt-1">
-                                              <span className="text-xs text-blue-600 font-semibold">🎬 {t('replay_auto_detected') || 'Replay detected'}</span>
-                                              {match.pending_replay_url && (
-                                                <a href={match.pending_replay_url} target="_blank" rel="noopener noreferrer"
-                                                  className="text-xs text-blue-500 underline truncate max-w-[180px]" title={match.pending_replay_filename || ''}>
-                                                  📥 {t('download_replay') || 'Download replay'}
-                                                </a>
-                                              )}
-                                              {match.pending_replay_confidence === 2 ? (
-                                                <span className="text-xs text-green-600">✅ {t('auto_confirmed') || 'Auto-confirmed'}</span>
-                                              ) : isInvolved ? (
-                                                <>
-                                                  {replayObj.cancel_requested_by && (
-                                                    <div className="text-xs text-gray-600 bg-gray-100 border border-gray-300 rounded px-2 py-1">
-                                                      🚫 {t('cancel_requested_waiting') || 'Cancel requested — waiting for other player'}
-                                                    </div>
-                                                  )}
-                                                  <div className="flex gap-1 flex-wrap">
-                                                    <button
-                                                      className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
-                                                      onClick={() => handleOpenReplayModal(replayObj, 'I won')}
-                                                    >{t('replay_i_won') || 'I won'}</button>
-                                                    <button
-                                                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                                                      onClick={() => handleOpenReplayModal(replayObj, 'I lost')}
-                                                    >{t('replay_i_lost') || 'I lost'}</button>
-                                                    <button
-                                                      className="px-2 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
-                                                      onClick={() => handleOpenReplayModal(replayObj, 'cancel')}
-                                                      title={t('button_cancel_replay') || 'Discard Match'}
-                                                    >🚫 {t('button_cancel_replay') || 'Discard'}</button>
-                                                  </div>
-                                                </>
-                                              ) : (
-                                                <span className="text-xs text-gray-500">{t('pending_player_confirmation') || 'Pending confirmation'}</span>
-                                              )}
-                                            </div>
-                                          );
-                                        })()}
-
-                                        {isCreator && (round.round_status === 'completed' || round.round_status === 'in_progress') && !match.winner_id && (
-                                          <button
-                                            className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
-                                            onClick={() => {
-                                              setDetermineWinnerData(match);
-                                              setShowDetermineWinnerModal(true);
-                                            }}
-                                            title={t('determine_winner')}
-                                          >
-                                            {t('determine_winner')}
-                                          </button>
-                                        )}
                                       </div>
                                     </td>
                                   </tr>
@@ -1976,7 +1878,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6 overflow-x-auto">
           {rounds.length > 0 ? (
             <>
-              {[...rounds].reverse().map((round) => {
+              {rounds.map((round) => {
                 const matchesInRound = roundMatches.filter((m) => m.round_id === round.id);
                 
                 if (matchesInRound.length === 0) return null;
