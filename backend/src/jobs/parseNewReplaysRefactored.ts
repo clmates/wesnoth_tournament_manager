@@ -487,11 +487,23 @@ export class ParseNewReplaysRefactorized {
           parseSummary.detectedTournament = tournament;
           console.log(`   🏆 Detected tournament: "${tournament.name}" (mode=${tournament.tournament_mode})`);
 
-          // ranked_mode=false means unranked; any tournament found is valid
-          // Tournament modes are: team, 1v1, league, swiss, elimination (all are unranked when ranked_mode=false)
-          parseSummary.matchType = 'tournament_unranked';
-          console.log(`   ✅ ranked_mode=false + found tournament (${tournament.tournament_mode} mode) → TOURNAMENT_UNRANKED`);
-          // Continue processing (linkToTournament will validate team/player linking)
+          // ranked_mode=false means the replay is unranked
+          // Valid tournament modes for unranked replays: 'unranked' or 'team'
+          if (tournament.tournament_mode === 'unranked' || tournament.tournament_mode === 'team') {
+            parseSummary.matchType = 'tournament_unranked';
+            console.log(`   ✅ ranked_mode=false + tournament mode="${tournament.tournament_mode}" → TOURNAMENT_UNRANKED`);
+            // Continue processing (linkToTournament will validate team/player linking)
+          } else if (tournament.tournament_mode === 'ranked') {
+            // ranked_mode=false but tournament is ranked → mismatch
+            parseSummary.matchType = 'rejected';
+            console.log(`   ❌ ranked_mode=false but tournament mode is "ranked" → REJECTED (mismatch)`);
+            return parseSummary;
+          } else {
+            // Unknown tournament_mode
+            parseSummary.matchType = 'rejected';
+            console.log(`   ❌ Unknown tournament mode: "${tournament.tournament_mode}" → REJECTED`);
+            return parseSummary;
+          }
         } else {
           // Not found by game_name - still mark as potential tournament for linkToTournament
           console.log(`   ⚠️  No tournament found by game_name, will try linkToTournament by players...`);
@@ -499,9 +511,40 @@ export class ParseNewReplaysRefactorized {
         }
       }
     } else {
-      // ranked_mode=true → direct ranked match (no tournament search)
-      parseSummary.matchType = 'ranked';
-      console.log(`   ✅ ranked_mode=true → RANKED (direct match, no tournament)`);
+      // ranked_mode=true → search for ranked tournaments
+      console.log(`   ℹ️  ranked_mode=true (ranked) → Searching for ranked tournament in database...`);
+      
+      // Use game_name from forum DB as tournament search key
+      const searchName = (replay.game_name || '').toLowerCase();
+      console.log(`   [TOURNAMENT] Searching for ranked tournament by game_name: "${searchName}"`);
+      
+      if (!searchName) {
+        // No game_name, fall back to direct ranked match
+        console.log(`   ⚠️  No game_name available, treating as direct ranked match`);
+        parseSummary.matchType = 'ranked';
+      } else {
+        const tournResult = await query(
+          `SELECT id, name, tournament_mode FROM tournaments
+           WHERE status = 'in_progress' AND tournament_mode = 'ranked' AND LOWER(name) = LOWER(?)
+           LIMIT 1`,
+          [searchName]
+        );
+        const tournaments = (tournResult as any).rows || [];
+
+        if (tournaments.length > 0) {
+          // Found a ranked tournament
+          const tournament = tournaments[0];
+          parseSummary.detectedTournament = tournament;
+          console.log(`   🏆 Detected ranked tournament: "${tournament.name}"`);
+          parseSummary.matchType = 'tournament_ranked';
+          console.log(`   ✅ ranked_mode=true + found ranked tournament → TOURNAMENT_RANKED`);
+          // Continue processing (linkToTournament will validate player linking)
+        } else {
+          // Not found by game_name - treat as direct ranked match
+          console.log(`   ⚠️  No ranked tournament found by game_name, treating as direct ranked match`);
+          parseSummary.matchType = 'ranked';
+        }
+      }
     }
 
     // ======== VALIDATE AND RESOLVE FACTIONS (only for ranked paths) ========
