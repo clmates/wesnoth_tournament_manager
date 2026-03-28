@@ -1716,35 +1716,92 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
 
     // If this replay is linked to a tournament_round_match, create/update tournament_matches entry
     if (replay.tournament_round_match_id) {
-      console.log(`🎯 [CONFIDENCE-1] Creating tournament_matches entry for round match ${replay.tournament_round_match_id}`);
+      console.log(`🎯 [CONFIDENCE-1] Processing tournament_matches for round match ${replay.tournament_round_match_id}`);
       
-      // Get tournament_round_match details
+      // Get tournament_round_match details AND tournament type
       const roundMatchResult = await query(
-        `SELECT tournament_id, round_id, player1_id, player2_id FROM tournament_round_matches WHERE id = ?`,
+        `SELECT trm.tournament_id, trm.round_id, trm.player1_id, trm.player2_id, t.tournament_type
+         FROM tournament_round_matches trm
+         JOIN tournaments t ON trm.tournament_id = t.id
+         WHERE trm.id = ?`,
         [replay.tournament_round_match_id]
       );
       
       if (roundMatchResult.rows.length > 0) {
-        const roundMatch = roundMatchResult.rows[0];
+        const roundMatch = (roundMatchResult as any).rows[0];
+        const isLeagueTournament = roundMatch.tournament_type === 'league';
         
-        // Create tournament_matches entry
-        const tournamentMatchId = uuidv4();
-        await query(
-          `INSERT INTO tournament_matches 
-           (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?)`,
-          [
-            tournamentMatchId,
-            roundMatch.tournament_id,
-            roundMatch.round_id,
-            roundMatch.player1_id,
-            roundMatch.player2_id,
-            matchId,
-            winnerId,
-            replay.tournament_round_match_id
-          ]
-        );
-        console.log(`✅ [CONFIDENCE-1] Created tournament_matches entry: ${tournamentMatchId}`);
+        // For league tournaments: tournament_matches are PRE-GENERATED
+        // For other types: tournament_matches are created on demand
+        if (isLeagueTournament) {
+          console.log(`🎯 [CONFIDENCE-1] League tournament detected - searching for existing tournament_matches...`);
+          
+          // Search for existing tournament_matches (pre-generated for league)
+          const existingMatchResult = await query(
+            `SELECT id FROM tournament_matches
+             WHERE tournament_id = ?
+               AND round_id = ?
+               AND ((player1_id = ? AND player2_id = ?) 
+                    OR (player1_id = ? AND player2_id = ?))
+             LIMIT 1`,
+            [
+              roundMatch.tournament_id, roundMatch.round_id,
+              roundMatch.player1_id, roundMatch.player2_id,
+              roundMatch.player2_id, roundMatch.player1_id
+            ]
+          );
+          
+          if (existingMatchResult.rows.length > 0) {
+            // UPDATE existing record
+            const existingId = (existingMatchResult as any).rows[0].id;
+            await query(
+              `UPDATE tournament_matches 
+               SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP
+               WHERE id = ?`,
+              [tournamentMode === 'ranked' ? matchId : null, winnerId, existingId]
+            );
+            console.log(`✅ [CONFIDENCE-1] League tournament_matches updated: ${existingId}`);
+          } else {
+            console.warn(`⚠️  [CONFIDENCE-1] League tournament but no pre-generated tournament_matches found!`);
+          }
+        } else {
+          // Non-league tournament: check if record exists (shouldn't normally, but handle resumable matches)
+          const existingMatchResult = await query(
+            `SELECT id FROM tournament_matches WHERE tournament_round_match_id = ?`,
+            [replay.tournament_round_match_id]
+          );
+          
+          if (existingMatchResult.rows.length > 0) {
+            // UPDATE existing record (resumable match)
+            const existingId = (existingMatchResult as any).rows[0].id;
+            await query(
+              `UPDATE tournament_matches 
+               SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP
+               WHERE id = ?`,
+              [tournamentMode === 'ranked' ? matchId : null, winnerId, existingId]
+            );
+            console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches updated (resumable): ${existingId}`);
+          } else {
+            // INSERT new record (normal case for non-league)
+            const tournamentMatchId = uuidv4();
+            await query(
+              `INSERT INTO tournament_matches 
+               (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?)`,
+              [
+                tournamentMatchId,
+                roundMatch.tournament_id,
+                roundMatch.round_id,
+                roundMatch.player1_id,
+                roundMatch.player2_id,
+                tournamentMode === 'ranked' ? matchId : null,
+                winnerId,
+                replay.tournament_round_match_id
+              ]
+            );
+            console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches created: ${tournamentMatchId}`);
+          }
+        }
       }
     }
 
