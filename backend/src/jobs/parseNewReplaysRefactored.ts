@@ -68,6 +68,15 @@ interface ParseSummary {
   linkedTournamentRoundMatchId: string | null;
   // Cached tournament record found during match type detection (avoid double DB lookup)
   detectedTournament: { id: string; name: string; tournament_mode: string } | null;
+  // Team information for team tournaments (populated during linkToTeamTournament)
+  detectedTeams?: Record<string, {
+    team_id: string;
+    team_name: string;
+    team_wml_name: string; // 'north-east' or 'south-west' etc from WML
+    members: string[]; // player nicknames
+    sides: number[]; // WML side numbers
+    factions: string[]; // faction names from forumPlayers
+  }>;
 }
 
 export class ParseNewReplaysRefactorized {
@@ -928,7 +937,7 @@ export class ParseNewReplaysRefactorized {
       return false;
     }
 
-    const teams = Array.from(teamIds);
+    const teams = Array.from(teamIds) as string[];
     const team1 = teams[0];
     const team2 = teams[1];
 
@@ -1012,6 +1021,68 @@ export class ParseNewReplaysRefactorized {
     parseSummary.linkedTournamentRoundMatchId = roundMatch.id;
     parseSummary.confidenceLevel              = 1;  // Requires manual confirmation
     console.log(`   ℹ️  [TEAM TOURNAMENT] Marked as confidence=1 (requires manual confirmation)`);
+
+    // Enrich parseSummary with detected team information
+    console.log(`   [TEAM TOURNAMENT] Building detectedTeams structure...`);
+    parseSummary.detectedTeams = {};
+    
+    // Get team names from database
+    const teamNamesResult = await query(
+      `SELECT id, name FROM tournament_teams
+       WHERE tournament_id = ?
+         AND id IN (${[team1, team2].map(() => '?').join(',')})`,
+      [tournament.id, team1, team2]
+    );
+    
+    const teamNamesRows = (teamNamesResult as any).rows || [];
+    const teamNamesMap: Record<string, string> = {};
+    teamNamesRows.forEach((row: any) => {
+      teamNamesMap[row.id] = row.name;
+    });
+    
+    // Build detectedTeams for both teams
+    for (const currentTeamId of [team1, team2]) {
+      const teamPlayers = participants.filter((p: any) => p.team_id === currentTeamId);
+      const teamName = teamNamesMap[currentTeamId] || 'Unknown Team';
+      
+      // Get player names and sides from forumPlayers
+      const playerNicknames: string[] = [];
+      const playerSides: number[] = [];
+      const playerFactions: string[] = [];
+      
+      for (const participant of teamPlayers) {
+        const forumPlayer = forumPlayers.find((fp: any) => {
+          // Match by user_id (from forum user_id)
+          return users.find((u: any) => u.id === participant.user_id)?.user_id === fp.user_id;
+        });
+        
+        if (forumPlayer) {
+          playerNicknames.push(forumPlayer.user_name);
+          playerSides.push(forumPlayer.side_number);
+          playerFactions.push(forumPlayer.faction);
+        }
+      }
+      
+      // Determine team WML name by checking sides in wmlTeams
+      const teamWmlNames = new Set<string>();
+      playerSides.forEach(side => {
+        if (parseSummary.wmlTeams && parseSummary.wmlTeams[side as any]) {
+          teamWmlNames.add(parseSummary.wmlTeams[side as any]);
+        }
+      });
+      const teamWmlName = Array.from(teamWmlNames)[0] || 'unknown';
+      
+      parseSummary.detectedTeams![currentTeamId as string] = {
+        team_id: currentTeamId,
+        team_name: teamName,
+        team_wml_name: teamWmlName,
+        members: playerNicknames,
+        sides: playerSides,
+        factions: playerFactions
+      };
+      
+      console.log(`   [TEAM TOURNAMENT] Team "${teamName}" (${teamWmlName}): members=${playerNicknames.join(', ')}, sides=${playerSides.join(',')}`);
+    }
 
     return true;
   }
