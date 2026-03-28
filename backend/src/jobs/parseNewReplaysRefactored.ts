@@ -460,17 +460,57 @@ export class ParseNewReplaysRefactorized {
 
     const hasTournamentFlag = !!parseSummary.replayTournament;
 
-    if (!parseSummary.replayRankedMode && !hasTournamentFlag) {
-      // ranked_mode=false, no tournament → discard
-      parseSummary.matchType = 'rejected';
-      console.log(`   ❌ ranked_mode=false and no tournament flag → REJECTED`);
-      return parseSummary;
-    }
-
-    if (hasTournamentFlag || (!parseSummary.replayRankedMode)) {
-      // Any case involving a tournament: look up the tournament in DB
-      // First, try to use the tournament_name extracted from WML
+    // If ranked_mode=false, it's unranked → could be tournament or direct match
+    // Try to find a matching tournament regardless of tournament flag in WML
+    if (!parseSummary.replayRankedMode) {
+      console.log(`   ℹ️  ranked_mode=false (unranked) → Searching for tournament in database...`);
+      
+      // Try to find tournament by name (if WML has it) or game_name
       let searchName = parseSummary.replayTournament || (replay.game_name || '').toLowerCase();
+      
+      const tournResult = await query(
+        `SELECT id, name, tournament_mode FROM tournaments
+         WHERE status = 'in_progress' AND LOWER(name) = LOWER(?)
+         LIMIT 1`,
+        [searchName]
+      );
+      const tournaments = (tournResult as any).rows || [];
+
+      if (tournaments.length > 0) {
+        // Found a matching tournament
+        const tournament = tournaments[0];
+        parseSummary.detectedTournament = tournament;
+        console.log(`   🏆 Detected tournament: "${tournament.name}" (mode=${tournament.tournament_mode})`);
+
+        if (tournament.tournament_mode === 'unranked') {
+          // ranked_mode=false + tournament is unranked → tournament_unranked
+          parseSummary.matchType = 'tournament_unranked';
+          console.log(`   ✅ ranked_mode=false + tournament unranked → TOURNAMENT_UNRANKED (assets not validated)`);
+          // Continue processing (don't return yet - linkToTournament will handle it)
+        } else {
+          // ranked_mode=false but tournament is ranked → mismatch
+          parseSummary.matchType = 'rejected';
+          console.log(`   ❌ ranked_mode=false but tournament mode is "${tournament.tournament_mode}" → REJECTED (mismatch)`);
+          return parseSummary;
+        }
+      } else {
+        // No tournament found by name - this is either an unranked direct match or unmatched tournament replay
+        if (!hasTournamentFlag) {
+          // No tournament flag in WML and not found in DB by name
+          // Could still be a team tournament! Try linkToTournament by players
+          console.log(`   ℹ️  No tournament found by name, will try linkToTournament by players...`);
+          parseSummary.matchType = 'tournament_unranked'; // Tentative, linkToTournament will verify
+          // Continue processing
+        } else {
+          // Has tournament flag in WML but not found in DB → reject
+          parseSummary.matchType = 'rejected';
+          console.log(`   ❌ Tournament flag set but no matching in-progress tournament found (searched: "${searchName}") → REJECTED`);
+          return parseSummary;
+        }
+      }
+    } else if (hasTournamentFlag) {
+      // ranked_mode=true but has tournament flag - look up the tournament
+      let searchName = parseSummary.replayTournament || '';
       
       const tournResult = await query(
         `SELECT id, name, tournament_mode FROM tournaments
@@ -490,28 +530,20 @@ export class ParseNewReplaysRefactorized {
       parseSummary.detectedTournament = tournament;
       console.log(`   🏆 Detected tournament: "${tournament.name}" (mode=${tournament.tournament_mode})`);
 
-      if (!parseSummary.replayRankedMode && tournament.tournament_mode === 'unranked') {
-        // ranked_mode=false + tournament is unranked → tournament_unranked (no asset validation)
-        parseSummary.matchType = 'tournament_unranked';
-        console.log(`   ✅ ranked_mode=false + tournament unranked → TOURNAMENT_UNRANKED (assets not validated)`);
-        return parseSummary;
-      }
-
-      if (!parseSummary.replayRankedMode && tournament.tournament_mode !== 'unranked') {
-        // ranked_mode=false but tournament is ranked → mismatch
-        parseSummary.matchType = 'rejected';
-        console.log(`   ❌ ranked_mode=false but tournament mode is "${tournament.tournament_mode}" → REJECTED (mismatch)`);
-        return parseSummary;
-      }
-
-      if (parseSummary.replayRankedMode && tournament.tournament_mode === 'unranked') {
+      if (tournament.tournament_mode === 'unranked') {
         // ranked_mode=true but tournament is unranked → mismatch
         parseSummary.matchType = 'rejected';
         console.log(`   ❌ ranked_mode=true but tournament mode is "unranked" → REJECTED (mismatch)`);
         return parseSummary;
       }
 
-      // ranked_mode=true + tournament is ranked → validate assets then tournament_ranked
+      // ranked_mode=true + tournament is ranked → tournament_ranked
+      parseSummary.matchType = 'tournament_ranked';
+      console.log(`   ✅ ranked_mode=true + tournament ranked → TOURNAMENT_RANKED`);
+    } else {
+      // ranked_mode=true, no tournament flag → direct ranked match
+      parseSummary.matchType = 'ranked';
+      console.log(`   ✅ ranked_mode=true, no tournament → RANKED`);
     }
 
     // ======== VALIDATE AND RESOLVE FACTIONS (only for ranked paths) ========
