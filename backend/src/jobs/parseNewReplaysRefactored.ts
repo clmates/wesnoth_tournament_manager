@@ -48,6 +48,7 @@ interface ParseSummary {
   replayVictory: any | null;
   replayFactions: Record<string, string | null>;
   wmlPlayerFactions: Record<string, string>; // player_name → faction from WML (used when forum has Custom)
+  wmlTeams: Record<number, string>; // side_number → team_name from WML (for team tournaments)
   
   // Resolved (validated against assets)
   resolvedFactions: Record<string, string | null>; // Canonical names from factions table
@@ -298,6 +299,7 @@ export class ParseNewReplaysRefactorized {
       replayVictory: null,
       replayFactions: {},
       wmlPlayerFactions: {},
+      wmlTeams: {},
       resolvedFactions: {},
       resolvedMap: null,
       factionsAreRanked: false,
@@ -411,6 +413,13 @@ export class ParseNewReplaysRefactorized {
           // Tournament name always comes from game_name in forum DB, never from WML
           parseSummary.replayTournamentFlag = parsed.addon.tournament || false;
           console.log(`   ✅ 5.1 ranked_mode=${parseSummary.replayRankedMode}, tournament_flag=${parseSummary.replayTournamentFlag}`);
+        }
+
+        // 5.1b Extract team information (for team tournaments)
+        if (parsed.teams && Object.keys(parsed.teams).length > 0) {
+          parseSummary.wmlTeams = parsed.teams;
+          const teamInfo = Object.entries(parsed.teams).map(([side, team]) => `side${side}=${team}`).join(', ');
+          console.log(`   ✅ 5.1b Teams: ${teamInfo}`);
         }
 
         // 5.2 Victory (from parsed replay)

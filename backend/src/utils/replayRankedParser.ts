@@ -56,6 +56,9 @@ export interface ParsedRankedReplay {
     name: string;
     faction?: string;
   }>;
+
+  // Team information (for team tournaments)
+  teams: Record<number, string>; // side_number → team_name from WML
   
   // Victory info
   victory: {
@@ -136,6 +139,9 @@ export async function parseRankedReplay(
     // Extract surrenders if any
     const surrenders = extractSurrenders(parsed, options?.forumPlayers);
 
+    // Extract teams (for team tournaments)
+    const teams = extractTeams(parsed);
+
     // Determine victory
     // Pass forumPlayers as source of truth for side mapping
     const victory = await determineVictory(
@@ -150,6 +156,7 @@ export async function parseRankedReplay(
       addon,
       isValidRanked: addon.ranked_mode, // Will be validated later by asset validator
       players,
+      teams,
       victory,
       surrenders: surrenders.length > 0 ? surrenders : undefined,
       rawWml: wmlContent.substring(0, 500) // Store first 500 chars for debugging
@@ -664,6 +671,42 @@ function extractPlayers(wml: WmlNode): Array<{ side: number; name: string; facti
   } catch (error) {
     console.warn('⚠️  [RANKED PARSE] Could not extract players:', error);
     return [];
+  }
+}
+
+/**
+ * Extract team information from [side] sections
+ * For team tournaments, each side has a team_name attribute
+ */
+function extractTeams(wml: WmlNode): Record<number, string> {
+  const teams: Record<number, string> = {};
+  
+  try {
+    const scenario = wml.scenario as WmlNode | undefined;
+    if (!scenario) {
+      return teams;
+    }
+
+    const sides = scenario.side as WmlNode | WmlNode[] | undefined;
+    if (!sides) {
+      return teams;
+    }
+
+    const sideArray = Array.isArray(sides) ? sides : [sides];
+
+    for (const side of sideArray) {
+      const sideNum = parseInt(side.side as string) || 0;
+      const teamName = side.team_name as string | undefined;
+
+      if (sideNum > 0 && teamName) {
+        teams[sideNum] = teamName;
+      }
+    }
+
+    return teams;
+  } catch (error) {
+    console.warn('⚠️  [RANKED PARSE] Could not extract teams:', error);
+    return teams;
   }
 }
 
