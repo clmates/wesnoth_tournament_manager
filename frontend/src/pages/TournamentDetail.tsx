@@ -190,6 +190,9 @@ interface TournamentMatch {
   pending_replay_filename?: string;
   pending_replay_game_name?: string;
   pending_replay_cancel_requested_by?: string | null;
+  // Team members for mapping (team tournaments only)
+  team1_members?: string[] | null;
+  team2_members?: string[] | null;
 }
 
 const TournamentDetail: React.FC = () => {
@@ -1590,19 +1593,31 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             let loserId = '';
                             
                             if (isPendingReplay && match.is_team_mode) {
-                              // For team tournaments, use tournament_round_match player1/player2 (team IDs and names)
-                              // replayData.winnerSide tells us which side won (1 or 2)
-                              // Side 1 → player1, Side 2 → player2 (typical for team tournaments)
-                              if (replayData.winnerSide === 1) {
+                              // For team tournaments, match the winner player to the correct team
+                              // based on which team has that player in team1_members or team2_members
+                              const team1Members = match.team1_members && Array.isArray(match.team1_members) ? match.team1_members : [];
+                              const team2Members = match.team2_members && Array.isArray(match.team2_members) ? match.team2_members : [];
+                              
+                              // Check if winner player belongs to team1 or team2
+                              const winnerInTeam1 = team1Members.includes(replayData.winnerName || '');
+                              const winnerInTeam2 = team2Members.includes(replayData.winnerName || '');
+                              
+                              if (winnerInTeam1) {
                                 winnerNickname = match.player1_nickname || '';
                                 winnerId = match.player1_id;
                                 loserNickname = match.player2_nickname || '';
                                 loserId = match.player2_id;
-                              } else {
+                              } else if (winnerInTeam2) {
                                 winnerNickname = match.player2_nickname || '';
                                 winnerId = match.player2_id;
                                 loserNickname = match.player1_nickname || '';
                                 loserId = match.player1_id;
+                              } else {
+                                // Fallback if player not found (shouldn't happen)
+                                winnerNickname = match.player1_nickname || '';
+                                winnerId = match.player1_id;
+                                loserNickname = match.player2_nickname || '';
+                                loserId = match.player2_id;
                               }
                             } else if (isPendingReplay) {
                               // For non-team tournaments, use player names from replay

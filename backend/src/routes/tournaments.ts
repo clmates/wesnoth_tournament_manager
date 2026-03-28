@@ -2942,17 +2942,22 @@ router.get('/:tournamentId/matches', async (req, res) => {
           pr.game_name as pending_replay_game_name,
           pr.cancel_requested_by as pending_replay_cancel_requested_by,
           pr.created_at,
-          pr.updated_at
+          pr.updated_at,
+          JSON_ARRAYAGG(DISTINCT IF(tp.team_id = trm.player1_id, ue.nickname, NULL)) as team1_members,
+          JSON_ARRAYAGG(DISTINCT IF(tp.team_id = trm.player2_id, ue.nickname, NULL)) as team2_members
         FROM replays pr
         JOIN tournament_round_matches trm ON pr.tournament_round_match_id = trm.id
         JOIN tournament_rounds tr ON trm.round_id = tr.id
         LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
+        LEFT JOIN tournament_participants tp ON (tp.team_id = trm.player1_id OR tp.team_id = trm.player2_id)
+        LEFT JOIN users_extension ue ON tp.user_id = ue.id
         WHERE pr.tournament_id = ?
           AND pr.tournament_round_match_id IS NOT NULL
           AND pr.match_id IS NULL
           AND pr.parse_status = 'parsed'
           AND pr.integration_confidence = 1
+        GROUP BY pr.id
         ORDER BY tr.round_number ASC, pr.created_at ASC
       `;
       pendingReplaysResult = await query(pendingReplaysQuery, [tournamentId]);
