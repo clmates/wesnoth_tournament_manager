@@ -806,8 +806,27 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
     console.log('Is unranked:', isUnranked);
 
     // Verify that the user confirming is either the loser or winner
-    const isWinner = match.winner_id === req.userId;
-    const isLoser = loserId === req.userId;
+    let isWinner = match.winner_id === req.userId;
+    let isLoser = loserId === req.userId;
+    
+    // For unranked tournament matches with team IDs, get the user's team_id
+    if (isUnranked && tournamentMatchId && !isWinner && !isLoser) {
+      // Check if this is a team tournament and get user's team_id
+      const userTeamResult = await query(
+        `SELECT tt.id as team_id 
+         FROM tournament_teams tt 
+         JOIN tournament_team_members ttm ON tt.id = ttm.team_id 
+         WHERE ttm.player_id = ? AND tt.tournament_id = ?`,
+        [req.userId, match.tournament_id]
+      );
+      
+      if (userTeamResult.rows.length > 0) {
+        const userTeamId = userTeamResult.rows[0].team_id;
+        console.log('User team_id for tournament:', userTeamId);
+        isWinner = match.winner_id === userTeamId;
+        isLoser = loserId === userTeamId;
+      }
+    }
     
     if (!isWinner && !isLoser) {
       console.log('❌ User is neither winner nor loser');
