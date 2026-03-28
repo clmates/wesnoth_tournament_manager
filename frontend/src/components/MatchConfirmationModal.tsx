@@ -89,6 +89,20 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
   const isWinner = isTeamMode ? currentUserTeamId === match.winner_id : currentPlayerId === match.winner_id;
   const isLoser = isTeamMode ? currentUserTeamId === match.loser_id : currentPlayerId === match.loser_id;
   const isReported = match.status === 'reported';
+  
+  if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
+    console.log('[MatchConfirmationModal] Debug:', {
+      isTeamMode,
+      currentPlayerId,
+      currentUserTeamId,
+      match_winner_id: match.winner_id,
+      match_loser_id: match.loser_id,
+      isWinner,
+      isLoser,
+      match_status: match.status,
+      isReported,
+    });
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-fadeIn" onClick={onClose}>
