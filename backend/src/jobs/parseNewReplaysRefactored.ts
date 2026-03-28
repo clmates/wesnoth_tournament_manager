@@ -402,15 +402,12 @@ export class ParseNewReplaysRefactorized {
       const parsed = await this.parseReplayFromUrl(replay, parseSummary.forumPlayers, hasCustomFaction);
 
       if (parsed) {
-        // 5.1 Extract ranked_mode and tournament
+        // 5.1 Extract ranked_mode and tournament flag
         if (parsed.addon) {
           parseSummary.replayRankedMode = parsed.addon.ranked_mode || false;
-          // Check BOTH tournament flag (boolean) AND tournament_name (string)
-          // tournament_name will be used to search DB; if it exists, we know it's a tournament
-          // If tournament flag is true but no name, we'll search by players instead
-          parseSummary.replayTournament = parsed.addon.tournament_name || null;
+          // Note: tournament_name in WML is never used - tournament name always comes from game_name in forum DB
           const tournamentFlag = parsed.addon.tournament;
-          console.log(`   ✅ 5.1 ranked_mode=${parseSummary.replayRankedMode}, tournament_flag=${tournamentFlag}, tournament_name=${parseSummary.replayTournament}`);
+          console.log(`   ✅ 5.1 ranked_mode=${parseSummary.replayRankedMode}, tournament_flag=${tournamentFlag}`);
         }
 
         // 5.2 Victory (from parsed replay)
@@ -462,84 +459,55 @@ export class ParseNewReplaysRefactorized {
       return parseSummary;
     }
 
-    const hasTournamentFlag = !!parseSummary.replayTournament;
-
-    // If ranked_mode=false, it's unranked → could be tournament or direct match
-    // Try to find a matching tournament regardless of tournament flag in WML
+    // If ranked_mode=false, it's unranked → try to find matching tournament
+    // Tournament name is always from game_name in forum DB, never from WML
     if (!parseSummary.replayRankedMode) {
       console.log(`   ℹ️  ranked_mode=false (unranked) → Searching for tournament in database...`);
       
-      // Try to find tournament by name (if WML has it) or game_name
-      let searchName = parseSummary.replayTournament || (replay.game_name || '').toLowerCase();
+      // Use game_name from forum DB as tournament search key
+      const searchName = (replay.game_name || '').toLowerCase();
+      console.log(`   [TOURNAMENT] Searching for tournament by game_name: "${searchName}"`);
       
-      const tournResult = await query(
-        `SELECT id, name, tournament_mode FROM tournaments
-         WHERE status = 'in_progress' AND LOWER(name) = LOWER(?)
-         LIMIT 1`,
-        [searchName]
-      );
-      const tournaments = (tournResult as any).rows || [];
-
-      if (tournaments.length > 0) {
-        // Found a matching tournament
-        const tournament = tournaments[0];
-        parseSummary.detectedTournament = tournament;
-        console.log(`   🏆 Detected tournament: "${tournament.name}" (mode=${tournament.tournament_mode})`);
-
-        if (tournament.tournament_mode === 'unranked') {
-          // ranked_mode=false + tournament is unranked → tournament_unranked
-          parseSummary.matchType = 'tournament_unranked';
-          console.log(`   ✅ ranked_mode=false + tournament unranked → TOURNAMENT_UNRANKED (assets not validated)`);
-          // Continue processing (don't return yet - linkToTournament will handle it)
-        } else {
-          // ranked_mode=false but tournament is ranked → mismatch
-          parseSummary.matchType = 'rejected';
-          console.log(`   ❌ ranked_mode=false but tournament mode is "${tournament.tournament_mode}" → REJECTED (mismatch)`);
-          return parseSummary;
-        }
+      if (!searchName) {
+        // No game_name to search with
+        console.log(`   ⚠️  No game_name available, skipping tournament search`);
+        parseSummary.matchType = 'tournament_unranked'; // Still mark as potential tournament
       } else {
-        // No tournament found by name - this is either an unranked direct match or unmatched tournament replay
-        // Since ranked_mode=false, treat as potential tournament (will be validated by linkToTournament)
-        console.log(`   ℹ️  No tournament found by name, will try linkToTournament by players...`);
-        parseSummary.matchType = 'tournament_unranked'; // Tentative, linkToTournament will verify
-        // Continue processing
+        const tournResult = await query(
+          `SELECT id, name, tournament_mode FROM tournaments
+           WHERE status = 'in_progress' AND LOWER(name) = LOWER(?)
+           LIMIT 1`,
+          [searchName]
+        );
+        const tournaments = (tournResult as any).rows || [];
+
+        if (tournaments.length > 0) {
+          // Found a matching tournament
+          const tournament = tournaments[0];
+          parseSummary.detectedTournament = tournament;
+          console.log(`   🏆 Detected tournament: "${tournament.name}" (mode=${tournament.tournament_mode})`);
+
+          if (tournament.tournament_mode === 'unranked') {
+            // ranked_mode=false + tournament is unranked → tournament_unranked
+            parseSummary.matchType = 'tournament_unranked';
+            console.log(`   ✅ ranked_mode=false + tournament unranked → TOURNAMENT_UNRANKED`);
+            // Continue processing (linkToTournament will validate team/player linking)
+          } else {
+            // ranked_mode=false but tournament is ranked → mismatch
+            parseSummary.matchType = 'rejected';
+            console.log(`   ❌ ranked_mode=false but tournament mode is "${tournament.tournament_mode}" → REJECTED (mismatch)`);
+            return parseSummary;
+          }
+        } else {
+          // Not found by game_name - still mark as potential tournament for linkToTournament
+          console.log(`   ⚠️  No tournament found by game_name, will try linkToTournament by players...`);
+          parseSummary.matchType = 'tournament_unranked'; // Tentative
+        }
       }
-    } else if (hasTournamentFlag) {
-      // ranked_mode=true but has tournament flag - look up the tournament
-      let searchName = parseSummary.replayTournament || '';
-      
-      const tournResult = await query(
-        `SELECT id, name, tournament_mode FROM tournaments
-         WHERE status = 'in_progress' AND LOWER(name) = LOWER(?)
-         LIMIT 1`,
-        [searchName]
-      );
-      const tournaments = (tournResult as any).rows || [];
-
-      if (tournaments.length === 0) {
-        parseSummary.matchType = 'rejected';
-        console.log(`   ❌ Tournament flag set but no matching in-progress tournament found (searched: "${searchName}") → REJECTED`);
-        return parseSummary;
-      }
-
-      const tournament = tournaments[0];
-      parseSummary.detectedTournament = tournament;
-      console.log(`   🏆 Detected tournament: "${tournament.name}" (mode=${tournament.tournament_mode})`);
-
-      if (tournament.tournament_mode === 'unranked') {
-        // ranked_mode=true but tournament is unranked → mismatch
-        parseSummary.matchType = 'rejected';
-        console.log(`   ❌ ranked_mode=true but tournament mode is "unranked" → REJECTED (mismatch)`);
-        return parseSummary;
-      }
-
-      // ranked_mode=true + tournament is ranked → tournament_ranked
-      parseSummary.matchType = 'tournament_ranked';
-      console.log(`   ✅ ranked_mode=true + tournament ranked → TOURNAMENT_RANKED`);
     } else {
-      // ranked_mode=true, no tournament flag → direct ranked match
+      // ranked_mode=true → direct ranked match (no tournament search)
       parseSummary.matchType = 'ranked';
-      console.log(`   ✅ ranked_mode=true, no tournament → RANKED`);
+      console.log(`   ✅ ranked_mode=true → RANKED (direct match, no tournament)`);
     }
 
     // ======== VALIDATE AND RESOLVE FACTIONS (only for ranked paths) ========
