@@ -904,6 +904,7 @@ export class ParseNewReplaysRefactorized {
     // Extract unique teams from participants
     const teamIds = new Set(participants.map((p: any) => p.team_id));
     console.log(`   [TEAM TOURNAMENT] Found ${teamIds.size} unique team(s): ${Array.from(teamIds).join(', ')}`);
+    console.log(`   [TEAM TOURNAMENT] Participant breakdown:`, participants.map((p: any) => ({ user_id: p.user_id, team_id: p.team_id })));
 
     if (teamIds.size !== 2) {
       console.log(`   ❌ [TEAM TOURNAMENT] Expected exactly 2 teams, found ${teamIds.size}`);
@@ -915,6 +916,16 @@ export class ParseNewReplaysRefactorized {
     const team2 = teams[1];
 
     console.log(`   ✅ [TEAM TOURNAMENT] Teams identified: ${team1} vs ${team2}`);
+
+    // Verify both teams have players
+    const team1Players = participants.filter((p: any) => p.team_id === team1);
+    const team2Players = participants.filter((p: any) => p.team_id === team2);
+    console.log(`   [TEAM TOURNAMENT] Team 1 has ${team1Players.length} players, Team 2 has ${team2Players.length} players`);
+
+    if (team1Players.length === 0 || team2Players.length === 0) {
+      console.log(`   ❌ [TEAM TOURNAMENT] One or both teams have no players`);
+      return false;
+    }
 
     // Find active round
     console.log(`   [TEAM TOURNAMENT] Searching for active round...`);
@@ -953,7 +964,27 @@ export class ParseNewReplaysRefactorized {
 
     const roundMatches = (roundMatchResult as any).rows || [];
     if (roundMatches.length === 0) {
-      console.log(`   ❌ [TEAM TOURNAMENT] No pending tournament_round_match found between teams ${team1} and ${team2}`);
+      console.log(`   ❌ [TEAM TOURNAMENT] No pending tournament_round_match found for:`);
+      console.log(`      Tournament ID: ${tournament.id}`);
+      console.log(`      Round ID: ${roundId}`);
+      console.log(`      Team 1: ${team1}`);
+      console.log(`      Team 2: ${team2}`);
+      console.log(`   [TEAM TOURNAMENT] Showing all available matches in this round...`);
+      
+      // Debug: show all matches in this round
+      const allMatchesResult = await query(
+        `SELECT id, player1_id, player2_id, series_status FROM tournament_round_matches
+         WHERE tournament_id = ? AND round_id = ?`,
+        [tournament.id, roundId]
+      );
+      const allMatches = (allMatchesResult as any).rows || [];
+      console.log(`   [TEAM TOURNAMENT] Available matches in round:`, allMatches.map((m: any) => ({ 
+        id: m.id, 
+        player1_id: m.player1_id, 
+        player2_id: m.player2_id, 
+        series_status: m.series_status 
+      })));
+      
       return false;
     }
 
