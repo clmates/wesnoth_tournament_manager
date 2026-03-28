@@ -698,7 +698,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     setShowReplayConfirmModal(false);
     setSelectedTournamentReplay(null);
     setSuccess(t('success_match_reported'));
-    fetchTournamentData();
+    // Add a small delay to ensure server has processed the confirmation
+    setTimeout(() => {
+      fetchTournamentData();
+    }, 500);
     setTimeout(() => setSuccess(''), 3000);
   };
 
