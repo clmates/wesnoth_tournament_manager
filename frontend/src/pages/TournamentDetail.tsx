@@ -1728,6 +1728,25 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                           );
                                         })()}
                                       </div>
+                                    ) : (!isPendingReplay && match.is_team_mode && (match.winner_faction || match.loser_faction)) ? (
+                                      <div className="flex flex-col gap-2 text-xs text-gray-600 mt-1">
+                                        {match.winner_faction && (
+                                          <div className="flex flex-wrap gap-1 items-center">
+                                            <span className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold">Winner</span>
+                                            {match.winner_faction.split(', ').map((faction, idx) => (
+                                              <span key={idx} className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">{faction}</span>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {match.loser_faction && (
+                                          <div className="flex flex-wrap gap-1 items-center">
+                                            <span className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-semibold">Loser</span>
+                                            {match.loser_faction.split(', ').map((faction, idx) => (
+                                              <span key={idx} className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 rounded">{faction}</span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
                                     ) : (
                                       <div className="flex flex-wrap gap-1 items-center text-xs text-gray-600 mt-1">
                                         <span className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold">{winnerFaction || '-'}</span>
