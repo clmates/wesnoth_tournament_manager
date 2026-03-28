@@ -846,6 +846,7 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
              SET winner_comments = ?, 
                  winner_rating = ?,
                  match_status = 'completed',
+                 status = 'confirmed',
                  updated_at = CURRENT_TIMESTAMP 
              WHERE id = ?`,
             [comments || null, rating || null, id]
@@ -856,6 +857,7 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
              SET loser_comments = ?, 
                  loser_rating = ?,
                  match_status = 'completed',
+                 status = 'confirmed',
                  updated_at = CURRENT_TIMESTAMP 
              WHERE id = ?`,
             [comments || null, rating || null, id]
