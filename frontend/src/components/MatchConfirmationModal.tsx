@@ -8,6 +8,8 @@ interface MatchConfirmationModalProps {
   currentPlayerId: string;
   onClose: () => void;
   onSubmit: () => void;
+  isTeamMode?: boolean;
+  currentUserTeamId?: string;
 }
 
 const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
@@ -15,6 +17,8 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
   currentPlayerId,
   onClose,
   onSubmit,
+  isTeamMode = false,
+  currentUserTeamId = '',
 }) => {
   const [formData, setFormData] = useState({
     rating: '3',
@@ -80,8 +84,10 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
 
   const winnerElo = match.winner_elo_before || 'N/A';
   const loserElo = match.loser_elo_before || 'N/A';
-  const isWinner = currentPlayerId === match.winner_id;
-  const isLoser = currentPlayerId === match.loser_id;
+  
+  // For team mode, compare against team IDs; for regular mode, compare against player IDs
+  const isWinner = isTeamMode ? currentUserTeamId === match.winner_id : currentPlayerId === match.winner_id;
+  const isLoser = isTeamMode ? currentUserTeamId === match.loser_id : currentPlayerId === match.loser_id;
   const isReported = match.status === 'reported';
 
   return (

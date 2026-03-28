@@ -2120,6 +2120,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           match={confirmMatchData}
           onClose={handleCloseConfirmModal}
           onSubmit={handleConfirmSuccess}
+          isTeamMode={confirmMatchData.is_team_mode}
+          currentUserTeamId={userTeamId}
         />
       )}
 
