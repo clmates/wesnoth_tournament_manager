@@ -1040,23 +1040,27 @@ export class ParseNewReplaysRefactorized {
       teamNamesMap[row.id] = row.name;
     });
     
+    // Create a map of forum user_id to forum player data
+    const forumPlayerByUserId: Record<number, any> = {};
+    forumPlayers.forEach((fp: any) => {
+      forumPlayerByUserId[fp.user_id] = fp;
+    });
+    
     // Build detectedTeams for both teams
     for (const currentTeamId of [team1, team2]) {
       const teamPlayers = participants.filter((p: any) => p.team_id === currentTeamId);
       const teamName = teamNamesMap[currentTeamId] || 'Unknown Team';
       
-      // Get player names and sides from forumPlayers
+      // Get player names and sides from forumPlayers using user mapping
       const playerNicknames: string[] = [];
       const playerSides: number[] = [];
       const playerFactions: string[] = [];
       
       for (const participant of teamPlayers) {
-        const forumPlayer = forumPlayers.find((fp: any) => {
-          // Match by user_id (from forum user_id)
-          return users.find((u: any) => u.id === participant.user_id)?.user_id === fp.user_id;
-        });
-        
-        if (forumPlayer) {
+        // participant.user_id is the UUID, find the forum player by matching userIds
+        const matchingUser = users.find((u: any) => u.id === participant.user_id);
+        if (matchingUser && forumPlayerByUserId[matchingUser.user_id]) {
+          const forumPlayer = forumPlayerByUserId[matchingUser.user_id];
           playerNicknames.push(forumPlayer.user_name);
           playerSides.push(forumPlayer.side_number);
           playerFactions.push(forumPlayer.faction);
@@ -1081,7 +1085,7 @@ export class ParseNewReplaysRefactorized {
         factions: playerFactions
       };
       
-      console.log(`   [TEAM TOURNAMENT] Team "${teamName}" (${teamWmlName}): members=${playerNicknames.join(', ')}, sides=${playerSides.join(',')}`);
+      console.log(`   [TEAM TOURNAMENT] Team "${teamName}" (${teamWmlName}): members=${playerNicknames.join(', ')}, sides=${playerSides.join(',')}, factions=${playerFactions.join(',')}`);
     }
 
     return true;
