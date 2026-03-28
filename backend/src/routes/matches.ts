@@ -1734,25 +1734,20 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         // For league tournaments: tournament_matches are PRE-GENERATED
         // For other types: tournament_matches are created on demand
         if (isLeagueTournament) {
-          console.log(`🎯 [CONFIDENCE-1] League tournament detected - searching for existing tournament_matches...`);
+          console.log(`🎯 [CONFIDENCE-1] League tournament - finding pending match for this series...`);
           
-          // Search for existing tournament_matches (pre-generated for league)
+          // Search for pending tournament_matches linked to this round_match_id
+          // (pre-generated matches already have tournament_round_match_id set)
           const existingMatchResult = await query(
             `SELECT id FROM tournament_matches
-             WHERE tournament_id = ?
-               AND round_id = ?
-               AND ((player1_id = ? AND player2_id = ?) 
-                    OR (player1_id = ? AND player2_id = ?))
+             WHERE tournament_round_match_id = ?
+               AND match_status = 'pending'
              LIMIT 1`,
-            [
-              roundMatch.tournament_id, roundMatch.round_id,
-              roundMatch.player1_id, roundMatch.player2_id,
-              roundMatch.player2_id, roundMatch.player1_id
-            ]
+            [replay.tournament_round_match_id]
           );
           
           if (existingMatchResult.rows.length > 0) {
-            // UPDATE existing record
+            // UPDATE existing record (expected for league)
             const existingId = (existingMatchResult as any).rows[0].id;
             await query(
               `UPDATE tournament_matches 
@@ -1762,7 +1757,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
             );
             console.log(`✅ [CONFIDENCE-1] League tournament_matches updated: ${existingId}`);
           } else {
-            console.warn(`⚠️  [CONFIDENCE-1] League tournament but no pre-generated tournament_matches found!`);
+            console.warn(`⚠️  [CONFIDENCE-1] League tournament but no pending tournament_matches found!`);
           }
         } else {
           // Non-league tournament: check if record exists (shouldn't normally, but handle resumable matches)
