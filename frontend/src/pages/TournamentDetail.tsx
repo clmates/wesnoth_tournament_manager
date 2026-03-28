@@ -11,6 +11,43 @@ import PlayerLink from '../components/PlayerLink';
 import StarDisplay from '../components/StarDisplay';
 import { ReplayConfirmationModal } from '../components/ReplayConfirmationModal';
 
+// Helper function to extract parsed replay data from JSON summary
+function parseReplaySummary(summaryJson: string | null): {
+  winnerName: string | null;
+  loserName: string | null;
+  map: string | null;
+  winnerFaction: string | null;
+  loserFaction: string | null;
+  winnerSide: number | null;
+} {
+  const empty = {
+    winnerName: null,
+    loserName: null,
+    map: null,
+    winnerFaction: null,
+    loserFaction: null,
+    winnerSide: null,
+  };
+  
+  if (!summaryJson) return empty;
+  
+  try {
+    const summary = JSON.parse(summaryJson);
+    const victory = summary.replayVictory;
+    
+    return {
+      winnerName: victory?.winner_name || null,
+      loserName: victory?.loser_name || null,
+      map: summary.finalMap || summary.forumMap || null,
+      winnerFaction: victory?.winner_faction || null,
+      loserFaction: victory?.loser_faction || null,
+      winnerSide: victory?.winner_side || null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 // Get API URL for direct backend calls - matches RecentGamesTable pattern
 
 interface Tournament {
@@ -78,6 +115,7 @@ interface TournamentMatch {
   match_status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   played_at: string | null;
   created_at: string;
+  updated_at?: string;
   round_number: number;
   player1_nickname: string;
   player2_nickname: string;
@@ -96,6 +134,15 @@ interface TournamentMatch {
   player2_rating?: number | null;
   winner_rating?: number | null;
   loser_rating?: number | null;
+  // Pending replay fields
+  pending_replay_id?: string | null;
+  pending_replay_summary?: string | null;
+  pending_replay_confidence?: number;
+  pending_replay_need_integration?: boolean;
+  pending_replay_url?: string;
+  pending_replay_filename?: string;
+  pending_replay_game_name?: string;
+  pending_replay_cancel_requested_by?: string | null;
 }
 
 const TournamentDetail: React.FC = () => {
@@ -1478,145 +1525,211 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           return roundDiff !== 0 ? roundDiff : new Date(b.played_at || '').getTime() - new Date(a.played_at || '').getTime();
                         })
                         .map((match) => {
-                          const loserNickname = match.winner_nickname === match.player1_nickname 
-                            ? match.player2_nickname 
-                            : match.player1_nickname;
-                          const loserId = match.winner_nickname === match.player1_nickname 
-                            ? match.player2_id 
-                            : match.player1_id;
-                          const winnerId = match.winner_nickname === match.player1_nickname 
-                            ? match.player1_id 
-                            : match.player2_id;
-                          
-                          // Determine if current user is the loser (for team mode, check team_id)
-                          let isCurrentUserLoser = false;
-                          if (match.is_team_mode) {
-                            isCurrentUserLoser = userTeamId === loserId;
-                          } else {
-                            isCurrentUserLoser = userId === loserId;
-                          }
-                          
-                          // If no match_id and status is pending, it was determined by admin, show "ADMIN" status
-                          const isAdminDetermined = !match.match_id && match.match_status === 'pending';
-                          const hasReportedMatch = match.match_id || (['unranked', 'team'].includes(tournament?.tournament_mode || '') && match.match_status === 'completed');
-                          // Use match_status_from_matches from the matches table (confirmed, disputed, unconfirmed, cancelled)
-                          const confirmationStatus = isAdminDetermined ? 'admin' : (match.match_status_from_matches || 'unconfirmed');
-                          
-                          // Check if next round has been started (for unranked and team tournaments)
-                          const nextRound = ['unranked', 'team'].includes(tournament?.tournament_mode || '') 
-                            ? rounds.find(r => r.round_number === (match.round_number || 0) + 1)
-                            : null;
-                          const nextRoundStarted = nextRound && nextRound.round_status !== 'pending';
+                           // Check if this is a pending replay (not yet confirmed)
+                           const isPendingReplay = match.pending_replay_id && match.pending_replay_confidence === 1 && !match.winner_id && match.pending_replay_need_integration;
+                           
+                           // Extract replay data if pending
+                           let replayData = { winnerName: null, loserName: null, map: null, winnerFaction: null, loserFaction: null, winnerSide: null };
+                           if (isPendingReplay && match.pending_replay_summary) {
+                             replayData = parseReplaySummary(match.pending_replay_summary);
+                           }
+                           
+                           // Use replay data if pending, otherwise use match data
+                           const winnerNickname = isPendingReplay ? replayData.winnerName : match.winner_nickname;
+                           const loserNickname = isPendingReplay ? replayData.loserName : (match.winner_nickname === match.player1_nickname ? match.player2_nickname : match.player1_nickname);
+                           const displayMap = isPendingReplay ? replayData.map : match.map;
+                           const winnerFaction = isPendingReplay ? replayData.winnerFaction : match.winner_faction;
+                           const loserFaction = isPendingReplay ? replayData.loserFaction : match.loser_faction;
+                           
+                           // For logic purposes, use standard winner/loser determination
+                           const loserId = match.winner_nickname === match.player1_nickname 
+                             ? match.player2_id 
+                             : match.player1_id;
+                           const winnerId = match.winner_nickname === match.player1_nickname 
+                             ? match.player1_id 
+                             : match.player2_id;
+                           
+                           // Determine if current user is the loser (for team mode, check team_id)
+                           let isCurrentUserLoser = false;
+                           if (match.is_team_mode) {
+                             isCurrentUserLoser = userTeamId === loserId;
+                           } else {
+                             isCurrentUserLoser = userId === loserId;
+                           }
+                           
+                           // If no match_id and status is pending (and not a pending replay), it was determined by admin
+                           const isAdminDetermined = !match.match_id && match.match_status === 'pending' && !isPendingReplay;
+                           const hasReportedMatch = match.match_id || (['unranked', 'team'].includes(tournament?.tournament_mode || '') && match.match_status === 'completed');
+                           // Use match_status_from_matches from the matches table (confirmed, disputed, unconfirmed, cancelled)
+                           const confirmationStatus = isAdminDetermined ? 'admin' : (isPendingReplay ? 'auto_detected' : (match.match_status_from_matches || 'unconfirmed'));
+                           
+                           // Check if next round has been started (for unranked and team tournaments)
+                           const nextRound = ['unranked', 'team'].includes(tournament?.tournament_mode || '') 
+                             ? rounds.find(r => r.round_number === (match.round_number || 0) + 1)
+                             : null;
+                           const nextRoundStarted = nextRound && nextRound.round_status !== 'pending';
 
-                          return (
-                            <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-3 text-gray-700">{t('label_round')} {match.round_number}</td>
-                              <td className="px-4 py-3 text-gray-700">
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-2">
-                                    <strong className="text-green-600">{match.is_team_mode ? match.winner_nickname : <PlayerLink nickname={match.winner_nickname || '-'} userId={winnerId} />}</strong>
-                                    <StarDisplay rating={match.winner_rating} size="sm" />
-                                  </div>
-                                  {match.winner_comments && (
-                                    <div className="text-xs text-gray-600 italic">
-                                      {match.winner_comments}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-gray-700">
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-2">
-                                    <strong className="text-red-600">{match.is_team_mode ? loserNickname : <PlayerLink nickname={loserNickname} userId={loserId} />}</strong>
-                                    <StarDisplay rating={match.loser_rating} size="sm" />
-                                  </div>
-                                  {match.loser_comments && (
-                                    <div className="text-xs text-gray-600 italic">
-                                      {match.loser_comments}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-gray-700">
-                                <div className="flex flex-col gap-1">
-                                  <span>{match.map || '-'}</span>
-                                  {tournament?.tournament_mode === 'unranked' && !match.is_team_mode && (match.winner_faction || match.loser_faction) && (
-                                    <div className="flex flex-wrap gap-1 items-center text-xs text-gray-600 mt-1">
-                                      <span className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold">{match.winner_faction || '-'}</span>
-                                      {match.winner_side && <span className={`inline-block px-1.5 py-0.5 rounded font-semibold ${match.winner_side === 1 ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>S{match.winner_side}</span>}
-                                      <span>vs</span>
-                                      <span className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-semibold">{match.loser_faction || '-'}</span>
-                                      {match.winner_side && <span className={`inline-block px-1.5 py-0.5 rounded font-semibold ${match.winner_side === 1 ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>S{match.winner_side === 1 ? 2 : 1}</span>}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-gray-700">
-                                <div className="flex flex-col gap-2">
-                                  <div>
-                                    {isAdminDetermined ? (
-                                      <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-purple-500">{t('admin_tag')}</span>
-                                    ) : confirmationStatus === 'confirmed' ? (
-                                      <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-green-500">{t('match_status_confirmed')}</span>
-                                    ) : confirmationStatus === 'disputed' ? (
-                                      <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-orange-500">{t('match_status_disputed')}</span>
-                                    ) : (
-                                      <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-gray-400">{t('match_status_unconfirmed')}</span>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-wrap gap-2">
-                                    {hasReportedMatch ? (
-                                      <>
-                                        <button
-                                          className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
-                                          onClick={() => setMatchDetailsModal({ isOpen: true, match })}
-                                          title={t('view_match_details')}
-                                        >
-                                          {t('details_btn')}
-                                        </button>
-                                        {match.replay_file_path ? (
-                                          <a
-                                            href={match.replay_url || match.replay_file_path}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
-                                            onClick={() => handleDownloadReplay(match.match_id, match.replay_file_path, match.id)}
-                                            title={`${t('downloads')}: ${match.replay_downloads || 0}`}
-                                          >
-                                            ⬇️
-                                          </a>
-                                        ) : (
-                                          <span className="text-xs text-gray-500">{t('no_replay')}</span>
-                                        )}
-                                      </>
-                                    ) : (
-                                      <span className="text-xs text-gray-500">-</span>
-                                    )}
-                                    {!isAdminDetermined && isCurrentUserLoser && confirmationStatus === 'unconfirmed' && !nextRoundStarted && (
-                                      <button
-                                        className="px-2 py-1 text-xs bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors"
-                                        onClick={() => handleOpenConfirmModal(match)}
-                                      >
-                                        {t('confirm_dispute')}
-                                      </button>
-                                    )}
-                                    {isCreator && confirmationStatus === 'disputed' && (
-                                      <button
-                                        className="px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
-                                        onClick={() => {
-                                          console.log('[MANAGE DISPUTE] Button clicked for match:', match.id, 'confirmationStatus:', confirmationStatus);
-                                          setDisputeManagementModal({ isOpen: true, match });
-                                        }}
-                                      >
-                                        {t('manage_dispute')}
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                           return (
+                             <tr key={match.id} className={`border-b border-gray-200 transition-colors ${isPendingReplay ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50'}`}>
+                               <td className="px-4 py-3 text-gray-700">{t('label_round')} {match.round_number}</td>
+                               <td className="px-4 py-3 text-gray-700">
+                                 <div className="flex flex-col gap-1">
+                                   <div className="flex items-center gap-2">
+                                     <strong className={isPendingReplay ? 'text-amber-600' : 'text-green-600'}>{match.is_team_mode ? winnerNickname : <PlayerLink nickname={winnerNickname || '-'} userId={winnerId} />}</strong>
+                                     {!isPendingReplay && <StarDisplay rating={match.winner_rating} size="sm" />}
+                                   </div>
+                                   {!isPendingReplay && match.winner_comments && (
+                                     <div className="text-xs text-gray-600 italic">
+                                       {match.winner_comments}
+                                     </div>
+                                   )}
+                                 </div>
+                               </td>
+                               <td className="px-4 py-3 text-gray-700">
+                                 <div className="flex flex-col gap-1">
+                                   <div className="flex items-center gap-2">
+                                     <strong className={isPendingReplay ? 'text-amber-600' : 'text-red-600'}>{match.is_team_mode ? loserNickname : <PlayerLink nickname={loserNickname} userId={loserId} />}</strong>
+                                     {!isPendingReplay && <StarDisplay rating={match.loser_rating} size="sm" />}
+                                   </div>
+                                   {!isPendingReplay && match.loser_comments && (
+                                     <div className="text-xs text-gray-600 italic">
+                                       {match.loser_comments}
+                                     </div>
+                                   )}
+                                 </div>
+                               </td>
+                               <td className="px-4 py-3 text-gray-700">
+                                 <div className="flex flex-col gap-1">
+                                   <span>{displayMap || '-'}</span>
+                                   {(tournament?.tournament_mode === 'unranked' || isPendingReplay) && (winnerFaction || loserFaction) && (
+                                     <div className="flex flex-wrap gap-1 items-center text-xs text-gray-600 mt-1">
+                                       <span className="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-semibold">{winnerFaction || '-'}</span>
+                                       {replayData.winnerSide && <span className={`inline-block px-1.5 py-0.5 rounded font-semibold ${replayData.winnerSide === 1 ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>S{replayData.winnerSide}</span>}
+                                       <span>vs</span>
+                                       <span className="inline-block px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-semibold">{loserFaction || '-'}</span>
+                                       {replayData.winnerSide && <span className={`inline-block px-1.5 py-0.5 rounded font-semibold ${replayData.winnerSide === 1 ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>S{replayData.winnerSide === 1 ? 2 : 1}</span>}
+                                     </div>
+                                   )}
+                                 </div>
+                               </td>
+                               <td className="px-4 py-3 text-gray-700">
+                                 <div className="flex flex-col gap-2">
+                                   <div>
+                                     {isPendingReplay ? (
+                                       <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-yellow-500">🎬 {t('replay_auto_detected') || 'Replay Auto-Detected'}</span>
+                                     ) : isAdminDetermined ? (
+                                       <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-purple-500">{t('admin_tag')}</span>
+                                     ) : confirmationStatus === 'confirmed' ? (
+                                       <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-green-500">{t('match_status_confirmed')}</span>
+                                     ) : confirmationStatus === 'disputed' ? (
+                                       <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-orange-500">{t('match_status_disputed')}</span>
+                                     ) : (
+                                       <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-gray-400">{t('match_status_unconfirmed')}</span>
+                                     )}
+                                   </div>
+                                   <div className="flex flex-wrap gap-2">
+                                     {isPendingReplay && (userId === winnerId || (match.is_team_mode && userTeamId === winnerId)) ? (
+                                       <>
+                                         <button
+                                           className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                           onClick={() => {
+                                             setSelectedTournamentReplay(match);
+                                             setReplayModalChoice('I won');
+                                             setShowReplayConfirmModal(true);
+                                           }}
+                                           title={t('confirm_i_won')}
+                                         >
+                                           ✓ {t('i_won') || 'I Won'}
+                                         </button>
+                                         <button
+                                           className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+                                           onClick={() => {
+                                             setSelectedTournamentReplay(match);
+                                             setReplayModalChoice('I lost');
+                                             setShowReplayConfirmModal(true);
+                                           }}
+                                           title={t('confirm_i_lost')}
+                                         >
+                                           ✗ {t('i_lost') || 'I Lost'}
+                                         </button>
+                                       </>
+                                     ) : isPendingReplay && (userId === loserId || (match.is_team_mode && userTeamId === loserId)) ? (
+                                       <>
+                                         <button
+                                           className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                           onClick={() => {
+                                             setSelectedTournamentReplay(match);
+                                             setReplayModalChoice('I won');
+                                             setShowReplayConfirmModal(true);
+                                           }}
+                                           title={t('confirm_i_won')}
+                                         >
+                                           ✓ {t('i_won') || 'I Won'}
+                                         </button>
+                                         <button
+                                           className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+                                           onClick={() => {
+                                             setSelectedTournamentReplay(match);
+                                             setReplayModalChoice('I lost');
+                                             setShowReplayConfirmModal(true);
+                                           }}
+                                           title={t('confirm_i_lost')}
+                                         >
+                                           ✗ {t('i_lost') || 'I Lost'}
+                                         </button>
+                                       </>
+                                     ) : hasReportedMatch ? (
+                                       <>
+                                         <button
+                                           className="px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                                           onClick={() => setMatchDetailsModal({ isOpen: true, match })}
+                                           title={t('view_match_details')}
+                                         >
+                                           {t('details_btn')}
+                                         </button>
+                                         {match.replay_file_path ? (
+                                           <a
+                                             href={match.replay_url || match.replay_file_path}
+                                             target="_blank"
+                                             rel="noopener noreferrer"
+                                             className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                             onClick={() => handleDownloadReplay(match.match_id, match.replay_file_path, match.id)}
+                                             title={`${t('downloads')}: ${match.replay_downloads || 0}`}
+                                           >
+                                             ⬇️
+                                           </a>
+                                         ) : (
+                                           <span className="text-xs text-gray-500">{t('no_replay')}</span>
+                                         )}
+                                       </>
+                                     ) : (
+                                       <span className="text-xs text-gray-500">-</span>
+                                     )}
+                                     {!isAdminDetermined && !isPendingReplay && isCurrentUserLoser && confirmationStatus === 'unconfirmed' && !nextRoundStarted && (
+                                       <button
+                                         className="px-2 py-1 text-xs bg-yellow-500 hover:bg-yellow-600 text-white rounded transition-colors"
+                                         onClick={() => handleOpenConfirmModal(match)}
+                                       >
+                                         {t('confirm_dispute')}
+                                       </button>
+                                     )}
+                                     {isCreator && !isPendingReplay && confirmationStatus === 'disputed' && (
+                                       <button
+                                         className="px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
+                                         onClick={() => {
+                                           console.log('[MANAGE DISPUTE] Button clicked for match:', match.id, 'confirmationStatus:', confirmationStatus);
+                                           setDisputeManagementModal({ isOpen: true, match });
+                                         }}
+                                       >
+                                         {t('manage_dispute')}
+                                       </button>
+                                     )}
+                                   </div>
+                                 </div>
+                               </td>
+                             </tr>
+                           );
+                         })}
                     </tbody>
                   </table>
                   </div>
