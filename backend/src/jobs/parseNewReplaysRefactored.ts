@@ -405,8 +405,12 @@ export class ParseNewReplaysRefactorized {
         // 5.1 Extract ranked_mode and tournament
         if (parsed.addon) {
           parseSummary.replayRankedMode = parsed.addon.ranked_mode || false;
+          // Check BOTH tournament flag (boolean) AND tournament_name (string)
+          // tournament_name will be used to search DB; if it exists, we know it's a tournament
+          // If tournament flag is true but no name, we'll search by players instead
           parseSummary.replayTournament = parsed.addon.tournament_name || null;
-          console.log(`   ✅ 5.1 ranked_mode=${parseSummary.replayRankedMode}, tournament=${parseSummary.replayTournament}`);
+          const tournamentFlag = parsed.addon.tournament;
+          console.log(`   ✅ 5.1 ranked_mode=${parseSummary.replayRankedMode}, tournament_flag=${tournamentFlag}, tournament_name=${parseSummary.replayTournament}`);
         }
 
         // 5.2 Victory (from parsed replay)
@@ -495,18 +499,10 @@ export class ParseNewReplaysRefactorized {
         }
       } else {
         // No tournament found by name - this is either an unranked direct match or unmatched tournament replay
-        if (!hasTournamentFlag) {
-          // No tournament flag in WML and not found in DB by name
-          // Could still be a team tournament! Try linkToTournament by players
-          console.log(`   ℹ️  No tournament found by name, will try linkToTournament by players...`);
-          parseSummary.matchType = 'tournament_unranked'; // Tentative, linkToTournament will verify
-          // Continue processing
-        } else {
-          // Has tournament flag in WML but not found in DB → reject
-          parseSummary.matchType = 'rejected';
-          console.log(`   ❌ Tournament flag set but no matching in-progress tournament found (searched: "${searchName}") → REJECTED`);
-          return parseSummary;
-        }
+        // Since ranked_mode=false, treat as potential tournament (will be validated by linkToTournament)
+        console.log(`   ℹ️  No tournament found by name, will try linkToTournament by players...`);
+        parseSummary.matchType = 'tournament_unranked'; // Tentative, linkToTournament will verify
+        // Continue processing
       }
     } else if (hasTournamentFlag) {
       // ranked_mode=true but has tournament flag - look up the tournament
