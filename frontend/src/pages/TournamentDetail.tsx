@@ -1382,9 +1382,11 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               {rounds.length > 0 ? (
                   <>
                     {rounds.map((round) => {
-                      const scheduledMatches = matches.filter(
-                        (m) => m.round_id === round.id && m.match_status === 'pending'
-                      );
+                      const scheduledMatches = matches
+                        .filter(
+                          (m) => m.round_id === round.id && m.match_status === 'pending'
+                        )
+                        .sort((a, b) => (a.player1_nickname || '').localeCompare(b.player1_nickname || ''));
                       
                       if (scheduledMatches.length === 0) return null;
                       
@@ -1479,7 +1481,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         .filter((m) => m.match_status === 'completed' || (m.pending_replay_id && m.pending_replay_confidence === 1 && !m.winner_id && m.pending_replay_need_integration))
                         .sort((a, b) => {
                           const roundDiff = (b.round_number || 0) - (a.round_number || 0);
-                          return roundDiff !== 0 ? roundDiff : new Date(b.played_at || '').getTime() - new Date(a.played_at || '').getTime();
+                          if (roundDiff !== 0) return roundDiff;
+                          return (a.player1_nickname || '').localeCompare(b.player1_nickname || '');
                         })
                         .map((match) => {
                            // Check if this is a pending replay (not yet confirmed)
