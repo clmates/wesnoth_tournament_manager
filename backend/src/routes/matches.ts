@@ -795,13 +795,19 @@ router.post('/:id/confirm', authMiddleware, async (req: AuthRequest, res) => {
       console.log('Found ranked match (non-tournament)');
     }
 
-    console.log('Match loser_id:', match.loser_id, 'Current user:', req.userId);
+    // Calculate loser_id if not present (for team tournaments where it's null)
+    let loserId = match.loser_id;
+    if (!loserId && match.player1_id && match.player2_id && match.winner_id) {
+      loserId = match.winner_id === match.player1_id ? match.player2_id : match.player1_id;
+    }
+
+    console.log('Match loser_id:', loserId, 'Current user:', req.userId);
     console.log('Match winner_id:', match.winner_id);
     console.log('Is unranked:', isUnranked);
 
     // Verify that the user confirming is either the loser or winner
     const isWinner = match.winner_id === req.userId;
-    const isLoser = match.loser_id === req.userId;
+    const isLoser = loserId === req.userId;
     
     if (!isWinner && !isLoser) {
       console.log('❌ User is neither winner nor loser');
