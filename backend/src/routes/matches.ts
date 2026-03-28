@@ -1371,11 +1371,12 @@ router.post('/:matchId/replay/download-count', async (req: AuthRequest, res) => 
   }
 });
 
-// Helper function to extract map and faction data from replay parse_summary
-function extractMapAndFactionsFromReplay(parseSummary: any, winnerName: string, loserName: string): {
+// Helper function to extract map, faction, and replay URL data from replay
+function extractMatchDataFromReplay(parseSummary: any, replayUrl: string, winnerName: string, loserName: string): {
   map: string | null;
   winnerFaction: string | null;
   loserFaction: string | null;
+  replayFilePathForDb: string | null;
 } {
   try {
     const forumMap = parseSummary?.forumMap || null;
@@ -1417,10 +1418,11 @@ function extractMapAndFactionsFromReplay(parseSummary: any, winnerName: string, 
       map: forumMap,
       winnerFaction,
       loserFaction,
+      replayFilePathForDb: replayUrl || null,
     };
   } catch (error) {
-    console.error('❌ Error extracting map/factions from replay:', error);
-    return { map: null, winnerFaction: null, loserFaction: null };
+    console.error('❌ Error extracting match data from replay:', error);
+    return { map: null, winnerFaction: null, loserFaction: null, replayFilePathForDb: null };
   }
 }
 
@@ -1808,13 +1810,14 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     if (replay.tournament_round_match_id) {
       console.log(`🎯 [CONFIDENCE-1] Processing tournament_matches for round match ${replay.tournament_round_match_id}`);
       
-      // Extract map and faction data from replay
-      const { map, winnerFaction, loserFaction } = extractMapAndFactionsFromReplay(
+      // Extract map, faction, and replay URL data from replay
+      const { map, winnerFaction, loserFaction, replayFilePathForDb } = extractMatchDataFromReplay(
         parseSummary,
+        replay.replay_url || '',
         player1.user_name,
         player2.user_name
       );
-      console.log(`🎯 [CONFIDENCE-1] Extracted match data:`, { map, winnerFaction, loserFaction });
+      console.log(`🎯 [CONFIDENCE-1] Extracted match data:`, { map, winnerFaction, loserFaction, replayFilePathForDb });
       
       // Get tournament_round_match details AND tournament type
       const roundMatchResult = await query(
@@ -1851,9 +1854,9 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
             await query(
               `UPDATE tournament_matches 
                SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP,
-                   map = ?, winner_faction = ?, loser_faction = ?
+                   map = ?, winner_faction = ?, loser_faction = ?, replay_file_path = ?
                WHERE id = ?`,
-              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, existingId]
+              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, existingId]
             );
             console.log(`✅ [CONFIDENCE-1] League tournament_matches updated: ${existingId}`);
           } else {
@@ -1873,9 +1876,9 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
             await query(
               `UPDATE tournament_matches 
                SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP,
-                   map = ?, winner_faction = ?, loser_faction = ?
+                   map = ?, winner_faction = ?, loser_faction = ?, replay_file_path = ?
                WHERE id = ?`,
-              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, existingId]
+              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, existingId]
             );
             console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches updated (resumable): ${existingId}`);
           } else {
@@ -1884,8 +1887,8 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
             tournamentMatchId = newTournamentMatchId;  // Save for replay linking
             await query(
               `INSERT INTO tournament_matches 
-               (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id, map, winner_faction, loser_faction)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?, ?, ?, ?)`,
+               (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id, map, winner_faction, loser_faction, replay_file_path)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?)`,
               [
                 newTournamentMatchId,
                 roundMatch.tournament_id,
@@ -1897,7 +1900,8 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
                 replay.tournament_round_match_id,
                 map,
                 winnerFaction,
-                loserFaction
+                loserFaction,
+                replayFilePathForDb
               ]
             );
             console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches created: ${newTournamentMatchId}`);
