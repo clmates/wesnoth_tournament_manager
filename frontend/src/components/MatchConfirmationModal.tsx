@@ -85,9 +85,14 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
   const winnerElo = match.winner_elo_before || 'N/A';
   const loserElo = match.loser_elo_before || 'N/A';
   
+  // Calculate loser_id from winner_id and the team/player IDs
+  const loserId = isTeamMode 
+    ? (match.winner_id === match.player1_id ? match.player2_id : match.player1_id)
+    : (match.loser_id || '');
+  
   // For team mode, compare against team IDs; for regular mode, compare against player IDs
   const isWinner = isTeamMode ? currentUserTeamId === match.winner_id : currentPlayerId === match.winner_id;
-  const isLoser = isTeamMode ? currentUserTeamId === match.loser_id : currentPlayerId === match.loser_id;
+  const isLoser = isTeamMode ? currentUserTeamId === loserId : currentPlayerId === loserId;
   const isReported = match.status === 'reported';
   
   if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
@@ -96,7 +101,9 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
       currentPlayerId,
       currentUserTeamId,
       match_winner_id: match.winner_id,
-      match_loser_id: match.loser_id,
+      match_loser_id: loserId,
+      match_player1_id: match.player1_id,
+      match_player2_id: match.player2_id,
       isWinner,
       isLoser,
       match_status: match.status,
