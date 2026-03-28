@@ -2930,7 +2930,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
           NULL as loser_comments,
           NULL as winner_rating,
           NULL as loser_rating,
-          pr.replay_file_path,
+          pr.replay_path as replay_file_path,
           0 as replay_downloads,
           TRUE as is_team_mode,
           pr.id as pending_replay_id,
@@ -2940,7 +2940,9 @@ router.get('/:tournamentId/matches', async (req, res) => {
           pr.replay_url as pending_replay_url,
           pr.replay_filename as pending_replay_filename,
           pr.game_name as pending_replay_game_name,
-          pr.cancel_requested_by as pending_replay_cancel_requested_by
+          pr.cancel_requested_by as pending_replay_cancel_requested_by,
+          pr.created_at,
+          pr.updated_at
         FROM replays pr
         JOIN tournament_round_matches trm ON pr.tournament_round_match_id = trm.id
         JOIN tournament_rounds tr ON trm.round_id = tr.id
@@ -2979,7 +2981,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
           NULL as loser_comments,
           NULL as winner_rating,
           NULL as loser_rating,
-          pr.replay_file_path,
+          pr.replay_path as replay_file_path,
           0 as replay_downloads,
           FALSE as is_team_mode,
           pr.id as pending_replay_id,
@@ -2989,7 +2991,9 @@ router.get('/:tournamentId/matches', async (req, res) => {
           pr.replay_url as pending_replay_url,
           pr.replay_filename as pending_replay_filename,
           pr.game_name as pending_replay_game_name,
-          pr.cancel_requested_by as pending_replay_cancel_requested_by
+          pr.cancel_requested_by as pending_replay_cancel_requested_by,
+          pr.created_at,
+          pr.updated_at
         FROM replays pr
         JOIN tournament_round_matches trm ON pr.tournament_round_match_id = trm.id
         JOIN tournament_rounds tr ON trm.round_id = tr.id
