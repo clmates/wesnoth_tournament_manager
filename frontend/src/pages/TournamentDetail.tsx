@@ -1539,11 +1539,20 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               winnerId = match.player1_id;
                               loserId = match.player2_id;
                             } else {
-                              // For confirmed matches, use standard data
-                              winnerNickname = match.winner_nickname || '';
-                              loserNickname = (match.winner_nickname === match.player1_nickname ? match.player2_nickname : match.player1_nickname) || '';
-                              winnerId = (match.winner_nickname === match.player1_nickname ? match.player1_id : match.player2_id);
-                              loserId = (match.winner_nickname === match.player1_nickname ? match.player2_id : match.player1_id);
+                              // For confirmed matches, use match.winner_id directly if available
+                              if (match.winner_id) {
+                                winnerId = match.winner_id;
+                                // Determine loser as the other player
+                                loserId = (match.winner_id === match.player1_id ? match.player2_id : match.player1_id);
+                                winnerNickname = match.winner_nickname || '';
+                                loserNickname = (match.winner_id === match.player1_id ? match.player2_nickname : match.player1_nickname) || '';
+                              } else {
+                                // Fallback to using winner_nickname if winner_id is not set
+                                winnerNickname = match.winner_nickname || '';
+                                loserNickname = (match.winner_nickname === match.player1_nickname ? match.player2_nickname : match.player1_nickname) || '';
+                                winnerId = (match.winner_nickname === match.player1_nickname ? match.player1_id : match.player2_id);
+                                loserId = (match.winner_nickname === match.player1_nickname ? match.player2_id : match.player1_id);
+                              }
                             }
                            
                            const displayMap = isPendingReplay ? replayData.map : match.map;
