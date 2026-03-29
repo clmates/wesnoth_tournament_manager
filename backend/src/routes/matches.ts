@@ -1623,10 +1623,10 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
 
     // Get map and factions from parse_summary (use resolved values - same as displayed in frontend)
     const map = parseSummary?.resolvedMap || parseSummary?.finalMap || 'Unknown Map';
-    const winner_faction = parseSummary?.resolvedFactions?.side1 || parseSummary?.finalFactions?.side1 || 'Unknown';
-    const loser_faction = parseSummary?.resolvedFactions?.side2 || parseSummary?.finalFactions?.side2 || 'Unknown';
+    let winner_faction = parseSummary?.resolvedFactions?.side1 || parseSummary?.finalFactions?.side1 || 'Unknown';
+    let loser_faction = parseSummary?.resolvedFactions?.side2 || parseSummary?.finalFactions?.side2 || 'Unknown';
 
-    console.log(`📋 [CONFIDENCE-1] Map: ${map}, Factions: ${winner_faction} vs ${loser_faction}`);
+    console.log(`📋 [CONFIDENCE-1] Map: ${map}, Factions (initial): ${winner_faction} vs ${loser_faction}`);
 
     // Get tournament info if this is a tournament match
     let tournamentMode = 'ranked'; // default for direct matches
@@ -1644,6 +1644,37 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     }
     
     console.log(`🎯 [CONFIDENCE-1] Tournament mode: ${tournamentMode}`);
+
+    // For team tournaments, validate and reassign factions based on winner_id/loser_id
+    if (tournamentMode === 'team' && parseSummary?.detectedTeams && replay.tournament_match_id) {
+      // Get tournament_match to know player1_id and player2_id (which are team IDs in team mode)
+      const tmResult = await query(
+        `SELECT player1_id, player2_id, winner_id FROM tournament_matches WHERE id = ?`,
+        [replay.tournament_match_id]
+      );
+      
+      if (tmResult.rows.length > 0) {
+        const tm = tmResult.rows[0];
+        const detectedTeams = parseSummary.detectedTeams as Record<string, any>;
+        
+        // Determine which team is winner and which is loser
+        const winningTeamId = tm.winner_id;
+        const losingTeamId = winningTeamId === tm.player1_id ? tm.player2_id : tm.player1_id;
+        
+        console.log(`🎯 [FACTIONS] Team tournament: winner_team=${winningTeamId}, loser_team=${losingTeamId}`);
+        
+        // Get factions for the winning and losing teams
+        if (detectedTeams[winningTeamId]?.factions) {
+          winner_faction = detectedTeams[winningTeamId].factions.join(', ');
+          console.log(`✅ [FACTIONS] Winner factions from team: ${winner_faction}`);
+        }
+        
+        if (detectedTeams[losingTeamId]?.factions) {
+          loser_faction = detectedTeams[losingTeamId].factions.join(', ');
+          console.log(`✅ [FACTIONS] Loser factions from team: ${loser_faction}`);
+        }
+      }
+    }
 
     // Calculate FIDE ELO ratings
     const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
