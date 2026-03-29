@@ -93,8 +93,8 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
   // For team mode, compare against team IDs; for regular mode, compare against player IDs
   const isWinner = isTeamMode ? currentUserTeamId === match.winner_id : currentPlayerId === match.winner_id;
   const isLoser = isTeamMode ? currentUserTeamId === loserId : currentPlayerId === loserId;
-  // Use match_status_from_matches for tournament matches, otherwise use status
-  const isReported = (match.match_status_from_matches === 'reported') || (match.status === 'reported');
+  // For tournament matches, use match_status_from_matches; for regular matches, use status
+  const isReported = isTeamMode ? (match.match_status_from_matches === 'reported') : (match.status === 'reported');
   
   if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
     console.log('[MatchConfirmationModal] Debug:', {
