@@ -1982,6 +1982,23 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       const seriesResult = await updateTournamentRoundMatch(replay.tournament_round_match_id, winnerIdForTournament);
       console.log(`🎯 [CONFIDENCE-1] updateTournamentRoundMatch returned:`, seriesResult);
       
+      // If series is not complete and we need another match, create it (e.g., 1-1 in BO3)
+      if (seriesResult.shouldCreateNextMatch && seriesResult.tournamentId && seriesResult.roundId) {
+        try {
+          const { createNextMatchInSeries } = await import('../utils/bestOf.js');
+          const newMatchId = await createNextMatchInSeries(
+            replay.tournament_round_match_id,
+            seriesResult.tournamentId,
+            seriesResult.roundId
+          );
+          if (newMatchId) {
+            console.log(`🎯 [CONFIDENCE-1] Created next match in series: ${newMatchId}`);
+          }
+        } catch (nextMatchErr) {
+          console.error('⚠️  [CONFIDENCE-1] Error creating next match:', nextMatchErr);
+        }
+      }
+      
       if (seriesResult.seriesCompleted && seriesResult.tournamentId) {
         try {
           const rnResult = await query(

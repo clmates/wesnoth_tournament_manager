@@ -271,8 +271,10 @@ export async function createNextMatchInSeries(
     const newMatchId = randomUUID();
     await query(
       `INSERT INTO tournament_matches (
-        id, tournament_id, round_id, player1_id, player2_id, tournament_round_match_id, match_status
-      ) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
+        id, tournament_id, round_id, player1_id, player2_id, tournament_round_match_id, 
+        match_status, winner_id, loser_id, match_id, status, 
+        created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 'pending', NULL, NULL, NULL, 'unconfirmed', NOW(), NOW())`,
       [newMatchId, tournamentId, roundId, series.player1_id, series.player2_id, tournamentRoundMatchId]
     );
 

@@ -200,9 +200,14 @@ export class ParseNewReplaysRefactorized {
               errorCount++;
               continue;
             }
+
+            // Get loser user for tournament_matches record
+            const loserUser = await this.getUserDataByNickname(parseSummary.replayVictory!.loser_name);
+            const loserId = loserUser?.id || '';
+
             matchCreateResult = await createTournamentUnrankedMatch({
               winnerId: winnerUser.id,
-              loserId: '', // not used by this function
+              loserId: loserId,
               linkedTournamentId: parseSummary.linkedTournamentId!,
               linkedTournamentRoundMatchId: parseSummary.linkedTournamentRoundMatchId!,
             });

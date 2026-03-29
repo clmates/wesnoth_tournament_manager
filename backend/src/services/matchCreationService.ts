@@ -161,9 +161,9 @@ function resolveRated(currentlyRated: boolean, newElo: number, matchesPlayed: nu
 export async function updateTournamentRoundMatch(
   roundMatchId: string,
   winnerId: string
-): Promise<{ seriesCompleted: boolean; tournamentId: string | null; roundId: string | null }> {
+): Promise<{ seriesCompleted: boolean; shouldCreateNextMatch: boolean; tournamentId: string | null; roundId: string | null; player1Id?: string; player2Id?: string }> {
   const rmResult = await query(
-    `SELECT id, tournament_id, round_id, player1_id, player2_id, player1_wins, player2_wins, wins_required
+    `SELECT id, tournament_id, round_id, player1_id, player2_id, player1_wins, player2_wins, wins_required, best_of
      FROM tournament_round_matches WHERE id = ?`,
     [roundMatchId]
   );
@@ -171,7 +171,7 @@ export async function updateTournamentRoundMatch(
   const rows = (rmResult as any).rows || [];
   if (rows.length === 0) {
     console.warn(`⚠️  [TOURNAMENT LINK] tournament_round_match not found: ${roundMatchId}`);
-    return { seriesCompleted: false, tournamentId: null, roundId: null };
+    return { seriesCompleted: false, shouldCreateNextMatch: false, tournamentId: null, roundId: null };
   }
 
   const rm = rows[0];
@@ -191,7 +191,10 @@ export async function updateTournamentRoundMatch(
   const newP2Wins = rm.player2_wins + (winnerIsPlayer1 ? 0 : 1);
 
   const seriesOver = newP1Wins >= rm.wins_required || newP2Wins >= rm.wins_required;
-  console.log(`🔍 [TOURNAMENT LINK] Series check: newP1Wins=${newP1Wins} newP2Wins=${newP2Wins} winsRequired=${rm.wins_required} seriesOver=${seriesOver}`);
+  // Can create next match if series not over AND we haven't exceeded max matches for this best_of
+  const totalMatchesPlayed = newP1Wins + newP2Wins;
+  const shouldCreateNext = !seriesOver && totalMatchesPlayed < rm.best_of;
+  console.log(`🔍 [TOURNAMENT LINK] Series check: newP1Wins=${newP1Wins} newP2Wins=${newP2Wins} winsRequired=${rm.wins_required} bestOf=${rm.best_of} seriesOver=${seriesOver} shouldCreateNext=${shouldCreateNext}`);
   
   const newStatus  = seriesOver ? 'completed' : 'in_progress';
   const newWinnerId = seriesOver ? winnerId : null;
@@ -283,7 +286,14 @@ export async function updateTournamentRoundMatch(
     }
   }
 
-  return { seriesCompleted: seriesOver, tournamentId: rm.tournament_id || null, roundId: rm.round_id || null };
+  return { 
+    seriesCompleted: seriesOver, 
+    shouldCreateNextMatch: shouldCreateNext,
+    tournamentId: rm.tournament_id || null, 
+    roundId: rm.round_id || null,
+    player1Id: rm.player1_id,
+    player2Id: rm.player2_id
+  };
 }
 
 /**
@@ -310,8 +320,8 @@ export async function createTournamentUnrankedMatch(
     const tournamentMatchId = uuidv4();
     await query(
       `INSERT INTO tournament_matches
-       (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id)
-       VALUES (?, ?, ?, ?, ?, NULL, ?, 'completed', CURRENT_TIMESTAMP, ?)`,
+       (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, loser_id, match_status, status, tournament_round_match_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 'completed', 'unconfirmed', ?, NOW(), NOW())`,
       [
         tournamentMatchId,
         rm.tournament_id,
@@ -319,6 +329,7 @@ export async function createTournamentUnrankedMatch(
         rm.player1_id,
         rm.player2_id,
         input.winnerId,
+        input.loserId || null,
         input.linkedTournamentRoundMatchId,
       ]
     );
