@@ -45,6 +45,9 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
+# GitHub configuration
+.github/
+
 # Testing artifacts
 /testing/results/
 /testing/scripts/test_credentials.csv
