@@ -1679,8 +1679,21 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     const matchId = uuidv4();
 
     // Validate and sanitize optional fields
-    const winnerComments = comments ? String(comments).substring(0, 500) : null;
-    const winnerRating = rating ? parseInt(rating, 10) : null;
+    // Determine where comments and rating should go based on winner_choice
+    let userComments: string | null = null;
+    let userRating: number | null = null;
+    if (comments) {
+      userComments = String(comments).substring(0, 500);
+    }
+    if (rating) {
+      userRating = parseInt(rating, 10);
+    }
+
+    // Assign comments and rating to the correct columns based on whether user won or lost
+    const winnerComments = winner_choice === 'I won' ? userComments : null;
+    const winnerRating = winner_choice === 'I won' ? userRating : null;
+    const loserComments = winner_choice === 'I lost' ? userComments : null;
+    const loserRating = winner_choice === 'I lost' ? userRating : null;
 
     // Only create in global matches table for RANKED tournaments/matches
     if (tournamentMode === 'ranked') {
@@ -1821,6 +1834,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
 
     // STEP 1: If this replay is linked to a tournament_round_match, map winner ID properly
     let winnerIdForTournament = winnerId;  // Default: player ID for 1v1 tournaments
+    let loserIdForTournament = loserId;    // Default: player ID for 1v1 tournaments
     
     if (replay.tournament_round_match_id) {
       const tmodeResult = await query(
@@ -1836,19 +1850,34 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         const { tournament_mode, tournament_id } = (tmodeResult as any).rows[0];
         
         if (tournament_mode === 'team') {
-          // Team tournament: map winning player to their team_id
-          const teamResult = await query(
-            `SELECT team_id FROM tournament_participants 
-             WHERE tournament_id = ? AND user_id = ?`,
-            [tournament_id, winnerId]
-          );
+          // Team tournament: map both players to their team_ids
+          const [winnerTeamResult, loserTeamResult] = await Promise.all([
+            query(
+              `SELECT team_id FROM tournament_participants 
+               WHERE tournament_id = ? AND user_id = ?`,
+              [tournament_id, winnerId]
+            ),
+            query(
+              `SELECT team_id FROM tournament_participants 
+               WHERE tournament_id = ? AND user_id = ?`,
+              [tournament_id, loserId]
+            )
+          ]);
           
-          if (teamResult.rows.length > 0) {
-            winnerIdForTournament = (teamResult as any).rows[0].team_id;
-            console.log(`🎯 [CONFIDENCE-1] Team tournament detected. Mapped player ${winnerId} → team ${winnerIdForTournament}`);
+          if (winnerTeamResult.rows.length > 0) {
+            winnerIdForTournament = (winnerTeamResult as any).rows[0].team_id;
+            console.log(`🎯 [CONFIDENCE-1] Team tournament: mapped winner ${winnerId} → team ${winnerIdForTournament}`);
           } else {
-            console.error(`❌ [CONFIDENCE-1] Team tournament but player not found in tournament_participants`);
-            return res.status(400).json({ error: 'Player not in tournament team' });
+            console.error(`❌ [CONFIDENCE-1] Team tournament but winner not found in tournament_participants`);
+            return res.status(400).json({ error: 'Winner player not in tournament team' });
+          }
+          
+          if (loserTeamResult.rows.length > 0) {
+            loserIdForTournament = (loserTeamResult as any).rows[0].team_id;
+            console.log(`🎯 [CONFIDENCE-1] Team tournament: mapped loser ${loserId} → team ${loserIdForTournament}`);
+          } else {
+            console.error(`❌ [CONFIDENCE-1] Team tournament but loser not found in tournament_participants`);
+            return res.status(400).json({ error: 'Loser player not in tournament team' });
           }
         }
       }
@@ -1907,7 +1936,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
                    map = ?, winner_faction = ?, loser_faction = ?, replay_file_path = ?,
                    winner_comments = ?, winner_rating = ?
                WHERE id = ?`,
-              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, comments || null, rating || null, existingId]
+              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, winnerComments, winnerRating, loserComments, loserRating, existingId]
             );
             console.log(`✅ [CONFIDENCE-1] League tournament_matches updated: ${existingId}`);
           } else {
@@ -1930,7 +1959,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
                    map = ?, winner_faction = ?, loser_faction = ?, replay_file_path = ?,
                    winner_comments = ?, winner_rating = ?
                WHERE id = ?`,
-              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, comments || null, rating || null, existingId]
+              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, winnerComments, winnerRating, loserComments, loserRating, existingId]
             );
             console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches updated (resumable): ${existingId}`);
           } else {
