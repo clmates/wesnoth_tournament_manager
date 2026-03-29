@@ -446,15 +446,40 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     </span>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    {isAuthenticated && (match.status === 'reported' ? (currentPlayerId === match.loser_id || currentPlayerId === match.winner_id) : (currentPlayerId === match.loser_id)) && (match.status === 'unconfirmed' || !match.status || match.status === 'reported') && (
-                      <button
-                        className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition"
-                        onClick={() => onOpenConfirmation && onOpenConfirmation(match)}
-                        title={currentPlayerId === match.winner_id && match.status === 'reported' ? t('match_inform') : t('report_match_link')}
-                      >
-                        {currentPlayerId === match.winner_id && match.status === 'reported' ? t('match_inform') : t('report_match_link')}
-                      </button>
-                    )}
+                    {isAuthenticated && (() => {
+                      const isWinner = currentPlayerId === match.winner_id;
+                      const isLoser = currentPlayerId === match.loser_id;
+                      const hasWinnerData = match.winner_comments && match.winner_rating;
+                      const hasLoserData = match.loser_comments && match.loser_rating;
+
+                      // Winner should confirm if missing winner data
+                      if (isWinner && !hasWinnerData) {
+                        return (
+                          <button
+                            className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition"
+                            onClick={() => onOpenConfirmation && onOpenConfirmation(match)}
+                            title={t('match_inform') || 'Inform Match'}
+                          >
+                            {t('match_inform') || 'Inform Match'}
+                          </button>
+                        );
+                      }
+
+                      // Loser should confirm if missing loser data
+                      if (isLoser && !hasLoserData) {
+                        return (
+                          <button
+                            className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition"
+                            onClick={() => onOpenConfirmation && onOpenConfirmation(match)}
+                            title={t('report_match_link') || 'Confirm/Dispute'}
+                          >
+                            {t('report_match_link') || 'Confirm/Dispute'}
+                          </button>
+                        );
+                      }
+
+                      return null;
+                    })()}
                     <button
                       className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition"
                       onClick={() => {
