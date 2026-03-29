@@ -1557,6 +1557,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                            } else {
                              isCurrentUserLoser = userId === loserId;
                            }
+
+                           // Determine if current user is the winner (for team mode, check team_id)
+                           let isCurrentUserWinner = false;
+                           if (match.is_team_mode) {
+                             isCurrentUserWinner = userTeamId === winnerId;
+                           } else {
+                             isCurrentUserWinner = userId === winnerId;
+                           }
                            
                            // If no match_id and status is pending (and not a pending replay), it was determined by admin
                            const isAdminDetermined = !match.match_id && match.match_status === 'pending' && !isPendingReplay;
@@ -1785,6 +1793,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                          onClick={() => handleOpenConfirmModal(match)}
                                        >
                                          {t('confirm_dispute')}
+                                       </button>
+                                     )}
+                                     {!isAdminDetermined && !isPendingReplay && isCurrentUserWinner && !match.winner_comments && !match.winner_rating && !nextRoundStarted && (
+                                       <button
+                                         className="px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
+                                         onClick={() => handleOpenConfirmModal(match)}
+                                       >
+                                         {t('match_inform')}
                                        </button>
                                      )}
                                      {isCreator && !isPendingReplay && confirmationStatus === 'disputed' && (
