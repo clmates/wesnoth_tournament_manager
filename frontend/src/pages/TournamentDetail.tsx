@@ -1694,6 +1694,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                        <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-green-500">{t('match_status_confirmed')}</span>
                                      ) : confirmationStatus === 'disputed' ? (
                                        <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-orange-500">{t('match_status_disputed')}</span>
+                                     ) : confirmationStatus === 'reported' ? (
+                                       <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-orange-400">{t('match_status_reported')}</span>
                                      ) : (
                                        <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold bg-gray-400">{t('match_status_unconfirmed')}</span>
                                      )}
