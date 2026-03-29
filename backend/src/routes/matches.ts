@@ -1493,7 +1493,8 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     // Get the replay from database
     const replayResult = await query(
       `SELECT id, parse_summary, integration_confidence, parsed,
-              game_id, wesnoth_version, instance_uuid, tournament_round_match_id
+              game_id, wesnoth_version, instance_uuid, tournament_round_match_id,
+              replay_url
        FROM replays WHERE id = ? AND integration_confidence = 1 AND parsed = 1 AND parse_status != 'rejected'`,
       [replayId]
     );
@@ -1668,12 +1669,8 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     const winnerLevelAfter = getUserLevel(winnerNewRating);
     const loserLevelAfter = getUserLevel(loserNewRating);
 
-    // Get replay URL
-    const replayUrlResult = await query(
-      `SELECT replay_url FROM replays WHERE id = ?`,
-      [replayId]
-    );
-    const replayUrl = replayUrlResult.rows?.[0]?.replay_url || '';
+    // Get replay URL (already properly formatted in replays table)
+    const replayFilePath = replay.replay_url || '';
 
     // Generate match ID
     const matchId = uuidv4();
@@ -1748,7 +1745,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
           eloChange,
           tournamentMode,
           'reported',
-          replayUrl,
+          replayFilePath,
           1,
           winnerSide,                  // winner_side (1 or 2)
           replay.game_id ?? null,      // game_id from forum
@@ -1889,10 +1886,10 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     if (replay.tournament_round_match_id) {
       console.log(`🎯 [CONFIDENCE-1] Processing tournament_matches for round match ${replay.tournament_round_match_id}`);
       
-      // Extract map, faction, and replay URL data from replay
+      // Extract map and faction data from replay (use pre-calculated replayFilePath)
       const { map, winnerFaction, loserFaction, replayFilePathForDb } = extractMatchDataFromReplay(
         parseSummary,
-        replay.replay_url || '',
+        replayFilePath,
         player1.user_name,
         player2.user_name
       );
