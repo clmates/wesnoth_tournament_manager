@@ -2120,15 +2120,7 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
         tt1.name as player1_nickname,
         tt2.name as player2_nickname,
         tt_winner.name as winner_nickname,
-        TRUE as is_team_mode,
-        pr.id as pending_replay_id,
-        pr.parse_summary as pending_replay_summary,
-        pr.integration_confidence as pending_replay_confidence,
-        pr.need_integration as pending_replay_need_integration,
-        pr.replay_url as pending_replay_url,
-        pr.replay_filename as pending_replay_filename,
-        pr.game_name as pending_replay_game_name,
-        pr.cancel_requested_by as pending_replay_cancel_requested_by
+        TRUE as is_team_mode
       `;
       joinClause = `
         FROM tournament_round_matches trm
@@ -2136,7 +2128,6 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
         LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
         LEFT JOIN tournament_teams tt_winner ON trm.winner_id = tt_winner.id
-        LEFT JOIN replays pr ON pr.tournament_id = trm.tournament_id AND pr.tournament_round_match_id = trm.id
       `;
     } else {
       // 1v1 mode: get player names from users (original behavior)
@@ -2156,15 +2147,7 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
         u1.nickname as player1_nickname,
         u2.nickname as player2_nickname,
         uw.nickname as winner_nickname,
-        FALSE as is_team_mode,
-        pr.id as pending_replay_id,
-        pr.parse_summary as pending_replay_summary,
-        pr.integration_confidence as pending_replay_confidence,
-        pr.need_integration as pending_replay_need_integration,
-        pr.replay_url as pending_replay_url,
-        pr.replay_filename as pending_replay_filename,
-        pr.game_name as pending_replay_game_name,
-        pr.cancel_requested_by as pending_replay_cancel_requested_by
+        FALSE as is_team_mode
       `;
       joinClause = `
         FROM tournament_round_matches trm
@@ -2172,7 +2155,6 @@ router.get('/:tournamentId/round-matches', async (req, res) => {
         LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
         LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
         LEFT JOIN users_extension uw ON trm.winner_id = uw.id
-        LEFT JOIN replays pr ON pr.tournament_id = trm.tournament_id AND pr.tournament_round_match_id = trm.id
       `;
     }
 
