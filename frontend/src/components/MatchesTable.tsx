@@ -359,7 +359,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     <div className="flex-1 min-w-0">
                       <PlayerLink nickname={match.winner_nickname} userId={match.winner_id} />
                     </div>
-                    <StarDisplay rating={match.winner_rating} size="sm" />
+                    <StarDisplay rating={match.loser_rating} size="sm" />
                     <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded font-semibold">{match.winner_faction}</span>
                     {match.winner_side && (
                       <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}`}>S{match.winner_side}</span>
@@ -395,7 +395,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     <div className="flex-1 min-w-0">
                       <PlayerLink nickname={match.loser_nickname} userId={match.loser_id} />
                     </div>
-                    <StarDisplay rating={match.loser_rating} size="sm" />
+                    <StarDisplay rating={match.winner_rating} size="sm" />
                     <span className="inline-block px-2 py-1 bg-red-100 text-red-700 text-xs rounded font-semibold">{match.loser_faction}</span>
                     {match.winner_side && (
                       <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-semibold ${match.winner_side === 1 ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>S{match.winner_side === 1 ? 2 : 1}</span>

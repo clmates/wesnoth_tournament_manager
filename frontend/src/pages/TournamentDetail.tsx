@@ -1594,7 +1594,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                  <div className="flex flex-col gap-1">
                                    <div className="flex items-center gap-2">
                                      <strong className={isPendingReplay ? 'text-amber-600' : 'text-green-600'}>{match.is_team_mode ? winnerNickname : <PlayerLink nickname={winnerNickname || '-'} userId={winnerId} />}</strong>
-                                     {!isPendingReplay && <StarDisplay rating={match.winner_rating} size="sm" />}
+                                     {!isPendingReplay && <StarDisplay rating={match.loser_rating} size="sm" />}
                                    </div>
                                    {!isPendingReplay && match.winner_comments && (
                                      <div className="text-xs text-gray-600 italic">
@@ -1607,7 +1607,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                  <div className="flex flex-col gap-1">
                                    <div className="flex items-center gap-2">
                                      <strong className={isPendingReplay ? 'text-amber-600' : 'text-red-600'}>{match.is_team_mode ? loserNickname : <PlayerLink nickname={loserNickname} userId={loserId} />}</strong>
-                                     {!isPendingReplay && <StarDisplay rating={match.loser_rating} size="sm" />}
+                                     {!isPendingReplay && <StarDisplay rating={match.winner_rating} size="sm" />}
                                    </div>
                                    {!isPendingReplay && match.loser_comments && (
                                      <div className="text-xs text-gray-600 italic">
