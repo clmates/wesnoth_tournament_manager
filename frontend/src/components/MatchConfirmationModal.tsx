@@ -93,7 +93,8 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
   // For team mode, compare against team IDs; for regular mode, compare against player IDs
   const isWinner = isTeamMode ? currentUserTeamId === match.winner_id : currentPlayerId === match.winner_id;
   const isLoser = isTeamMode ? currentUserTeamId === loserId : currentPlayerId === loserId;
-  const isReported = match.status === 'reported';
+  // Use match_status_from_matches for tournament matches, otherwise use status
+  const isReported = (match.match_status_from_matches === 'reported') || (match.status === 'reported');
   
   if (import.meta.env.VITE_DEBUG_LOGS === 'true') {
     console.log('[MatchConfirmationModal] Debug:', {
@@ -202,7 +203,16 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
               </button>
             </>
           )}
-          {isWinner && isAuthenticated && !isReported && (
+          {isWinner && isAuthenticated && !isReported && !match.winner_comments && !match.winner_rating && (
+            <button
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleConfirm}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Processing...' : 'Inform Match'}
+            </button>
+          )}
+          {isWinner && isAuthenticated && !isReported && match.winner_comments && match.winner_rating && (
             <div className="flex-1 px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm text-center font-semibold">
               Waiting for opponent's response...
             </div>
