@@ -12,6 +12,7 @@ import express from 'express';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { createMatch, updateTournamentRoundMatch } from '../services/matchCreationService.js';
+import { validateAndCorrectFactions, handlePostConfirmation } from '../services/replayConfirmationService.js';
 
 const router = express.Router();
 
@@ -185,10 +186,25 @@ router.post('/:replayId/confirm-winner', authMiddleware, async (req: AuthRequest
     const replayFilePath = `https://replays.wesnoth.org/${replay.wesnoth_version}/${yyyy}/${mm}/${dd}/${cleanFilename}.bz2`;
 
     // Determine factions and map from summary
-    const resolvedFactions: Record<string, string> = summary.resolvedFactions || {};
-    const winnerFaction = resolvedFactions[`side${winnerForumData?.side_number}`] || 'Unknown';
-    const loserFaction  = resolvedFactions[`side${loserForumData?.side_number}`]  || 'Unknown';
+    let resolvedFactions: Record<string, string> = summary.resolvedFactions || {};
+    let winnerFaction = resolvedFactions[`side${winnerForumData?.side_number}`] || 'Unknown';
+    let loserFaction  = resolvedFactions[`side${loserForumData?.side_number}`]  || 'Unknown';
     const map = summary.resolvedMap || 'Unknown';
+
+    // Validate and correct factions for team tournaments
+    const factionsResult = await validateAndCorrectFactions(
+      {
+        tournamentRoundMatchId: replay.tournament_round_match_id,
+        tournamentMatchId: undefined, // Will be set after match creation
+        winnerName,
+        parseSummary: summary,
+        matchType: summary.matchType || 'ranked'
+      },
+      winnerFaction,
+      loserFaction
+    );
+    winnerFaction = factionsResult.winnerFaction;
+    loserFaction = factionsResult.loserFaction;
 
     const result = await createMatch({
       winnerId:                     winnerDbRow.id,
@@ -210,6 +226,16 @@ router.post('/:replayId/confirm-winner', authMiddleware, async (req: AuthRequest
     if (!result.success) {
       console.error('[CONFIRM-WINNER] Match creation failed:', result.error);
       return res.status(500).json({ error: `Failed to create match: ${result.error}` });
+    }
+
+    // Handle post-confirmation: create next match in BO3, check round completion
+    if (replay.tournament_round_match_id) {
+      await handlePostConfirmation(
+        replay.tournament_round_match_id,
+        winnerName,
+        summary,
+        summary.matchType || 'ranked'
+      );
     }
 
     // Mark replay as completed

@@ -19,6 +19,7 @@ import {
   updatePlayerElo
 } from '../services/statisticsCalculator.js';
 import { updateTournamentRoundMatch } from '../services/matchCreationService.js';
+import { validateAndCorrectFactions, handlePostConfirmation } from '../services/replayConfirmationService.js';
 // NOTE: Supabase replay storage temporarily disabled - using /uploads/replays instead
 import multer from 'multer';
 import path from 'path';
@@ -1626,8 +1627,6 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     let winner_faction = parseSummary?.resolvedFactions?.side1 || parseSummary?.finalFactions?.side1 || 'Unknown';
     let loser_faction = parseSummary?.resolvedFactions?.side2 || parseSummary?.finalFactions?.side2 || 'Unknown';
 
-    console.log(`📋 [CONFIDENCE-1] Map: ${map}, Factions (initial): ${winner_faction} vs ${loser_faction}`);
-
     // Get tournament info if this is a tournament match
     let tournamentMode = 'ranked'; // default for direct matches
     if (replay.tournament_round_match_id) {
@@ -1642,39 +1641,21 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         tournamentMode = tournamentResult.rows[0].tournament_mode || 'ranked';
       }
     }
-    
-    console.log(`🎯 [CONFIDENCE-1] Tournament mode: ${tournamentMode}`);
 
-    // For team tournaments, validate and reassign factions based on winner_id/loser_id
-    if (tournamentMode === 'team' && parseSummary?.detectedTeams && replay.tournament_match_id) {
-      // Get tournament_match to know player1_id and player2_id (which are team IDs in team mode)
-      const tmResult = await query(
-        `SELECT player1_id, player2_id, winner_id FROM tournament_matches WHERE id = ?`,
-        [replay.tournament_match_id]
-      );
-      
-      if (tmResult.rows.length > 0) {
-        const tm = tmResult.rows[0];
-        const detectedTeams = parseSummary.detectedTeams as Record<string, any>;
-        
-        // Determine which team is winner and which is loser
-        const winningTeamId = tm.winner_id;
-        const losingTeamId = winningTeamId === tm.player1_id ? tm.player2_id : tm.player1_id;
-        
-        console.log(`🎯 [FACTIONS] Team tournament: winner_team=${winningTeamId}, loser_team=${losingTeamId}`);
-        
-        // Get factions for the winning and losing teams
-        if (detectedTeams[winningTeamId]?.factions) {
-          winner_faction = detectedTeams[winningTeamId].factions.join(', ');
-          console.log(`✅ [FACTIONS] Winner factions from team: ${winner_faction}`);
-        }
-        
-        if (detectedTeams[losingTeamId]?.factions) {
-          loser_faction = detectedTeams[losingTeamId].factions.join(', ');
-          console.log(`✅ [FACTIONS] Loser factions from team: ${loser_faction}`);
-        }
-      }
-    }
+    // Validate and correct factions for team tournaments
+    const factionsResult = await validateAndCorrectFactions(
+      {
+        tournamentRoundMatchId: replay.tournament_round_match_id,
+        tournamentMatchId: replay.tournament_match_id,
+        winnerName: winner.username || '',
+        parseSummary,
+        matchType: tournamentMode === 'team' ? 'tournament_unranked' : 'ranked'
+      },
+      winner_faction,
+      loser_faction
+    );
+    winner_faction = factionsResult.winnerFaction;
+    loser_faction = factionsResult.loserFaction;
 
     // Calculate FIDE ELO ratings
     const winnerNewRating = calculateNewRating(winner.elo_rating, loser.elo_rating, 'win', winner.matches_played);
@@ -1997,54 +1978,20 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       console.log(`✅ [CONFIDENCE-1] Tournament match ${tournament_match_id} updated with match_id ${matchId}`);
     }
 
-    // STEP 3: Update tournament series and participant stats (use mapped winnerIdForTournament)
-    console.log(`🎯 [CONFIDENCE-1] Checking tournament_round_match:`, {
-      tournament_round_match_id: replay.tournament_round_match_id,
-      will_update: !!replay.tournament_round_match_id,
+    // STEP 3: Handle post-confirmation (BO3 creation, round completion)
+    console.log(`🎯 [CONFIDENCE-1] Calling handlePostConfirmation with:`, {
+      roundMatchId: replay.tournament_round_match_id,
+      winnerId: winnerIdForTournament,
       isMappedTeamId: winnerIdForTournament !== winnerId
     });
     
     if (replay.tournament_round_match_id) {
-      console.log(`🎯 [CONFIDENCE-1] Calling updateTournamentRoundMatch with:`, {
-        roundMatchId: replay.tournament_round_match_id,
-        winnerId: winnerIdForTournament,
-        isMappedTeamId: winnerIdForTournament !== winnerId
-      });
-      const seriesResult = await updateTournamentRoundMatch(replay.tournament_round_match_id, winnerIdForTournament);
-      console.log(`🎯 [CONFIDENCE-1] updateTournamentRoundMatch returned:`, seriesResult);
-      
-      // If series is not complete and we need another match, create it (e.g., 1-1 in BO3)
-      if (seriesResult.shouldCreateNextMatch && seriesResult.tournamentId && seriesResult.roundId) {
-        try {
-          const { createNextMatchInSeries } = await import('../utils/bestOf.js');
-          const newMatchId = await createNextMatchInSeries(
-            replay.tournament_round_match_id,
-            seriesResult.tournamentId,
-            seriesResult.roundId
-          );
-          if (newMatchId) {
-            console.log(`🎯 [CONFIDENCE-1] Created next match in series: ${newMatchId}`);
-          }
-        } catch (nextMatchErr) {
-          console.error('⚠️  [CONFIDENCE-1] Error creating next match:', nextMatchErr);
-        }
-      }
-      
-      if (seriesResult.seriesCompleted && seriesResult.tournamentId) {
-        try {
-          const rnResult = await query(
-            `SELECT round_number FROM tournament_rounds WHERE id = ?`,
-            [seriesResult.roundId]
-          );
-          const roundNumber = (rnResult as any).rows?.[0]?.round_number;
-          if (roundNumber) {
-            const { checkAndCompleteRound } = await import('../utils/tournament.js');
-            await checkAndCompleteRound(seriesResult.tournamentId, roundNumber);
-          }
-        } catch (roundErr) {
-          console.error('⚠️  [CONFIDENCE-1] Error checking round completion:', roundErr);
-        }
-      }
+      await handlePostConfirmation(
+        replay.tournament_round_match_id,
+        winnerIdForTournament,
+        parseSummary,
+        tournamentMode === 'team' ? 'tournament_unranked' : tournamentMode
+      );
     }
 
     // Mark replay as reported with proper status
