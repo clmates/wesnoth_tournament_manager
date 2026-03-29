@@ -203,6 +203,7 @@ const Matches: React.FC = () => {
 
   const handleConfirmationSuccess = () => {
     closeConfirmation();
+    setRefreshKey(k => k + 1); // Refresh matches list
   };
 
   if (loading) {
