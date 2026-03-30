@@ -222,50 +222,23 @@ export async function updateTournamentRoundMatch(
 
     if (tournamentMode === 'team') {
       // Team tournament: winnerId and loserId are TEAM UUIDs
-      // Need to update stats for ALL players on the winning and losing teams
+      // Update ONLY tournament_teams (not individual players)
       
-      // Get all player IDs on the winning team
-      const winningTeamResult = await query(
-        `SELECT user_id FROM tournament_participants WHERE tournament_id = ? AND team_id = ?`,
-        [rm.tournament_id, winnerId]
+      await query(
+        `UPDATE tournament_teams
+         SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+             tournament_points = COALESCE(tournament_points, 0) + 1
+         WHERE id = ?`,
+        [winnerId]
       );
-      const winningTeamPlayers = ((winningTeamResult as any).rows || []).map((row: any) => row.user_id);
-      
-      // Get all player IDs on the losing team
-      const losingTeamResult = await query(
-        `SELECT user_id FROM tournament_participants WHERE tournament_id = ? AND team_id = ?`,
-        [rm.tournament_id, loserId]
+      await query(
+        `UPDATE tournament_teams
+         SET tournament_losses = COALESCE(tournament_losses, 0) + 1
+         WHERE id = ?`,
+        [loserId]
       );
-      const losingTeamPlayers = ((losingTeamResult as any).rows || []).map((row: any) => row.user_id);
 
-      console.log(`   🏆 [TOURNAMENT LINK] Team tournament: ${winningTeamPlayers.length} winners, ${losingTeamPlayers.length} losers`);
-
-      // Update all winners
-      if (winningTeamPlayers.length > 0) {
-        for (const playerId of winningTeamPlayers) {
-          await query(
-            `UPDATE tournament_participants
-             SET tournament_wins   = COALESCE(tournament_wins, 0) + 1,
-                 tournament_points = COALESCE(tournament_points, 0) + 1
-             WHERE tournament_id = ? AND user_id = ?`,
-            [rm.tournament_id, playerId]
-          );
-        }
-      }
-
-      // Update all losers
-      if (losingTeamPlayers.length > 0) {
-        for (const playerId of losingTeamPlayers) {
-          await query(
-            `UPDATE tournament_participants
-             SET tournament_losses = COALESCE(tournament_losses, 0) + 1
-             WHERE tournament_id = ? AND user_id = ?`,
-            [rm.tournament_id, playerId]
-          );
-        }
-      }
-
-      console.log(`   ✅ [TOURNAMENT LINK] Team stats: winners(${winningTeamPlayers.length}) +1W+1P each, losers(${losingTeamPlayers.length}) +1L each`);
+      console.log(`   ✅ [TOURNAMENT LINK] Team stats updated: winner team +1W+1P, loser team +1L`);
     } else {
       // 1v1 tournament: winnerId and loserId are PLAYER UUIDs
       await query(

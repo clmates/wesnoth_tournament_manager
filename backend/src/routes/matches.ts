@@ -1931,7 +1931,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
               `UPDATE tournament_matches 
                SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP,
                    map = ?, winner_faction = ?, loser_faction = ?, replay_file_path = ?,
-                   winner_comments = ?, winner_rating = ?
+                   winner_comments = ?, winner_rating = ?, loser_comments = ?, loser_rating = ?
                WHERE id = ?`,
               [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, winnerComments, winnerRating, loserComments, loserRating, existingId]
             );
@@ -1954,7 +1954,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
               `UPDATE tournament_matches 
                SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP,
                    map = ?, winner_faction = ?, loser_faction = ?, replay_file_path = ?,
-                   winner_comments = ?, winner_rating = ?
+                   winner_comments = ?, winner_rating = ?, loser_comments = ?, loser_rating = ?
                WHERE id = ?`,
               [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, winnerComments, winnerRating, loserComments, loserRating, existingId]
             );
@@ -1965,8 +1965,8 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
             tournamentMatchId = newTournamentMatchId;  // Save for replay linking
             await query(
               `INSERT INTO tournament_matches 
-               (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id, map, winner_faction, loser_faction, replay_file_path, winner_comments, winner_rating)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?)`,
+               (id, tournament_id, round_id, player1_id, player2_id, match_id, winner_id, match_status, played_at, tournament_round_match_id, map, winner_faction, loser_faction, replay_file_path, winner_comments, winner_rating, loser_comments, loser_rating)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 newTournamentMatchId,
                 roundMatch.tournament_id,
@@ -1980,8 +1980,10 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
                 winnerFaction,
                 loserFaction,
                 replayFilePathForDb,
-                comments || null,
-                rating || null
+                winnerComments,
+                winnerRating,
+                loserComments,
+                loserRating
               ]
             );
             console.log(`✅ [CONFIDENCE-1] Non-league tournament_matches created: ${newTournamentMatchId}`);
