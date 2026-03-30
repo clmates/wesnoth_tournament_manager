@@ -224,21 +224,38 @@ export async function updateTournamentRoundMatch(
       // Team tournament: winnerId and loserId are TEAM UUIDs
       // Update ONLY tournament_teams (not individual players)
       
-      await query(
-        `UPDATE tournament_teams
-         SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
-             tournament_points = COALESCE(tournament_points, 0) + 1
-         WHERE id = ?`,
-        [winnerId]
-      );
-      await query(
-        `UPDATE tournament_teams
-         SET tournament_losses = COALESCE(tournament_losses, 0) + 1
-         WHERE id = ?`,
-        [loserId]
-      );
+      console.log(`   🏆 [TOURNAMENT LINK] TEAM TOURNAMENT: Updating tournament_teams`);
+      console.log(`      Winner team ID: ${winnerId}`);
+      console.log(`      Loser team ID: ${loserId}`);
+      
+      try {
+        await query(
+          `UPDATE tournament_teams
+           SET tournament_wins = COALESCE(tournament_wins, 0) + 1,
+               tournament_points = COALESCE(tournament_points, 0) + 1
+           WHERE id = ?`,
+          [winnerId]
+        );
+        console.log(`      ✅ Winner team updated: +1 win, +1 point`);
+      } catch (winErr) {
+        console.error(`      ❌ Failed to update winner team:`, winErr);
+        throw winErr;
+      }
+      
+      try {
+        await query(
+          `UPDATE tournament_teams
+           SET tournament_losses = COALESCE(tournament_losses, 0) + 1
+           WHERE id = ?`,
+          [loserId]
+        );
+        console.log(`      ✅ Loser team updated: +1 loss`);
+      } catch (loseErr) {
+        console.error(`      ❌ Failed to update loser team:`, loseErr);
+        throw loseErr;
+      }
 
-      console.log(`   ✅ [TOURNAMENT LINK] Team stats updated: winner team +1W+1P, loser team +1L`);
+      console.log(`   ✅ [TOURNAMENT LINK] Team stats updated successfully`);
     } else {
       // 1v1 tournament: winnerId and loserId are PLAYER UUIDs
       await query(

@@ -1474,39 +1474,56 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     const { replayId, winner_choice, rating, comments, tournament_match_id } = req.body;
     const userId = req.userId;
 
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`📋 [CONFIDENCE-1] ===== STARTING REPLAY CONFIRMATION FLOW =====`);
+    console.log(`📋 [CONFIDENCE-1] Request received:`);
+    console.log(`   replayId: ${replayId}`);
+    console.log(`   userId: ${userId}`);
+    console.log(`   winner_choice: ${winner_choice}`);
+    console.log(`   rating: ${rating}`);
+    console.log(`   comments: ${comments ? comments.substring(0, 50) : 'null'}`);
+    console.log(`   tournament_match_id: ${tournament_match_id}`);
+    console.log(`${'='.repeat(80)}\n`);
+
     // Validate user is authenticated
     if (!userId) {
+      console.error(`❌ [CONFIDENCE-1] User not authenticated`);
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
     // Validate inputs
     if (!replayId) {
+      console.error(`❌ [CONFIDENCE-1] Missing replayId`);
       return res.status(400).json({ error: 'Missing replayId in request body' });
     }
 
     if (!winner_choice || !['I won', 'I lost'].includes(winner_choice)) {
+      console.error(`❌ [CONFIDENCE-1] Invalid winner_choice: ${winner_choice}`);
       return res.status(400).json({ error: 'winner_choice must be "I won" or "I lost"' });
     }
 
-    console.log(`📋 [CONFIDENCE-1] Processing replay ${replayId}: user ${userId} says "${winner_choice}"`);
+    console.log(`✅ [CONFIDENCE-1] Input validation passed`);
 
     // Get the replay from database
+    console.log(`📥 [CONFIDENCE-1] Fetching replay from database...`);
     const replayResult = await query(
       `SELECT id, parse_summary, integration_confidence, parsed,
               game_id, wesnoth_version, instance_uuid, tournament_round_match_id,
-              replay_url
+              replay_url, tournament_id
        FROM replays WHERE id = ? AND integration_confidence = 1 AND parsed = 1 AND parse_status != 'rejected'`,
       [replayId]
     );
 
     if (replayResult.rows.length === 0) {
+      console.error(`❌ [CONFIDENCE-1] Replay not found: ${replayId}`);
       return res.status(404).json({ error: 'Replay not found or not a confidence=1 replay' });
     }
 
     const replay = replayResult.rows[0];
-    console.log(`🎯 [CONFIDENCE-1] Replay loaded:`, {
+    console.log(`✅ [CONFIDENCE-1] Replay loaded:`, {
       replayId: replay.id,
       tournament_round_match_id: replay.tournament_round_match_id,
+      tournament_id: replay.tournament_id,
       has_tournament_round_match: !!replay.tournament_round_match_id
     });
     
@@ -1521,22 +1538,27 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       return res.status(500).json({ error: 'Invalid parse_summary data in replay' });
     }
 
+    console.log(`📥 [CONFIDENCE-1] Parsing forumPlayers from replay...`);
     // Extract player information from parse_summary
     const forumPlayers = parseSummary?.forumPlayers || [];
     if (forumPlayers.length < 2) {
+      console.error(`❌ [CONFIDENCE-1] Replay does not have 2 players, got ${forumPlayers.length}`);
       return res.status(400).json({ error: 'Replay does not have 2 players' });
     }
 
     const player1 = forumPlayers[0];
     const player2 = forumPlayers[1];
+    console.log(`✅ [CONFIDENCE-1] Players from replay: ${player1?.user_name} (side ${player1?.side_number}), ${player2?.user_name} (side ${player2?.side_number})`);
 
     // Get current user's nickname
+    console.log(`📥 [CONFIDENCE-1] Fetching current user nickname (userId: ${userId})...`);
     const currentUserResult = await query(
       `SELECT nickname FROM users_extension WHERE id = ?`,
       [userId]
     );
     
     if (currentUserResult.rows.length === 0) {
+      console.error(`❌ [CONFIDENCE-1] Current user not found in database`);
       return res.status(404).json({ error: 'User not found' });
     }
 
@@ -1544,10 +1566,17 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     const player1Nickname = player1?.user_name?.toLowerCase() || '';
     const player2Nickname = player2?.user_name?.toLowerCase() || '';
 
+    console.log(`✅ [CONFIDENCE-1] Current user: "${currentUserNickname}"`);
+    console.log(`   Player1 in replay: "${player1Nickname}"`);
+    console.log(`   Player2 in replay: "${player2Nickname}"`);
+
     // Security check: user must be one of the 2 players
     if (currentUserNickname !== player1Nickname && currentUserNickname !== player2Nickname) {
+      console.error(`❌ [CONFIDENCE-1] SECURITY CHECK FAILED: User "${currentUserNickname}" is not in replay (${player1Nickname} vs ${player2Nickname})`);
       return res.status(403).json({ error: 'You are not a participant in this replay' });
     }
+
+    console.log(`✅ [CONFIDENCE-1] Security check passed - user is a participant`);
 
     // Determine who won based on user's choice
     let winnerId: string = userId;
@@ -1559,9 +1588,11 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     // Verify other player exists in forumPlayers (validate from replay data)
     const otherPlayerData = currentUserNickname === player1Nickname ? player2 : player1;
     if (!otherPlayerData || !otherPlayerData.user_name) {
+      console.error(`❌ [CONFIDENCE-1] Could not identify second player from replay data`);
       return res.status(400).json({ error: 'Could not identify second player from replay data' });
     }
     
+    console.log(`📥 [CONFIDENCE-1] Looking up other player: "${otherPlayerNickname}"...`);
     const otherPlayerResult = await query(
       `SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)`,
       [otherPlayerNickname]
@@ -1571,25 +1602,31 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
 
     if (otherPlayerResult.rows.length === 0) {
       // Create the player with default elo=1400 only if they exist in forumPlayers
-      console.log(`⚠️ Player ${otherPlayerNickname} not found in users_extension, creating with default elo=1400 (from replay)`);
+      console.log(`⚠️  [CONFIDENCE-1] Player ${otherPlayerNickname} not found in users_extension, creating with default elo=1400 (from replay)`);
       
       const newUserId = uuidv4();
-      const createUserResult = await query(
-        `INSERT INTO users_extension (id, nickname, is_active, is_rated, elo_rating, matches_played)
-         VALUES (?, ?, true, false, 1400, 0)`,
-        [newUserId, otherPlayerNickname]
-      );
-      
-      otherPlayerId = newUserId;
-      console.log(`✅ Created new player ${otherPlayerNickname} with ID ${otherPlayerId} (verified from forum replay)`);
+      try {
+        await query(
+          `INSERT INTO users_extension (id, nickname, is_active, is_rated, elo_rating, matches_played)
+           VALUES (?, ?, true, false, 1400, 0)`,
+          [newUserId, otherPlayerNickname]
+        );
+        otherPlayerId = newUserId;
+        console.log(`✅ [CONFIDENCE-1] Created new player ${otherPlayerNickname} with ID ${otherPlayerId}`);
+      } catch (createErr) {
+        console.error(`❌ [CONFIDENCE-1] Failed to create new player:`, createErr);
+        throw createErr;
+      }
     } else {
       otherPlayerId = otherPlayerResult.rows[0].id;
+      console.log(`✅ [CONFIDENCE-1] Found existing player: "${otherPlayerNickname}" -> ${otherPlayerId}`);
     }
 
     if (winner_choice === 'I lost') {
       // User lost, so the other player won
       loserId = userId;
       winnerId = otherPlayerId;
+      console.log(`📊 [CONFIDENCE-1] Winner determination: User said "I lost", so winner=${winnerId}, loser=${loserId}`);
     } else {
       // User won (default case)
       loserId = otherPlayerId;
@@ -1830,10 +1867,12 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     );
 
     // STEP 1: If this replay is linked to a tournament_round_match, map winner ID properly
+    console.log(`\n📊 [CONFIDENCE-1] ===== STEP 1: TOURNAMENT ID MAPPING =====`);
     let winnerIdForTournament = winnerId;  // Default: player ID for 1v1 tournaments
     let loserIdForTournament = loserId;    // Default: player ID for 1v1 tournaments
     
     if (replay.tournament_round_match_id) {
+      console.log(`📥 [CONFIDENCE-1] Fetching tournament mode for round match ${replay.tournament_round_match_id}...`);
       const tmodeResult = await query(
         `SELECT t.tournament_mode, t.id as tournament_id 
          FROM tournaments t 
@@ -1845,8 +1884,10 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       
       if (tmodeResult.rows.length > 0) {
         const { tournament_mode, tournament_id } = (tmodeResult as any).rows[0];
+        console.log(`✅ [CONFIDENCE-1] Tournament found: mode=${tournament_mode}, id=${tournament_id}`);
         
         if (tournament_mode === 'team') {
+          console.log(`📥 [CONFIDENCE-1] Team tournament detected - mapping players to teams...`);
           // Team tournament: map both players to their team_ids
           const [winnerTeamResult, loserTeamResult] = await Promise.all([
             query(
@@ -1863,28 +1904,37 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
           
           if (winnerTeamResult.rows.length > 0) {
             winnerIdForTournament = (winnerTeamResult as any).rows[0].team_id;
-            console.log(`🎯 [CONFIDENCE-1] Team tournament: mapped winner ${winnerId} → team ${winnerIdForTournament}`);
+            console.log(`✅ [CONFIDENCE-1] Winner team mapping: player=${winnerId} → team=${winnerIdForTournament}`);
           } else {
-            console.error(`❌ [CONFIDENCE-1] Team tournament but winner not found in tournament_participants`);
+            console.error(`❌ [CONFIDENCE-1] CRITICAL: Winner player ${winnerId} not found in tournament_participants for tournament ${tournament_id}`);
             return res.status(400).json({ error: 'Winner player not in tournament team' });
           }
           
           if (loserTeamResult.rows.length > 0) {
             loserIdForTournament = (loserTeamResult as any).rows[0].team_id;
-            console.log(`🎯 [CONFIDENCE-1] Team tournament: mapped loser ${loserId} → team ${loserIdForTournament}`);
+            console.log(`✅ [CONFIDENCE-1] Loser team mapping: player=${loserId} → team=${loserIdForTournament}`);
           } else {
-            console.error(`❌ [CONFIDENCE-1] Team tournament but loser not found in tournament_participants`);
+            console.error(`❌ [CONFIDENCE-1] CRITICAL: Loser player ${loserId} not found in tournament_participants for tournament ${tournament_id}`);
             return res.status(400).json({ error: 'Loser player not in tournament team' });
           }
+        } else {
+          console.log(`✅ [CONFIDENCE-1] 1v1 tournament - no team mapping needed`);
         }
+      } else {
+        console.warn(`⚠️  [CONFIDENCE-1] Tournament round match ${replay.tournament_round_match_id} not found`);
       }
+    } else {
+      console.log(`ℹ️  [CONFIDENCE-1] No tournament_round_match - this is a direct match`);
     }
+    
+    console.log(`${'='.repeat(80)}\n`);
 
     // STEP 2: Create/update tournament_matches entry (use mapped winnerIdForTournament)
+    console.log(`📊 [CONFIDENCE-1] ===== STEP 2: TOURNAMENT MATCHES UPDATE =====`);
     let tournamentMatchId: string | null = null;  // Track the tournament_match ID for replay linking
     
     if (replay.tournament_round_match_id) {
-      console.log(`🎯 [CONFIDENCE-1] Processing tournament_matches for round match ${replay.tournament_round_match_id}`);
+      console.log(`📥 [CONFIDENCE-1] Processing tournament_matches for round match ${replay.tournament_round_match_id}`);
       
       // Extract map and faction data from replay (use pre-calculated replayFilePath)
       const { map, winnerFaction, loserFaction, replayFilePathForDb } = extractMatchDataFromReplay(
@@ -1893,9 +1943,10 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         player1.user_name,
         player2.user_name
       );
-      console.log(`🎯 [CONFIDENCE-1] Extracted match data:`, { map, winnerFaction, loserFaction, replayFilePathForDb });
+      console.log(`✅ [CONFIDENCE-1] Extracted match data:`, { map, winnerFaction, loserFaction, replayFilePathForDb });
       
       // Get tournament_round_match details AND tournament type
+      console.log(`📥 [CONFIDENCE-1] Fetching tournament_round_match details...`);
       const roundMatchResult = await query(
         `SELECT trm.tournament_id, trm.round_id, trm.player1_id, trm.player2_id, t.tournament_type
          FROM tournament_round_matches trm
@@ -1907,6 +1958,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
       if (roundMatchResult.rows.length > 0) {
         const roundMatch = (roundMatchResult as any).rows[0];
         const isLeagueTournament = roundMatch.tournament_type === 'league';
+        console.log(`✅ [CONFIDENCE-1] Tournament round match found: type=${roundMatch.tournament_type}, player1=${roundMatch.player1_id}, player2=${roundMatch.player2_id}`);
         
         // For league tournaments: tournament_matches are PRE-GENERATED
         // For other types: tournament_matches are created on demand
@@ -1915,6 +1967,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
           
           // Search for pending tournament_matches linked to this round_match_id
           // (pre-generated matches already have tournament_round_match_id set)
+          console.log(`📥 [CONFIDENCE-1] Querying tournament_matches with tournament_round_match_id=${replay.tournament_round_match_id} and match_status='pending'...`);
           const existingMatchResult = await query(
             `SELECT id FROM tournament_matches
              WHERE tournament_round_match_id = ?
@@ -1923,21 +1976,42 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
             [replay.tournament_round_match_id]
           );
           
+          console.log(`✅ [CONFIDENCE-1] Query returned ${existingMatchResult.rows.length} results`);
+          
           if (existingMatchResult.rows.length > 0) {
             // UPDATE existing record (expected for league)
             const existingId = (existingMatchResult as any).rows[0].id;
             tournamentMatchId = existingId;  // Save for replay linking
-            await query(
-              `UPDATE tournament_matches 
-               SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP,
-                   map = ?, winner_faction = ?, loser_faction = ?, replay_file_path = ?,
-                   winner_comments = ?, winner_rating = ?, loser_comments = ?, loser_rating = ?
-               WHERE id = ?`,
-              [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, winnerComments, winnerRating, loserComments, loserRating, existingId]
-            );
-            console.log(`✅ [CONFIDENCE-1] League tournament_matches updated: ${existingId}`);
+            
+            console.log(`📤 [CONFIDENCE-1] UPDATING tournament_match: ${existingId}`);
+            console.log(`   Parameters:`);
+            console.log(`   - match_id: ${tournamentMode === 'ranked' ? matchId : null}`);
+            console.log(`   - winner_id: ${winnerIdForTournament}`);
+            console.log(`   - map: ${map}`);
+            console.log(`   - winner_faction: ${winnerFaction}`);
+            console.log(`   - loser_faction: ${loserFaction}`);
+            console.log(`   - replay_file_path: ${replayFilePathForDb}`);
+            console.log(`   - winner_comments: ${winnerComments ? winnerComments.substring(0, 30) : 'null'}`);
+            console.log(`   - winner_rating: ${winnerRating}`);
+            console.log(`   - loser_comments: ${loserComments ? loserComments.substring(0, 30) : 'null'}`);
+            console.log(`   - loser_rating: ${loserRating}`);
+            
+            try {
+              await query(
+                `UPDATE tournament_matches 
+                 SET match_id = ?, winner_id = ?, match_status = 'completed', played_at = CURRENT_TIMESTAMP,
+                     map = ?, winner_faction = ?, loser_faction = ?, replay_file_path = ?,
+                     winner_comments = ?, winner_rating = ?, loser_comments = ?, loser_rating = ?
+                 WHERE id = ?`,
+                [tournamentMode === 'ranked' ? matchId : null, winnerIdForTournament, map, winnerFaction, loserFaction, replayFilePathForDb, winnerComments, winnerRating, loserComments, loserRating, existingId]
+              );
+              console.log(`✅ [CONFIDENCE-1] League tournament_matches updated successfully: ${existingId}`);
+            } catch (err) {
+              console.error(`❌ [CONFIDENCE-1] FAILED to update tournament_matches:`, err);
+              throw err;
+            }
           } else {
-            console.warn(`⚠️  [CONFIDENCE-1] League tournament but no pending tournament_matches found!`);
+            console.error(`❌ [CONFIDENCE-1] League tournament but NO pending tournament_matches found for round_match ${replay.tournament_round_match_id}`);
           }
         } else {
           // Non-league tournament: check if record exists (shouldn't normally, but handle resumable matches)
@@ -2007,24 +2081,32 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     }
 
     // STEP 3: Handle post-confirmation (BO3 creation, round completion)
-    console.log(`🎯 [CONFIDENCE-1] Calling handlePostConfirmation with:`, {
+    console.log(`\n📊 [CONFIDENCE-1] ===== STEP 3: POST-CONFIRMATION HANDLING =====`);
+    console.log(`📥 [CONFIDENCE-1] Calling handlePostConfirmation with:`, {
       roundMatchId: replay.tournament_round_match_id,
       winnerId: winnerIdForTournament,
-      isMappedTeamId: winnerIdForTournament !== winnerId
+      isMappedTeamId: winnerIdForTournament !== winnerId,
+      tournamentMode: tournamentMode
     });
     
     if (replay.tournament_round_match_id) {
-      await handlePostConfirmation(
-        replay.tournament_round_match_id,
-        winnerIdForTournament,
-        parseSummary,
-        tournamentMode === 'team' ? 'tournament_unranked' : tournamentMode
-      );
+      try {
+        await handlePostConfirmation(
+          replay.tournament_round_match_id,
+          winnerIdForTournament,
+          parseSummary,
+          tournamentMode === 'team' ? 'tournament_unranked' : tournamentMode
+        );
+        console.log(`✅ [CONFIDENCE-1] handlePostConfirmation completed`);
+      } catch (postErr) {
+        console.error(`❌ [CONFIDENCE-1] handlePostConfirmation failed:`, postErr);
+        throw postErr;
+      }
     }
 
     // Mark replay as reported with proper status
-    // For ranked matches: tournament_mode='ranked' && tournamentMode='ranked' → use match_id (direct match)
-    // For unranked tournament: tournament_mode='team'/'individual' → use tournament_match_id
+    console.log(`📤 [CONFIDENCE-1] Updating replay status to 'completed'...`);
+    console.log(`   tournament_match_id: ${tournamentMatchId}`);
     await query(
       `UPDATE replays 
        SET parse_status = 'completed', 
@@ -2034,8 +2116,15 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
        WHERE id = ?`,
       [tournamentMatchId, replayId]
     );
+    console.log(`✅ [CONFIDENCE-1] Replay marked as completed`);
 
-    console.log(`✅ [CONFIDENCE-1] Match reported successfully: ${winnerId} (+${eloChange} ELO) vs ${loserId}`);
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`✅ [CONFIDENCE-1] ===== REPLAY CONFIRMATION SUCCESSFUL =====`);
+    console.log(`✅ Winner: ${winnerId} (mapped to ${winnerIdForTournament} for tournament)`);
+    console.log(`✅ Loser: ${loserId}`);
+    console.log(`✅ ELO Change: ${eloChange}`);
+    console.log(`${'='.repeat(80)}\n`);
+    
     res.status(201).json({ 
       success: true,
       matchId,
@@ -2044,7 +2133,14 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     });
 
   } catch (error) {
-    console.error('❌ Error reporting confidence-1 replay:', error);
+    console.error(`\n${'='.repeat(80)}`);
+    console.error(`❌ [CONFIDENCE-1] ===== ERROR DURING REPLAY CONFIRMATION =====`);
+    console.error(`❌ Error:`, error);
+    if (error instanceof Error) {
+      console.error(`❌ Message: ${error.message}`);
+      console.error(`❌ Stack: ${error.stack}`);
+    }
+    console.error(`${'='.repeat(80)}\n`);
     res.status(500).json({ error: 'Failed to report replay', details: error instanceof Error ? error.message : String(error) });
   }
 });
