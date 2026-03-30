@@ -1522,19 +1522,22 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     const replay = replayResult.rows[0];
     console.log(`✅ [CONFIDENCE-1] Replay loaded:`, {
       replayId: replay.id,
-      tournament_round_match_id: replay.tournament_round_match_id,
       tournament_id: replay.tournament_id,
+      tournament_round_match_id: replay.tournament_round_match_id,
       has_tournament_round_match: !!replay.tournament_round_match_id
     });
     
+    console.log(`[DEBUG] About to parse parse_summary...`);
     let parseSummary: any;
 
     try {
+      console.log(`[DEBUG] parse_summary type: ${typeof replay.parse_summary}, length: ${replay.parse_summary?.length}`);
       parseSummary = typeof replay.parse_summary === 'string' 
         ? JSON.parse(replay.parse_summary) 
         : replay.parse_summary;
+      console.log(`[DEBUG] parse_summary parsed successfully`);
     } catch (parseError) {
-      console.error('❌ Failed to parse parse_summary JSON:', parseError);
+      console.error('❌ [CONFIDENCE-1] Failed to parse parse_summary JSON:', parseError);
       return res.status(500).json({ error: 'Invalid parse_summary data in replay' });
     }
 
