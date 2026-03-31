@@ -226,6 +226,8 @@ const TournamentDetail: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState<'participants' | 'matches' | 'rounds' | 'roundMatches' | 'ranking' | 'teams'>('participants');
+  const [filterMode, setFilterMode] = useState<'all' | 'pending' | 'current'>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [userParticipationStatus, setUserParticipationStatus] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [confirmMatchData, setConfirmMatchData] = useState<any>(null);
@@ -1096,37 +1098,103 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <p className="text-red-600">❌ {t('join_denied_msg')}</p>
       )}
 
-      <div className="flex flex-wrap gap-2 mt-8 mb-6">
-        <button 
-          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'participants' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-          onClick={() => setActiveTab('participants')}
-        >
-          {tournament?.tournament_mode === 'team' ? 'Teams' : t('tabs.participants', { count: participants.length })}
-        </button>
-        <button 
-          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'matches' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-          onClick={() => setActiveTab('matches')}
-        >
-          {t('tabs.matches', { count: matches.length })}
-        </button>
-        <button 
-          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'rounds' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-          onClick={() => setActiveTab('rounds')}
-        >
-          {t('tabs.rounds', { count: rounds.length })}
-        </button>
-        <button 
-          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'roundMatches' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-          onClick={() => setActiveTab('roundMatches')}
-        >
-          {t('tabs.round_details')}
-        </button>
-        <button 
-          className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'ranking' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-          onClick={() => setActiveTab('ranking')}
-        >
-          {t('tabs.ranking')}
-        </button>
+      <div className="flex flex-col gap-4 mt-8 mb-6">
+        {/* Tab buttons */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <button 
+            className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'participants' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+            onClick={() => setActiveTab('participants')}
+          >
+            {tournament?.tournament_mode === 'team' ? 'Teams' : t('tabs.participants', { count: participants.length })}
+          </button>
+          <button 
+            className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'matches' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+            onClick={() => setActiveTab('matches')}
+          >
+            {t('tabs.matches', { count: matches.length })}
+          </button>
+          <button 
+            className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'rounds' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+            onClick={() => setActiveTab('rounds')}
+          >
+            {t('tabs.rounds', { count: rounds.length })}
+          </button>
+          <button 
+            className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'roundMatches' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+            onClick={() => setActiveTab('roundMatches')}
+          >
+            {t('tabs.round_details')}
+          </button>
+          <button 
+            className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'ranking' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+            onClick={() => setActiveTab('ranking')}
+          >
+            {t('tabs.ranking')}
+          </button>
+          
+          {/* Refresh button */}
+          <button
+            onClick={() => {
+              setIsRefreshing(true);
+              fetchTournamentData().finally(() => setIsRefreshing(false));
+            }}
+            disabled={isRefreshing}
+            className="ml-auto px-3 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            title={t('common.refresh')}
+          >
+            <svg 
+              className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span className="hidden sm:inline">{t('common.refresh')}</span>
+          </button>
+        </div>
+
+        {/* Filter options for Matches and Round Details tabs */}
+        {(activeTab === 'matches' || activeTab === 'roundMatches') && (
+          <div className="flex flex-wrap gap-3 items-center bg-gray-50 p-3 rounded border border-gray-200">
+            <span className="font-medium text-gray-700 text-sm">{t('common.filter', 'Filter')}:</span>
+            <div className="flex gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="filter"
+                  value="all"
+                  checked={filterMode === 'all'}
+                  onChange={(e) => setFilterMode(e.target.value as 'all' | 'pending' | 'current')}
+                  className="cursor-pointer"
+                />
+                <span className="text-sm text-gray-700">{t('common.show_all')}</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="filter"
+                  value="pending"
+                  checked={filterMode === 'pending'}
+                  onChange={(e) => setFilterMode(e.target.value as 'all' | 'pending' | 'current')}
+                  className="cursor-pointer"
+                />
+                <span className="text-sm text-gray-700">{t('common.show_only_pending')}</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="filter"
+                  value="current"
+                  checked={filterMode === 'current'}
+                  onChange={(e) => setFilterMode(e.target.value as 'all' | 'pending' | 'current')}
+                  className="cursor-pointer"
+                />
+                <span className="text-sm text-gray-700">{t('common.show_only_current_round')}</span>
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {activeTab === 'participants' && (
@@ -1385,6 +1453,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               {rounds.length > 0 ? (
                   <>
                     {rounds.map((round) => {
+                      // Determine which rounds to display based on filter
+                      const shouldShowRound = filterMode === 'all' 
+                        ? true 
+                        : filterMode === 'current'
+                        ? round.round_status === 'in_progress'
+                        : true; // pending filter shows all rounds with pending matches
+                      
                       const scheduledMatches = matches
                         .filter(
                           (m) => m.round_id === round.id && m.match_status === 'pending'
@@ -1392,6 +1467,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         .sort((a, b) => (a.player1_nickname || '').localeCompare(b.player1_nickname || ''));
                       
                       if (scheduledMatches.length === 0) return null;
+                      if (!shouldShowRound && filterMode === 'current') return null;
                       
                       return (
                         <div key={round.id} className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
@@ -1912,9 +1988,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           {rounds.length > 0 ? (
             <>
               {rounds.map((round) => {
+                // Determine which rounds to display based on filter
+                const shouldShowRound = filterMode === 'all' 
+                  ? true 
+                  : filterMode === 'current'
+                  ? round.round_status === 'in_progress'
+                  : true; // pending filter shows all rounds with matches
+                
                 const matchesInRound = roundMatches.filter((m) => m.round_id === round.id);
                 
                 if (matchesInRound.length === 0) return null;
+                if (!shouldShowRound && filterMode === 'current') return null;
                 
                 return (
                   <div key={round.id} className="mb-8">

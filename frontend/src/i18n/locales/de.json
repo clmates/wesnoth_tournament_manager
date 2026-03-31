@@ -318,8 +318,8 @@
     "league_configuration": "Konfiguration des Ligaformats",
     "league_description": "Konfigurieren Sie das Ligaturnier-Format",
     "league_format": "Ligaformat",
-    "single_round": "Einfache Runde (Hin) - Jedes Team spielt einmal",
-    "double_round": "Doppelte Runde (Hin und Rück) - Jedes Team spielt zweimal",
+    "single_round": "Single Wave",
+    "double_round": "Double Wave",
     "league_format_help": "Wählen Sie, ob die Teams einmal oder zweimal gegeneinander spielen",
     "match_format": "Spielformat",
     "match_format_help": "Anzahl der Spiele pro Partie",
@@ -601,7 +601,12 @@
     "search": "Suchen...",
     "loading": "Wird geladen...",
     "noResults": "Keine Ergebnisse gefunden",
-    "updateFailed": "Aktualisierung fehlgeschlagen"
+    "updateFailed": "Aktualisierung fehlgeschlagen",
+    "filter": "Filter",
+    "show_all": "Alles anzeigen",
+    "show_only_pending": "Nur ausstehend",
+    "show_only_current_round": "Nur aktuelle Runde",
+    "refresh": "Aktualisieren"
   },
   "maintenance": {
     "title": "Website wird gewartet",

@@ -318,8 +318,8 @@
     "league_configuration": "Конфигурация формата лиги",
     "league_description": "Настройте формат турнира лиги",
     "league_format": "Формат лиги",
-    "single_round": "Один круг (туда) - Каждая команда играет один раз",
-    "double_round": "Два круга (туда и обратно) - Каждая команда играет два раза",
+    "single_round": "Single Wave",
+    "double_round": "Double Wave",
     "league_format_help": "Выберите, играют ли команды один или два раза друг против друга",
     "match_format": "Формат матча",
     "match_format_help": "Количество игр в каждом матче",
@@ -599,7 +599,12 @@
     "search": "Поиск...",
     "loading": "Загрузка...",
     "noResults": "Результаты не найдены",
-    "updateFailed": "Ошибка обновления"
+    "updateFailed": "Ошибка обновления",
+    "filter": "Фильтр",
+    "show_all": "Показать все",
+    "show_only_pending": "Только ожидающие",
+    "show_only_current_round": "Только текущий раунд",
+    "refresh": "Обновить"
   },
   "maintenance": {
     "title": "Сайт на техническом обслуживании",

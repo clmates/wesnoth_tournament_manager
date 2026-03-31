@@ -381,8 +381,8 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                       disabled={isLoading}
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                     >
-                      <option value="1">{t('tournament.single_round', 'Single Round (Ida) - Each team plays once')}</option>
-                      <option value="2">{t('tournament.double_round', 'Double Round (Ida y Vuelta) - Each team plays twice')}</option>
+                      <option value="1">{t('tournament.single_round', 'Single Wave')}</option>
+                      <option value="2">{t('tournament.double_round', 'Double Wave')}</option>
                     </select>
                     <small className="text-gray-600">{t('tournament.league_format_help', 'Select whether teams play once or twice against each other')}</small>
                   </div>
@@ -404,7 +404,7 @@ const TournamentForm: React.FC<TournamentFormProps> = ({
                     <small className="text-gray-600">{t('tournament.match_format_help', 'Number of games in each match')}</small>
                   </div>
                   <div className="bg-gray-50 p-3 rounded border border-gray-200">
-                    <p className="text-sm"><strong>{t('tournament.format', 'Format')}:</strong> {formData.general_rounds === 2 ? t('tournament.double_round', 'Double Round (Ida y Vuelta)') : t('tournament.single_round', 'Single Round (Ida)')} ({formData.general_rounds_format?.toUpperCase()})</p>
+                    <p className="text-sm"><strong>{t('tournament.format', 'Format')}:</strong> {formData.general_rounds === 2 ? t('tournament.double_round', 'Double Wave') : t('tournament.single_round', 'Single Wave')} ({formData.general_rounds_format?.toUpperCase()})</p>
                   </div>
                 </div>
               </div>

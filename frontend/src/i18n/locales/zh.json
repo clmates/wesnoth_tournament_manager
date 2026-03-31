@@ -318,8 +318,8 @@
     "league_configuration": "联赛格式配置",
     "league_description": "配置联赛锦标赛格式",
     "league_format": "联赛格式",
-    "single_round": "单循环 (往) - 每支队伍比赛一次",
-    "double_round": "双循环 (往返) - 每支队伍比赛两次",
+    "single_round": "Single Wave",
+    "double_round": "Double Wave",
     "league_format_help": "选择队伍是一次还是两次相互对战",
     "match_format": "比赛格式",
     "match_format_help": "每场比赛中的游戏数量",
@@ -601,7 +601,12 @@
     "search": "搜索...",
     "loading": "加载中...",
     "noResults": "未找到结果",
-    "updateFailed": "更新失败"
+    "updateFailed": "更新失败",
+    "filter": "筛选",
+    "show_all": "显示全部",
+    "show_only_pending": "仅显示待定",
+    "show_only_current_round": "仅显示当前回合",
+    "refresh": "刷新"
   },
   "maintenance": {
     "title": "网站维护中",

@@ -316,8 +316,8 @@
     "league_configuration": "League Format Configuration",
     "league_description": "Configure the League tournament format",
     "league_format": "League Format",
-    "single_round": "Single Round (Ida) - Each team plays once",
-    "double_round": "Double Round (Ida y Vuelta) - Each team plays twice",
+    "single_round": "Single Wave",
+    "double_round": "Double Wave",
     "league_format_help": "Select whether teams play once or twice against each other",
     "match_format": "Match Format",
     "match_format_help": "Number of games in each match",
@@ -615,7 +615,12 @@
     "search": "Search...",
     "loading": "Loading...",
     "noResults": "No results found",
-    "updateFailed": "Update failed"
+    "updateFailed": "Update failed",
+    "filter": "Filter",
+    "show_all": "Show All",
+    "show_only_pending": "Show Only Pending",
+    "show_only_current_round": "Show Only Current Round",
+    "refresh": "Refresh"
   },
   "maintenance": {
     "title": "Site Under Maintenance",
