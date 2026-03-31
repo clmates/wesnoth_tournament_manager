@@ -60,6 +60,9 @@ export interface ParsedRankedReplay {
   // Team information (for team tournaments)
   teams: Record<number, string>; // side_number → team_name from WML
   
+  // Map selection (from ranked_map_picker addon)
+  selectedMapName?: string; // Map name from [command][input][variable] when ranked_map_picker is used
+  
   // Victory info
   victory: {
     winner_side: number;
@@ -142,6 +145,9 @@ export async function parseRankedReplay(
     // Extract teams (for team tournaments)
     const teams = extractTeams(parsed);
 
+    // Extract selected map name (for ranked_map_picker addon)
+    const selectedMapName = extractSelectedMapName(parsed);
+
     // Determine victory
     // Pass forumPlayers as source of truth for side mapping
     const victory = await determineVictory(
@@ -157,6 +163,7 @@ export async function parseRankedReplay(
       isValidRanked: addon.ranked_mode, // Will be validated later by asset validator
       players,
       teams,
+      selectedMapName,
       victory,
       surrenders: surrenders.length > 0 ? surrenders : undefined,
       rawWml: wmlContent.substring(0, 500) // Store first 500 chars for debugging
@@ -165,6 +172,9 @@ export async function parseRankedReplay(
     console.log(`✅ [RANKED PARSE] Success`);
     console.log(`   Mode: ${addon.ranked_mode ? 'Ranked' : 'Unknown'}`);
     console.log(`   Tournament: ${addon.tournament ? addon.tournament_name : 'None'}`);
+    if (selectedMapName) {
+      console.log(`   Selected Map: ${selectedMapName}`);
+    }
     if (victory.reason === 'surrender') {
       console.log(`   Victory: ${victory.winner_name} def ${victory.loser_name} by ${victory.reason} (confidence: 2)`);
     } else {
@@ -707,6 +717,58 @@ function extractTeams(wml: WmlNode): Record<number, string> {
   } catch (error) {
     console.warn('⚠️  [RANKED PARSE] Could not extract teams:', error);
     return teams;
+  }
+}
+
+/**
+ * Extract selected map name from replay commands
+ * Looks for [command] > [input] > [variable] with name="selected_map_name"
+ * Used when ranked_map_picker addon is present
+ */
+function extractSelectedMapName(wml: WmlNode): string | undefined {
+  try {
+    const replayNode = wml.replay as WmlNode | WmlNode[] | undefined;
+    if (!replayNode) {
+      return undefined;
+    }
+
+    const replay = Array.isArray(replayNode) ? replayNode[replayNode.length - 1] : replayNode;
+    if (!replay) {
+      return undefined;
+    }
+
+    const commands = replay.command as WmlNode | WmlNode[] | undefined;
+    if (!commands) {
+      return undefined;
+    }
+
+    const commandArray = Array.isArray(commands) ? commands : [commands];
+
+    for (const command of commandArray) {
+      const input = command.input as WmlNode | undefined;
+      if (!input) continue;
+
+      const variable = input.variable as WmlNode | WmlNode[] | undefined;
+      if (!variable) continue;
+
+      const variableArray = Array.isArray(variable) ? variable : [variable];
+
+      for (const vars of variableArray) {
+        const varName = vars.name as string | undefined;
+        if (varName === 'selected_map_name') {
+          const mapName = vars.value as string | undefined;
+          if (mapName) {
+            console.log(`✅ [EXTRACT MAP] Found selected_map_name: "${mapName}"`);
+            return mapName;
+          }
+        }
+      }
+    }
+
+    return undefined;
+  } catch (error) {
+    console.warn('⚠️  [EXTRACT MAP] Could not extract selected_map_name:', error);
+    return undefined;
   }
 }
 

@@ -42,6 +42,10 @@ interface ParseSummary {
   forumMap: string | null;
   forumMapId: string | null;
   forumFactions: Record<string, string>;
+  // Addon detection: ranked_era or ranked_map_picker
+  hasRankedEra: boolean;
+  hasRankedMapPicker: boolean;
+  selectedMapName: string | null; // Map name from selected_map_name in replay when ranked_map_picker is used
   replayRankedMode: boolean;
   replayTournamentFlag: boolean; // tournament flag from WML
   replayTournament: string | null;
@@ -307,6 +311,9 @@ export class ParseNewReplaysRefactorized {
       forumMap: null,
       forumMapId: null,
       forumFactions: {},
+      hasRankedEra: false,
+      hasRankedMapPicker: false,
+      selectedMapName: null,
       replayRankedMode: false,
       replayTournamentFlag: false,
       replayTournament: null,
@@ -362,7 +369,10 @@ export class ParseNewReplaysRefactorized {
 
     parseSummary.forumPlayers = (playersResult as any).rows;
     for (const player of parseSummary.forumPlayers) {
-      parseSummary.forumFactions[`side${player.side_number}`] = player.faction;
+      let faction = player.faction;
+      // Normalize "Ranked " prefix when ranked_era is detected (will be detected in Step 3)
+      // For now, store original; normalization happens after addon detection
+      parseSummary.forumFactions[`side${player.side_number}`] = faction;
       console.log(`   Player: ${player.user_name} (Side ${player.side_number}, Faction: ${player.faction})`);
     }
 
@@ -391,13 +401,40 @@ export class ParseNewReplaysRefactorized {
       console.log(`   Eligibility: ${player.user_name} — ranked_enabled=${player.enable_ranked}, banned=${player.is_banned}`);
     }
 
-    // ======== STEP 3: Query forum for map/scenario ========
-    console.log(`📋 [FORUM] Step 3: Querying map...`);
+    // ======== STEP 3: Query forum for map/scenario & detect special addons ========
+    console.log(`📋 [FORUM] Step 3: Querying map and detecting special addons...`);
     const mapResult = await query(
       `SELECT id, name FROM forum.wesnothd_game_content_info 
        WHERE instance_uuid = ? AND game_id = ? AND type = 'scenario' LIMIT 1`,
       [replay.instance_uuid, replay.game_id]
     );
+
+    // Detect ranked_era and ranked_map_picker addons
+    const addonCheckResult = await query(
+      `SELECT addon_id FROM forum.wesnothd_game_content_info 
+       WHERE instance_uuid = ? AND game_id = ? AND type = 'scenario' AND addon_id IN ('ranked_era', 'ranked_map_picker') LIMIT 2`,
+      [replay.instance_uuid, replay.game_id]
+    );
+    
+    if ((addonCheckResult as any).rows?.length > 0) {
+      for (const addon of (addonCheckResult as any).rows) {
+        if (addon.addon_id === 'ranked_era') {
+          parseSummary.hasRankedEra = true;
+          console.log(`   ✅ Detected ranked_era addon (factions will be from forum)`);
+          // Normalize "Ranked " prefix from forum factions for ranked_era
+          for (const sideKey of Object.keys(parseSummary.forumFactions)) {
+            const faction = parseSummary.forumFactions[sideKey];
+            if (faction.startsWith('Ranked ')) {
+              parseSummary.forumFactions[sideKey] = faction.substring(7); // Remove "Ranked " prefix
+              console.log(`      Normalized faction: "${faction}" → "${parseSummary.forumFactions[sideKey]}"`);
+            }
+          }
+        } else if (addon.addon_id === 'ranked_map_picker') {
+          parseSummary.hasRankedMapPicker = true;
+          console.log(`   ✅ Detected ranked_map_picker addon (map will be from selected_map_name)`);
+        }
+      }
+    }
 
     if ((mapResult as any).rows?.length > 0) {
       parseSummary.forumMap = (mapResult as any).rows[0].name;
@@ -434,6 +471,12 @@ export class ParseNewReplaysRefactorized {
           parseSummary.wmlTeams = parsed.teams;
           const teamInfo = Object.entries(parsed.teams).map(([side, team]) => `side${side}=${team}`).join(', ');
           console.log(`   ✅ 5.1b Teams: ${teamInfo}`);
+        }
+
+        // 5.1c Extract selected map name (for ranked_map_picker addon)
+        if (parsed.selectedMapName) {
+          parseSummary.selectedMapName = parsed.selectedMapName;
+          console.log(`   ✅ 5.1c Selected map name: ${parsed.selectedMapName}`);
         }
 
         // 5.2 Victory (from parsed replay)
@@ -606,13 +649,20 @@ export class ParseNewReplaysRefactorized {
 
       // ======== VALIDATE AND RESOLVE MAP ========
       console.log(`🔍 [PARSE] Validating map against game_maps table...`);
-      const mapRaw = parseSummary.forumMap || 'Unknown';
+      // Use selectedMapName if ranked_map_picker is detected, otherwise use forumMap
+      const mapSource = parseSummary.hasRankedMapPicker && parseSummary.selectedMapName
+        ? parseSummary.selectedMapName
+        : (parseSummary.forumMap || 'Unknown');
+      const mapRaw = mapSource;
       const mapId = parseSummary.forumMapId || null;
       const mapResolved = await this.resolveMap(mapRaw, mapId);
       parseSummary.finalMap = mapResolved.name;
       parseSummary.resolvedMap = mapResolved.name;
       parseSummary.mapIsRanked = mapResolved.isRanked;
 
+      if (parseSummary.hasRankedMapPicker && parseSummary.selectedMapName) {
+        console.log(`   ℹ️  Using selected_map_name (ranked_map_picker detected): "${parseSummary.selectedMapName}"`);
+      }
       if (mapResolved.name !== mapRaw) {
         console.log(`   ✅ Map: "${mapRaw}" → "${mapResolved.name}" (ranked: ${mapResolved.isRanked})`);
       } else {
