@@ -11,7 +11,6 @@ interface FilterState {
   player: string;
   map: string;
   status: string;
-  confirmed: string;
   faction: string;
 }
 
@@ -42,7 +41,6 @@ const Matches: React.FC = () => {
     player: '',
     map: '',
     status: '',
-    confirmed: '',
     faction: '',
   });
   const [availableFactions, setAvailableFactions] = useState<any[]>([]);
@@ -119,7 +117,6 @@ const Matches: React.FC = () => {
       player: '',
       map: '',
       status: '',
-      confirmed: '',
       faction: '',
     });
   };
@@ -315,23 +312,6 @@ const Matches: React.FC = () => {
               <option value="">{t('all')}</option>
               <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
               <option value="confirmed">{t('match_status_confirmed')}</option>
-              <option value="disputed">{t('match_status_disputed')}</option>
-              <option value="cancelled">{t('match_status_cancelled')}</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-2 flex-shrink-0 min-w-[200px]">
-            <label htmlFor="confirmed" className="font-semibold text-gray-700 text-sm">{t('filter_confirmation_status')}</label>
-            <select
-              id="confirmed"
-              name="confirmed"
-              value={filters.confirmed}
-              onChange={handleFilterChangeWithReset}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-            >
-              <option value="">{t('all')}</option>
-              <option value="confirmed">{t('match_status_confirmed')}</option>
-              <option value="unconfirmed">{t('match_status_unconfirmed')}</option>
               <option value="disputed">{t('match_status_disputed')}</option>
               <option value="cancelled">{t('match_status_cancelled')}</option>
             </select>
