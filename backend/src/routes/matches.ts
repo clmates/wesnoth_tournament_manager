@@ -1545,13 +1545,13 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     // Extract player information from parse_summary
     const forumPlayers = parseSummary?.forumPlayers || [];
     if (forumPlayers.length < 2) {
-      console.error(`❌ [CONFIDENCE-1] Replay does not have 2 players, got ${forumPlayers.length}`);
-      return res.status(400).json({ error: 'Replay does not have 2 players' });
+      console.error(`❌ [CONFIDENCE-1] Replay does not have at least 2 players, got ${forumPlayers.length}`);
+      return res.status(400).json({ error: 'Replay does not have at least 2 players' });
     }
 
-    const player1 = forumPlayers[0];
-    const player2 = forumPlayers[1];
-    console.log(`✅ [CONFIDENCE-1] Players from replay: ${player1?.user_name} (side ${player1?.side_number}), ${player2?.user_name} (side ${player2?.side_number})`);
+    console.log(`✅ [CONFIDENCE-1] Total players in replay: ${forumPlayers.length}`);
+    const allPlayerNames = forumPlayers.map((p: any) => `${p?.user_name} (side ${p?.side_number})`).join(', ');
+    console.log(`✅ [CONFIDENCE-1] All players from replay: ${allPlayerNames}`);
 
     // Get current user's nickname
     console.log(`📥 [CONFIDENCE-1] Fetching current user nickname (userId: ${userId})...`);
@@ -1566,111 +1566,242 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     }
 
     const currentUserNickname = currentUserResult.rows[0].nickname?.toLowerCase() || '';
-    const player1Nickname = player1?.user_name?.toLowerCase() || '';
-    const player2Nickname = player2?.user_name?.toLowerCase() || '';
-
     console.log(`✅ [CONFIDENCE-1] Current user: "${currentUserNickname}"`);
-    console.log(`   Player1 in replay: "${player1Nickname}"`);
-    console.log(`   Player2 in replay: "${player2Nickname}"`);
 
-    // Security check: user must be one of the 2 players
-    if (currentUserNickname !== player1Nickname && currentUserNickname !== player2Nickname) {
-      console.error(`❌ [CONFIDENCE-1] SECURITY CHECK FAILED: User "${currentUserNickname}" is not in replay (${player1Nickname} vs ${player2Nickname})`);
+    // Security check: user must be one of all players in the replay
+    const currentUserInReplay = forumPlayers.find((p: any) => p?.user_name?.toLowerCase() === currentUserNickname);
+    
+    if (!currentUserInReplay) {
+      const replayPlayerNames = forumPlayers.map((p: any) => p?.user_name).join(', ');
+      console.error(`❌ [CONFIDENCE-1] SECURITY CHECK FAILED: User "${currentUserNickname}" is not in replay (players: ${replayPlayerNames})`);
       return res.status(403).json({ error: 'You are not a participant in this replay' });
     }
 
-    console.log(`✅ [CONFIDENCE-1] Security check passed - user is a participant`);
+    console.log(`✅ [CONFIDENCE-1] Security check passed - user is a participant (side ${currentUserInReplay.side_number})`);
 
-    // Determine who won based on user's choice
+    // Determine winner/loser based on tournament_match structure
     let winnerId: string = userId;
     let loserId: string = '';
 
-    // Get the other player's user ID (from parse_summary, if available, or get from users_extension by nickname)
-    const otherPlayerNickname = currentUserNickname === player1Nickname ? player2Nickname : player1Nickname;
+    // For team tournaments, we need to get the team IDs from detectedTeams
+    const detectedTeams = parseSummary?.detectedTeams || {};
+    const tournamentMode = parseSummary?.detectedTournament?.tournament_mode || 'individual';
     
-    // Verify other player exists in forumPlayers (validate from replay data)
-    const otherPlayerData = currentUserNickname === player1Nickname ? player2 : player1;
-    if (!otherPlayerData || !otherPlayerData.user_name) {
-      console.error(`❌ [CONFIDENCE-1] Could not identify second player from replay data`);
-      return res.status(400).json({ error: 'Could not identify second player from replay data' });
-    }
-    
-    console.log(`📥 [CONFIDENCE-1] Looking up other player: "${otherPlayerNickname}"...`);
-    const otherPlayerResult = await query(
-      `SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)`,
-      [otherPlayerNickname]
-    );
+    console.log(`📥 [CONFIDENCE-1] Tournament mode: ${tournamentMode}`);
 
-    let otherPlayerId: string;
-
-    if (otherPlayerResult.rows.length === 0) {
-      // Create the player with default elo=1400 only if they exist in forumPlayers
-      console.log(`⚠️  [CONFIDENCE-1] Player ${otherPlayerNickname} not found in users_extension, creating with default elo=1400 (from replay)`);
+    if (tournamentMode === 'team') {
+      // Team tournament: find which team the current user belongs to
+      let userTeamId: string | null = null;
       
-      const newUserId = uuidv4();
-      try {
-        await query(
-          `INSERT INTO users_extension (id, nickname, is_active, is_rated, elo_rating, matches_played)
-           VALUES (?, ?, true, false, 1400, 0)`,
-          [newUserId, otherPlayerNickname]
-        );
-        otherPlayerId = newUserId;
-        console.log(`✅ [CONFIDENCE-1] Created new player ${otherPlayerNickname} with ID ${otherPlayerId}`);
-      } catch (createErr) {
-        console.error(`❌ [CONFIDENCE-1] Failed to create new player:`, createErr);
-        throw createErr;
+      for (const [teamId, teamData] of Object.entries(detectedTeams)) {
+        const teamMembers = (teamData as any)?.members || [];
+        if (teamMembers.some((member: string) => member.toLowerCase() === currentUserNickname)) {
+          userTeamId = teamId;
+          console.log(`✅ [CONFIDENCE-1] User "${currentUserNickname}" belongs to team ${teamId} (${(teamData as any)?.team_name})`);
+          break;
+        }
+      }
+
+      if (!userTeamId) {
+        console.error(`❌ [CONFIDENCE-1] Could not find user's team in detectedTeams`);
+        return res.status(400).json({ error: 'Could not determine user\'s team from replay' });
+      }
+
+      // Get the tournament_match to see player1_id and player2_id (which are team IDs for team tournaments)
+      console.log(`📥 [CONFIDENCE-1] Looking up tournament_match: ${replay.tournament_round_match_id}...`);
+      const matchResult = await query(
+        `SELECT player1_id, player2_id FROM tournament_matches 
+         WHERE tournament_round_match_id = ? AND match_status = 'pending' LIMIT 1`,
+        [replay.tournament_round_match_id]
+      );
+
+      if (matchResult.rows.length === 0) {
+        console.error(`❌ [CONFIDENCE-1] No pending tournament_match found for round_match ${replay.tournament_round_match_id}`);
+        return res.status(400).json({ error: 'No pending match found' });
+      }
+
+      const matchData = matchResult.rows[0];
+      const matchPlayer1Id = matchData.player1_id;
+      const matchPlayer2Id = matchData.player2_id;
+
+      // Determine winner based on which team the user belongs to
+      if (userTeamId === matchPlayer1Id) {
+        winnerId = matchPlayer1Id;
+        loserId = matchPlayer2Id;
+        console.log(`✅ [CONFIDENCE-1] User's team is player1 (${matchPlayer1Id}). Setting winner=${winnerId}, loser=${loserId}`);
+      } else if (userTeamId === matchPlayer2Id) {
+        winnerId = matchPlayer2Id;
+        loserId = matchPlayer1Id;
+        console.log(`✅ [CONFIDENCE-1] User's team is player2 (${matchPlayer2Id}). Setting winner=${winnerId}, loser=${loserId}`);
+      } else {
+        console.error(`❌ [CONFIDENCE-1] User's team ${userTeamId} does not match either team in tournament_match (${matchPlayer1Id} vs ${matchPlayer2Id})`);
+        return res.status(403).json({ error: 'Your team is not a participant in this match' });
+      }
+
+      if (winner_choice === 'I lost') {
+        // Swap winner and loser
+        [winnerId, loserId] = [loserId, winnerId];
+        console.log(`✅ [CONFIDENCE-1] User selected "I lost", swapped winner/loser. Now winner=${winnerId}, loser=${loserId}`);
       }
     } else {
-      otherPlayerId = otherPlayerResult.rows[0].id;
-      console.log(`✅ [CONFIDENCE-1] Found existing player: "${otherPlayerNickname}" -> ${otherPlayerId}`);
-    }
+      // 1v1 tournament: player1_id and player2_id are user IDs
+      console.log(`📥 [CONFIDENCE-1] 1v1 tournament - looking up opponent...`);
+      
+      const opponentPlayers = forumPlayers.filter((p: any) => p?.user_name?.toLowerCase() !== currentUserNickname);
+      
+      if (opponentPlayers.length === 0) {
+        console.error(`❌ [CONFIDENCE-1] Could not identify opponent player from replay data`);
+        return res.status(400).json({ error: 'Could not identify opponent player from replay data' });
+      }
 
-    if (winner_choice === 'I lost') {
-      // User lost, so the other player won
-      loserId = userId;
-      winnerId = otherPlayerId;
-      console.log(`📊 [CONFIDENCE-1] Winner determination: User said "I lost", so winner=${winnerId}, loser=${loserId}`);
-    } else {
-      // User won (default case)
-      loserId = otherPlayerId;
+      const primaryOpponentNickname = opponentPlayers[0]?.user_name?.toLowerCase() || '';
+      
+      console.log(`📥 [CONFIDENCE-1] Looking up opponent player: "${primaryOpponentNickname}"...`);
+      const otherPlayerResult = await query(
+        `SELECT id FROM users_extension WHERE LOWER(nickname) = LOWER(?)`,
+        [primaryOpponentNickname]
+      );
+
+      let otherPlayerId: string;
+
+      if (otherPlayerResult.rows.length === 0) {
+        console.log(`⚠️  [CONFIDENCE-1] Player ${primaryOpponentNickname} not found in users_extension, creating with default elo=1400`);
+        
+        const newUserId = uuidv4();
+        try {
+          await query(
+            `INSERT INTO users_extension (id, nickname, is_active, is_rated, elo_rating, matches_played)
+             VALUES (?, ?, true, false, 1400, 0)`,
+            [newUserId, primaryOpponentNickname]
+          );
+          otherPlayerId = newUserId;
+          console.log(`✅ [CONFIDENCE-1] Created new player ${primaryOpponentNickname} with ID ${otherPlayerId}`);
+        } catch (createErr) {
+          console.error(`❌ [CONFIDENCE-1] Failed to create new player:`, createErr);
+          throw createErr;
+        }
+      } else {
+        otherPlayerId = otherPlayerResult.rows[0].id;
+        console.log(`✅ [CONFIDENCE-1] Found existing opponent: "${primaryOpponentNickname}" -> ${otherPlayerId}`);
+      }
+
       winnerId = userId;
+      loserId = otherPlayerId;
+
+      if (winner_choice === 'I lost') {
+        [winnerId, loserId] = [loserId, winnerId];
+        console.log(`✅ [CONFIDENCE-1] User selected "I lost", winner=${winnerId}, loser=${loserId}`);
+      }
     }
 
-    console.log(`✅ [CONFIDENCE-1] Players identified: winner=${winnerId}, loser=${loserId}`);
+    console.log(`✅ [CONFIDENCE-1] Winner/loser determined: winner=${winnerId}, loser=${loserId}`);
 
-    // Determine winner_side from forumPlayers (whichever player is the winner → their side_number)
-    const winnerNicknameForSide = winner_choice === 'I lost' ? otherPlayerNickname : currentUserNickname;
-    const winnerForumPlayer = forumPlayers.find(
-      (p: any) => p.user_name?.toLowerCase() === winnerNicknameForSide
-    );
-    const winnerSide: number | null = winnerForumPlayer?.side_number ?? null;
+    // Determine winner information based on tournament mode
+    let winnerUser: any = null;
+    let loserUser: any = null;
 
-    // Get winner and loser data for ELO calculation
-    const winnerResult = await query(
-      `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
-      [winnerId]
-    );
+    if (tournamentMode === 'team') {
+      // For team tournaments: winnerId and loserId are team IDs
+      // We need to get one user from the winning team to determine faction/side
+      const teamInfo = Object.values(detectedTeams).find(
+        (team: any) => team.team_id === winnerId
+      ) as any;
+      
+      if (!teamInfo) {
+        console.error(`❌ [CONFIDENCE-1] Could not find winning team info for team ${winnerId}`);
+        return res.status(400).json({ error: 'Could not find winning team' });
+      }
+
+      // Get first team member's forum data
+      const teamMemberName = teamInfo.members?.[0];
+      const teamMemberForumData = forumPlayers.find(
+        (p: any) => p.user_name?.toLowerCase() === teamMemberName?.toLowerCase()
+      );
+
+      console.log(`📥 [CONFIDENCE-1] Team tournament - winning team: ${teamInfo.team_name}, sample member: ${teamMemberName}, side: ${teamMemberForumData?.side_number}`);
+
+      // Get the actual user record for ELO calculation - use the logged-in user
+      const winnerUserResult = await query(
+        `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
+        [userId]
+      );
+      const loserTeamInfo = Object.values(detectedTeams).find(
+        (team: any) => team.team_id === loserId
+      ) as any;
+      
+      if (!loserTeamInfo) {
+        console.error(`❌ [CONFIDENCE-1] Could not find losing team info for team ${loserId}`);
+        return res.status(400).json({ error: 'Could not find losing team' });
+      }
+
+      const loserTeamMemberName = loserTeamInfo.members?.[0];
+      const loserUserResult = await query(
+        `SELECT id, elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE LOWER(nickname) = LOWER(?)`,
+        [loserTeamMemberName]
+      );
+
+      if (winnerUserResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Winner player not found' });
+      }
+      if (loserUserResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Loser player not found' });
+      }
+
+      winnerUser = winnerUserResult.rows[0];
+      loserUser = loserUserResult.rows[0];
+
+    } else {
+      // For 1v1 tournaments: winnerId and loserId are user IDs
+      const winnerUserResult = await query(
+        `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
+        [winnerId]
+      );
+      const loserUserResult = await query(
+        `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
+        [loserId]
+      );
+
+      if (winnerUserResult.rows.length === 0 || loserUserResult.rows.length === 0) {
+        return res.status(404).json({ error: 'One or more players not found' });
+      }
+
+      winnerUser = winnerUserResult.rows[0];
+      loserUser = loserUserResult.rows[0];
+    }
+
+    // Determine winner side from forumPlayers
+    // For team tournaments, find any member of the winning team
+    let winnerSide: number | null = null;
     
-    const loserResult = await query(
-      `SELECT elo_rating, is_rated, matches_played, trend, level FROM users_extension WHERE id = ?`,
-      [loserId]
-    );
-
-    if (winnerResult.rows.length === 0 || loserResult.rows.length === 0) {
-      return res.status(404).json({ error: 'One or more players not found' });
+    if (tournamentMode === 'team') {
+      const teamInfo = Object.values(detectedTeams).find(
+        (team: any) => team.team_id === winnerId
+      ) as any;
+      const teamMemberName = teamInfo?.members?.[0];
+      const teamMemberForumData = forumPlayers.find(
+        (p: any) => p.user_name?.toLowerCase() === teamMemberName?.toLowerCase()
+      );
+      winnerSide = teamMemberForumData?.side_number ?? null;
+    } else {
+      // For 1v1, find the winner's forum player data
+      const winnerForumPlayer = forumPlayers.find(
+        (p: any) => p.user_name?.toLowerCase() === currentUserNickname
+      );
+      winnerSide = winnerForumPlayer?.side_number ?? null;
     }
 
-    const winner = winnerResult.rows[0];
-    const loser = loserResult.rows[0];
+    const winner = winnerUser;
+    const loser = loserUser;
 
     // Get map and factions from parse_summary (use resolved values - same as displayed in frontend)
     const map = parseSummary?.resolvedMap || parseSummary?.finalMap || 'Unknown Map';
     let winner_faction = parseSummary?.resolvedFactions?.side1 || parseSummary?.finalFactions?.side1 || 'Unknown';
     let loser_faction = parseSummary?.resolvedFactions?.side2 || parseSummary?.finalFactions?.side2 || 'Unknown';
 
-    // Get tournament info if this is a tournament match
-    let tournamentMode = 'ranked'; // default for direct matches
-    if (replay.tournament_round_match_id) {
+    // Note: tournamentMode was already determined earlier (line 1588)
+    // If we have a tournament_round_match_id and tournamentMode wasn't set from parseSummary,
+    // verify it by querying the database
+    if (replay.tournament_round_match_id && tournamentMode === 'individual') {
       const tournamentResult = await query(
         `SELECT t.tournament_mode FROM tournaments t 
          JOIN tournament_rounds tr ON tr.tournament_id = t.id 
@@ -1679,7 +1810,11 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         [replay.tournament_round_match_id]
       );
       if (tournamentResult.rows.length > 0) {
-        tournamentMode = tournamentResult.rows[0].tournament_mode || 'ranked';
+        const mode = tournamentResult.rows[0].tournament_mode;
+        if (mode) {
+          console.log(`📥 [CONFIDENCE-1] Tournament mode from DB: ${mode}`);
+          // tournamentMode was set from parseSummary, this is just verification
+        }
       }
     }
 
@@ -1939,12 +2074,16 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     if (replay.tournament_round_match_id) {
       console.log(`📥 [CONFIDENCE-1] Processing tournament_matches for round match ${replay.tournament_round_match_id}`);
       
+      // Get player names for faction extraction (use forum players data)
+      const player1Name = forumPlayers[0]?.user_name || 'Unknown';
+      const player2Name = forumPlayers.length > 1 ? forumPlayers[1]?.user_name : 'Unknown';
+      
       // Extract map and faction data from replay (use pre-calculated replayFilePath)
       const { map, winnerFaction, loserFaction, replayFilePathForDb } = extractMatchDataFromReplay(
         parseSummary,
         replayFilePath,
-        player1.user_name,
-        player2.user_name
+        player1Name,
+        player2Name
       );
       console.log(`✅ [CONFIDENCE-1] Extracted match data:`, { map, winnerFaction, loserFaction, replayFilePathForDb });
       
@@ -2125,14 +2264,15 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     console.log(`✅ [CONFIDENCE-1] ===== REPLAY CONFIRMATION SUCCESSFUL =====`);
     console.log(`✅ Winner: ${winnerId} (mapped to ${winnerIdForTournament} for tournament)`);
     console.log(`✅ Loser: ${loserId}`);
-    console.log(`✅ ELO Change: ${eloChange}`);
+    console.log(`✅ Tournament Mode: ${tournamentMode}`);
+    console.log(`✅ ELO Change: ${tournamentMode === 'ranked' ? eloChange : 0} (unranked tournament - no ELO impact)`);
     console.log(`${'='.repeat(80)}\n`);
     
     res.status(201).json({ 
       success: true,
-      matchId,
+      matchId: tournamentMode === 'ranked' ? matchId : null,
       message: 'Replay reported successfully. Match created and ELO calculated.',
-      winner_rating_change: eloChange
+      winner_rating_change: tournamentMode === 'ranked' ? eloChange : 0
     });
 
   } catch (error) {
