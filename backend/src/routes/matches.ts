@@ -2025,36 +2025,12 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         console.log(`✅ [CONFIDENCE-1] Tournament found: mode=${tournament_mode}, id=${tournament_id}`);
         
         if (tournament_mode === 'team') {
-          console.log(`📥 [CONFIDENCE-1] Team tournament detected - mapping players to teams...`);
-          // Team tournament: map both players to their team_ids
-          const [winnerTeamResult, loserTeamResult] = await Promise.all([
-            query(
-              `SELECT team_id FROM tournament_participants 
-               WHERE tournament_id = ? AND user_id = ?`,
-              [tournament_id, winnerId]
-            ),
-            query(
-              `SELECT team_id FROM tournament_participants 
-               WHERE tournament_id = ? AND user_id = ?`,
-              [tournament_id, loserId]
-            )
-          ]);
-          
-          if (winnerTeamResult.rows.length > 0) {
-            winnerIdForTournament = (winnerTeamResult as any).rows[0].team_id;
-            console.log(`✅ [CONFIDENCE-1] Winner team mapping: player=${winnerId} → team=${winnerIdForTournament}`);
-          } else {
-            console.error(`❌ [CONFIDENCE-1] CRITICAL: Winner player ${winnerId} not found in tournament_participants for tournament ${tournament_id}`);
-            return res.status(400).json({ error: 'Winner player not in tournament team' });
-          }
-          
-          if (loserTeamResult.rows.length > 0) {
-            loserIdForTournament = (loserTeamResult as any).rows[0].team_id;
-            console.log(`✅ [CONFIDENCE-1] Loser team mapping: player=${loserId} → team=${loserIdForTournament}`);
-          } else {
-            console.error(`❌ [CONFIDENCE-1] CRITICAL: Loser player ${loserId} not found in tournament_participants for tournament ${tournament_id}`);
-            return res.status(400).json({ error: 'Loser player not in tournament team' });
-          }
+          console.log(`📥 [CONFIDENCE-1] Team tournament detected - winner and loser are already team IDs`);
+          // For team tournaments, winnerId and loserId are already team IDs (set earlier at lines 1628-1635)
+          // No additional mapping needed
+          winnerIdForTournament = winnerId;
+          loserIdForTournament = loserId;
+          console.log(`✅ [CONFIDENCE-1] Winner team: ${winnerIdForTournament}, Loser team: ${loserIdForTournament}`);
         } else {
           console.log(`✅ [CONFIDENCE-1] 1v1 tournament - no team mapping needed`);
         }
