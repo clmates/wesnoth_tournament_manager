@@ -1867,8 +1867,21 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     const loserComments = winner_choice === 'I lost' ? userComments : null;
     const loserRating = winner_choice === 'I lost' ? userRating : null;
 
-    // Only create in global matches table for RANKED tournaments/matches
-    if (tournamentMode === 'ranked') {
+    // Determine if this is a tournament match or a normal ranked match
+    const isTournamentMatch = replay.tournament_round_match_id !== null;
+    
+    // Only create in global matches table for:
+    // 1. Normal ranked matches (not a tournament match)
+    // 2. RANKED tournaments (tournament_round_match_id exists AND tournament_mode === 'ranked')
+    const shouldUpdateGlobalElo = !isTournamentMatch || tournamentMode === 'ranked';
+    
+    if (shouldUpdateGlobalElo) {
+      if (isTournamentMatch) {
+        console.log(`🎯 [CONFIDENCE-1] Ranked tournament - updating global ELO updates`);
+      } else {
+        console.log(`🎯 [CONFIDENCE-1] Normal ranked match (not tournament) - updating global ELO`);
+      }
+      
       // Create match record with all necessary fields
       await query(
         `INSERT INTO matches (
@@ -1918,7 +1931,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
           winnerComments,
           winnerRating,
           eloChange,
-          tournamentMode,
+          isTournamentMatch ? tournamentMode : 'ranked',
           'reported',
           replayFilePath,
           1,
@@ -2001,7 +2014,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
     // Mark the replay as having a match
     await query(
       `UPDATE replays SET match_id = ? WHERE id = ?`,
-      [tournamentMode === 'ranked' ? matchId : null, replayId]
+      [shouldUpdateGlobalElo ? matchId : null, replayId]
     );
 
     // STEP 1: If this replay is linked to a tournament_round_match, map winner ID properly
