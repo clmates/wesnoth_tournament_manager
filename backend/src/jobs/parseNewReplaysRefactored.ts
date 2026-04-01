@@ -543,7 +543,7 @@ export class ParseNewReplaysRefactorized {
         // tournament_flag=true → search for unranked/team tournament
         console.log(`   ℹ️  tournament_flag=true → Searching for unranked/team tournament...`);
         
-        const searchName = (replay.game_name || '').toLowerCase();
+        const searchName = (replay.game_name || '').trim();
         console.log(`   [TOURNAMENT] Searching by game_name: "${searchName}"`);
         
         if (!searchName) {
@@ -584,7 +584,7 @@ export class ParseNewReplaysRefactorized {
         // tournament_flag=true → search for ranked tournament
         console.log(`   ℹ️  tournament_flag=true → Searching for ranked tournament...`);
         
-        const searchName = (replay.game_name || '').toLowerCase();
+        const searchName = (replay.game_name || '').trim();
         console.log(`   [TOURNAMENT] Searching by game_name: "${searchName}"`);
         
         if (!searchName) {
