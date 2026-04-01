@@ -1540,10 +1540,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                 )}
               </div>
 
-              {/* Completed Matches Section */}
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-500">{t('matches.completed')}</h3>
-                {matches.filter((m) => m.match_status === 'completed' || (m.pending_replay_id && m.pending_replay_confidence === 1 && !m.winner_id && m.pending_replay_need_integration)).length > 0 ? (
+               {/* Completed Matches Section */}
+               <div className="mb-8">
+                 <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-500">{t('matches.completed')}</h3>
+                 {matches.filter((m) => m.match_status !== 'pending').length > 0 ? (
                   <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-200">
@@ -1557,7 +1557,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     </thead>
                     <tbody>
                       {matches
-                        .filter((m) => m.match_status === 'completed' || (m.pending_replay_id && m.pending_replay_confidence === 1 && !m.winner_id && m.pending_replay_need_integration))
+                         .filter((m) => m.match_status !== 'pending')
                         .sort((a, b) => {
                           const roundDiff = (b.round_number || 0) - (a.round_number || 0);
                           if (roundDiff !== 0) return roundDiff;
@@ -1565,7 +1565,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         })
                         .map((match) => {
                            // Check if this is a pending replay (not yet confirmed)
-                           const isPendingReplay = match.pending_replay_id && match.pending_replay_confidence === 1 && !match.winner_id && match.pending_replay_need_integration;
+                            const isPendingReplay = match.match_status === 'unconfirmed';
                            
                             // Extract replay data if pending
                             let replayData = { winnerName: null, loserName: null, map: null, winnerFaction: null, loserFaction: null, winnerSide: null, winnerTeamName: null, loserTeamName: null, winnerTeamFactions: null, loserTeamFactions: null, wmlTeams: null, detectedTeams: null };
