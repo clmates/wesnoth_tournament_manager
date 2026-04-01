@@ -1099,14 +1099,14 @@ export class ParseNewReplaysRefactorized {
     const nicknames = forumPlayers.map((fp: any) => fp.user_name);
     const usersExtResult = await query(
       `SELECT id, nickname FROM users_extension
-       WHERE nickname IN (${nicknames.map(() => '?').join(',')})`,
+       WHERE LOWER(nickname) IN (${nicknames.map(() => 'LOWER(?)').join(',')})`,
       nicknames
     );
     
     const usersExtRows = (usersExtResult as any).rows || [];
     const nicknameToUUID: Record<string, string> = {};
     usersExtRows.forEach((row: any) => {
-      nicknameToUUID[row.nickname] = row.id;
+      nicknameToUUID[row.nickname.toLowerCase()] = row.id;
     });
     
     console.log(`   [TEAM TOURNAMENT] Debug: nicknameToUUID = ${JSON.stringify(nicknameToUUID)}`);
@@ -1129,7 +1129,7 @@ export class ParseNewReplaysRefactorized {
       const playerFactions: string[] = [];
       
       for (const forumPlayer of forumPlayers) {
-        const uuid = nicknameToUUID[forumPlayer.user_name];
+        const uuid = nicknameToUUID[forumPlayer.user_name.toLowerCase()];
         const teamId = uuid ? uuidToTeamId[uuid] : null;
         
         if (teamId === currentTeamId) {
