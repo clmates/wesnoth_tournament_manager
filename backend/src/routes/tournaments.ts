@@ -2887,9 +2887,10 @@ router.get('/:tournamentId/matches', async (req, res) => {
     let pendingReplaysQuery = '';
     
     if (tournamentMode === 'team') {
-      // Team mode: get team names from tournament_teams
+      // Team mode: get team names from tournament_teams and team member lists
       pendingReplaysQuery = `
         SELECT
+          pr.id as id,
           pr.id as pending_replay_id,
           pr.tournament_id,
           trm.round_id,
@@ -2908,22 +2909,28 @@ router.get('/:tournamentId/matches', async (req, res) => {
           pr.created_at,
           pr.updated_at,
           'unconfirmed' as match_status,
-          TRUE as is_team_mode
+          TRUE as is_team_mode,
+          JSON_ARRAYAGG(DISTINCT IF(tp.team_id = trm.player1_id, ue.nickname, NULL)) as team1_members,
+          JSON_ARRAYAGG(DISTINCT IF(tp.team_id = trm.player2_id, ue.nickname, NULL)) as team2_members
         FROM replays pr
         LEFT JOIN tournament_round_matches trm ON pr.tournament_round_match_id = trm.id
         LEFT JOIN tournament_rounds tr ON trm.round_id = tr.id
         LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
+        LEFT JOIN tournament_participants tp ON (tp.team_id = trm.player1_id OR tp.team_id = trm.player2_id)
+        LEFT JOIN users_extension ue ON tp.user_id = ue.id
         WHERE pr.tournament_id = ?
           AND pr.parse_status = 'parsed'
           AND pr.integration_confidence = 1
           AND pr.match_id IS NULL
+        GROUP BY pr.id
         ORDER BY tr.round_number ASC, pr.created_at ASC
       `;
     } else {
       // Unranked and ranked modes: get player names from users_extension
       pendingReplaysQuery = `
         SELECT
+          pr.id as id,
           pr.id as pending_replay_id,
           pr.tournament_id,
           trm.round_id,
