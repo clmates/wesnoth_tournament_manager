@@ -1860,85 +1860,136 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
       }
     }
 
-    // Activate first round to generate initial matches
+    // Activate rounds: for league tournaments open all rounds simultaneously;
+    // for other types only activate the first round
     try {
-      console.log(`[START] Attempting to activate round 1 for tournament ${id}`);
-      await activateRound(id, 1);
-      console.log(`[START] Round 1 activated successfully for tournament ${id}`);
+      const isLeagueTournament = tournament.tournament_type?.toLowerCase() === 'league';
 
-      // Get round details for Discord notification
-      const roundDetailsResult = await query(
-        `SELECT COUNT(*) as match_count FROM tournament_matches tm
-         JOIN tournament_rounds tr ON tm.round_id = tr.id
-         WHERE tr.tournament_id = ? AND tr.round_number = 1`,
-        [id]
-      );
-      const matchesCount = parseInt(roundDetailsResult.rows[0]?.match_count || '0');
+      if (isLeagueTournament) {
+        console.log(`[START] League tournament: activating all ${roundCount} rounds simultaneously`);
 
-      // Post round started notification to Discord
-      if (tournament.discord_thread_id) {
-        try {
-          const estimatedEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-          await discordService.postRoundStarted(
-            tournament.discord_thread_id,
-            1,
-            matchesCount,
-            estimatedEndDate
-          );
-          console.log(`[START] Posted round started notification to Discord`);
-        } catch (discordErr) {
-          console.error('Discord round start notification error:', discordErr);
+        // Open all rounds at once with a single query (more efficient than calling activateRound N times)
+        await query(
+          `UPDATE tournament_rounds
+           SET round_status = 'in_progress', round_start_date = NOW()
+           WHERE tournament_id = ? AND round_status = 'pending'`,
+          [id]
+        );
+
+        // Recalculate rankings once after opening all rounds
+        if (tournament.tournament_mode === 'team') {
+          const { recalculateTeamRankingsForTournament } = await import('../utils/tournament.js');
+          await recalculateTeamRankingsForTournament(id);
+        } else {
+          const { recalculateParticipantRankings } = await import('../utils/tournament.js');
+          await recalculateParticipantRankings(id);
         }
-      }
 
-      // Post matchups notification to Discord
-      if (tournament.discord_thread_id) {
-        try {
-          // Detect tournament mode to fetch correct names
-          const isTeamMode = tournament.tournament_mode === 'team';
-          
-          let matchupsResult;
-          if (isTeamMode) {
-            // Team mode: JOIN with tournament_teams
-            matchupsResult = await query(
-              `SELECT trm.player1_id, trm.player2_id, tt1.name as player1_nickname, tt2.name as player2_nickname
-               FROM tournament_round_matches trm
-               LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
-               LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
-               WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = ? AND round_number = 1)`,
-              [id]
+        console.log(`[START] All rounds activated for league tournament ${id}`);
+
+        // Get total match count across all rounds for Discord
+        const totalMatchCountResult = await query(
+          `SELECT COUNT(*) as match_count FROM tournament_matches tm
+           JOIN tournament_rounds tr ON tm.round_id = tr.id
+           WHERE tr.tournament_id = ?`,
+          [id]
+        );
+        const totalMatchCount = parseInt(totalMatchCountResult.rows[0]?.match_count || '0');
+
+        // Post a single Discord notification for all rounds being open
+        if (tournament.discord_thread_id) {
+          try {
+            await discordService.postRoundStarted(
+              tournament.discord_thread_id,
+              0,   // round 0 = all rounds (handled in Discord message as "all rounds open")
+              totalMatchCount,
+              new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
             );
-          } else {
-            // Individual mode: JOIN with users_extension
-            matchupsResult = await query(
-              `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
-               FROM tournament_round_matches trm
-               LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
-               LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
-               WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = ? AND round_number = 1)`,
-              [id]
-            );
+            console.log(`[START] Posted league all-rounds-open notification to Discord`);
+          } catch (discordErr) {
+            console.error('Discord league round notification error:', discordErr);
           }
-          
-          if (matchupsResult.rows.length > 0) {
-            const matchups = matchupsResult.rows.map(m => ({
-              player1: m.player1_nickname || 'Unknown',
-              player2: m.player2_nickname || 'Unknown'
-            }));
-            
-            await discordService.postMatchups(
+        }
+
+      } else {
+        console.log(`[START] Attempting to activate round 1 for tournament ${id}`);
+        await activateRound(id, 1);
+        console.log(`[START] Round 1 activated successfully for tournament ${id}`);
+
+        // Get round details for Discord notification
+        const roundDetailsResult = await query(
+          `SELECT COUNT(*) as match_count FROM tournament_matches tm
+           JOIN tournament_rounds tr ON tm.round_id = tr.id
+           WHERE tr.tournament_id = ? AND tr.round_number = 1`,
+          [id]
+        );
+        const matchesCount = parseInt(roundDetailsResult.rows[0]?.match_count || '0');
+
+        // Post round started notification to Discord
+        if (tournament.discord_thread_id) {
+          try {
+            const estimatedEndDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+            await discordService.postRoundStarted(
               tournament.discord_thread_id,
               1,
-              matchups
+              matchesCount,
+              estimatedEndDate
             );
-            console.log(`[START] Posted matchups notification to Discord`);
+            console.log(`[START] Posted round started notification to Discord`);
+          } catch (discordErr) {
+            console.error('Discord round start notification error:', discordErr);
           }
-        } catch (discordErr) {
-          console.error('Discord matchups notification error:', discordErr);
+        }
+
+        // Post matchups notification to Discord
+        if (tournament.discord_thread_id) {
+          try {
+            // Detect tournament mode to fetch correct names
+            const isTeamMode = tournament.tournament_mode === 'team';
+            
+            let matchupsResult;
+            if (isTeamMode) {
+              // Team mode: JOIN with tournament_teams
+              matchupsResult = await query(
+                `SELECT trm.player1_id, trm.player2_id, tt1.name as player1_nickname, tt2.name as player2_nickname
+                 FROM tournament_round_matches trm
+                 LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
+                 LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
+                 WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = ? AND round_number = 1)`,
+                [id]
+              );
+            } else {
+              // Individual mode: JOIN with users_extension
+              matchupsResult = await query(
+                `SELECT trm.player1_id, trm.player2_id, u1.nickname as player1_nickname, u2.nickname as player2_nickname
+                 FROM tournament_round_matches trm
+                 LEFT JOIN users_extension u1 ON trm.player1_id = u1.id
+                 LEFT JOIN users_extension u2 ON trm.player2_id = u2.id
+                 WHERE trm.round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id = ? AND round_number = 1)`,
+                [id]
+              );
+            }
+            
+            if (matchupsResult.rows.length > 0) {
+              const matchups = matchupsResult.rows.map(m => ({
+                player1: m.player1_nickname || 'Unknown',
+                player2: m.player2_nickname || 'Unknown'
+              }));
+              
+              await discordService.postMatchups(
+                tournament.discord_thread_id,
+                1,
+                matchups
+              );
+              console.log(`[START] Posted matchups notification to Discord`);
+            }
+          } catch (discordErr) {
+            console.error('Discord matchups notification error:', discordErr);
+          }
         }
       }
     } catch (err) {
-      console.error(`[START] Warning: Could not activate first round for tournament ${id}:`, err);
+      console.error(`[START] Warning: Could not activate rounds for tournament ${id}:`, err);
       // Don't fail the tournament start if round activation fails
     }
 
@@ -2990,7 +3041,7 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
 
     // Verify creator owns this tournament
     const tournamentResult = await query(
-      'SELECT id, creator_id, status FROM tournaments WHERE id = ?',
+      'SELECT id, creator_id, status, tournament_type FROM tournaments WHERE id = ?',
       [id]
     );
 
@@ -3008,6 +3059,11 @@ router.post('/:id/next-round', authMiddleware, async (req: AuthRequest, res) => 
     // Tournament must be in progress
     if (tournament.status !== 'in_progress') {
       return res.status(400).json({ error: 'Tournament must be in progress to activate next round' });
+    }
+
+    // League tournaments have all rounds open simultaneously — this endpoint does not apply
+    if (tournament.tournament_type === 'league') {
+      return res.status(400).json({ error: 'League tournaments have all rounds open simultaneously. Manual round advancement is not applicable.' });
     }
 
     // Find the currently completed round (most recent completed round)

@@ -1932,7 +1932,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_start_date')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_end_date')}</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_format')}</th>
-                  {isCreator && <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>}
+                  {isCreator && tournament.tournament_type !== 'league' && <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -1950,7 +1950,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     <td className="px-4 py-3 text-gray-700">{round.round_start_date ? formatDate(round.round_start_date) : '-'}</td>
                     <td className="px-4 py-3 text-gray-700">{round.round_end_date ? formatDate(round.round_end_date) : '-'}</td>
                     <td className="px-4 py-3 text-gray-700">{(round as any)?.match_format ? t('match_format.' + (round as any).match_format) : '-'}</td>
-                    {isCreator && (
+                    {isCreator && tournament.tournament_type !== 'league' && (
                       <td className="px-4 py-3 text-gray-700">
                         {round.round_status === 'completed' && round.round_number < rounds.length ? (
                           (() => {

@@ -71,7 +71,7 @@ interface ParseSummary {
   linkedTournamentId: string | null;
   linkedTournamentRoundMatchId: string | null;
   // Cached tournament record found during match type detection (avoid double DB lookup)
-  detectedTournament: { id: string; name: string; tournament_mode: string } | null;
+  detectedTournament: { id: string; name: string; tournament_mode: string; tournament_type: string } | null;
   // Team information for team tournaments (populated during linkToTeamTournament)
   detectedTeams?: Record<string, {
     team_id: string;
@@ -552,7 +552,7 @@ export class ParseNewReplaysRefactorized {
           return parseSummary;
         } else {
           const tournResult = await query(
-            `SELECT id, name, tournament_mode FROM tournaments
+            `SELECT id, name, tournament_mode, tournament_type FROM tournaments
              WHERE status = 'in_progress' AND tournament_mode IN ('unranked', 'team') AND LOWER(name) = LOWER(?)
              LIMIT 1`,
             [searchName]
@@ -592,7 +592,7 @@ export class ParseNewReplaysRefactorized {
           parseSummary.matchType = 'ranked';
         } else {
           const tournResult = await query(
-            `SELECT id, name, tournament_mode FROM tournaments
+            `SELECT id, name, tournament_mode, tournament_type FROM tournaments
              WHERE status = 'in_progress' AND tournament_mode = 'ranked' AND LOWER(name) = LOWER(?)
              LIMIT 1`,
             [searchName]
@@ -898,19 +898,35 @@ export class ParseNewReplaysRefactorized {
     }
 
     // 1v1 tournament: search by player IDs directly
+    // For league tournaments all rounds are open simultaneously, so we search across all rounds
+    // and use ORDER BY round_number ASC to resolve double round-robin ambiguity (earliest pending first)
+    const isLeague = tournament.tournament_type === 'league';
     const roundMatchResult = await query(
-      `SELECT trm.id, trm.player1_id, trm.player2_id
-       FROM tournament_round_matches trm
-       JOIN tournament_rounds tr ON trm.round_id = tr.id
-       WHERE trm.tournament_id = ?
-         AND trm.series_status = 'in_progress'
-         AND tr.round_status = 'in_progress'
-         AND (
-           (trm.player1_id = ? AND trm.player2_id = ?)
-           OR
-           (trm.player1_id = ? AND trm.player2_id = ?)
-         )
-       LIMIT 1`,
+      isLeague
+        ? `SELECT trm.id, trm.player1_id, trm.player2_id
+           FROM tournament_round_matches trm
+           JOIN tournament_rounds tr ON trm.round_id = tr.id
+           WHERE trm.tournament_id = ?
+             AND trm.series_status = 'in_progress'
+             AND (
+               (trm.player1_id = ? AND trm.player2_id = ?)
+               OR
+               (trm.player1_id = ? AND trm.player2_id = ?)
+             )
+           ORDER BY tr.round_number ASC
+           LIMIT 1`
+        : `SELECT trm.id, trm.player1_id, trm.player2_id
+           FROM tournament_round_matches trm
+           JOIN tournament_rounds tr ON trm.round_id = tr.id
+           WHERE trm.tournament_id = ?
+             AND trm.series_status = 'in_progress'
+             AND tr.round_status = 'in_progress'
+             AND (
+               (trm.player1_id = ? AND trm.player2_id = ?)
+               OR
+               (trm.player1_id = ? AND trm.player2_id = ?)
+             )
+           LIMIT 1`,
       [tournament.id, winnerUser.id, loserUser.id, loserUser.id, winnerUser.id]
     );
 
@@ -1008,59 +1024,86 @@ export class ParseNewReplaysRefactorized {
       return false;
     }
 
-    // Find active round
-    console.log(`   [TEAM TOURNAMENT] Searching for active round...`);
-    const roundResult = await query(
-      `SELECT id FROM tournament_rounds
-       WHERE tournament_id = ?
-         AND round_status = 'in_progress'
-       LIMIT 1`,
-      [tournament.id]
-    );
+    // Find active round (for non-league) or search across all rounds (for league)
+    // League tournaments have all rounds open simultaneously
+    const isLeagueTournament = tournament.tournament_type === 'league';
 
-    const rounds = (roundResult as any).rows || [];
-    if (rounds.length === 0) {
-      console.log(`   ❌ [TEAM TOURNAMENT] No active round found`);
-      return false;
+    let roundMatchResult;
+    if (isLeagueTournament) {
+      // League: search across all rounds, earliest pending round first (resolves double round-robin ambiguity)
+      console.log(`   [TEAM TOURNAMENT] League tournament — searching across all rounds...`);
+      roundMatchResult = await query(
+        `SELECT trm.id, trm.player1_id, trm.player2_id FROM tournament_round_matches trm
+         JOIN tournament_rounds tr ON trm.round_id = tr.id
+         WHERE trm.tournament_id = ?
+           AND trm.series_status = 'in_progress'
+           AND (
+             (trm.player1_id = ? AND trm.player2_id = ?)
+             OR
+             (trm.player1_id = ? AND trm.player2_id = ?)
+           )
+         ORDER BY tr.round_number ASC
+         LIMIT 1`,
+        [tournament.id, team1, team2, team2, team1]
+      );
+    } else {
+      // Non-league: search only in the currently active round
+      console.log(`   [TEAM TOURNAMENT] Searching for active round...`);
+      const roundResult = await query(
+        `SELECT id FROM tournament_rounds
+         WHERE tournament_id = ?
+           AND round_status = 'in_progress'
+         LIMIT 1`,
+        [tournament.id]
+      );
+
+      const rounds = (roundResult as any).rows || [];
+      if (rounds.length === 0) {
+        console.log(`   ❌ [TEAM TOURNAMENT] No active round found`);
+        return false;
+      }
+
+      const roundId = rounds[0].id;
+      console.log(`   ✅ [TEAM TOURNAMENT] Active round: ${roundId}`);
+
+      // Search for tournament_round_match with these 2 teams in the active round
+      console.log(`   [TEAM TOURNAMENT] Searching for tournament_round_match between teams...`);
+      roundMatchResult = await query(
+        `SELECT id, player1_id, player2_id FROM tournament_round_matches
+         WHERE tournament_id = ?
+           AND round_id = ?
+           AND series_status = 'in_progress'
+           AND (
+             (player1_id = ? AND player2_id = ?)
+             OR
+             (player1_id = ? AND player2_id = ?)
+           )
+         LIMIT 1`,
+        [tournament.id, roundId, team1, team2, team2, team1]
+      );
     }
-
-    const roundId = rounds[0].id;
-    console.log(`   ✅ [TEAM TOURNAMENT] Active round: ${roundId}`);
-
-    // Search for tournament_round_match with these 2 teams
-    console.log(`   [TEAM TOURNAMENT] Searching for tournament_round_match between teams...`);
-    const roundMatchResult = await query(
-      `SELECT id, player1_id, player2_id FROM tournament_round_matches
-       WHERE tournament_id = ?
-         AND round_id = ?
-         AND series_status = 'in_progress'
-         AND (
-           (player1_id = ? AND player2_id = ?)
-           OR
-           (player1_id = ? AND player2_id = ?)
-         )
-       LIMIT 1`,
-      [tournament.id, roundId, team1, team2, team2, team1]
-    );
 
     const roundMatches = (roundMatchResult as any).rows || [];
     if (roundMatches.length === 0) {
       console.log(`   ❌ [TEAM TOURNAMENT] No pending tournament_round_match found for:`);
       console.log(`      Tournament ID: ${tournament.id}`);
-      console.log(`      Round ID: ${roundId}`);
       console.log(`      Team 1: ${team1}`);
       console.log(`      Team 2: ${team2}`);
-      console.log(`   [TEAM TOURNAMENT] Showing all available matches in this round...`);
+      console.log(`   [TEAM TOURNAMENT] Showing all in-progress matches in tournament...`);
       
-      // Debug: show all matches in this round
+      // Debug: show all in-progress matches in tournament
       const allMatchesResult = await query(
-        `SELECT id, player1_id, player2_id, series_status FROM tournament_round_matches
-         WHERE tournament_id = ? AND round_id = ?`,
-        [tournament.id, roundId]
+        `SELECT trm.id, trm.player1_id, trm.player2_id, trm.series_status, tr.round_number
+         FROM tournament_round_matches trm
+         JOIN tournament_rounds tr ON trm.round_id = tr.id
+         WHERE trm.tournament_id = ? AND trm.series_status = 'in_progress'
+         ORDER BY tr.round_number ASC`,
+        [tournament.id]
       );
       const allMatches = (allMatchesResult as any).rows || [];
-      console.log(`   [TEAM TOURNAMENT] Available matches in round:`, allMatches.map((m: any) => ({ 
+      console.log(`   [TEAM TOURNAMENT] Available in-progress matches:`, allMatches.map((m: any) => ({ 
         id: m.id, 
+        round: m.round_number,
         player1_id: m.player1_id, 
         player2_id: m.player2_id, 
         series_status: m.series_status 
