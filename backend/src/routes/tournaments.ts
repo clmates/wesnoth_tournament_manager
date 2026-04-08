@@ -1899,11 +1899,15 @@ router.post('/:id/start', authMiddleware, async (req: AuthRequest, res) => {
         // Post a single Discord notification for all rounds being open
         if (tournament.discord_thread_id) {
           try {
-            await discordService.postRoundStarted(
+            const totalRoundsResult2 = await query(
+              `SELECT COUNT(*) as total FROM tournament_rounds WHERE tournament_id = ?`,
+              [id]
+            );
+            const totalRounds = parseInt(totalRoundsResult2.rows[0]?.total || '0');
+            await discordService.postLeagueStarted(
               tournament.discord_thread_id,
-              0,   // round 0 = all rounds (handled in Discord message as "all rounds open")
-              totalMatchCount,
-              new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+              totalRounds,
+              totalMatchCount
             );
             console.log(`[START] Posted league all-rounds-open notification to Discord`);
           } catch (discordErr) {

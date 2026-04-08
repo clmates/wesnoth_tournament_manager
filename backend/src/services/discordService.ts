@@ -402,6 +402,39 @@ class DiscordService {
   }
 
   /**
+   * Liga iniciada — todas las rondas abiertas simultáneamente
+   */
+  async postLeagueStarted(
+    threadId: string,
+    totalRounds: number,
+    totalMatches: number
+  ): Promise<boolean> {
+    const embed: DiscordEmbed = {
+      title: `🏁 League Started — All Rounds Open`,
+      description: `All **${totalRounds}** rounds are open simultaneously. Players can play matches from any round in any order.`,
+      color: 0x9b59b6, // Purple
+      fields: [
+        {
+          name: 'Total Rounds',
+          value: `${totalRounds}`,
+          inline: true,
+        },
+        {
+          name: 'Total Matches',
+          value: `${totalMatches}`,
+          inline: true,
+        },
+      ],
+      footer: {
+        text: 'Good luck to all participants!',
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    return this.publishTournamentMessage(threadId, { embeds: [embed] });
+  }
+
+  /**
    * Fin de Ronda
    */
   async postRoundEnded(
@@ -414,6 +447,40 @@ class DiscordService {
       color: 0x27ae60, // Dark green
       footer: {
         text: `Round ${roundNumber}`,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    return this.publishTournamentMessage(threadId, { embeds: [embed] });
+  }
+
+  /**
+   * Fin de Ronda en Liga con clasificación actual
+   */
+  async postLeagueRoundCompleted(
+    threadId: string,
+    roundNumber: number,
+    totalRounds: number,
+    standings: Array<{ nickname: string; points: number; wins: number; losses: number }>
+  ): Promise<boolean> {
+    const standingsText = standings
+      .slice(0, 15) // Discord embed limit
+      .map((p, i) => `**${i + 1}.** ${p.nickname} — ${p.points} pts (${p.wins}W-${p.losses}L)`)
+      .join('\n');
+
+    const embed: DiscordEmbed = {
+      title: `✅ Round ${roundNumber}/${totalRounds} Completed`,
+      description: standingsText || 'No standings available',
+      color: 0x27ae60, // Dark green
+      fields: [
+        {
+          name: 'Rounds remaining',
+          value: `${totalRounds - roundNumber}`,
+          inline: true,
+        },
+      ],
+      footer: {
+        text: `Standings after Round ${roundNumber}`,
       },
       timestamp: new Date().toISOString(),
     };

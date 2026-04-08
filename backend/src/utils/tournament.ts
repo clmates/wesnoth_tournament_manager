@@ -1789,6 +1789,57 @@ export async function checkAndCompleteRound(tournamentId: string, roundNumber: n
       );
       const totalRounds = parseInt(totalRoundsResult.rows[0].total_rounds);
 
+      // For league tournaments: post round completion notification with standings
+      // (skip if last round — postTournamentFinished handles that case)
+      const tournamentType = currentRoundInfo.rows[0]?.tournament_type;
+      if (tournamentType === 'league' && roundNumber < totalRounds) {
+        try {
+          const leagueTournamentResult = await query(
+            `SELECT discord_thread_id, tournament_mode FROM tournaments WHERE id = ?`,
+            [tournamentId]
+          );
+          const discordThreadId = leagueTournamentResult.rows[0]?.discord_thread_id;
+          const leagueTournMode = leagueTournamentResult.rows[0]?.tournament_mode || 'ranked';
+
+          if (discordThreadId) {
+            // Fetch current standings based on tournament mode
+            let standingsRows: any[] = [];
+            if (leagueTournMode === 'team') {
+              const result = await query(
+                `SELECT tt.name as nickname, tt.tournament_points as points,
+                        tt.tournament_wins as wins, tt.tournament_losses as losses
+                 FROM tournament_teams tt
+                 WHERE tt.tournament_id = ?
+                 ORDER BY tt.tournament_points DESC, tt.tournament_wins DESC`,
+                [tournamentId]
+              );
+              standingsRows = result.rows;
+            } else {
+              const result = await query(
+                `SELECT u.nickname, tp.tournament_points as points,
+                        tp.tournament_wins as wins, tp.tournament_losses as losses
+                 FROM tournament_participants tp
+                 JOIN users_extension u ON tp.user_id = u.id
+                 WHERE tp.tournament_id = ?
+                 ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC`,
+                [tournamentId]
+              );
+              standingsRows = result.rows;
+            }
+
+            await discordService.postLeagueRoundCompleted(
+              discordThreadId,
+              roundNumber,
+              totalRounds,
+              standingsRows
+            );
+            console.log(`✅ [DISCORD] Posted league round ${roundNumber} completion notification`);
+          }
+        } catch (discordErr) {
+          console.error(`Discord league round completion notification error:`, discordErr);
+        }
+      }
+
       if (roundNumber === totalRounds) {
         // This is the last round - tournament is about to finish
         
