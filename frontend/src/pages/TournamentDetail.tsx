@@ -226,7 +226,8 @@ const TournamentDetail: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState<'participants' | 'matches' | 'rounds' | 'roundMatches' | 'ranking' | 'teams'>('participants');
-  const [filterMode, setFilterMode] = useState<'all' | 'pending' | 'current'>('all');
+  const [myMatchesOnly, setMyMatchesOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'scheduled' | 'completed'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [userParticipationStatus, setUserParticipationStatus] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
@@ -1156,42 +1157,57 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
         {/* Filter options for Matches and Round Details tabs */}
         {(activeTab === 'matches' || activeTab === 'roundMatches') && (
-          <div className="flex flex-wrap gap-3 items-center bg-gray-50 p-3 rounded border border-gray-200">
-            <span className="font-medium text-gray-700 text-sm">{t('common.filter', 'Filter')}:</span>
-            <div className="flex gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
+          <div className="flex flex-wrap gap-4 items-center bg-gray-50 p-3 rounded border border-gray-200">
+            {/* My Matches toggle — only shown when logged in */}
+            {userId && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
-                  type="radio"
-                  name="filter"
-                  value="all"
-                  checked={filterMode === 'all'}
-                  onChange={(e) => setFilterMode(e.target.value as 'all' | 'pending' | 'current')}
-                  className="cursor-pointer"
+                  type="checkbox"
+                  checked={myMatchesOnly}
+                  onChange={(e) => setMyMatchesOnly(e.target.checked)}
+                  className="cursor-pointer w-4 h-4"
                 />
-                <span className="text-sm text-gray-700">{t('common.show_all')}</span>
+                <span className="text-sm font-medium text-gray-700">{t('common.my_matches')}</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="filter"
-                  value="pending"
-                  checked={filterMode === 'pending'}
-                  onChange={(e) => setFilterMode(e.target.value as 'all' | 'pending' | 'current')}
-                  className="cursor-pointer"
-                />
-                <span className="text-sm text-gray-700">{t('common.show_only_pending')}</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="filter"
-                  value="current"
-                  checked={filterMode === 'current'}
-                  onChange={(e) => setFilterMode(e.target.value as 'all' | 'pending' | 'current')}
-                  className="cursor-pointer"
-                />
-                <span className="text-sm text-gray-700">{t('common.show_only_current_round')}</span>
-              </label>
+            )}
+            {/* Status filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">{t('common.filter_status')}:</span>
+              <div className="flex gap-3">
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="statusFilter"
+                    value="all"
+                    checked={statusFilter === 'all'}
+                    onChange={() => setStatusFilter('all')}
+                    className="cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-700">{t('common.show_all')}</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="statusFilter"
+                    value="scheduled"
+                    checked={statusFilter === 'scheduled'}
+                    onChange={() => setStatusFilter('scheduled')}
+                    className="cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-700">{t('common.filter_scheduled')}</span>
+                </label>
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="statusFilter"
+                    value="completed"
+                    checked={statusFilter === 'completed'}
+                    onChange={() => setStatusFilter('completed')}
+                    className="cursor-pointer"
+                  />
+                  <span className="text-sm text-gray-700">{t('common.filter_completed')}</span>
+                </label>
+              </div>
             </div>
           </div>
         )}
@@ -1448,26 +1464,25 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           ) : (
             <>
             {/* Scheduled Matches Section */}
+            {statusFilter !== 'completed' && (
             <div className="mb-8">
               <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-500">{t('matches.scheduled')}</h3>
               {rounds.length > 0 ? (
                   <>
                     {rounds.map((round) => {
-                      // Determine which rounds to display based on filter
-                      const shouldShowRound = filterMode === 'all' 
-                        ? true 
-                        : filterMode === 'current'
-                        ? round.round_status === 'in_progress'
-                        : true; // pending filter shows all rounds with pending matches
-                      
                       const scheduledMatches = matches
-                        .filter(
-                          (m) => m.round_id === round.id && m.match_status === 'pending'
-                        )
+                        .filter((m) => {
+                          if (m.round_id !== round.id || m.match_status !== 'pending') return false;
+                          if (myMatchesOnly) {
+                            return m.is_team_mode
+                              ? userTeamId === m.player1_id || userTeamId === m.player2_id
+                              : userId === m.player1_id || userId === m.player2_id;
+                          }
+                          return true;
+                        })
                         .sort((a, b) => (a.player1_nickname || '').localeCompare(b.player1_nickname || ''));
                       
                       if (scheduledMatches.length === 0) return null;
-                      if (!shouldShowRound && filterMode === 'current') return null;
                       
                       return (
                         <div key={round.id} className="mb-6 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
@@ -1539,11 +1554,21 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   <p className="text-gray-600">{t('no_rounds_configured')}</p>
                 )}
               </div>
+            )}
 
                {/* Completed Matches Section */}
+               {statusFilter !== 'scheduled' && (
                <div className="mb-8">
                  <h3 className="text-2xl font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-500">{t('matches.completed')}</h3>
-                 {matches.filter((m) => m.match_status !== 'pending').length > 0 ? (
+                 {matches.filter((m) => {
+                    if (m.match_status === 'pending') return false;
+                    if (myMatchesOnly) {
+                      return m.is_team_mode
+                        ? userTeamId === m.player1_id || userTeamId === m.player2_id
+                        : userId === m.player1_id || userId === m.player2_id;
+                    }
+                    return true;
+                  }).length > 0 ? (
                   <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-200">
@@ -1557,12 +1582,15 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     </thead>
                     <tbody>
                       {matches
-                         .filter((m) => m.match_status !== 'pending')
-                        .sort((a, b) => {
-                          const roundDiff = (b.round_number || 0) - (a.round_number || 0);
-                          if (roundDiff !== 0) return roundDiff;
-                          return (a.player1_nickname || '').localeCompare(b.player1_nickname || '');
-                        })
+                         .filter((m) => {
+                           if (m.match_status === 'pending') return false;
+                           if (myMatchesOnly) {
+                             return m.is_team_mode
+                               ? userTeamId === m.player1_id || userTeamId === m.player2_id
+                               : userId === m.player1_id || userId === m.player2_id;
+                           }
+                           return true;
+                         })
                         .map((match) => {
                            // Check if this is a pending replay (not yet confirmed)
                             const isPendingReplay = match.match_status === 'unconfirmed';
@@ -1914,6 +1942,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                   <p>{t('no_completed_matches')}</p>
                 )}
               </div>
+              )}
             </>
           )}
         </div>
@@ -1988,17 +2017,21 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           {rounds.length > 0 ? (
             <>
               {rounds.map((round) => {
-                // Determine which rounds to display based on filter
-                const shouldShowRound = filterMode === 'all' 
-                  ? true 
-                  : filterMode === 'current'
-                  ? round.round_status === 'in_progress'
-                  : true; // pending filter shows all rounds with matches
-                
-                const matchesInRound = roundMatches.filter((m) => m.round_id === round.id);
+                const matchesInRound = roundMatches.filter((m) => {
+                  if (m.round_id !== round.id) return false;
+                  // Status filter: series_status 'in_progress' = scheduled, 'completed'/'bye' = completed
+                  if (statusFilter === 'scheduled' && m.series_status !== 'in_progress') return false;
+                  if (statusFilter === 'completed' && m.series_status === 'in_progress') return false;
+                  // My matches filter
+                  if (myMatchesOnly) {
+                    return m.is_team_mode
+                      ? userTeamId === m.player1_id || userTeamId === m.player2_id
+                      : userId === m.player1_id || userId === m.player2_id;
+                  }
+                  return true;
+                });
                 
                 if (matchesInRound.length === 0) return null;
-                if (!shouldShowRound && filterMode === 'current') return null;
                 
                 return (
                   <div key={round.id} className="mb-8">

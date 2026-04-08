@@ -620,6 +620,10 @@
     "show_all": "Show All",
     "show_only_pending": "Show Only Pending",
     "show_only_current_round": "Show Only Current Round",
+    "my_matches": "My Matches",
+    "filter_status": "Status",
+    "filter_scheduled": "Scheduled",
+    "filter_completed": "Completed",
     "refresh": "Refresh"
   },
   "maintenance": {

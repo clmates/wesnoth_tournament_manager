@@ -604,6 +604,10 @@
     "show_all": "Показать все",
     "show_only_pending": "Только ожидающие",
     "show_only_current_round": "Только текущий раунд",
+    "my_matches": "Мои матчи",
+    "filter_status": "Статус",
+    "filter_scheduled": "Запланированные",
+    "filter_completed": "Завершённые",
     "refresh": "Обновить"
   },
   "maintenance": {

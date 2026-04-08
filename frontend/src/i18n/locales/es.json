@@ -605,6 +605,10 @@
     "show_all": "Mostrar Todo",
     "show_only_pending": "Solo Pendientes",
     "show_only_current_round": "Solo Ronda Actual",
+    "my_matches": "Mis Partidas",
+    "filter_status": "Estado",
+    "filter_scheduled": "Programadas",
+    "filter_completed": "Completadas",
     "refresh": "Actualizar"
   },
   "faction_vs_faction": "Facción vs Facción",

@@ -606,6 +606,10 @@
     "show_all": "显示全部",
     "show_only_pending": "仅显示待定",
     "show_only_current_round": "仅显示当前回合",
+    "my_matches": "我的对局",
+    "filter_status": "状态",
+    "filter_scheduled": "已排程",
+    "filter_completed": "已完成",
     "refresh": "刷新"
   },
   "maintenance": {

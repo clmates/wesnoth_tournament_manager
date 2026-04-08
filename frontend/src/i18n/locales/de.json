@@ -606,6 +606,10 @@
     "show_all": "Alles anzeigen",
     "show_only_pending": "Nur ausstehend",
     "show_only_current_round": "Nur aktuelle Runde",
+    "my_matches": "Meine Spiele",
+    "filter_status": "Status",
+    "filter_scheduled": "Geplant",
+    "filter_completed": "Abgeschlossen",
     "refresh": "Aktualisieren"
   },
   "maintenance": {
