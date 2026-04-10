@@ -43,9 +43,14 @@ export async function getPhpbbUser(username: string): Promise<PhpbbUser | null> 
 }
 
 /**
- * Validate password against phpBB hash
- * phpBB uses bcrypt for password hashing with $2y$ prefix
- * Node.js bcrypt may not support $2y$, so we convert to $2b$
+ * Validate password against phpBB hash.
+ * phpBB uses bcrypt with $2y$ prefix — we convert to $2b$ for Node.js compatibility.
+ *
+ * ENCODING NOTE: This phpBB installation has latin1 as its database/connection charset,
+ * which means passwords were hashed using Latin-1 bytes sent by the browser (e.g. ñ = 0xF1).
+ * Our web frontend is UTF-8, so ñ arrives as 0xC3 0xB1 — different bytes, hash mismatch.
+ * Fix: if UTF-8 comparison fails and the password contains non-ASCII characters, retry
+ * using the Latin-1 byte representation of the password.
  */
 export async function validatePhpbbPassword(
   password: string,
@@ -54,24 +59,32 @@ export async function validatePhpbbPassword(
   try {
     console.log(`🔐 [phpBB] Validating password for user: ${phpbbUser.username}`);
     console.log(`🔐 [phpBB] Hash starts with: ${phpbbUser.user_password.substring(0, 10)}...`);
-    
+
     // phpBB uses $2y$ prefix, but Node.js bcrypt works with $2a$ and $2b$
-    // Convert $2y$ to $2b$ for compatibility
     let hashToCompare = phpbbUser.user_password;
     if (hashToCompare.startsWith('$2y$')) {
       console.log(`🔐 [phpBB] Converting $2y$ hash to $2b$ for bcrypt compatibility`);
       hashToCompare = '$2b$' + hashToCompare.substring(4);
     }
-    
-    // Compare password with the hash
-    const isValid = await bcrypt.compare(password, hashToCompare);
-    
+
+    // First attempt: compare using UTF-8 bytes (correct for modern UTF-8 phpBB installs)
+    let isValid = await bcrypt.compare(password, hashToCompare);
+
+    // Second attempt: if failed and password has non-ASCII characters, try Latin-1 bytes.
+    // Buffer.from(str, 'latin1') maps each Unicode code point directly to its Latin-1 byte
+    // (e.g. ñ U+00F1 → 0xF1), matching what phpBB hashed when the forum ran in latin1 charset.
+    if (!isValid && /[^\x00-\x7F]/.test(password)) {
+      console.log(`🔐 [phpBB] UTF-8 compare failed, retrying with Latin-1 byte encoding (latin1 DB charset)`);
+      const passwordLatin1 = Buffer.from(password, 'latin1');
+      isValid = await bcrypt.compare(passwordLatin1, hashToCompare);
+    }
+
     if (isValid) {
       console.log(`✅ [phpBB] Password valid for user: ${phpbbUser.username}`);
     } else {
       console.warn(`❌ [phpBB] Password invalid for user: ${phpbbUser.username}`);
     }
-    
+
     return isValid;
   } catch (error) {
     console.error('❌ [phpBB] Error validating password:', error);
