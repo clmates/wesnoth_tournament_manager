@@ -254,6 +254,67 @@ interface WmlNode {
   [key: string]: string | WmlNode | WmlNode[];
 }
 
+function asNodeArray(node: string | WmlNode | WmlNode[] | undefined): WmlNode[] {
+  if (!node || typeof node === 'string') {
+    return [];
+  }
+
+  return Array.isArray(node) ? node : [node];
+}
+
+function getOptionValueById(
+  parent: WmlNode,
+  optionId: string
+): string | undefined {
+  const options = asNodeArray(parent.option);
+  const match = options.find(option => option.id === optionId);
+  return typeof match?.value === 'string' ? match.value : undefined;
+}
+
+function extractRankedModificationConfig(
+  container: WmlNode | undefined,
+  locationLabel: string,
+  fallbackTournamentName?: string
+): RankedAddonConfig | null {
+  if (!container) {
+    return null;
+  }
+
+  const modifications = asNodeArray(container.modification);
+  const rankedModification = modifications.find(modification => modification.id === 'ranked');
+
+  if (!rankedModification) {
+    return null;
+  }
+
+  const rankedModeValue = getOptionValueById(rankedModification, 'ranked_mode');
+  const tournamentValue =
+    getOptionValueById(rankedModification, 'tournament_mode') ??
+    getOptionValueById(rankedModification, 'tournament');
+  const tournamentName =
+    getOptionValueById(rankedModification, 'tournament_name') ?? fallbackTournamentName;
+
+  if (rankedModeValue === undefined && tournamentValue === undefined && !tournamentName) {
+    return null;
+  }
+
+  const rankedMode = rankedModeValue === 'yes';
+  const tournament = tournamentValue === 'yes';
+
+  console.log(`✅ [RANKED PARSE] Found addon config in ${locationLabel}`);
+  console.log(`   ranked_mode: ${rankedMode}, tournament: ${tournament}`);
+
+  if (tournament && tournamentName && tournamentName === fallbackTournamentName) {
+    console.log(`   ℹ️  Using root-level scenario field as tournament_name: "${tournamentName}"`);
+  }
+
+  return {
+    ranked_mode: rankedMode,
+    tournament,
+    tournament_name: tournament ? tournamentName : undefined
+  };
+}
+
 function parseWml(content: string): WmlNode {
   const lines = content.split('\n');
   const root: WmlNode = {};
@@ -321,12 +382,14 @@ function parseWml(content: string): WmlNode {
  * 1. [scenario] > [scenario_data]
  * 2. [carryover_sides_start] > [variables]
  * 3. Root level
+ * 4. [options] > [modification id="ranked"] > [option]
  */
 function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
   try {
     let rankedMode = false;
     let tournament = false;
     let tournamentName: string | undefined;
+    const rootScenario = typeof wml.scenario === 'string' ? wml.scenario : undefined;
 
     // Strategy 1: Try [scenario] > [scenario_data]
     const scenario = wml.scenario as WmlNode | undefined;
@@ -340,8 +403,7 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
         // Fallback to root-level scenario field if tournament=yes but no tournament_name
         // (only if scenario is actually an object, not a string)
         if (tournament && !tournamentName && typeof scenario === 'object') {
-          const rootScenario = wml.scenario as string | undefined;
-          if (rootScenario && typeof rootScenario === 'string') {
+          if (rootScenario) {
             tournamentName = rootScenario;
             console.log(`   ℹ️  Using root-level scenario field as tournament_name: "${tournamentName}"`);
           }
@@ -370,8 +432,7 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
           
           // Fallback to root-level scenario field if tournament=yes but no tournament_name
           if (tournament && !tournamentName) {
-            const rootScenario = wml.scenario as string | undefined;
-            if (rootScenario && typeof rootScenario === 'string') {
+            if (rootScenario) {
               tournamentName = rootScenario;
               console.log(`   ℹ️  Using root-level scenario field as tournament_name: "${tournamentName}"`);
             }
@@ -401,8 +462,7 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
           
           // Fallback to root-level scenario field if tournament=yes but no tournament_name
           if (tournament && !tournamentName) {
-            const rootScenario = wml.scenario as string | undefined;
-            if (rootScenario && typeof rootScenario === 'string') {
+            if (rootScenario) {
               tournamentName = rootScenario;
               console.log(`   ℹ️  Using root-level scenario field as tournament_name: "${tournamentName}"`);
             }
@@ -426,8 +486,7 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
 
       // Fallback to root-level scenario field if tournament=yes but no tournament_name
       if (tournament && !tournamentName) {
-        const rootScenario = wml.scenario as string | undefined;
-        if (rootScenario && typeof rootScenario === 'string') {
+        if (rootScenario) {
           tournamentName = rootScenario;
           console.log(`   ℹ️  Using root-level scenario field as tournament_name: "${tournamentName}"`);
         }
@@ -440,9 +499,30 @@ function extractAddonConfig(wml: WmlNode): RankedAddonConfig {
       };
     }
 
+    // Strategy 5: Try [options] > [modification id="ranked"] > [option]
+    const optionsConfig = extractRankedModificationConfig(
+      wml.options as WmlNode | undefined,
+      '[options][modification]',
+      rootScenario
+    );
+    if (optionsConfig) {
+      return optionsConfig;
+    }
+
+    // Strategy 6: Try [multiplayer] > [options] > [modification id="ranked"] > [option]
+    const multiplayer = wml.multiplayer as WmlNode | undefined;
+    const multiplayerOptionsConfig = extractRankedModificationConfig(
+      multiplayer?.options as WmlNode | undefined,
+      '[multiplayer][options][modification]',
+      rootScenario
+    );
+    if (multiplayerOptionsConfig) {
+      return multiplayerOptionsConfig;
+    }
+
     // Fallback: No addon config found in WML
     // The addon presence may have been confirmed at forum DB level
-    console.warn('⚠️  [RANKED PARSE] No addon config found in WML (checked [scenario][scenario_data], [replay_start][variables], [carryover_sides_start][variables], root [scenario_data])');
+    console.warn('⚠️  [RANKED PARSE] No addon config found in WML (checked [scenario][scenario_data], [replay_start][variables], [carryover_sides_start][variables], root [scenario_data], [options][modification], [multiplayer][options][modification])');
     return {
       ranked_mode: false,
       tournament: false,
