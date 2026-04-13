@@ -43,7 +43,6 @@ const AdminUsers: React.FC = () => {
       setLoading(true);
       const res = await adminService.getAllUsers();
       const usersData = res.data || [];
-      console.log('Fetched users:', usersData.length, 'First user:', usersData[0]);
       setUsers(usersData);
       setFilteredUsers(usersData);
       setError('');
@@ -101,8 +100,6 @@ const AdminUsers: React.FC = () => {
   const applyFilters = (nicValue: string, statusValue: string) => {
     let filtered = users;
 
-    console.log('DEBUG applyFilters:', { nicValue, statusValue, usersCount: users.length, firstUser: users[0] });
-
     // Filter by nickname
     if (nicValue.trim() !== '') {
       const lowerSearch = nicValue.toLowerCase();
@@ -111,23 +108,13 @@ const AdminUsers: React.FC = () => {
 
     // Filter by status
     if (statusValue === 'blocked') {
-      filtered = filtered.filter((user) => {
-        console.log('Checking blocked:', user.nickname, 'is_blocked:', user.is_blocked, 'type:', typeof user.is_blocked);
-        return !!user.is_blocked;
-      });
+      filtered = filtered.filter((user) => !!user.is_blocked);
     } else if (statusValue === 'active') {
-      filtered = filtered.filter((user) => {
-        console.log('Checking active:', user.nickname, 'is_blocked:', user.is_blocked, 'is_active:', user.is_active);
-        return !user.is_blocked && !!user.is_active;
-      });
+      filtered = filtered.filter((user) => !user.is_blocked && !!user.is_active);
     } else if (statusValue === 'inactive') {
-      filtered = filtered.filter((user) => {
-        console.log('Checking inactive:', user.nickname, 'is_blocked:', user.is_blocked, 'is_active:', user.is_active);
-        return !user.is_blocked && !user.is_active;
-      });
+      filtered = filtered.filter((user) => !user.is_blocked && !user.is_active);
     }
 
-    console.log('Filter result:', { statusValue, resultCount: filtered.length });
     setFilteredUsers(filtered);
   };
 
