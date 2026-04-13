@@ -109,7 +109,9 @@ const AdminUsers: React.FC = () => {
     if (statusValue === 'blocked') {
       filtered = filtered.filter((user) => user.is_blocked === true);
     } else if (statusValue === 'active') {
-      filtered = filtered.filter((user) => user.is_blocked === false);
+      filtered = filtered.filter((user) => user.is_blocked === false && user.is_active === true);
+    } else if (statusValue === 'inactive') {
+      filtered = filtered.filter((user) => user.is_blocked === false && user.is_active === false);
     }
 
     setFilteredUsers(filtered);
@@ -217,7 +219,7 @@ const AdminUsers: React.FC = () => {
         </div>
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="text-gray-600 text-sm font-semibold">{t('admin.active_users', 'Active Users')}</div>
-          <div className="text-3xl font-bold text-green-600 mt-2">{users.filter(u => !u.is_blocked).length}</div>
+          <div className="text-3xl font-bold text-green-600 mt-2">{users.filter(u => !u.is_blocked && u.is_active).length}</div>
         </div>
       </section>
 
@@ -263,6 +265,7 @@ const AdminUsers: React.FC = () => {
             >
               <option value="all">{t('admin.filter_all_users', 'All Users')}</option>
               <option value="active">{t('admin.filter_active', 'Active')}</option>
+              <option value="inactive">Inactive</option>
               <option value="blocked">{t('admin.filter_blocked', 'Blocked')}</option>
             </select>
           </div>
@@ -294,9 +297,9 @@ const AdminUsers: React.FC = () => {
                   <td className="px-4 py-3 text-gray-700">{user.level || t('level_novice')}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.is_blocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                      user.is_blocked ? 'bg-red-100 text-red-800' : user.is_active ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {user.is_blocked ? t('status_blocked') : t('status_active')}
+                      {user.is_blocked ? t('status_blocked') : user.is_active ? t('status_active') : 'Inactive'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
