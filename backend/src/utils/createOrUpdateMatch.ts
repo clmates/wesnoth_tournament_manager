@@ -541,6 +541,7 @@ async function applyEloRating(
       `UPDATE users_extension 
        SET elo_rating = ?, 
            total_wins = total_wins + 1,
+           is_active = 1,
            updated_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
       [newWinnerRating, winnerId]
@@ -551,6 +552,7 @@ async function applyEloRating(
       `UPDATE users_extension 
        SET elo_rating = ?, 
            total_losses = total_losses + 1,
+           is_active = 1,
            updated_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
       [newLoserRating, loserId]

@@ -872,7 +872,7 @@ router.get('/players/:id', async (req, res) => {
         AND pms.opponent_id IS NULL 
         AND pms.map_id IS NULL 
         AND pms.faction_id IS NULL
-      WHERE u.id = ? AND u.is_active = 1 AND u.is_blocked = 0`,
+      WHERE u.id = ? AND u.is_blocked = 0`,
       [id]
     );
 
