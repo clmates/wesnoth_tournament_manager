@@ -812,6 +812,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   };
 
 
+  const getStatusColor = (status: string | undefined | null) => {
     const colorMap: { [key: string]: string } = {
       'pending': '#FF9800',
       'active': '#4CAF50',
