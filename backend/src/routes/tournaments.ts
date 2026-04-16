@@ -2356,7 +2356,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
 
     // Fetch tournament info and verify organizer
     const tournamentResult = await query(
-      `SELECT creator_id, tournament_type, tournament_mode FROM tournaments WHERE id = ?`,
+      `SELECT creator_id, tournament_type, tournament_mode, name, discord_thread_id FROM tournaments WHERE id = ?`,
       [tournamentId]
     );
 
@@ -2364,7 +2364,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
-    const { creator_id, tournament_type, tournament_mode } = tournamentResult.rows[0];
+    const { creator_id, tournament_type, tournament_mode, name: tournamentName, discord_thread_id } = tournamentResult.rows[0];
     const isTeamMode = tournament_mode === 'team';
 
     if (creator_id !== req.userId) {
@@ -2531,6 +2531,58 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
             `UPDATE tournament_participants SET status = 'eliminated' WHERE tournament_id = ? AND user_id = ?`,
             [tournamentId, loser_id]
           );
+        }
+
+        // Discord notification: eliminated + current standings
+        if (discord_thread_id) {
+          try {
+            // Resolve eliminated entity name
+            let eliminatedName = loser_id;
+            if (isTeamMode) {
+              const nameResult = await query(`SELECT name FROM tournament_teams WHERE id = ?`, [loser_id]);
+              if (nameResult.rows.length > 0) eliminatedName = nameResult.rows[0].name;
+            } else {
+              const nameResult = await query(
+                `SELECT u.username as nickname FROM tournament_participants tp
+                 JOIN forum.phpbb3_users u ON tp.user_id = CAST(u.user_id AS CHAR)
+                 WHERE tp.tournament_id = ? AND tp.user_id = ?`,
+                [tournamentId, loser_id]
+              );
+              if (nameResult.rows.length > 0) eliminatedName = nameResult.rows[0].nickname;
+            }
+
+            // Fetch current standings
+            let standingsRows: Array<{ nickname: string; points: number; wins: number; losses: number }> = [];
+            if (isTeamMode) {
+              const standingsResult = await query(
+                `SELECT name as nickname, tournament_points as points, tournament_wins as wins, tournament_losses as losses
+                 FROM tournament_teams WHERE tournament_id = ?
+                 ORDER BY tournament_points DESC, tournament_wins DESC`,
+                [tournamentId]
+              );
+              standingsRows = standingsResult.rows;
+            } else {
+              const standingsResult = await query(
+                `SELECT u.username as nickname, tp.tournament_points as points, tp.tournament_wins as wins, tp.tournament_losses as losses
+                 FROM tournament_participants tp
+                 JOIN forum.phpbb3_users u ON tp.user_id = CAST(u.user_id AS CHAR)
+                 WHERE tp.tournament_id = ?
+                 ORDER BY tp.tournament_points DESC, tp.tournament_wins DESC`,
+                [tournamentId]
+              );
+              standingsRows = standingsResult.rows;
+            }
+
+            await discordService.postEliminatedFromTournament(
+              discord_thread_id,
+              tournamentName,
+              eliminatedName,
+              standingsRows
+            );
+            console.log(`[determine-winner] Posted elimination Discord notification for ${eliminatedName}`);
+          } catch (discordErr) {
+            console.error('[determine-winner] Discord elimination notification error:', discordErr);
+          }
         }
       }
 

@@ -522,6 +522,33 @@ class DiscordService {
   }
 
   /**
+   * Jugador/equipo eliminado del torneo (por decisión del organizador)
+   */
+  async postEliminatedFromTournament(
+    threadId: string,
+    tournamentName: string,
+    eliminatedName: string,
+    standings: Array<{ nickname: string; points: number; wins: number; losses: number }>
+  ): Promise<boolean> {
+    const standingsText = standings
+      .slice(0, 15)
+      .map((p, i) => `**${i + 1}.** ${p.nickname} — ${p.points} pts (${p.wins}W-${p.losses}L)`)
+      .join('\n');
+
+    const embed: DiscordEmbed = {
+      title: `🚫 ${eliminatedName} eliminated from ${tournamentName}`,
+      description: standingsText || 'No standings available',
+      color: 0xe74c3c, // Red
+      footer: {
+        text: 'Current standings',
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    return this.publishTournamentMessage(threadId, { embeds: [embed] });
+  }
+
+  /**
    * Torneo Finalizado
    */
   async postTournamentFinished(
