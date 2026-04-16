@@ -1505,7 +1505,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               {rounds.length > 0 ? (
                   <>
                     {rounds.map((round) => {
-                      const scheduledMatches = matches
+                      const rawScheduled = matches
                         .filter((m) => {
                           if (m.round_id !== round.id || m.match_status !== 'pending') return false;
                           if (myMatchesOnly) {
@@ -1513,6 +1513,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               ? userTeamId === m.player1_id || userTeamId === m.player2_id
                               : userId === m.player1_id || userId === m.player2_id;
                           }
+                          return true;
+                        });
+                      // Deduplicate by series ID: for pre-generated BO3 league series,
+                      // multiple tournament_matches rows share the same tournament_round_match_id.
+                      // Show only one row per series to avoid duplicate "Determine Winner" buttons.
+                      const seenSeriesIds = new Set<string>();
+                      const scheduledMatches = rawScheduled
+                        .filter((m) => {
+                          const seriesId = m.tournament_round_match_id || m.id;
+                          if (seenSeriesIds.has(seriesId)) return false;
+                          seenSeriesIds.add(seriesId);
                           return true;
                         })
                         .sort((a, b) => (a.player1_nickname || '').localeCompare(b.player1_nickname || ''));

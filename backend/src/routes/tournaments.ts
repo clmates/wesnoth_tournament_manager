@@ -2394,6 +2394,11 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
         return res.status(400).json({ error: 'Winner must be one of the series participants' });
       }
 
+      // Idempotency guard: prevent re-processing an already completed series (avoids double stats)
+      if (match.series_status === 'completed') {
+        return res.status(400).json({ error: 'This series has already been completed. Cannot re-determine the winner.' });
+      }
+
       const loser_id = winner_id === match.player1_id ? match.player2_id : match.player1_id;
       const roundType = (match.round_type || 'general').toLowerCase();
 
@@ -2476,38 +2481,35 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
       // Apply stats for current series
       await updateSeriesStats(winner_id, loser_id);
 
-      // Step 4: If eliminating, forfeit ALL remaining series of the loser across all rounds
+      // Step 4: If eliminating, forfeit ALL remaining pending series of the loser across all rounds
       let loserExtraSeriesCount = 0;
       if (shouldEliminate) {
-        // Get all other series (in_progress or pending) for the loser in this tournament
-        const loserOtherSeries = await query(
+        // Get all other pending/in_progress series for the loser in this tournament
+        const loserPendingSeries = await query(
           `SELECT id, player1_id, player2_id FROM tournament_round_matches
            WHERE tournament_id = ? AND (player1_id = ? OR player2_id = ?)
              AND series_status IN ('in_progress', 'pending') AND id != ?`,
           [tournamentId, loser_id, loser_id, matchId]
         );
 
-        for (const ps of loserOtherSeries.rows) {
-          const opponentId = ps.player1_id === loser_id ? ps.player2_id : ps.player1_id;
+        loserExtraSeriesCount = loserPendingSeries.rows.length;
+        console.log(`[determine-winner] shouldEliminate=true, found ${loserExtraSeriesCount} pending series to forfeit for loser=${loser_id}`);
 
-          // Mark individual matches in this series as organizer_loss for the loser
-          const seriesIndividualMatches = await query(
-            `SELECT id, match_status FROM tournament_matches WHERE tournament_round_match_id = ?`,
+        // Pass 1: mark all pending individual matches across forfeited series as organizer_loss
+        for (const ps of loserPendingSeries.rows) {
+          await query(
+            `UPDATE tournament_matches
+             SET match_status = 'completed', played_at = NOW(),
+                 organizer_action = 'organizer_loss', updated_at = NOW()
+             WHERE tournament_round_match_id = ? AND match_status != 'completed'`,
             [ps.id]
           );
-          for (const sm of seriesIndividualMatches.rows) {
-            if (sm.match_status !== 'completed') {
-              await query(
-                `UPDATE tournament_matches
-                 SET winner_id = ?, match_status = 'completed', played_at = NOW(),
-                     organizer_action = 'organizer_loss', updated_at = NOW()
-                 WHERE id = ?`,
-                [opponentId, sm.id]
-              );
-            }
-          }
+        }
 
-          // Mark the series as completed with the opponent as winner
+        // Pass 2: mark each forfeited series as completed, give opponent the win+stats
+        for (const ps of loserPendingSeries.rows) {
+          const opponentId = ps.player1_id === loser_id ? ps.player2_id : ps.player1_id;
+
           await query(
             `UPDATE tournament_round_matches
              SET winner_id = ?,
@@ -2518,10 +2520,7 @@ router.post('/:tournamentId/matches/:matchId/determine-winner', authMiddleware, 
             [opponentId, opponentId, opponentId, ps.id]
           );
 
-          // Give opponent a win+point and loser a loss for this forfeited series
           await updateSeriesStats(opponentId, loser_id);
-
-          loserExtraSeriesCount++;
         }
 
         // Mark loser as eliminated
