@@ -237,6 +237,8 @@ const TournamentDetail: React.FC = () => {
   const [disputeManagementModal, setDisputeManagementModal] = useState<{ isOpen: boolean; match: TournamentMatch | null }>({ isOpen: false, match: null });
   const [determineWinnerData, setDetermineWinnerData] = useState<any>(null);
   const [showDetermineWinnerModal, setShowDetermineWinnerModal] = useState(false);
+  const [determineWinnerStep, setDetermineWinnerStep] = useState<1 | 2>(1);
+  const [pendingWinnerSelection, setPendingWinnerSelection] = useState<string | null>(null);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [renameTeamModal, setRenameTeamModal] = useState<{ open: boolean; teamId: string; currentName: string }>({ open: false, teamId: '', currentName: '' });
   const [renameTeamValue, setRenameTeamValue] = useState('');
@@ -739,18 +741,36 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     }
   };
 
-  const handleDetermineWinner = async (winnerId: string) => {
+  const handleDetermineWinner = async (winnerId: string, eliminate: boolean) => {
     try {
       if (!determineWinnerData) return;
       
-      await tournamentService.determineMatchWinner(id!, determineWinnerData.id, { winner_id: winnerId });
+      await tournamentService.determineMatchWinner(id!, determineWinnerData.id, { winner_id: winnerId, eliminate });
       setSuccess(t('success_match_winner_determined'));
       setShowDetermineWinnerModal(false);
       setDetermineWinnerData(null);
+      setDetermineWinnerStep(1);
+      setPendingWinnerSelection(null);
       fetchTournamentData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || t('error_failed_determine_winner'));
+    }
+  };
+
+  const handleDetermineWinnerStep1 = (winnerId: string) => {
+    if (!tournament) return;
+    const isEliminationType = tournament.tournament_type === 'elimination';
+    const isEliminationPhase =
+      tournament.tournament_type === 'swiss_elimination' &&
+      determineWinnerData?.round_type === 'final';
+    if (isEliminationType || isEliminationPhase) {
+      // Elimination: skip step 2, always eliminate
+      handleDetermineWinner(winnerId, true);
+    } else {
+      // League / Swiss / Swiss_elimination general phase: go to step 2
+      setPendingWinnerSelection(winnerId);
+      setDetermineWinnerStep(2);
     }
   };
 
@@ -777,7 +797,21 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     }
   };
 
-  const getStatusColor = (status: string | undefined | null) => {
+  const openDetermineWinnerModal = (match: any) => {
+    setDetermineWinnerData(match);
+    setDetermineWinnerStep(1);
+    setPendingWinnerSelection(null);
+    setShowDetermineWinnerModal(true);
+  };
+
+  const closeDetermineWinnerModal = () => {
+    setShowDetermineWinnerModal(false);
+    setDetermineWinnerData(null);
+    setDetermineWinnerStep(1);
+    setPendingWinnerSelection(null);
+  };
+
+
     const colorMap: { [key: string]: string } = {
       'pending': '#FF9800',
       'active': '#4CAF50',
@@ -1502,6 +1536,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">{scheduledMatches.length > 0 && scheduledMatches[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_map')}</th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_status')}</th>
+                                {canManageParticipants && <th className="px-4 py-3 text-left font-semibold text-gray-700">{t('label_actions')}</th>}
                               </tr>
                             </thead>
                             <tbody>
@@ -1537,6 +1572,25 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                          </span>
                                       </div>
                                     </td>
+                                    {canManageParticipants && (
+                                      <td className="px-4 py-3 text-gray-700">
+                                        <button
+                                          className="px-3 py-1 bg-orange-500 text-white rounded text-xs font-semibold hover:bg-orange-600 transition-colors whitespace-nowrap"
+                                          onClick={() => openDetermineWinnerModal({
+                                            id: match.tournament_round_match_id || match.id,
+                                            player1_id: match.player1_id,
+                                            player2_id: match.player2_id,
+                                            player1_nickname: match.player1_nickname,
+                                            player2_nickname: match.player2_nickname,
+                                            is_team_mode: match.is_team_mode,
+                                            round_type: round.round_type,
+                                          })}
+                                          title={t('determine_winner')}
+                                        >
+                                          ⚖️ {t('determine_winner')}
+                                        </button>
+                                      </td>
+                                    )}
                                   </tr>
                                 );
                               })}
@@ -2045,6 +2099,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{matchesInRound.length > 0 && matchesInRound[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
                           <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_winner')}</th>
                           <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
+                          {canManageParticipants && <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -2085,6 +2140,27 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 {t(`option_${normalizeStatus((match as any).series_status)}`) !== `option_${normalizeStatus((match as any).series_status)}` ? t(`option_${normalizeStatus((match as any).series_status)}`) : ((match as any).series_status || t('option_pending'))}
                               </span>
                             </td>
+                            {canManageParticipants && (
+                              <td className="px-4 py-3 text-gray-700">
+                                {(match as any).series_status === 'in_progress' && (
+                                  <button
+                                    className="px-3 py-1 bg-orange-500 text-white rounded text-xs font-semibold hover:bg-orange-600 transition-colors whitespace-nowrap"
+                                    onClick={() => openDetermineWinnerModal({
+                                      id: match.id,
+                                      player1_id: match.player1_id,
+                                      player2_id: match.player2_id,
+                                      player1_nickname: match.player1_nickname,
+                                      player2_nickname: match.player2_nickname,
+                                      is_team_mode: match.is_team_mode,
+                                      round_type: round.round_type,
+                                    })}
+                                    title={t('determine_winner')}
+                                  >
+                                    ⚖️ {t('determine_winner')}
+                                  </button>
+                                )}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -2271,39 +2347,74 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
       {/* Determine Winner Modal */}
       {showDetermineWinnerModal && determineWinnerData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => { setShowDetermineWinnerModal(false); setDetermineWinnerData(null); }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={closeDetermineWinnerModal}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">{t('determine_winner_title')} / {t('tournaments.player_abandoned') || 'Player Abandoned'}</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {determineWinnerStep === 1
+                  ? `${t('determine_winner_title')} / ${t('tournaments.player_abandoned') || 'Player Abandoned'}`
+                  : t('tournaments.eliminate_step2_title')}
+              </h3>
               <button
                 className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
-                onClick={() => { setShowDetermineWinnerModal(false); setDetermineWinnerData(null); }}
+                onClick={closeDetermineWinnerModal}
               >
                 ✕
               </button>
             </div>
-            <div>
-              <p className="mb-4 text-gray-600">
-                {t('determine_winner_prompt', { p1: determineWinnerData.player1_nickname, p2: determineWinnerData.player2_nickname })}
-              </p>
-              <p className="mb-6 text-sm text-gray-500">
-                {t('tournaments.abandonment_note') || 'Select the winner. If a player abandoned, their opponent automatically wins (no ELO impact, tournament points awarded).'}
-              </p>
-              <div className="flex gap-4">
+
+            {determineWinnerStep === 1 ? (
+              <div>
+                <p className="mb-4 text-gray-600">
+                  {t('determine_winner_prompt', { p1: determineWinnerData.player1_nickname, p2: determineWinnerData.player2_nickname })}
+                </p>
+                <p className="mb-6 text-sm text-gray-500">
+                  {t('tournaments.abandonment_note') || 'Select the winner. If a player abandoned, their opponent automatically wins (no ELO impact, tournament points awarded).'}
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    onClick={() => handleDetermineWinnerStep1(determineWinnerData.player1_id)}
+                  >
+                    {determineWinnerData.player1_nickname} {t('label_wins')}
+                  </button>
+                  <button
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    onClick={() => handleDetermineWinnerStep1(determineWinnerData.player2_id)}
+                  >
+                    {determineWinnerData.player2_nickname} {t('label_wins')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="mb-4 text-gray-600">
+                  {tournament?.tournament_type === 'league'
+                    ? t('tournaments.eliminate_league_note')
+                    : t('tournaments.eliminate_swiss_note')}
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    onClick={() => handleDetermineWinner(pendingWinnerSelection!, false)}
+                  >
+                    {t('tournaments.eliminate_only_series')}
+                  </button>
+                  <button
+                    className="w-full px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                    onClick={() => handleDetermineWinner(pendingWinnerSelection!, true)}
+                  >
+                    {t('tournaments.eliminate_from_tournament')}
+                  </button>
+                </div>
                 <button
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                  onClick={() => handleDetermineWinner(determineWinnerData.player1_id)}
+                  className="mt-4 text-sm text-gray-500 hover:text-gray-700 underline w-full text-center"
+                  onClick={() => { setDetermineWinnerStep(1); setPendingWinnerSelection(null); }}
                 >
-                  {determineWinnerData.player1_nickname} {t('label_wins')}
-                </button>
-                <button
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                  onClick={() => handleDetermineWinner(determineWinnerData.player2_id)}
-                >
-                  {determineWinnerData.player2_nickname} {t('label_wins')}
+                  ← {t('label_back') || 'Back'}
                 </button>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
