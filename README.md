@@ -479,10 +479,6 @@ NODE_ENV=development
 # Frontend URL (for CORS)
 FRONTEND_URL=http://localhost:5173
 
-# Optional: File Storage (Supabase for replay files)
-SUPABASE_URL=your-supabase-url
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-```
 
 ### Frontend Configuration
 
@@ -680,6 +676,26 @@ The system runs scheduled background jobs automatically. No manual intervention 
 | `SchedulerJob` | On startup | Initializes and coordinates all scheduled tasks |
 
 These jobs run automatically when the backend starts. Check backend logs for job execution details.
+
+### Automatic Replay Discard Configuration
+
+Unconfirmed replays (awaiting player confirmation) are automatically discarded if they remain unconfirmed for a specified period.
+
+**Configuration:**
+```env
+REPLAY_AUTO_DISCARD_TIME=30  # Days (default: 30)
+```
+
+**Behavior:**
+- Daily check at 02:00 UTC
+- Targets replays with `parse_status='parsed'` and `integration_confidence=1` (unconfirmed)
+- Old replays are marked as `rejected` (same effect as admin manual discard)
+- Fully audited: each discard logged in `audit_logs` table with event_type `REPLAY_AUTO_DISCARDED`
+- **Why?** Prevents accumulation of stale pending confirmations that will never be acted upon
+
+**Recovery:**
+- Discarded replays can be reprocessed via admin panel `/api/admin/replays/:id/reprocess`
+- Audit trail preserved for compliance and troubleshooting
 
 ---
 

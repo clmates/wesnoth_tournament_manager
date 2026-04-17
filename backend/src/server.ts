@@ -4,10 +4,33 @@ import { runMigrations } from './services/migrationRunner.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
+// Validate and load replay auto-discard configuration
+const validateReplayAutoDiscardConfig = (): number => {
+  const envValue = process.env.REPLAY_AUTO_DISCARD_TIME;
+  const defaultValue = 30;
+  
+  if (!envValue) {
+    console.log(`ℹ️  REPLAY_AUTO_DISCARD_TIME not set, using default: ${defaultValue} days`);
+    return defaultValue;
+  }
+  
+  const thresholdDays = parseInt(envValue, 10);
+  if (isNaN(thresholdDays) || thresholdDays <= 0) {
+    console.error(`❌ REPLAY_AUTO_DISCARD_TIME must be a positive integer, got: ${envValue}. Using default: ${defaultValue}`);
+    return defaultValue;
+  }
+  
+  console.log(`✅ Auto-discard threshold: ${thresholdDays} days`);
+  return thresholdDays;
+};
+
 const startServer = async () => {
   try {
     // NOTE: PostgreSQL initialization removed - using MariaDB instead
     console.log('ℹ️  Using MariaDB for database operations (phpBB and Tournament Manager)');
+    
+    // Validate replay auto-discard configuration
+    validateReplayAutoDiscardConfig();
     
     // Run migrations on startup (for all environments)
     console.log('\n🔄 Running database migrations...\n');

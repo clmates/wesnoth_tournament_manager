@@ -5,13 +5,74 @@ import { SyncGamesFromForumJob } from './syncGamesFromForum.js';
 import ParseNewReplaysRefactored from './parseNewReplaysRefactored.js';
 import { v4 as uuidv4 } from 'uuid';
 import { createFactionMapStatisticsSnapshot, recalculatePlayerMatchStatistics } from '../services/statisticsCalculator.js';
+import { logAuditEvent } from '../middleware/audit.js';
+
+/**
+ * Auto-discard unconfirmed replays that exceed the age threshold
+ * Replays with parse_status='parsed' and integration_confidence=1 (unconfirmed)
+ * are marked as 'rejected' after REPLAY_AUTO_DISCARD_TIME days
+ */
+async function autoDiscardUnconfirmedReplays(): Promise<void> {
+  const thresholdDays = parseInt(process.env.REPLAY_AUTO_DISCARD_TIME || '30', 10);
+  
+  try {
+    const result = await query(
+      `SELECT id, created_at, replay_filename, parse_summary
+       FROM replays
+       WHERE parse_status = 'parsed'
+         AND integration_confidence = 1
+         AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+         AND deleted_at IS NULL
+       ORDER BY created_at ASC`,
+      [thresholdDays]
+    );
+    
+    const replays = (result as any).rows || [];
+    let discardedCount = 0;
+    let failedCount = 0;
+    
+    for (const replay of replays) {
+      try {
+        await query(
+          `UPDATE replays SET parse_status = 'rejected', updated_at = NOW() WHERE id = ?`,
+          [replay.id]
+        );
+        
+        const ageDays = Math.floor((Date.now() - new Date(replay.created_at).getTime()) / (1000 * 60 * 60 * 24));
+        
+        await logAuditEvent({
+          event_type: 'REPLAY_AUTO_DISCARDED',
+          details: { 
+            replay_id: replay.id, 
+            filename: replay.replay_filename, 
+            age_days: ageDays,
+            reason: 'Exceeded auto-discard threshold'
+          }
+        });
+        
+        discardedCount++;
+      } catch (updateError) {
+        console.error(`❌ [AUTO-DISCARD] Failed to discard replay ${replay.id}:`, updateError);
+        failedCount++;
+      }
+    }
+    
+    if (replays.length > 0) {
+      console.log(`✅ [CRON] Auto-discard completed: ${discardedCount} discarded, ${failedCount} failed out of ${replays.length}`);
+    }
+  } catch (error) {
+    console.error('❌ [CRON] Auto-discard job failed:', error);
+  }
+}
 
 /**
  * Initialize all scheduled jobs
  * Runs at specific times in UTC:
  * - 00:30 UTC: Daily balance snapshot
+ * - 00:45 UTC: Player statistics recalculation
  * - 01:00 UTC: Check and mark inactive players
  * - 01:30 UTC on 1st: Calculate player of the month
+ * - 02:00 UTC: Auto-discard old unconfirmed replays
  * - Every 60s: Sync new games from forum database
  * - Every 30s: Parse unparsed replays and create matches
  */
@@ -107,12 +168,25 @@ export const initializeScheduledJobs = (): void => {
       }
     });
     
+    // Schedule replay auto-discard at 02:00 UTC daily
+    // Discards replays with parse_status='parsed' and integration_confidence=1 older than threshold
+    cron.schedule('0 2 * * *', async () => {
+      try {
+        console.log('⏰ [CRON] Running auto-discard of old unconfirmed replays...');
+        await autoDiscardUnconfirmedReplays();
+      } catch (error) {
+        console.error('❌ [CRON] Auto-discard failed:', error);
+      }
+    });
+    
     console.log('✅ Scheduled jobs initialized:');
     console.log('   - Balance snapshot: Daily at 00:30 UTC');
+    console.log('   - Player statistics recalculation: Daily at 00:45 UTC');
     console.log('   - Inactive players check: Daily at 01:00 UTC');
+    console.log('   - Player of month: 1st of month at 01:30 UTC');
+    console.log('   - Auto-discard unconfirmed replays: Daily at 02:00 UTC');
     console.log('   - Forum database sync: Every 60 seconds');
     console.log('   - Replay parsing & match creation: Every 30 seconds');
-    console.log('   - Player of month: 1st of month at 01:30 UTC');
   } catch (error) {
     console.error('❌ Failed to initialize scheduler:', error);
     process.exit(1);
