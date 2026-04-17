@@ -1,5 +1,5 @@
 import app from './app.js';
-import { initializeScheduledJobs } from './jobs/scheduler.js';
+import { initializeScheduledJobs, autoDiscardUnconfirmedReplays } from './jobs/scheduler.js';
 import { runMigrations } from './services/migrationRunner.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -46,6 +46,16 @@ const startServer = async () => {
 
     // Initialize all scheduled jobs (crons)
     initializeScheduledJobs();
+    
+    // Run auto-discard on startup in case backend was down during scheduled time
+    console.log('\n🔄 Running replay auto-discard on startup...');
+    try {
+      await autoDiscardUnconfirmedReplays();
+      console.log('✅ Startup auto-discard completed\n');
+    } catch (error) {
+      console.error('❌ Startup auto-discard failed:', error);
+      // Don't exit, just log the error
+    }
     
   } catch (error) {
     console.error('Failed to start server:', error);

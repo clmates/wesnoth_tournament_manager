@@ -12,7 +12,7 @@ import { logAuditEvent } from '../middleware/audit.js';
  * Replays with parse_status='parsed' and integration_confidence=1 (unconfirmed)
  * are marked as 'rejected' after REPLAY_AUTO_DISCARD_TIME days
  */
-async function autoDiscardUnconfirmedReplays(): Promise<void> {
+export async function autoDiscardUnconfirmedReplays(): Promise<void> {
   const thresholdDays = parseInt(process.env.REPLAY_AUTO_DISCARD_TIME || '30', 10);
   
   try {
