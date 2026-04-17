@@ -27,7 +27,7 @@ export async function logAuditEvent(entry: AuditLogEntry) {
         entry.event_type,
         entry.user_id || null,
         entry.username || null,
-        entry.ip_address,
+        entry.ip_address || null,
         entry.user_agent || null,
         JSON.stringify(entry.details)
       ]
