@@ -685,9 +685,9 @@
   "label_ranked_enabled": "Habilitado",
   "label_ranked_disabled": "Deshabilitado",
   "tournaments.join_ranked_disabled": "Habilita las partidas clasificadas en tu perfil para unirte a este torneo",
-  "profile.ranked_title": "Partidas Clasificadas",
   "profile.ranked_updated": "Preferencia de clasificadas actualizada",
   "profile.error_ranked_update": "Error al actualizar la preferencia de clasificadas",
   "filter_ranked_only": "Clasificadas habilitadas",
-  "label_ranked": "Clasificadas"
+  "label_ranked": "Clasificadas",
+  "label_ranked_matches": "Partidas Clasificadas"
 }

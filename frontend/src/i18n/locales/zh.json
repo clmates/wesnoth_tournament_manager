@@ -687,9 +687,9 @@
   "label_ranked_enabled": "已启用",
   "label_ranked_disabled": "已禁用",
   "tournaments.join_ranked_disabled": "在您的个人资料中启用排名比赛以加入此锦标赛",
-  "profile.ranked_title": "排名比赛",
   "profile.ranked_updated": "排名偏好已更新",
   "profile.error_ranked_update": "更新排名偏好时出错",
   "filter_ranked_only": "已启用排名",
-  "label_ranked": "排名"
+  "label_ranked": "排名",
+  "label_ranked_matches": "排名比赛"
 }

@@ -50,7 +50,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
             )}
             {player.enable_ranked !== undefined && (
               <span className={`inline-block px-3 py-1 rounded text-sm max-md:text-xs font-semibold ${player.enable_ranked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {player.enable_ranked ? `✓ ${t('label_ranked_enabled')}` : `✗ ${t('label_ranked_disabled')}`}
+                {player.enable_ranked ? `✓ ${t('label_ranked_matches', 'Ranked Matches')}` : `✗ ${t('label_ranked_matches', 'Ranked Matches')}`}
               </span>
             )}
             {player.last_activity && (

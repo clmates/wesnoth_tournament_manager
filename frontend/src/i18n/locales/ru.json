@@ -687,9 +687,9 @@
   "label_ranked_enabled": "Включено",
   "label_ranked_disabled": "Отключено",
   "tournaments.join_ranked_disabled": "Включите рейтинговые матчи в своем профиле, чтобы присоединиться к этому турниру",
-  "profile.ranked_title": "Рейтинговые матчи",
   "profile.ranked_updated": "Предпочтение рейтинговых матчей обновлено",
   "profile.error_ranked_update": "Ошибка при обновлении предпочтения рейтинговых матчей",
   "filter_ranked_only": "Рейтинговые матчи включены",
-  "label_ranked": "Рейтинговые матчи"
+  "label_ranked": "Рейтинговые матчи",
+  "label_ranked_matches": "Рейтинговые матчи"
 }

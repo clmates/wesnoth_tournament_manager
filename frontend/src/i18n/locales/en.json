@@ -698,9 +698,9 @@
   "label_ranked_enabled": "Enabled",
   "label_ranked_disabled": "Disabled",
   "tournaments.join_ranked_disabled": "Enable ranked matches in your profile to join this tournament",
-  "profile.ranked_title": "Ranked Matches",
   "profile.ranked_updated": "Ranked preference updated",
   "profile.error_ranked_update": "Error updating ranked preference",
   "filter_ranked_only": "Ranked enabled",
-  "label_ranked": "Ranked"
+  "label_ranked": "Ranked",
+  "label_ranked_matches": "Ranked Matches"
 }

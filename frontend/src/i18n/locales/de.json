@@ -687,9 +687,9 @@
   "label_ranked_enabled": "Aktiviert",
   "label_ranked_disabled": "Deaktiviert",
   "tournaments.join_ranked_disabled": "Aktiviere Ranked-Spiele in deinem Profil, um diesem Turnier beizutreten",
-  "profile.ranked_title": "Ranked-Spiele",
   "profile.ranked_updated": "Ranked-Einstellung aktualisiert",
   "profile.error_ranked_update": "Fehler beim Aktualisieren der Ranked-Einstellung",
   "filter_ranked_only": "Ranked aktiviert",
-  "label_ranked": "Ranked"
+  "label_ranked": "Ranked",
+  "label_ranked_matches": "Ranked-Spiele"
 }
