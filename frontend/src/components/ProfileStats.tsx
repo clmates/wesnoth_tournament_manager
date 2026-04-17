@@ -18,6 +18,7 @@ interface ProfileStatsProps {
     last_activity?: string;
     country?: string;
     avatar?: string;
+    enable_ranked?: boolean;
   };
 }
 
@@ -45,6 +46,11 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({ player }) => {
             {player.is_active !== undefined && (
               <span className={`inline-block px-3 py-1 rounded text-sm max-md:text-xs font-semibold ${player.is_active ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>
                 {player.is_active ? t('status_active') : t('status_inactive')}
+              </span>
+            )}
+            {player.enable_ranked !== undefined && (
+              <span className={`inline-block px-3 py-1 rounded text-sm max-md:text-xs font-semibold ${player.enable_ranked ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                {player.enable_ranked ? `✓ ${t('label_ranked_enabled')}` : `✗ ${t('label_ranked_disabled')}`}
               </span>
             )}
             {player.last_activity && (

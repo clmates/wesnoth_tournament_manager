@@ -783,7 +783,7 @@ For missing translations, see [LANGUAGE_FALLBACK_SYSTEM_EN.md](LANGUAGE_FALLBACK
 
 Default configuration (chess.com style):
 - **K-factor**: 32 (controls rating volatility)
-- **Base rating**: 1200 for new players
+- **Base rating**: 1400 for new players
 - **Minimum rating**: 800 (floor value)
 
 To customize, modify `backend/src/utils/eloCalculation.ts`
