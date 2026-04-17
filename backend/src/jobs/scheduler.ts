@@ -42,6 +42,8 @@ export async function autoDiscardUnconfirmedReplays(): Promise<void> {
         
         await logAuditEvent({
           event_type: 'REPLAY_AUTO_DISCARDED',
+          username: 'Scheduler',
+          ip_address: 'localhost',
           details: { 
             replay_id: replay.id, 
             filename: replay.replay_filename, 
