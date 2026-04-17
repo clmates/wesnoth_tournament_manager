@@ -151,6 +151,7 @@
   "close_btn": "Cerrar",
   "cancel_btn": "Cancelar",
   "delete_btn": "Eliminar",
+  "label_back": "Atrás",
   "confirm_delete_tournament": "¿Estás seguro de que quieres eliminar este torneo? Los matches asociados se desvincularcán pero no se eliminarán.",
   "recent_games": "Partidas Recientes",
   "recent_games_no_data": "No hay partidas recientes",
@@ -661,5 +662,15 @@
   "label_cancel_replay_explanation": "Si el otro jugador también hace clic en \"Cancelar Repetición\", la repetición se eliminará de la lista pendiente. Si reporta una victoria/derrota en su lugar, el partido procede normalmente.",
   "label_error": "Error",
   "label_submitting": "Enviando",
-  "button_confirm_cancel_replay": "Confirmar — Partido No Terminado"
+  "button_confirm_cancel_replay": "Confirmar — Partido No Terminado",
+  "profile.ranked_enabled": "Partidas clasificadas habilitadas",
+  "profile.ranked_disabled": "Partidas clasificadas deshabilitadas",
+  "label_ranked_enabled": "Habilitado",
+  "label_ranked_disabled": "Deshabilitado",
+  "tournaments.join_ranked_disabled": "Habilita las partidas clasificadas en tu perfil para unirte a este torneo",
+  "profile.ranked_title": "Partidas Clasificadas",
+  "profile.ranked_updated": "Preferencia de clasificadas actualizada",
+  "profile.error_ranked_update": "Error al actualizar la preferencia de clasificadas",
+  "filter_ranked_only": "Clasificadas habilitadas",
+  "label_ranked": "Clasificadas"
 }

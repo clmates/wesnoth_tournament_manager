@@ -151,6 +151,7 @@
   "close_btn": "Close",
   "cancel_btn": "Cancel",
   "delete_btn": "Delete",
+  "label_back": "Back",
   "confirm_delete_tournament": "Are you sure you want to delete this tournament? Associated matches will be desvinculated but not deleted.",
   "report": "Report",
   "determine_winner": "Determine Winner",
@@ -674,5 +675,15 @@
   "label_cancel_replay_explanation": "If the other player also clicks \"Cancel Replay\", the replay will be removed from the pending list. If they report a win/loss instead, the match proceeds normally.",
   "label_error": "Error",
   "label_submitting": "Submitting",
-  "button_confirm_cancel_replay": "Confirm — Game Not Finished"
+  "button_confirm_cancel_replay": "Confirm — Game Not Finished",
+  "profile.ranked_enabled": "Ranked matches enabled",
+  "profile.ranked_disabled": "Ranked matches disabled",
+  "label_ranked_enabled": "Enabled",
+  "label_ranked_disabled": "Disabled",
+  "tournaments.join_ranked_disabled": "Enable ranked matches in your profile to join this tournament",
+  "profile.ranked_title": "Ranked Matches",
+  "profile.ranked_updated": "Ranked preference updated",
+  "profile.error_ranked_update": "Error updating ranked preference",
+  "filter_ranked_only": "Ranked enabled",
+  "label_ranked": "Ranked"
 }

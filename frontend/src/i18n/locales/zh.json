@@ -150,6 +150,10 @@
   "downloads": "下载次数",
   "recent_games": "最近比赛",
   "recent_games_no_data": "没有最近的比赛",
+  "close_btn": "关闭",
+  "cancel_btn": "取消",
+  "delete_btn": "删除",
+  "label_back": "返回",
   "label_ranking_change": "位置变化",
   "my_opponents": "我的对手",
   "no_opponent_data": "没有可用的对手数据",
@@ -660,5 +664,15 @@
   "label_cancel_replay_explanation": "如果另一个玩家也点击\"取消回放\"，该回放将从待处理列表中删除。如果他们报告胜利/失败，比赛将正常进行。",
   "label_error": "错误",
   "label_submitting": "正在提交",
-  "button_confirm_cancel_replay": "确认 — 比赛未完成"
+  "button_confirm_cancel_replay": "确认 — 比赛未完成",
+  "profile.ranked_enabled": "排名比赛已启用",
+  "profile.ranked_disabled": "排名比赛已禁用",
+  "label_ranked_enabled": "已启用",
+  "label_ranked_disabled": "已禁用",
+  "tournaments.join_ranked_disabled": "在您的个人资料中启用排名比赛以加入此锦标赛",
+  "profile.ranked_title": "排名比赛",
+  "profile.ranked_updated": "排名偏好已更新",
+  "profile.error_ranked_update": "更新排名偏好时出错",
+  "filter_ranked_only": "已启用排名",
+  "label_ranked": "排名"
 }

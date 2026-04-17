@@ -150,6 +150,10 @@
   "downloads": "Downloads",
   "recent_games": "Neueste Spiele",
   "recent_games_no_data": "Keine aktuellen Spiele",
+  "close_btn": "Schließen",
+  "cancel_btn": "Abbrechen",
+  "delete_btn": "Löschen",
+  "label_back": "Zurück",
   "label_ranking_change": "Positionsänderung",
   "my_opponents": "Meine Gegner",
   "no_opponent_data": "Keine Gegnerdaten verfügbar",
@@ -660,5 +664,15 @@
   "label_cancel_replay_explanation": "Wenn der andere Spieler auch auf \"Replay abbrechen\" klickt, wird der Replay aus der ausstehenden Liste entfernt. Wenn sie stattdessen einen Sieg/eine Niederlage melden, läuft das Spiel normal ab.",
   "label_error": "Fehler",
   "label_submitting": "Wird eingereicht",
-  "button_confirm_cancel_replay": "Bestätigen — Spiel nicht abgeschlossen"
+  "button_confirm_cancel_replay": "Bestätigen — Spiel nicht abgeschlossen",
+  "profile.ranked_enabled": "Ranked-Spiele aktiviert",
+  "profile.ranked_disabled": "Ranked-Spiele deaktiviert",
+  "label_ranked_enabled": "Aktiviert",
+  "label_ranked_disabled": "Deaktiviert",
+  "tournaments.join_ranked_disabled": "Aktiviere Ranked-Spiele in deinem Profil, um diesem Turnier beizutreten",
+  "profile.ranked_title": "Ranked-Spiele",
+  "profile.ranked_updated": "Ranked-Einstellung aktualisiert",
+  "profile.error_ranked_update": "Fehler beim Aktualisieren der Ranked-Einstellung",
+  "filter_ranked_only": "Ranked aktiviert",
+  "label_ranked": "Ranked"
 }

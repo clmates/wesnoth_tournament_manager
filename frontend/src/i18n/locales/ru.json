@@ -150,6 +150,10 @@
   "downloads": "Скачивания",
   "recent_games": "Последние игры",
   "recent_games_no_data": "Нет последних игр",
+  "close_btn": "Закрыть",
+  "cancel_btn": "Отмена",
+  "delete_btn": "Удалить",
+  "label_back": "Назад",
   "label_ranking_change": "Изменение Позиции",
   "my_opponents": "Мои противники",
   "no_opponent_data": "Данные о противниках недоступны",
@@ -660,5 +664,15 @@
   "label_cancel_replay_explanation": "Если другой игрок также нажмет \"Отменить реплей\", реплей будет удален из списка ожидания. Если они вместо этого сообщат о победе/поражении, матч будет продолжаться нормально.",
   "label_error": "Ошибка",
   "label_submitting": "Отправка",
-  "button_confirm_cancel_replay": "Подтвердить — Матч не закончен"
+  "button_confirm_cancel_replay": "Подтвердить — Матч не закончен",
+  "profile.ranked_enabled": "Рейтинговые матчи включены",
+  "profile.ranked_disabled": "Рейтинговые матчи отключены",
+  "label_ranked_enabled": "Включено",
+  "label_ranked_disabled": "Отключено",
+  "tournaments.join_ranked_disabled": "Включите рейтинговые матчи в своем профиле, чтобы присоединиться к этому турниру",
+  "profile.ranked_title": "Рейтинговые матчи",
+  "profile.ranked_updated": "Предпочтение рейтинговых матчей обновлено",
+  "profile.error_ranked_update": "Ошибка при обновлении предпочтения рейтинговых матчей",
+  "filter_ranked_only": "Рейтинговые матчи включены",
+  "label_ranked": "Рейтинговые матчи"
 }
