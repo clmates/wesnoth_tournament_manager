@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { sendDiscordNotification } from '../services/discordNotificationService.js';
+import { getNotificationService } from '../services/notificationSocketService.js';
 
 const router = Router();
 
@@ -286,16 +287,31 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     );
 
     // Get opponent name/email for Discord notification
+    // For team tournaments, get team members; for 1v1, get opponent user
     let opponentName = 'Opponent';
     let opponentEmail = null;
+    let opponentSocketRecipients: string[] = [];
 
     if (match.is_team_mode === 1) {
+      // Team tournament - get all members of opponent team
       const teamResult = await query(
         'SELECT team_name FROM tournament_teams WHERE id = ?',
         [opponentId]
       );
       opponentName = teamResult.rows && teamResult.rows.length > 0 ? teamResult.rows[0].team_name : 'Opponent Team';
+
+      // Get all users in the opponent team
+      const teamMembersResult = await query(
+        `SELECT user_id FROM tournament_participants 
+        WHERE tournament_id = ? AND team_id = ?`,
+        [match.tournament_id, opponentId]
+      );
+
+      if (teamMembersResult.rows) {
+        opponentSocketRecipients = teamMembersResult.rows.map((row: any) => row.user_id);
+      }
     } else {
+      // 1v1 tournament
       const opponentResult = await query(
         'SELECT username FROM users_extension WHERE user_id = ?',
         [opponentId]
@@ -308,6 +324,9 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
         [opponentId]
       );
       opponentEmail = userResult.rows && userResult.rows.length > 0 ? userResult.rows[0].user_email : null;
+      
+      // For 1v1, send notification to the opponent user only
+      opponentSocketRecipients = [opponentId];
     }
 
     // Get tournament details for Discord
@@ -321,14 +340,15 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     const scheduleTimeUTC = new Date(scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
     const discordMessage = `🗓️ **Schedule Proposal** - ${tournamentName}\n@${opponentName}\n\n${opponentName}, please confirm or counter-propose:\n**Proposed time:** ${scheduleTimeUTC} UTC`;
 
+    // Send Discord notification to tournament channel + Socket.IO to all opponent team members (or single opponent for 1v1)
     await sendDiscordNotification(
       discordMessage,
       match.tournament_id,
-      opponentId,
+      null, // Discord webhook doesn't need userId
       'schedule_proposal',
       undefined,
-      [opponentId], // Socket.IO notification recipients
-      tournamentRoundMatchId // matchId for future Phase 2 integration
+      opponentSocketRecipients, // All team members for team tournament, single user for 1v1
+      tournamentRoundMatchId
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
 
     res.json({
@@ -443,21 +463,53 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
       [now, now, tournamentRoundMatchId]
     );
 
-    // Get opponent name for Discord notification
+    // Get opponent name for Discord notification and team members for Socket.IO
     let opponentName = 'Opponent';
+    let proposerSocketRecipients: string[] = [];
+    let confirmerSocketRecipients: string[] = [];
+
+    const proposerId = match.scheduled_by_player_id;
+    const confirmerId = userId;
+    const proposerTeamId = proposerId === match.player1_id ? match.player1_id : match.player2_id;
+    const confirmerTeamId = confirmerId === match.player1_id ? match.player1_id : match.player2_id;
 
     if (match.is_team_mode === 1) {
-      const teamResult = await query(
+      // Get proposer team name and members
+      const proposerTeamResult = await query(
         'SELECT team_name FROM tournament_teams WHERE id = ?',
-        [match.scheduled_by_player_id === match.player1_id ? match.player2_id : match.player1_id]
+        [proposerTeamId]
       );
-      opponentName = teamResult.rows && teamResult.rows.length > 0 ? teamResult.rows[0].team_name : 'Opponent Team';
+      opponentName = proposerTeamResult.rows && proposerTeamResult.rows.length > 0 ? proposerTeamResult.rows[0].team_name : 'Opponent Team';
+
+      // Get proposer team members
+      const proposerMembersResult = await query(
+        `SELECT user_id FROM tournament_participants 
+        WHERE tournament_id = ? AND team_id = ?`,
+        [match.tournament_id, proposerTeamId]
+      );
+      if (proposerMembersResult.rows) {
+        proposerSocketRecipients = proposerMembersResult.rows.map((row: any) => row.user_id);
+      }
+
+      // Get confirmer team members
+      const confirmerMembersResult = await query(
+        `SELECT user_id FROM tournament_participants 
+        WHERE tournament_id = ? AND team_id = ?`,
+        [match.tournament_id, confirmerTeamId]
+      );
+      if (confirmerMembersResult.rows) {
+        confirmerSocketRecipients = confirmerMembersResult.rows.map((row: any) => row.user_id);
+      }
     } else {
-      const opponentResult = await query(
+      // 1v1 tournament
+      const proposerResult = await query(
         'SELECT username FROM users_extension WHERE user_id = ?',
-        [match.scheduled_by_player_id === match.player1_id ? match.player2_id : match.player1_id]
+        [proposerId]
       );
-      opponentName = opponentResult.rows && opponentResult.rows.length > 0 ? opponentResult.rows[0].username : 'Opponent';
+      opponentName = proposerResult.rows && proposerResult.rows.length > 0 ? proposerResult.rows[0].username : 'Opponent';
+
+      proposerSocketRecipients = [proposerId];
+      confirmerSocketRecipients = [confirmerId];
     }
 
     // Get tournament details for Discord
@@ -470,30 +522,33 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     const scheduleTimeUTC = new Date(match.scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
     const discordMessage = `✅ **Schedule Confirmed** - ${tournamentName}\nMatch scheduled for: **${scheduleTimeUTC} UTC**`;
 
-    // Send to both players with Socket.IO
-    const proposerId = match.scheduled_by_player_id;
-    const confirmerId = userId;
-    
+    // Send Discord notification to tournament channel + Socket.IO to proposer team/user
     await sendDiscordNotification(
       discordMessage,
       match.tournament_id,
-      proposerId,
+      null, // Discord webhook doesn't need userId
       'schedule_confirmed',
       undefined,
-      [proposerId], // Socket.IO notification recipients
-      tournamentRoundMatchId // matchId for future Phase 2 integration
+      proposerSocketRecipients,
+      tournamentRoundMatchId
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
 
-    if (match.is_team_mode !== 1) {
-      await sendDiscordNotification(
-        discordMessage,
-        match.tournament_id,
-        confirmerId,
-        'schedule_confirmed',
-        undefined,
-        [confirmerId], // Socket.IO notification recipients
-        tournamentRoundMatchId // matchId for future Phase 2 integration
-      ).catch(err => console.error('⚠️ Discord notification failed:', err));
+    // Send Socket.IO to confirmer team/user (for 1v1) or separate team (for team tournaments)
+    if (match.is_team_mode === 1 || (match.is_team_mode !== 1 && confirmerId !== proposerId)) {
+      // For team tournaments, send to confirmer team members; for 1v1, send to confirmer
+      const notificationService = getNotificationService();
+      if (notificationService && confirmerSocketRecipients.length > 0) {
+        confirmerSocketRecipients.forEach((userId) => {
+          notificationService.notifyUser(userId, {
+            type: 'schedule_confirmed',
+            title: '✅ Schedule Confirmed',
+            message: discordMessage,
+            matchId: tournamentRoundMatchId,
+            action: 'view',
+            timestamp: new Date().toISOString(),
+          });
+        });
+      }
     }
 
     res.json({
