@@ -82,8 +82,8 @@ router.get('/:tournamentId/matches-pending-schedule', authMiddleware, async (req
           trm.scheduled_by_player_id,
           trm.scheduled_confirmed_at,
           tr.round_number,
-          t1.team_name as team1_name,
-          t2.team_name as team2_name
+          t1.name as team1_name,
+          t2.name as team2_name
         FROM tournament_round_matches trm
         JOIN tournament_rounds tr ON trm.round_id = tr.id
         JOIN tournament_teams t1 ON trm.player1_id = t1.id
@@ -309,17 +309,17 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     if (match.tournament_mode === 'team') {
       // Team tournament - get all members of opponent team
       const teamResult = await query(
-        'SELECT team_name FROM tournament_teams WHERE id = ?',
+        'SELECT name FROM tournament_teams WHERE id = ?',
         [opponentId]
       );
-      opponentName = teamResult.rows && teamResult.rows.length > 0 ? teamResult.rows[0].team_name : 'Opponent Team';
+      opponentName = teamResult.rows && teamResult.rows.length > 0 ? teamResult.rows[0].name : 'Opponent Team';
 
       // Get proposer team name
       const proposerTeamResult = await query(
-        'SELECT team_name FROM tournament_teams WHERE id = ?',
+        'SELECT name FROM tournament_teams WHERE id = ?',
         [isPlayer1 ? match.player1_id : match.player2_id]
       );
-      proposerName = proposerTeamResult.rows && proposerTeamResult.rows.length > 0 ? proposerTeamResult.rows[0].team_name : 'Team';
+      proposerName = proposerTeamResult.rows && proposerTeamResult.rows.length > 0 ? proposerTeamResult.rows[0].name : 'Team';
 
       // Get all users in the opponent team
       const teamMembersResult = await query(
@@ -527,10 +527,10 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     if (match.tournament_mode === 'team') {
       // Get proposer team name and members
       const proposerTeamResult = await query(
-        'SELECT team_name FROM tournament_teams WHERE id = ?',
+        'SELECT name FROM tournament_teams WHERE id = ?',
         [proposerTeamId]
       );
-      opponentName = proposerTeamResult.rows && proposerTeamResult.rows.length > 0 ? proposerTeamResult.rows[0].team_name : 'Opponent Team';
+      opponentName = proposerTeamResult.rows && proposerTeamResult.rows.length > 0 ? proposerTeamResult.rows[0].name : 'Opponent Team';
 
       // Get proposer team members
       const proposerMembersResult = await query(
