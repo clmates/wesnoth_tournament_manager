@@ -862,6 +862,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     }
   };
 
+  // Get team members from participants array by team ID
+  const getTeamMembersString = (teamId: string): string => {
+    const teamParticipant = participants.find((p: any) => p.id === teamId);
+    if (!teamParticipant) return '';
+    
+    if (teamParticipant.members_with_elo && Array.isArray(teamParticipant.members_with_elo)) {
+      return teamParticipant.members_with_elo.map((m: any) => m.nickname).join(', ');
+    }
+    return '';
+  };
+
   const isCreator = userId === tournament?.creator_id;
   const isAcceptedParticipant = userParticipationStatus === 'accepted';
   const canManageParticipants = isCreator || isAdmin || isTournamentModerator;
@@ -1571,14 +1582,24 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 return (
                                   <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                                     <td className="px-4 py-3 text-gray-700">
-                                      <div className="flex items-center gap-2">
-                                        <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
+                                      <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                          <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
+                                        </div>
+                                        {match.is_team_mode && (
+                                          <span className="text-xs text-gray-500">({getTeamMembersString(match.player1_id)})</span>
+                                        )}
                                       </div>
                                     </td>
                                     <td className="px-4 py-3 text-gray-700">vs</td>
                                     <td className="px-4 py-3 text-gray-700">
-                                      <div className="flex items-center gap-2">
-                                        <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
+                                      <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                          <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
+                                        </div>
+                                        {match.is_team_mode && (
+                                          <span className="text-xs text-gray-500">({getTeamMembersString(match.player2_id)})</span>
+                                        )}
                                       </div>
                                     </td>
                                     <td className="px-4 py-3 text-gray-700">{match.map || '-'}</td>
@@ -1771,6 +1792,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                      <strong className={isPendingReplay ? 'text-amber-600' : 'text-green-600'}>{match.is_team_mode ? winnerNickname : <PlayerLink nickname={winnerNickname || '-'} userId={winnerId} />}</strong>
                                      {!isPendingReplay && <StarDisplay rating={match.loser_rating} size="sm" />}
                                    </div>
+                                   {match.is_team_mode && (
+                                     <span className="text-xs text-gray-500">({getTeamMembersString(winnerId)})</span>
+                                   )}
                                    {!isPendingReplay && match.winner_comments && (
                                      <div className="text-xs text-gray-600 italic">
                                        {match.winner_comments}
@@ -1784,6 +1808,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                      <strong className={isPendingReplay ? 'text-amber-600' : 'text-red-600'}>{match.is_team_mode ? loserNickname : <PlayerLink nickname={loserNickname} userId={loserId} />}</strong>
                                      {!isPendingReplay && <StarDisplay rating={match.winner_rating} size="sm" />}
                                    </div>
+                                   {match.is_team_mode && (
+                                     <span className="text-xs text-gray-500">({getTeamMembersString(loserId)})</span>
+                                   )}
                                    {!isPendingReplay && match.loser_comments && (
                                      <div className="text-xs text-gray-600 italic">
                                        {match.loser_comments}
@@ -2123,8 +2150,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         {matchesInRound.map((match) => (
                           <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                             <td className="px-4 py-3 text-gray-700">
-                              <div>
-                                <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
+                              <div className="flex flex-col gap-1">
+                                <div>
+                                  <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
+                                </div>
+                                {match.is_team_mode && (
+                                  <span className="text-xs text-gray-500">({getTeamMembersString(match.player1_id)})</span>
+                                )}
                               </div>
                               {(match as any).player1_wins !== undefined && (
                                 <span className="text-gray-600 text-sm">
@@ -2134,8 +2166,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             </td>
                             <td className="px-4 py-3 text-gray-700">vs</td>
                             <td className="px-4 py-3 text-gray-700">
-                              <div>
-                                <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
+                              <div className="flex flex-col gap-1">
+                                <div>
+                                  <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
+                                </div>
+                                {match.is_team_mode && (
+                                  <span className="text-xs text-gray-500">({getTeamMembersString(match.player2_id)})</span>
+                                )}
                               </div>
                               {(match as any).player2_wins !== undefined && (
                                 <span className="text-gray-600 text-sm">
@@ -2144,13 +2181,25 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               )}
                             </td>
                             <td className="px-4 py-3 text-gray-700">
-                              {match.winner_id === match.player1_id ? (
-                                <strong className="text-green-600">{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
-                              ) : match.winner_id === match.player2_id ? (
-                                <strong className="text-green-600">{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
+                              <div className="flex flex-col gap-1">
+                                {match.winner_id === match.player1_id ? (
+                                  <>
+                                    <strong className="text-green-600">{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
+                                    {match.is_team_mode && (
+                                      <span className="text-xs text-gray-500">({getTeamMembersString(match.player1_id)})</span>
+                                    )}
+                                  </>
+                                ) : match.winner_id === match.player2_id ? (
+                                  <>
+                                    <strong className="text-green-600">{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
+                                    {match.is_team_mode && (
+                                      <span className="text-xs text-gray-500">({getTeamMembersString(match.player2_id)})</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-gray-700">
                               <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: getStatusColor((match as any).series_status) }}>
