@@ -10,10 +10,19 @@ export const connectToNotifications = () => {
   }
 
   // Determine server URL
-  const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-  const host = window.location.hostname;
-  const port = window.location.port ? `:${window.location.port}` : '';
-  const serverUrl = `${protocol}://${host}${port}`;
+  let serverUrl = '';
+  
+  // Check if we're on localhost (dev environment)
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    const port = window.location.port || '5173';
+    serverUrl = `http://localhost:7100`; // Connect to backend dev port
+  } else {
+    // Production: use same protocol and host (nginx reverse proxy handles socket.io)
+    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
+    const host = window.location.hostname;
+    const port = window.location.port ? `:${window.location.port}` : '';
+    serverUrl = `${protocol}://${host}${port}`;
+  }
 
   console.log(`🔌 Connecting to Socket.IO at ${serverUrl}`);
 
@@ -23,6 +32,7 @@ export const connectToNotifications = () => {
     reconnectionDelayMax: 5000,
     reconnectionAttempts: 5,
     transports: ['websocket', 'polling'],
+    path: '/socket.io/',
   });
 
   socket.on('connect', () => {
