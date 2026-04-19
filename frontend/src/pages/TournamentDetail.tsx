@@ -10,6 +10,7 @@ import { TeamJoinModal } from '../components/TeamJoinModal';
 import PlayerLink from '../components/PlayerLink';
 import StarDisplay from '../components/StarDisplay';
 import { ReplayConfirmationModal } from '../components/ReplayConfirmationModal';
+import ScheduleProposalModal from '../components/ScheduleProposalModal';
 
 // Helper function to extract parsed replay data from JSON summary
 function parseReplaySummary(summaryJson: string | null): {
@@ -248,6 +249,7 @@ const TournamentDetail: React.FC = () => {
   const [renameTeamModal, setRenameTeamModal] = useState<{ open: boolean; teamId: string; currentName: string }>({ open: false, teamId: '', currentName: '' });
   const [renameTeamValue, setRenameTeamValue] = useState('');
   const [renameTeamLoading, setRenameTeamLoading] = useState(false);
+  const [scheduleProposalModal, setScheduleProposalModal] = useState<{ isOpen: boolean; match: any | null }>({ isOpen: false, match: null });
 
     const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
   const [selectedTournamentReplay, setSelectedTournamentReplay] = useState<any>(null);
@@ -2148,6 +2150,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                           <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{matchesInRound.length > 0 && matchesInRound[0].is_team_mode ? t('label_team2') : t('label_player2')}</th>
                           <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_winner')}</th>
                           <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_status')}</th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">Schedule</th>
                           {canManageParticipants && <th className="px-4 py-3 text-left font-semibold text-gray-700 border-b-2 border-gray-300">{t('label_actions')}</th>}
                         </tr>
                       </thead>
@@ -2210,6 +2213,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               <span className="inline-block px-3 py-1 text-white rounded-full text-xs font-semibold" style={{ backgroundColor: getStatusColor((match as any).series_status) }}>
                                 {t(`option_${normalizeStatus((match as any).series_status)}`) !== `option_${normalizeStatus((match as any).series_status)}` ? t(`option_${normalizeStatus((match as any).series_status)}`) : ((match as any).series_status || t('option_pending'))}
                               </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700">
+                              {(match as any).series_status !== 'completed' && (
+                                <button
+                                  className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-semibold hover:bg-purple-600 transition-colors whitespace-nowrap"
+                                  onClick={() => setScheduleProposalModal({ isOpen: true, match })}
+                                  title="Schedule or view match time"
+                                >
+                                  🗓️ Schedule
+                                </button>
+                              )}
                             </td>
                             {canManageParticipants && (
                               <td className="px-4 py-3 text-gray-700">
@@ -2594,6 +2608,16 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           </div>
         </div>
       )}
+
+      {/* Schedule Proposal Modal */}
+      <ScheduleProposalModal
+        isOpen={scheduleProposalModal.isOpen}
+        onClose={() => setScheduleProposalModal({ isOpen: false, match: null })}
+        match={scheduleProposalModal.match}
+        onSuccess={() => {
+          fetchTournamentData();
+        }}
+      />
     </div>
   );
 };
