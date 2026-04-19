@@ -5,10 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
-// Check if in-app notifications are enabled
-const NOTIFICATIONS_ENABLED = process.env.NOTIFICATIONS_ENABLED !== 'false';
-
-console.log(`🔧 Registering notifications routes (Enabled: ${NOTIFICATIONS_ENABLED})`);
+console.log(`🔧 Registering notifications routes`);
 
 /**
  * GET /unread
@@ -16,14 +13,6 @@ console.log(`🔧 Registering notifications routes (Enabled: ${NOTIFICATIONS_ENA
  */
 router.get('/unread', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    // Return empty array if notifications are disabled
-    if (!NOTIFICATIONS_ENABLED) {
-      return res.json({
-        success: true,
-        notifications: [],
-      });
-    }
-
     const userId = req.userId;
 
     if (!userId) {

@@ -7,7 +7,6 @@ import { initializeNotificationService } from './services/notificationSocketServ
 
 // Port configuration - 7100 for test, 8100 for production
 const PORT = parseInt(process.env.PORT || '7100', 10);
-const NOTIFICATIONS_ENABLED = process.env.NOTIFICATIONS_ENABLED !== 'false';
 
 // Validate and load replay auto-discard configuration
 const validateReplayAutoDiscardConfig = (): number => {
@@ -37,7 +36,6 @@ const startServer = async () => {
     // Log environment configuration
     console.log(`\n⚙️  Configuration:`);
     console.log(`   PORT: ${PORT}`);
-    console.log(`   NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED}`);
     console.log(`   DISCORD_ENABLED: ${process.env.DISCORD_ENABLED === 'true' ? 'true' : 'false'}\n`);
     
     // Validate replay auto-discard configuration
