@@ -423,6 +423,16 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
       [mysqlDateTime, newStatus, userId, now, tournamentRoundMatchId]
     );
 
+    // If this is a reschedule (previous status was confirmed), mark old notifications as read
+    if (match.scheduled_status === 'confirmed') {
+      await query(
+        `UPDATE user_notifications 
+        SET is_read = true 
+        WHERE match_id = ? AND (type = 'schedule_confirmed' OR type = 'schedule_proposal') AND is_read = false`,
+        [tournamentRoundMatchId]
+      ).catch(err => console.error('⚠️ Error marking old notifications as read:', err));
+    }
+
     // Get opponent name/email for Discord notification
     // For team tournaments, get team members; for 1v1, get opponent user
     let opponentName = 'Opponent';
@@ -637,6 +647,14 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
       WHERE id = ?`,
       [now, now, tournamentRoundMatchId]
     );
+
+    // Mark old schedule_proposal notifications as read for this match
+    await query(
+      `UPDATE user_notifications 
+      SET is_read = true 
+      WHERE match_id = ? AND type = 'schedule_proposal' AND is_read = false`,
+      [tournamentRoundMatchId]
+    ).catch(err => console.error('⚠️ Error marking old notifications as read:', err));
 
     // Get opponent name for Discord notification and team members for Socket.IO
     let opponentName = 'Opponent';
