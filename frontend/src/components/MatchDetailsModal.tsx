@@ -151,8 +151,8 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, isOpen, on
                   {(match.winner_comments || match.loser_comments) && (
                     <tr className="border-b border-gray-200 hover:bg-gray-50">
                       <td className="px-4 py-3 font-semibold text-gray-700 bg-gray-50">Comments</td>
-                      <td className="px-4 py-3 text-center text-gray-800 text-xs max-w-xs truncate" title={match.winner_comments || undefined}>{match.winner_comments || '-'}</td>
-                      <td className="px-4 py-3 text-center text-gray-800 text-xs max-w-xs truncate" title={match.loser_comments || undefined}>{match.loser_comments || '-'}</td>
+                      <td className="px-4 py-3 text-center text-gray-800 text-xs whitespace-normal break-words">{match.winner_comments || '-'}</td>
+                      <td className="px-4 py-3 text-center text-gray-800 text-xs whitespace-normal break-words">{match.loser_comments || '-'}</td>
                     </tr>
                   )}
 
