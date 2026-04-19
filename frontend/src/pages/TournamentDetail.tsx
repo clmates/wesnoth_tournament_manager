@@ -2629,7 +2629,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       <ScheduleProposalModal
         isOpen={scheduleProposalModal.isOpen}
         onClose={() => setScheduleProposalModal({ isOpen: false, matchId: null, player1_nickname: '', player2_nickname: '' })}
-        matchId={scheduleProposalModal.matchId || ''}
+        matchId={scheduleProposalModal.matchId}
         player1_nickname={scheduleProposalModal.player1_nickname}
         player2_nickname={scheduleProposalModal.player2_nickname}
         onSuccess={() => {

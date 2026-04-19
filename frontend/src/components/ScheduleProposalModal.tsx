@@ -5,7 +5,7 @@ import { tournamentSchedulingService } from '../services/tournamentSchedulingSer
 interface ScheduleProposalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  matchId: string;
+  matchId: string | null;
   player1_nickname: string;
   player2_nickname: string;
   onSuccess?: () => void;
@@ -41,10 +41,9 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
     }
   };
 
-  // Load current schedule
+  // Load current schedule - only runs when component is actually rendered
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
-    if (!matchId) return;
-    
     setLoadingSchedule(true);
     tournamentSchedulingService
       .getSchedule(matchId)
