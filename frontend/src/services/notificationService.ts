@@ -3,7 +3,7 @@
  * Queries the backend for unread notifications stored in the database
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7100/api';
 
 export interface Notification {
   id: string;

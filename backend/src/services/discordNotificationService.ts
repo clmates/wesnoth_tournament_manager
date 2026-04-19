@@ -12,6 +12,7 @@ const DISCORD_API_URL = 'https://discord.com/api/v10';
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const TOURNAMENT_NOTIFICATIONS_WEBHOOK = process.env.DISCORD_NOTIFICATIONS_WEBHOOK;
 const DISCORD_ENABLED = process.env.DISCORD_ENABLED === 'true';
+const NOTIFICATIONS_ENABLED = process.env.NOTIFICATIONS_ENABLED !== 'false';
 
 interface DiscordEmbed {
   title?: string;
@@ -87,6 +88,12 @@ export async function storeNotificationForUsers(
   title: string,
   message: string
 ): Promise<boolean> {
+  // Skip if notifications are disabled
+  if (!NOTIFICATIONS_ENABLED) {
+    console.log('⏭️  In-app notifications disabled, skipping database storage');
+    return true;
+  }
+
   try {
     for (const userId of userIds) {
       const notificationId = uuidv4();
