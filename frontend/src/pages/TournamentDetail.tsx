@@ -888,7 +888,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
 
   const canScheduleMatch = (match: any): boolean => {
     // User must be one of the match participants
-    if (tournament?.is_team_mode === 1) {
+    if (match.is_team_mode) {
       // Team tournament: check if user's team is one of the participants
       return userTeamId === match.player1_id || userTeamId === match.player2_id;
     } else {
