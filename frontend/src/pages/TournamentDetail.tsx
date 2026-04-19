@@ -2225,8 +2225,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                     })
                     .map((team, index) => {
                       // Get team members from the participants list
-                      const teamMembers = participants.filter((p: any) => p.team_id === team.id && p.team_id !== team.id ? p : p.team_position);
-                      const membersList = teamMembers.map((p: any) => p.nickname).join(', ') || team.nickname || 'N/A';
+                      const teamMembers = participants.filter((p: any) => p.team_id === team.id);
+                      const membersList = teamMembers.map((p: any) => p.nickname).join(', ') || 'N/A';
                       
                       return (
                         <tr key={team.id}>
