@@ -138,6 +138,35 @@ const User: React.FC = () => {
         const matchesData = matchesRes.data?.data || matchesRes.data || [];
         setMatches(matchesData);
       }
+      
+      // Also refresh opponents if they were loaded
+      if (activeTab === 'opponents' && userId) {
+        try {
+          setOpponentStatsLoading(true);
+          const opponentsRes = await playerStatisticsService.getRecentOpponents(userId, 100, opponentSide);
+          
+          const normalized = opponentsRes?.map((opponent: any) => ({
+            opponent_id: opponent.opponent_id,
+            opponent_name: opponent.opponent_name,
+            total_matches: opponent.total_games,
+            total_games: opponent.total_games,
+            wins: opponent.wins,
+            losses: opponent.losses,
+            winrate: typeof opponent.winrate === 'string' ? parseFloat(opponent.winrate) : opponent.winrate,
+            current_elo: opponent.current_elo,
+            elo_gained: typeof opponent.elo_gained === 'string' ? parseFloat(opponent.elo_gained) : opponent.elo_gained,
+            elo_lost: typeof opponent.elo_lost === 'string' ? parseFloat(opponent.elo_lost) : opponent.elo_lost,
+            last_elo_against_me: typeof opponent.last_elo_against_me === 'string' ? parseFloat(opponent.last_elo_against_me) : opponent.last_elo_against_me,
+            last_match_date: opponent.last_match_date
+          })) || [];
+          
+          setOpponentStats(normalized);
+        } catch (err) {
+          console.error('Error refetching opponents:', err);
+        } finally {
+          setOpponentStatsLoading(false);
+        }
+      }
     } catch (err) {
       console.error('Error refetching matches:', err);
     }
@@ -280,24 +309,35 @@ const User: React.FC = () => {
             <ProfileStats player={profile} />
 
             {/* Tab Navigation */}
-            <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-300">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  className={`px-4 py-2 font-semibold rounded-t-lg transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-blue-500 text-white border-b-4 border-blue-600'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setSortColumn('');
-                    setFilterOpponent('');
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-300 justify-between items-center">
+              <div className="flex flex-wrap gap-2">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    className={`px-4 py-2 font-semibold rounded-t-lg transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-blue-500 text-white border-b-4 border-blue-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setSortColumn('');
+                      setFilterOpponent('');
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  refetchMatches();
+                }}
+                className="px-3 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded transition-colors flex items-center gap-2"
+                title="Refresh all data"
+              >
+                🔄 {t('refresh') || 'Refresh'}
+              </button>
             </div>
 
             {/* Tab Content */}
