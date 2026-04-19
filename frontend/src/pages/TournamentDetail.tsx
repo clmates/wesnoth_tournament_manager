@@ -2226,19 +2226,29 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               </span>
                             </td>
                             <td className="px-4 py-3 text-gray-700">
-                              {(match as any).series_status !== 'completed' && canScheduleMatch(match) && (
-                                <button
-                                  className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-semibold hover:bg-purple-600 transition-colors whitespace-nowrap"
-                                  onClick={() => setScheduleProposalModal({ 
-                                    isOpen: true, 
-                                    matchId: match.id,
-                                    player1_nickname: match.player1_nickname,
-                                    player2_nickname: match.player2_nickname
-                                  })}
-                                  title="Schedule or view match time"
-                                >
-                                  🗓️ Schedule
-                                </button>
+                              {(match as any).series_status !== 'completed' && (
+                                <>
+                                  {canScheduleMatch(match) && (
+                                    <button
+                                      className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-semibold hover:bg-purple-600 transition-colors whitespace-nowrap"
+                                      onClick={() => setScheduleProposalModal({ 
+                                        isOpen: true, 
+                                        matchId: match.id,
+                                        player1_nickname: match.player1_nickname,
+                                        player2_nickname: match.player2_nickname
+                                      })}
+                                      title="Schedule or view match time"
+                                    >
+                                      🗓️ Schedule
+                                    </button>
+                                  )}
+                                  {!canScheduleMatch(match) && (
+                                    <span className="text-xs text-gray-500">Awaiting schedule</span>
+                                  )}
+                                </>
+                              )}
+                              {(match as any).series_status === 'completed' && (
+                                <span className="text-xs text-gray-400">-</span>
                               )}
                             </td>
                             {canManageParticipants && (

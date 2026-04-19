@@ -143,13 +143,18 @@ router.get('/:tournamentRoundMatchId/schedule', authMiddleware, async (req: Auth
 
     const scheduleResult = await query(
       `SELECT 
-        id,
-        scheduled_datetime,
-        scheduled_status,
-        scheduled_by_player_id,
-        scheduled_confirmed_at
-      FROM tournament_round_matches 
-      WHERE id = ?`,
+        trm.id,
+        trm.scheduled_datetime,
+        trm.scheduled_status,
+        trm.scheduled_by_player_id,
+        trm.scheduled_confirmed_at,
+        trm.player1_id,
+        trm.player2_id,
+        trm.tournament_id,
+        t.tournament_mode
+      FROM tournament_round_matches trm
+      JOIN tournaments t ON trm.tournament_id = t.id
+      WHERE trm.id = ?`,
       [tournamentRoundMatchId]
     );
 
@@ -157,30 +162,46 @@ router.get('/:tournamentRoundMatchId/schedule', authMiddleware, async (req: Auth
       return res.status(404).json({ error: 'Match not found' });
     }
 
-    const schedule = scheduleResult.rows[0];
+    const match = scheduleResult.rows[0];
 
     // Only show confirmed schedules publicly
-    if (schedule.scheduled_status === 'confirmed') {
-      res.json({ schedule });
-    } else if (userId) {
-      // Check if user is participant
-      const matchResult = await query(
-        'SELECT player1_id, player2_id FROM tournament_round_matches WHERE id = ?',
-        [tournamentRoundMatchId]
+    if (match.scheduled_status === 'confirmed') {
+      res.json({ schedule: match });
+      return;
+    }
+
+    if (!userId) {
+      // Not authenticated - only show confirmed
+      res.json({ schedule: { scheduled_status: 'no_schedule' } });
+      return;
+    }
+
+    // Check if user is participant
+    let isParticipant = false;
+
+    if (match.tournament_mode === 'team') {
+      // Team tournament - check if user is on one of the teams
+      const userTeamResult = await query(
+        `SELECT team_id FROM tournament_participants 
+        WHERE tournament_id = ? AND user_id = ? 
+        LIMIT 1`,
+        [match.tournament_id, userId]
       );
 
-      if (matchResult.rows && matchResult.rows.length > 0) {
-        const m = matchResult.rows[0];
-        if (m.player1_id === userId || m.player2_id === userId) {
-          // Participant - show proposals
-          res.json({ schedule });
-        } else {
-          // Not participant - only show confirmed
-          res.json({ schedule: { scheduled_status: 'no_schedule' } });
-        }
+      if (userTeamResult.rows && userTeamResult.rows.length > 0) {
+        const userTeamId = userTeamResult.rows[0].team_id;
+        isParticipant = userTeamId === match.player1_id || userTeamId === match.player2_id;
       }
     } else {
-      // Not authenticated - only show confirmed
+      // 1v1 tournament
+      isParticipant = userId === match.player1_id || userId === match.player2_id;
+    }
+
+    if (isParticipant) {
+      // Participant - show proposals
+      res.json({ schedule: match });
+    } else {
+      // Not participant - only show confirmed
       res.json({ schedule: { scheduled_status: 'no_schedule' } });
     }
   } catch (error) {
