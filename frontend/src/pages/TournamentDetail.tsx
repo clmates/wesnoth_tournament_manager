@@ -154,6 +154,11 @@ interface TournamentParticipant {
   omp?: number;
   gwp?: number;
   ogp?: number;
+  members_with_elo?: Array<{ participant_id: string; user_id: string; nickname: string; elo_rating: number; team_position: number; participation_status: string }>;
+  member_user_ids?: string;
+  team_size?: number;
+  team_total_elo?: number;
+  current_round?: number;
 }
 
 interface TournamentMatch {
@@ -2224,9 +2229,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                       return (b.tournament_wins || 0) - (a.tournament_wins || 0);
                     })
                     .map((team, index) => {
-                      // Get team members from the participants list
-                      const teamMembers = participants.filter((p: any) => p.team_id === team.id);
-                      const membersList = teamMembers.map((p: any) => p.nickname).join(', ') || 'N/A';
+                      // Get team members from members_with_elo (already included in standings data)
+                      const membersList = (team.members_with_elo && Array.isArray(team.members_with_elo))
+                        ? team.members_with_elo.map((m: any) => m.nickname).join(', ')
+                        : 'N/A';
                       
                       return (
                         <tr key={team.id}>
