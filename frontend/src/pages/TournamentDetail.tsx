@@ -250,6 +250,7 @@ const TournamentDetail: React.FC = () => {
   const [renameTeamValue, setRenameTeamValue] = useState('');
   const [renameTeamLoading, setRenameTeamLoading] = useState(false);
   const [scheduleProposalModal, setScheduleProposalModal] = useState<{ isOpen: boolean; matchId: string | null; player1_nickname: string; player2_nickname: string }>({ isOpen: false, matchId: null, player1_nickname: '', player2_nickname: '' });
+  const [matchSchedules, setMatchSchedules] = useState<{ [matchId: string]: { scheduled_datetime?: string; scheduled_status?: string; scheduled_by_player_id?: string } }>({});
 
     const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
   const [selectedTournamentReplay, setSelectedTournamentReplay] = useState<any>(null);
@@ -297,9 +298,17 @@ const TournamentDetail: React.FC = () => {
         tournament_mode: tournamentRes.data.tournament_mode
       });
       setParticipants(participantsRes.data?.standings || []);
-      setMatches(matchesRes.data || []);
+      const matchesData = matchesRes.data || [];
+      setMatches(matchesData);
       setRoundMatches(roundMaturesRes.data || []);
       setRounds(roundsRes.data || []);
+      
+      // Load schedule status for each match
+      if (matchesData && matchesData.length > 0) {
+        for (const match of matchesData) {
+          loadMatchSchedule(match.id);
+        }
+      }
       
       // DEBUG: Log roundMatches with replay info
       console.log('🎬 [ROUND-MATCHES] Received roundMatches:', roundMaturesRes.data);
@@ -894,6 +903,49 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     } else {
       // 1v1 tournament: check if user is one of the players
       return userId === match.player1_id || userId === match.player2_id;
+    }
+  };
+
+  const getScheduleStatus = (matchId: string): { status: 'no_schedule' | 'awaiting_confirmation' | 'confirmed'; datetime?: string; isUserProposer?: boolean } => {
+    const schedule = matchSchedules[matchId];
+    
+    if (!schedule || !schedule.scheduled_status || schedule.scheduled_status === 'pending') {
+      return { status: 'no_schedule' };
+    }
+    
+    if (schedule.scheduled_status === 'confirmed') {
+      return { status: 'confirmed', datetime: schedule.scheduled_datetime };
+    }
+    
+    // Status is not pending and not confirmed, so it's awaiting confirmation
+    const isProposer = schedule.scheduled_by_player_id === userId;
+    return {
+      status: 'awaiting_confirmation',
+      datetime: schedule.scheduled_datetime,
+      isUserProposer
+    };
+  };
+
+  // Load schedule status for a specific match
+  const loadMatchSchedule = async (matchId: string) => {
+    try {
+      const response = await fetch(`/api/tournament-scheduling/${matchId}/schedule`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.schedule) {
+          setMatchSchedules(prev => ({
+            ...prev,
+            [matchId]: data.schedule
+          }));
+        }
+      }
+    } catch (error) {
+      console.warn(`Could not load schedule for match ${matchId}:`, error);
     }
   };
 
@@ -2229,18 +2281,76 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               {(match as any).series_status !== 'completed' && (
                                 <>
                                   {canScheduleMatch(match) && (
-                                    <button
-                                      className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-semibold hover:bg-purple-600 transition-colors whitespace-nowrap"
-                                      onClick={() => setScheduleProposalModal({ 
-                                        isOpen: true, 
-                                        matchId: match.id,
-                                        player1_nickname: match.player1_nickname,
-                                        player2_nickname: match.player2_nickname
-                                      })}
-                                      title="Schedule or view match time"
-                                    >
-                                      🗓️ Schedule
-                                    </button>
+                                    <>
+                                      {(() => {
+                                        const schedStatus = getScheduleStatus(match.id);
+                                        
+                                        if (schedStatus.status === 'confirmed') {
+                                          return (
+                                            <div className="flex flex-col gap-1">
+                                              <span className="text-xs text-green-600 font-semibold">✅ Confirmed</span>
+                                              {schedStatus.datetime && (
+                                                <span className="text-xs text-gray-600">
+                                                  {new Date(schedStatus.datetime).toLocaleString('es-ES', {
+                                                    year: 'numeric',
+                                                    month: '2-digit',
+                                                    day: '2-digit',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                  })}
+                                                </span>
+                                              )}
+                                            </div>
+                                          );
+                                        }
+                                        
+                                        if (schedStatus.status === 'awaiting_confirmation') {
+                                          return (
+                                            <div className="flex flex-col gap-1">
+                                              <button
+                                                className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-semibold hover:bg-purple-600 transition-colors whitespace-nowrap"
+                                                onClick={() => setScheduleProposalModal({ 
+                                                  isOpen: true, 
+                                                  matchId: match.id,
+                                                  player1_nickname: match.player1_nickname,
+                                                  player2_nickname: match.player2_nickname
+                                                })}
+                                                title={schedStatus.isUserProposer ? 'View proposed schedule' : 'Confirm opponent proposal'}
+                                              >
+                                                {schedStatus.isUserProposer ? '⏳ Awaiting Confirmation' : '✋ Awaiting Your Confirmation'}
+                                              </button>
+                                              {schedStatus.datetime && (
+                                                <span className="text-xs text-orange-600">
+                                                  {new Date(schedStatus.datetime).toLocaleString('es-ES', {
+                                                    year: 'numeric',
+                                                    month: '2-digit',
+                                                    day: '2-digit',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                  })}
+                                                </span>
+                                              )}
+                                            </div>
+                                          );
+                                        }
+                                        
+                                        // status === 'no_schedule'
+                                        return (
+                                          <button
+                                            className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-semibold hover:bg-purple-600 transition-colors whitespace-nowrap"
+                                            onClick={() => setScheduleProposalModal({ 
+                                              isOpen: true, 
+                                              matchId: match.id,
+                                              player1_nickname: match.player1_nickname,
+                                              player2_nickname: match.player2_nickname
+                                            })}
+                                            title="Schedule or view match time"
+                                          >
+                                            🗓️ Schedule
+                                          </button>
+                                        );
+                                      })()}
+                                    </>
                                   )}
                                   {!canScheduleMatch(match) && (
                                     <span className="text-xs text-gray-500">Awaiting schedule</span>
