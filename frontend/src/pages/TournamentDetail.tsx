@@ -867,8 +867,12 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     const teamParticipant = participants.find((p: any) => p.id === teamId);
     if (!teamParticipant) return '';
     
+    // Only return members if this is actually a team (members_with_elo is an array)
     if (teamParticipant.members_with_elo && Array.isArray(teamParticipant.members_with_elo) && teamParticipant.members_with_elo.length > 0) {
-      const members = teamParticipant.members_with_elo.filter((m: any) => m && m.nickname).map((m: any) => m.nickname).join(', ');
+      const members = teamParticipant.members_with_elo
+        .filter((m: any) => m && typeof m === 'object' && m.nickname)
+        .map((m: any) => m.nickname)
+        .join(', ');
       return members || '';
     }
     return '';
