@@ -82,17 +82,22 @@ const App: React.FC = () => {
         try {
           // Load generic notifications
           const notifications = await getUnreadNotifications();
+          console.log('📬 Loaded notifications:', notifications);
           
           // Show toast for each notification
-          for (const notification of notifications) {
-            showNotification({
-              title: notification.title,
-              message: notification.message,
-              type: notification.type === 'schedule_proposal' ? 'info' : 'success',
-            });
-            
-            // Mark as read after showing
-            await markAsRead(notification.id);
+          if (Array.isArray(notifications)) {
+            for (const notification of notifications) {
+              showNotification({
+                title: notification.title,
+                message: notification.message,
+                type: notification.type === 'schedule_proposal' ? 'info' : 'success',
+              });
+              
+              // Mark as read after showing
+              await markAsRead(notification.id);
+            }
+          } else {
+            console.warn('⚠️ Notifications is not an array:', typeof notifications);
           }
           
           // Load pending schedule confirmations
@@ -137,7 +142,7 @@ const App: React.FC = () => {
     };
 
     loadNotifications();
-  }, [token, authChecked, notificationsLoaded, showNotification]);
+  }, [token, authChecked, notificationsLoaded]);
 
   useEffect(() => {
     // Fetch maintenance status on app load
