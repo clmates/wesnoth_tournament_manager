@@ -84,14 +84,22 @@ const App: React.FC = () => {
           const notifications = await getUnreadNotifications();
           console.log('📬 Loaded notifications:', notifications);
           
-                    // Show toast for each notification
+                              // Show toast for each notification
           if (Array.isArray(notifications)) {
             for (const notification of notifications) {
-              addToast({
-                title: notification.title,
-                message: notification.message,
-                type: notification.type === 'schedule_proposal' ? 'schedule_proposal' : 'success',
-              });
+              try {
+                if (typeof addToast === 'function') {
+                  addToast({
+                    title: notification.title,
+                    message: notification.message,
+                    type: notification.type === 'schedule_proposal' ? 'schedule_proposal' : 'success',
+                  });
+                } else {
+                  console.warn('⚠️ addToast is not a function:', typeof addToast);
+                }
+              } catch (toastError) {
+                console.error('Error adding toast for notification:', toastError);
+              }
               
               // Mark as read after showing
               await markAsRead(notification.id);
@@ -128,12 +136,16 @@ const App: React.FC = () => {
                     });
                     
                     // Show toast notification
-                    addToast({
-                      title: `⏰ Schedule Pending: ${schedule.tournamentName}`,
-                      message: `Match scheduled for ${formattedDate}. Please confirm.`,
-                      type: 'schedule_proposal',
-                    });
-                    console.log('📢 Shown notification for schedule:', schedule.matchId);
+                    if (typeof addToast === 'function') {
+                      addToast({
+                        title: `⏰ Schedule Pending: ${schedule.tournamentName}`,
+                        message: `Match scheduled for ${formattedDate}. Please confirm.`,
+                        type: 'schedule_proposal',
+                      });
+                      console.log('📢 Shown notification for schedule:', schedule.matchId);
+                    } else {
+                      console.warn('⚠️ addToast is not a function in pending schedules:', typeof addToast);
+                    }
                   } catch (notificationError) {
                     console.error('Error showing schedule notification:', notificationError);
                   }
