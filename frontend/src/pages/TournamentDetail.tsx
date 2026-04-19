@@ -867,8 +867,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     const teamParticipant = participants.find((p: any) => p.id === teamId);
     if (!teamParticipant) return '';
     
-    if (teamParticipant.members_with_elo && Array.isArray(teamParticipant.members_with_elo)) {
-      return teamParticipant.members_with_elo.map((m: any) => m.nickname).join(', ');
+    if (teamParticipant.members_with_elo && Array.isArray(teamParticipant.members_with_elo) && teamParticipant.members_with_elo.length > 0) {
+      const members = teamParticipant.members_with_elo.filter((m: any) => m.nickname).map((m: any) => m.nickname).join(', ');
+      return members || '';
     }
     return '';
   };
@@ -1586,7 +1587,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         <div className="flex items-center gap-2">
                                           <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
                                         </div>
-                                        {match.is_team_mode && getTeamMembersString(match.player1_id) && (
+                                        {match.is_team_mode && (
                                           <span className="text-xs text-gray-500">({getTeamMembersString(match.player1_id)})</span>
                                         )}
                                       </div>
@@ -1597,7 +1598,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         <div className="flex items-center gap-2">
                                           <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
                                         </div>
-                                        {match.is_team_mode && getTeamMembersString(match.player2_id) && (
+                                        {match.is_team_mode && (
                                           <span className="text-xs text-gray-500">({getTeamMembersString(match.player2_id)})</span>
                                         )}
                                       </div>
@@ -1792,7 +1793,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                      <strong className={isPendingReplay ? 'text-amber-600' : 'text-green-600'}>{match.is_team_mode ? winnerNickname : <PlayerLink nickname={winnerNickname || '-'} userId={winnerId} />}</strong>
                                      {!isPendingReplay && <StarDisplay rating={match.loser_rating} size="sm" />}
                                    </div>
-                                   {match.is_team_mode && getTeamMembersString(winnerId) && (
+                                   {match.is_team_mode && (
                                      <span className="text-xs text-gray-500">({getTeamMembersString(winnerId)})</span>
                                    )}
                                    {!isPendingReplay && match.winner_comments && (
@@ -1808,7 +1809,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                      <strong className={isPendingReplay ? 'text-amber-600' : 'text-red-600'}>{match.is_team_mode ? loserNickname : <PlayerLink nickname={loserNickname} userId={loserId} />}</strong>
                                      {!isPendingReplay && <StarDisplay rating={match.winner_rating} size="sm" />}
                                    </div>
-                                   {match.is_team_mode && getTeamMembersString(loserId) && (
+                                   {match.is_team_mode && (
                                      <span className="text-xs text-gray-500">({getTeamMembersString(loserId)})</span>
                                    )}
                                    {!isPendingReplay && match.loser_comments && (
@@ -2154,7 +2155,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 <div>
                                   <strong>{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
                                 </div>
-                                {match.is_team_mode && getTeamMembersString(match.player1_id) && (
+                                {match.is_team_mode && (
                                   <span className="text-xs text-gray-500">({getTeamMembersString(match.player1_id)})</span>
                                 )}
                               </div>
@@ -2170,7 +2171,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                 <div>
                                   <strong>{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
                                 </div>
-                                {match.is_team_mode && getTeamMembersString(match.player2_id) && (
+                                {match.is_team_mode && (
                                   <span className="text-xs text-gray-500">({getTeamMembersString(match.player2_id)})</span>
                                 )}
                               </div>
