@@ -11,6 +11,7 @@ import publicRoutes from './routes/public.js';
 import statisticsRoutes from './routes/statistics.js';
 import playerStatisticsRoutes from './routes/player-statistics.js';
 import replaysRoutes from './routes/replays.js';
+import schedulingRoutes from './routes/tournament-scheduling.js';
 import { generalLimiter } from './middleware/rateLimiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -71,6 +72,7 @@ app.use('/api/public', publicRoutes);
 app.use('/api/statistics', statisticsRoutes);
 app.use('/api/player-statistics', playerStatisticsRoutes);
 app.use('/api/replays', replaysRoutes);
+app.use('/api/tournament-scheduling', schedulingRoutes);
 
 // Health check endpoints
 app.get('/health', (req, res) => {
