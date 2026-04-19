@@ -103,6 +103,85 @@ router.get('/pending-confirmations', authMiddleware, async (req: AuthRequest, re
 });
 
 /**
+ * GET /:tournamentRoundMatchId/schedule
+ * Get current schedule status for a match (public - shows confirmed schedules)
+ * MUST be BEFORE /:tournamentId/matches-pending-schedule to avoid route collision
+ */
+router.get('/:tournamentRoundMatchId/schedule', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { tournamentRoundMatchId } = req.params;
+    const userId = req.userId;
+
+    const scheduleResult = await query(
+      `SELECT 
+        trm.id,
+        trm.scheduled_datetime,
+        trm.scheduled_status,
+        trm.scheduled_by_player_id,
+        trm.scheduled_confirmed_at,
+        trm.player1_id,
+        trm.player2_id,
+        trm.tournament_id,
+        t.tournament_mode
+      FROM tournament_round_matches trm
+      JOIN tournaments t ON trm.tournament_id = t.id
+      WHERE trm.id = ?`,
+      [tournamentRoundMatchId]
+    );
+
+    if (!scheduleResult.rows || scheduleResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    const match = scheduleResult.rows[0];
+
+    // Only show confirmed schedules publicly
+    if (match.scheduled_status === 'confirmed') {
+      res.json({ schedule: match });
+      return;
+    }
+
+    if (!userId) {
+      // Not authenticated - only show confirmed
+      res.json({ schedule: { scheduled_status: 'no_schedule' } });
+      return;
+    }
+
+    // Check if user is participant
+    let isParticipant = false;
+
+    if (match.tournament_mode === 'team') {
+      // Team tournament - check if user is on one of the teams
+      const userTeamResult = await query(
+        `SELECT team_id FROM tournament_participants 
+        WHERE tournament_id = ? AND user_id = ? 
+        LIMIT 1`,
+        [match.tournament_id, userId]
+      );
+
+      if (userTeamResult.rows && userTeamResult.rows.length > 0) {
+        const userTeamId = userTeamResult.rows[0].team_id;
+        isParticipant = userTeamId === match.player1_id || userTeamId === match.player2_id;
+      }
+    } else {
+      // 1v1 tournament
+      isParticipant = userId === match.player1_id || userId === match.player2_id;
+    }
+
+    if (isParticipant) {
+      // Participant - show proposals
+      res.json({ schedule: match });
+    } else {
+      // Not participant - only show confirmed
+      res.json({ schedule: { scheduled_status: 'no_schedule' } });
+    }
+  } catch (error) {
+    console.error('❌ [TOURNAMENT_SCHEDULING] Error fetching schedule:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * GET /:tournamentId/matches-pending-schedule
  * Get all pending/in_progress matches that can be scheduled for a tournament
  * Participant sees only their matches; organizers see all
@@ -213,83 +292,6 @@ router.get('/:tournamentId/matches-pending-schedule', authMiddleware, async (req
   }
 });
 
-/**
- * GET /:tournamentRoundMatchId/schedule
- * Get current schedule status for a match (public - shows confirmed schedules)
- */
-router.get('/:tournamentRoundMatchId/schedule', authMiddleware, async (req: AuthRequest, res: Response) => {
-  try {
-    const { tournamentRoundMatchId } = req.params;
-    const userId = req.userId;
-
-    const scheduleResult = await query(
-      `SELECT 
-        trm.id,
-        trm.scheduled_datetime,
-        trm.scheduled_status,
-        trm.scheduled_by_player_id,
-        trm.scheduled_confirmed_at,
-        trm.player1_id,
-        trm.player2_id,
-        trm.tournament_id,
-        t.tournament_mode
-      FROM tournament_round_matches trm
-      JOIN tournaments t ON trm.tournament_id = t.id
-      WHERE trm.id = ?`,
-      [tournamentRoundMatchId]
-    );
-
-    if (!scheduleResult.rows || scheduleResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Match not found' });
-    }
-
-    const match = scheduleResult.rows[0];
-
-    // Only show confirmed schedules publicly
-    if (match.scheduled_status === 'confirmed') {
-      res.json({ schedule: match });
-      return;
-    }
-
-    if (!userId) {
-      // Not authenticated - only show confirmed
-      res.json({ schedule: { scheduled_status: 'no_schedule' } });
-      return;
-    }
-
-    // Check if user is participant
-    let isParticipant = false;
-
-    if (match.tournament_mode === 'team') {
-      // Team tournament - check if user is on one of the teams
-      const userTeamResult = await query(
-        `SELECT team_id FROM tournament_participants 
-        WHERE tournament_id = ? AND user_id = ? 
-        LIMIT 1`,
-        [match.tournament_id, userId]
-      );
-
-      if (userTeamResult.rows && userTeamResult.rows.length > 0) {
-        const userTeamId = userTeamResult.rows[0].team_id;
-        isParticipant = userTeamId === match.player1_id || userTeamId === match.player2_id;
-      }
-    } else {
-      // 1v1 tournament
-      isParticipant = userId === match.player1_id || userId === match.player2_id;
-    }
-
-    if (isParticipant) {
-      // Participant - show proposals
-      res.json({ schedule: match });
-    } else {
-      // Not participant - only show confirmed
-      res.json({ schedule: { scheduled_status: 'no_schedule' } });
-    }
-  } catch (error) {
-    console.error('❌ [TOURNAMENT_SCHEDULING] Error fetching schedule:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 /**
  * POST /:tournamentRoundMatchId/propose-schedule
