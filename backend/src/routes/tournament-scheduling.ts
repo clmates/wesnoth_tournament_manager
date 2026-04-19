@@ -327,7 +327,8 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
       opponentId,
       'schedule_proposal',
       undefined,
-      [opponentId] // Socket.IO notification recipients
+      [opponentId], // Socket.IO notification recipients
+      tournamentRoundMatchId // matchId for future Phase 2 integration
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
 
     res.json({
@@ -479,7 +480,8 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
       proposerId,
       'schedule_confirmed',
       undefined,
-      [proposerId]
+      [proposerId], // Socket.IO notification recipients
+      tournamentRoundMatchId // matchId for future Phase 2 integration
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
 
     if (match.is_team_mode !== 1) {
@@ -489,7 +491,8 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
         confirmerId,
         'schedule_confirmed',
         undefined,
-        [confirmerId]
+        [confirmerId], // Socket.IO notification recipients
+        tournamentRoundMatchId // matchId for future Phase 2 integration
       ).catch(err => console.error('⚠️ Discord notification failed:', err));
     }
 

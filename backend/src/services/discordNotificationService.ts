@@ -37,7 +37,8 @@ export async function sendDiscordNotification(
   userId: string | null,
   notificationType: 'schedule_proposal' | 'schedule_confirmed',
   embedData?: DiscordEmbed,
-  socketNotificationRecipients?: string[]
+  socketNotificationRecipients?: string[],
+  matchId?: string
 ): Promise<boolean> {
   // Send Socket.IO notification if recipients provided
   if (socketNotificationRecipients && socketNotificationRecipients.length > 0) {
@@ -47,7 +48,7 @@ export async function sendDiscordNotification(
         type: notificationType as any,
         title: notificationType === 'schedule_proposal' ? '🗓️ Schedule Proposal' : '✅ Schedule Confirmed',
         message: message,
-        matchId: undefined,
+        matchId: matchId,
         action: notificationType === 'schedule_proposal' ? 'confirm' : 'view',
       };
 
