@@ -211,7 +211,7 @@ const TournamentDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useTranslation();
-  const { userId, user, enableRanked, isAdmin, isTournamentModerator } = useAuthStore();
+  const { userId, user, enableRanked, isAdmin, isTournamentModerator, token } = useAuthStore();
 
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [participants, setParticipants] = useState<TournamentParticipant[]>([]);

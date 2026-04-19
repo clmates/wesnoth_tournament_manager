@@ -113,20 +113,28 @@ const App: React.FC = () => {
               if (data.schedules && data.schedules.length > 0) {
                 // Show notification for each pending schedule
                 for (const schedule of data.schedules) {
-                  const scheduleDate = new Date(schedule.scheduledDatetime);
-                  const formattedDate = scheduleDate.toLocaleString('es-ES', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
-                  
-                  showNotification({
-                    title: `⏰ Schedule Pending: ${schedule.tournamentName}`,
-                    message: `Match scheduled for ${formattedDate}. Please confirm.`,
-                    type: 'info',
-                  });
+                  try {
+                    const scheduleDate = new Date(schedule.scheduledDatetime);
+                    const formattedDate = scheduleDate.toLocaleString('es-ES', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    });
+                    
+                    if (typeof showNotification === 'function') {
+                      showNotification({
+                        title: `⏰ Schedule Pending: ${schedule.tournamentName}`,
+                        message: `Match scheduled for ${formattedDate}. Please confirm.`,
+                        type: 'info',
+                      });
+                    } else {
+                      console.warn('⚠️ showNotification is not a function:', typeof showNotification);
+                    }
+                  } catch (notificationError) {
+                    console.error('Error showing schedule notification:', notificationError);
+                  }
                 }
               }
             }
