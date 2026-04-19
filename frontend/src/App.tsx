@@ -41,7 +41,7 @@ import './App.css';
 
 const App: React.FC = () => {
   const { isAdmin, token, validateToken, isValidating } = useAuthStore();
-  const { showNotification } = useNotificationStore();
+  const { addToast } = useNotificationStore();
   const [authChecked, setAuthChecked] = React.useState(false);
   const [maintenanceMode, setMaintenanceMode] = React.useState(false);
   const [notificationsLoaded, setNotificationsLoaded] = React.useState(false);
@@ -84,13 +84,13 @@ const App: React.FC = () => {
           const notifications = await getUnreadNotifications();
           console.log('📬 Loaded notifications:', notifications);
           
-          // Show toast for each notification
+                    // Show toast for each notification
           if (Array.isArray(notifications)) {
             for (const notification of notifications) {
-              showNotification({
+              addToast({
                 title: notification.title,
                 message: notification.message,
-                type: notification.type === 'schedule_proposal' ? 'info' : 'success',
+                type: notification.type === 'schedule_proposal' ? 'schedule_proposal' : 'success',
               });
               
               // Mark as read after showing
@@ -127,16 +127,13 @@ const App: React.FC = () => {
                       minute: '2-digit',
                     });
                     
-                    if (typeof showNotification === 'function') {
-                      showNotification({
-                        title: `⏰ Schedule Pending: ${schedule.tournamentName}`,
-                        message: `Match scheduled for ${formattedDate}. Please confirm.`,
-                        type: 'info',
-                      });
-                      console.log('📢 Shown notification for schedule:', schedule.matchId);
-                    } else {
-                      console.warn('⚠️ showNotification is not a function:', typeof showNotification);
-                    }
+                    // Show toast notification
+                    addToast({
+                      title: `⏰ Schedule Pending: ${schedule.tournamentName}`,
+                      message: `Match scheduled for ${formattedDate}. Please confirm.`,
+                      type: 'schedule_proposal',
+                    });
+                    console.log('📢 Shown notification for schedule:', schedule.matchId);
                   } catch (notificationError) {
                     console.error('Error showing schedule notification:', notificationError);
                   }
