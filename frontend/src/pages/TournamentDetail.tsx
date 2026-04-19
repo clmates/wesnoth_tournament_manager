@@ -2159,7 +2159,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   <span className="text-xs text-gray-500">({getTeamMembersString(match.player1_id)})</span>
                                 )}
                               </div>
-                              {(match as any).player1_wins !== undefined && (
+                              {(match as any).player1_wins !== undefined && match.is_team_mode && (
                                 <span className="text-gray-600 text-sm">
                                   {' '}({(match as any).player1_wins})
                                 </span>
@@ -2175,7 +2175,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   <span className="text-xs text-gray-500">({getTeamMembersString(match.player2_id)})</span>
                                 )}
                               </div>
-                              {(match as any).player2_wins !== undefined && (
+                              {(match as any).player2_wins !== undefined && match.is_team_mode && (
                                 <span className="text-gray-600 text-sm">
                                   {' '}({(match as any).player2_wins})
                                 </span>
