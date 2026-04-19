@@ -1,16 +1,13 @@
 /**
  * Discord Notification Helper for Tournament Scheduling
- * Sends notifications to Discord webhook (public channel)
+ * Sends notifications to Discord tournament threads via Bot Token
  * Database notifications are handled separately when users access the app
  */
 
-import axios from 'axios';
 import { query } from '../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
+import discordService from './discordService.js';
 
-const DISCORD_API_URL = 'https://discord.com/api/v10';
-const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const TOURNAMENT_NOTIFICATIONS_WEBHOOK = process.env.DISCORD_NOTIFICATIONS_WEBHOOK;
 const DISCORD_ENABLED = process.env.DISCORD_ENABLED === 'true';
 
 interface DiscordEmbed {
@@ -29,7 +26,8 @@ interface DiscordEmbed {
 }
 
 /**
- * Send a Discord notification to the tournament channel webhook
+ * Send a Discord notification to the tournament thread
+ * Gets the thread ID from the tournaments table
  * Database notifications are stored separately and shown when users access the app
  */
 export async function sendDiscordNotification(
@@ -38,38 +36,54 @@ export async function sendDiscordNotification(
   notificationType: 'schedule_proposal' | 'schedule_confirmed'
 ): Promise<boolean> {
   if (!DISCORD_ENABLED) {
-    console.log('⏭️  Discord disabled, skipping Discord webhook notification');
+    console.log('⏭️  Discord disabled, skipping Discord notification');
     return true;
   }
 
   try {
-    // Send to Discord webhook (public tournament channel)
-    if (TOURNAMENT_NOTIFICATIONS_WEBHOOK) {
-      const color = notificationType === 'schedule_proposal' ? 0xffa500 : 0x00ff00; // Orange for proposal, green for confirmed
+    // Get tournament thread ID from database
+    const tournamentResult = await query(
+      'SELECT discord_thread_id FROM tournaments WHERE id = ?',
+      [tournamentId]
+    );
 
-      const embed = {
+    if (!tournamentResult.rows || tournamentResult.rows.length === 0) {
+      console.log('⚠️  Tournament not found in database');
+      return false;
+    }
+
+    const threadId = tournamentResult.rows[0].discord_thread_id;
+    if (!threadId) {
+      console.log('⚠️  No Discord thread ID for this tournament');
+      return false;
+    }
+
+    // Format message as Discord embed
+    const color = notificationType === 'schedule_proposal' ? 0xffa500 : 0x00ff00; // Orange for proposal, green for confirmed
+    const title = notificationType === 'schedule_proposal' ? '🗓️ Schedule Proposal' : '✅ Schedule Confirmed';
+    
+    const discordMessage = {
+      embeds: [{
+        title: title,
         description: message,
         color,
         footer: {
           text: notificationType === 'schedule_proposal' ? 'Schedule Proposal' : 'Schedule Confirmed',
         },
         timestamp: new Date().toISOString(),
-      };
+      }],
+    };
 
-      const payload = {
-        embeds: [embed],
-      };
-
-      const response = await axios.post(TOURNAMENT_NOTIFICATIONS_WEBHOOK, payload, {
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      console.log(`✅ Discord notification sent (${notificationType})`);
+    // Send to Discord thread
+    const success = await discordService.publishTournamentMessage(threadId, discordMessage);
+    
+    if (success) {
+      console.log(`✅ Discord notification sent to thread ${threadId} (${notificationType})`);
       return true;
+    } else {
+      console.log(`⚠️  Failed to send Discord notification to thread`);
+      return false;
     }
-
-    console.log(`📝 [Notification] ${notificationType}: ${message}`);
-    return false;
   } catch (error: any) {
     console.error(`❌ Error sending Discord notification:`, error.message);
     return false;
