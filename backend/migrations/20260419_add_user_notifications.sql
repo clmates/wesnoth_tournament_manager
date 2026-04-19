@@ -18,6 +18,5 @@ CREATE TABLE IF NOT EXISTS user_notifications (
   KEY idx_tournament_id (tournament_id),
   KEY idx_match_id (match_id),
   KEY idx_is_read (is_read),
-  KEY idx_created_at (created_at),
-  CONSTRAINT fk_user_notifications_user FOREIGN KEY (user_id) REFERENCES users_extension(user_id) ON DELETE CASCADE
+  KEY idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Notifications shown as toasts when users access the app';
