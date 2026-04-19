@@ -645,8 +645,38 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
 
     const proposerId = match.scheduled_by_player_id;
     const confirmerId = userId;
-    const proposerTeamId = proposerId === match.player1_id ? match.player1_id : match.player2_id;
-    const confirmerTeamId = confirmerId === match.player1_id ? match.player1_id : match.player2_id;
+    
+    // Determine which team each user belongs to
+    let proposerTeamId: string | null = null;
+    let confirmerTeamId: string | null = null;
+    
+    if (match.tournament_mode === 'team') {
+      // Find proposer's team
+      const proposerTeamResult = await query(
+        `SELECT team_id FROM tournament_participants 
+        WHERE tournament_id = ? AND user_id = ? 
+        LIMIT 1`,
+        [match.tournament_id, proposerId]
+      );
+      proposerTeamId = proposerTeamResult.rows && proposerTeamResult.rows.length > 0 
+        ? proposerTeamResult.rows[0].team_id 
+        : null;
+      
+      // Find confirmer's team
+      const confirmerTeamResult = await query(
+        `SELECT team_id FROM tournament_participants 
+        WHERE tournament_id = ? AND user_id = ? 
+        LIMIT 1`,
+        [match.tournament_id, confirmerId]
+      );
+      confirmerTeamId = confirmerTeamResult.rows && confirmerTeamResult.rows.length > 0 
+        ? confirmerTeamResult.rows[0].team_id 
+        : null;
+    } else {
+      // 1v1 tournaments: user ID = team ID
+      proposerTeamId = proposerId;
+      confirmerTeamId = confirmerId;
+    }
 
     if (match.tournament_mode === 'team') {
       // Get proposer team name and members
