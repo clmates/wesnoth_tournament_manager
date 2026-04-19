@@ -59,8 +59,10 @@ const App: React.FC = () => {
   }, [token, validateToken]);
 
   useEffect(() => {
-    // Connect to Socket.IO when user is authenticated
-    if (token && authChecked) {
+    // Connect to Socket.IO when user is authenticated and WebSockets are enabled
+    const enableWebSockets = import.meta.env.VITE_ENABLE_WEBSOCKETS === 'true';
+    
+    if (token && authChecked && enableWebSockets) {
       console.log('🔌 Initializing Socket.IO connection...');
       connectToNotifications();
 
@@ -68,6 +70,8 @@ const App: React.FC = () => {
         // Cleanup: disconnect on unmount or when token changes
         disconnectFromNotifications();
       };
+    } else if (token && authChecked && !enableWebSockets) {
+      console.log('⚠️ WebSocket notifications disabled - using database fallback only');
     }
   }, [token, authChecked]);
 
