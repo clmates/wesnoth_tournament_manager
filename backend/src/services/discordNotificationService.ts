@@ -1,10 +1,12 @@
 /**
  * Discord Notification Helper for Tournament Scheduling
- * Also sends real-time Socket.IO notifications
+ * Sends notifications to Discord webhook (public channel)
+ * Database notifications are handled separately when users access the app
  */
 
 import axios from 'axios';
-import { getNotificationService, ClientNotification } from './notificationSocketService.js';
+import { query } from '../config/database.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const DISCORD_API_URL = 'https://discord.com/api/v10';
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
@@ -27,48 +29,25 @@ interface DiscordEmbed {
 }
 
 /**
- * Send a Discord notification for schedule proposals/confirmations
- * Also sends real-time Socket.IO notification
- * Uses webhook if available, falls back to bot token with user mention
+ * Send a Discord notification to the tournament channel webhook
+ * Database notifications are stored separately and shown when users access the app
  */
 export async function sendDiscordNotification(
   message: string,
   tournamentId: string,
-  userId: string | null,
-  notificationType: 'schedule_proposal' | 'schedule_confirmed',
-  embedData?: DiscordEmbed,
-  socketNotificationRecipients?: string[],
-  matchId?: string
+  notificationType: 'schedule_proposal' | 'schedule_confirmed'
 ): Promise<boolean> {
-  // Send Socket.IO notification if recipients provided
-  if (socketNotificationRecipients && socketNotificationRecipients.length > 0) {
-    const notificationService = getNotificationService();
-    if (notificationService) {
-      const socketNotif: ClientNotification = {
-        type: notificationType as any,
-        title: notificationType === 'schedule_proposal' ? '🗓️ Schedule Proposal' : '✅ Schedule Confirmed',
-        message: message,
-        matchId: matchId,
-        action: notificationType === 'schedule_proposal' ? 'confirm' : 'view',
-      };
-
-      socketNotificationRecipients.forEach((recipientId) => {
-        notificationService.notifyUser(recipientId, socketNotif);
-      });
-    }
-  }
-
   if (!DISCORD_ENABLED) {
     console.log('⏭️  Discord disabled, skipping Discord webhook notification');
-    return true; // Consider it success since Socket.IO notification was sent
+    return true;
   }
 
   try {
-    // If webhook is configured, use it (easier and doesn't require bot in channel)
+    // Send to Discord webhook (public tournament channel)
     if (TOURNAMENT_NOTIFICATIONS_WEBHOOK) {
       const color = notificationType === 'schedule_proposal' ? 0xffa500 : 0x00ff00; // Orange for proposal, green for confirmed
 
-      const embed: DiscordEmbed = embedData || {
+      const embed = {
         description: message,
         color,
         footer: {
@@ -89,20 +68,38 @@ export async function sendDiscordNotification(
       return true;
     }
 
-    // Fallback: Try to send via bot token (requires bot to be in a specific channel)
-    // This is less reliable but works if webhook isn't configured
-    if (BOT_TOKEN && userId) {
-      console.log(`⚠️  Webhook not configured, attempting bot notification for user ${userId}`);
-      // Note: Sending DMs to users requires special OAuth scope
-      // For now, just log that we tried
-      console.log(`📝 [Notification] ${notificationType}: ${message}`);
-      return false;
-    }
-
     console.log(`📝 [Notification] ${notificationType}: ${message}`);
     return false;
   } catch (error: any) {
     console.error(`❌ Error sending Discord notification:`, error.message);
+    return false;
+  }
+}
+
+/**
+ * Store a notification in the database to be shown as a toast when users access the app
+ */
+export async function storeNotificationForUsers(
+  userIds: string[],
+  tournamentId: string,
+  matchId: string,
+  type: 'schedule_proposal' | 'schedule_confirmed',
+  title: string,
+  message: string
+): Promise<boolean> {
+  try {
+    for (const userId of userIds) {
+      const notificationId = uuidv4();
+      await query(
+        `INSERT INTO user_notifications (id, user_id, tournament_id, match_id, type, title, message, is_read)
+         VALUES (?, ?, ?, ?, ?, ?, ?, false)`,
+        [notificationId, userId, tournamentId, matchId, type, title, message]
+      );
+    }
+    console.log(`✅ Stored ${userIds.length} notification(s) in database`);
+    return true;
+  } catch (error: any) {
+    console.error(`❌ Error storing notifications:`, error.message);
     return false;
   }
 }

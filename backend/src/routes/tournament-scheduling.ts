@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
-import { sendDiscordNotification } from '../services/discordNotificationService.js';
+import { sendDiscordNotification, storeNotificationForUsers } from '../services/discordNotificationService.js';
 import { getNotificationService } from '../services/notificationSocketService.js';
 
 const router = Router();
@@ -289,6 +289,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     // Get opponent name/email for Discord notification
     // For team tournaments, get team members; for 1v1, get opponent user
     let opponentName = 'Opponent';
+    let proposerName = 'Player';
     let opponentEmail = null;
     let opponentSocketRecipients: string[] = [];
 
@@ -299,6 +300,13 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
         [opponentId]
       );
       opponentName = teamResult.rows && teamResult.rows.length > 0 ? teamResult.rows[0].team_name : 'Opponent Team';
+
+      // Get proposer team name
+      const proposerTeamResult = await query(
+        'SELECT team_name FROM tournament_teams WHERE id = ?',
+        [isPlayer1 ? match.player1_id : match.player2_id]
+      );
+      proposerName = proposerTeamResult.rows && proposerTeamResult.rows.length > 0 ? proposerTeamResult.rows[0].team_name : 'Team';
 
       // Get all users in the opponent team
       const teamMembersResult = await query(
@@ -318,6 +326,12 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
       );
       opponentName = opponentResult.rows && opponentResult.rows.length > 0 ? opponentResult.rows[0].username : 'Opponent';
       
+      const proposerResult = await query(
+        'SELECT username FROM users_extension WHERE user_id = ?',
+        [userId]
+      );
+      proposerName = proposerResult.rows && proposerResult.rows.length > 0 ? proposerResult.rows[0].username : 'Player';
+      
       // Get email for Discord ping
       const userResult = await query(
         'SELECT user_email FROM phpbb3_users WHERE user_id = ?',
@@ -336,20 +350,44 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     );
     const tournamentName = tournamentResult.rows && tournamentResult.rows.length > 0 ? tournamentResult.rows[0].tournament_name : 'Tournament';
 
-    // Send Discord notification with Socket.IO
+    // Send Discord notification to tournament channel
     const scheduleTimeUTC = new Date(scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
     const discordMessage = `🗓️ **Schedule Proposal** - ${tournamentName}\n@${opponentName}\n\n${opponentName}, please confirm or counter-propose:\n**Proposed time:** ${scheduleTimeUTC} UTC`;
 
-    // Send Discord notification to tournament channel + Socket.IO to all opponent team members (or single opponent for 1v1)
+    // Send Discord notification to tournament channel
     await sendDiscordNotification(
       discordMessage,
       match.tournament_id,
-      null, // Discord webhook doesn't need userId
-      'schedule_proposal',
-      undefined,
-      opponentSocketRecipients, // All team members for team tournament, single user for 1v1
-      tournamentRoundMatchId
+      'schedule_proposal'
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
+
+    // Store notification in database (fallback for offline users)
+    const notificationTitle = `🗓️ Schedule Proposal - ${tournamentName}`;
+    const notificationMessage = `${proposerName} proposed schedule: ${scheduleTimeUTC} UTC`;
+    
+    await storeNotificationForUsers(
+      opponentSocketRecipients,
+      match.tournament_id,
+      tournamentRoundMatchId,
+      'schedule_proposal',
+      notificationTitle,
+      notificationMessage
+    ).catch(err => console.error('⚠️ Error storing notifications:', err));
+
+    // Send Socket.IO real-time notification to opponent(s) if they're online
+    const notificationService = getNotificationService();
+    if (notificationService) {
+      opponentSocketRecipients.forEach((userId) => {
+        notificationService.notifyUser(userId, {
+          type: 'schedule_proposal',
+          title: notificationTitle,
+          message: notificationMessage,
+          matchId: tournamentRoundMatchId,
+          action: 'confirm',
+          timestamp: new Date().toISOString(),
+        });
+      });
+    }
 
     res.json({
       success: true,
@@ -522,33 +560,42 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     const scheduleTimeUTC = new Date(match.scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
     const discordMessage = `✅ **Schedule Confirmed** - ${tournamentName}\nMatch scheduled for: **${scheduleTimeUTC} UTC**`;
 
-    // Send Discord notification to tournament channel + Socket.IO to proposer team/user
+    // Send Discord notification to tournament channel
     await sendDiscordNotification(
       discordMessage,
       match.tournament_id,
-      null, // Discord webhook doesn't need userId
-      'schedule_confirmed',
-      undefined,
-      proposerSocketRecipients,
-      tournamentRoundMatchId
+      'schedule_confirmed'
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
 
-    // Send Socket.IO to confirmer team/user (for 1v1) or separate team (for team tournaments)
-    if (match.is_team_mode === 1 || (match.is_team_mode !== 1 && confirmerId !== proposerId)) {
-      // For team tournaments, send to confirmer team members; for 1v1, send to confirmer
-      const notificationService = getNotificationService();
-      if (notificationService && confirmerSocketRecipients.length > 0) {
-        confirmerSocketRecipients.forEach((userId) => {
-          notificationService.notifyUser(userId, {
-            type: 'schedule_confirmed',
-            title: '✅ Schedule Confirmed',
-            message: discordMessage,
-            matchId: tournamentRoundMatchId,
-            action: 'view',
-            timestamp: new Date().toISOString(),
-          });
+    // Store notification in database (fallback for offline users)
+    const notificationTitle = `✅ Schedule Confirmed - ${tournamentName}`;
+    const notificationMessage = `Match scheduled for: ${scheduleTimeUTC} UTC`;
+    
+    // Combine all recipients (both proposer and confirmer teams)
+    const allRecipients = [...new Set([...proposerSocketRecipients, ...confirmerSocketRecipients])];
+    
+    await storeNotificationForUsers(
+      allRecipients,
+      match.tournament_id,
+      tournamentRoundMatchId,
+      'schedule_confirmed',
+      notificationTitle,
+      notificationMessage
+    ).catch(err => console.error('⚠️ Error storing notifications:', err));
+
+    // Send Socket.IO real-time notification to all participants if they're online
+    const notificationService = getNotificationService();
+    if (notificationService) {
+      allRecipients.forEach((userId) => {
+        notificationService.notifyUser(userId, {
+          type: 'schedule_confirmed',
+          title: notificationTitle,
+          message: notificationMessage,
+          matchId: tournamentRoundMatchId,
+          action: 'view',
+          timestamp: new Date().toISOString(),
         });
-      }
+      });
     }
 
     res.json({

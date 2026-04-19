@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n/config';
 import { useAuthStore } from './store/authStore';
+import { useNotificationStore } from './stores/notificationStore';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import MaintenanceBanner from './components/MaintenanceBanner';
@@ -34,13 +35,15 @@ import FAQ from './pages/FAQ';
 import Tournaments from './pages/Tournaments';
 import TournamentDetail from './pages/TournamentDetail';
 import { adminService } from './services/api';
-import { connectToNotifications, disconnectFromNotifications } from './services/socketService';
+import { getUnreadNotifications, markAsRead } from './services/notificationService';
 import './App.css';
 
 const App: React.FC = () => {
   const { isAdmin, token, validateToken, isValidating } = useAuthStore();
+  const { showNotification } = useNotificationStore();
   const [authChecked, setAuthChecked] = React.useState(false);
   const [maintenanceMode, setMaintenanceMode] = React.useState(false);
+  const [notificationsLoaded, setNotificationsLoaded] = React.useState(false);
 
   useEffect(() => {
     // Validate token on app load if token exists
@@ -55,16 +58,33 @@ const App: React.FC = () => {
   }, [token, validateToken]);
 
   useEffect(() => {
-    // Connect to Socket.IO when user is authenticated
-    if (token && authChecked) {
-      connectToNotifications();
-    }
-
-    return () => {
-      // Optionally disconnect on logout, but keep connected for better UX
-      // disconnectFromNotifications();
+    // Load unread notifications when user accesses the app
+    const loadNotifications = async () => {
+      if (token && authChecked && !notificationsLoaded) {
+        try {
+          const notifications = await getUnreadNotifications();
+          
+          // Show toast for each notification
+          for (const notification of notifications) {
+            showNotification({
+              title: notification.title,
+              message: notification.message,
+              type: notification.type === 'schedule_proposal' ? 'info' : 'success',
+            });
+            
+            // Mark as read after showing
+            await markAsRead(notification.id);
+          }
+          
+          setNotificationsLoaded(true);
+        } catch (error) {
+          console.error('❌ Error loading notifications:', error);
+        }
+      }
     };
-  }, [token, authChecked]);
+
+    loadNotifications();
+  }, [token, authChecked, notificationsLoaded, showNotification]);
 
   useEffect(() => {
     // Fetch maintenance status on app load
