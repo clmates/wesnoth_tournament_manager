@@ -6,6 +6,7 @@ import { useAuthStore } from './store/authStore';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import MaintenanceBanner from './components/MaintenanceBanner';
+import { ToastContainer } from './components/ToastNotification';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -33,6 +34,7 @@ import FAQ from './pages/FAQ';
 import Tournaments from './pages/Tournaments';
 import TournamentDetail from './pages/TournamentDetail';
 import { adminService } from './services/api';
+import { connectToNotifications, disconnectFromNotifications } from './services/socketService';
 import './App.css';
 
 const App: React.FC = () => {
@@ -51,6 +53,18 @@ const App: React.FC = () => {
     
     checkAuth();
   }, [token, validateToken]);
+
+  useEffect(() => {
+    // Connect to Socket.IO when user is authenticated
+    if (token && authChecked) {
+      connectToNotifications();
+    }
+
+    return () => {
+      // Optionally disconnect on logout, but keep connected for better UX
+      // disconnectFromNotifications();
+    };
+  }, [token, authChecked]);
 
   useEffect(() => {
     // Fetch maintenance status on app load
@@ -87,6 +101,7 @@ const App: React.FC = () => {
       <BrowserRouter>
         <MaintenanceBanner isVisible={maintenanceMode} />
         <Navbar />
+        <ToastContainer />
         <main className={`main-content ${maintenanceMode ? 'pt-40' : ''}`}>
           <Routes>
             <Route path="/" element={<Home />} />

@@ -1,6 +1,9 @@
+import http from 'http';
+import { Server as SocketServer } from 'socket.io';
 import app from './app.js';
 import { initializeScheduledJobs, autoDiscardUnconfirmedReplays } from './jobs/scheduler.js';
 import { runMigrations } from './services/migrationRunner.js';
+import { initializeNotificationService } from './services/notificationSocketService.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
@@ -37,11 +40,34 @@ const startServer = async () => {
     await runMigrations();
     console.log('\n');
 
+    // Create HTTP server for Socket.IO integration
+    const server = http.createServer(app);
+    
+    // Initialize Socket.IO
+    const io = new SocketServer(server, {
+      cors: {
+        origin: [
+          'https://wesnoth-tournament-manager.pages.dev',
+          'https://main.wesnoth-tournament-manager.pages.dev',
+          'https://wesnoth.playranked.org',
+          'https://tournament.wesnoth.org',
+          'https://tournament-test.wesnoth.org',
+          'http://localhost:3000',
+          'http://localhost:5173'
+        ],
+        credentials: true
+      }
+    });
+    
+    // Initialize notification service
+    initializeNotificationService(io);
+
     // Listen on all interfaces for Nginx reverse proxy
     // Nginx reverse proxy on tournament.wesnoth.org:443 will forward to this
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`🚀 Backend server running on http://0.0.0.0:${PORT}`);
       console.log('📡 Nginx will reverse proxy tournament.wesnoth.org:443 → localhost:8100');
+      console.log('🔌 WebSocket (Socket.IO) ready for real-time notifications');
     });
 
     // Initialize all scheduled jobs (crons)

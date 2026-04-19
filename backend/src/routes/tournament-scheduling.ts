@@ -317,7 +317,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     );
     const tournamentName = tournamentResult.rows && tournamentResult.rows.length > 0 ? tournamentResult.rows[0].tournament_name : 'Tournament';
 
-    // Send Discord notification
+    // Send Discord notification with Socket.IO
     const scheduleTimeUTC = new Date(scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
     const discordMessage = `🗓️ **Schedule Proposal** - ${tournamentName}\n@${opponentName}\n\n${opponentName}, please confirm or counter-propose:\n**Proposed time:** ${scheduleTimeUTC} UTC`;
 
@@ -325,7 +325,9 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
       discordMessage,
       match.tournament_id,
       opponentId,
-      'schedule_proposal'
+      'schedule_proposal',
+      undefined,
+      [opponentId] // Socket.IO notification recipients
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
 
     res.json({
@@ -467,20 +469,27 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     const scheduleTimeUTC = new Date(match.scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
     const discordMessage = `✅ **Schedule Confirmed** - ${tournamentName}\nMatch scheduled for: **${scheduleTimeUTC} UTC**`;
 
-    // Send to both players
+    // Send to both players with Socket.IO
+    const proposerId = match.scheduled_by_player_id;
+    const confirmerId = userId;
+    
     await sendDiscordNotification(
       discordMessage,
       match.tournament_id,
-      match.scheduled_by_player_id,
-      'schedule_confirmed'
+      proposerId,
+      'schedule_confirmed',
+      undefined,
+      [proposerId]
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
 
     if (match.is_team_mode !== 1) {
       await sendDiscordNotification(
         discordMessage,
         match.tournament_id,
-        userId,
-        'schedule_confirmed'
+        confirmerId,
+        'schedule_confirmed',
+        undefined,
+        [confirmerId]
       ).catch(err => console.error('⚠️ Discord notification failed:', err));
     }
 
