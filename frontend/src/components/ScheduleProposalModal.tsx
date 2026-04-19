@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuthStore } from '../store/authStore';
 import { tournamentSchedulingService } from '../services/tournamentSchedulingService';
 
 interface ScheduleProposalModalProps {
@@ -28,6 +29,7 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
   onSuccess,
 }) => {
   const { t } = useTranslation();
+  const { user } = useAuthStore();
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('12:00');
   const [loading, setLoading] = useState(false);
@@ -128,9 +130,41 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
     }
   };
 
+  const handleConfirm = async () => {
+    try {
+      setError(null);
+      setLoading(true);
+
+      if (!selectedDate || !selectedTime) {
+        setError('Please select both date and time');
+        return;
+      }
+
+      const utcDatetime = localToUTC(selectedDate, selectedTime);
+      await tournamentSchedulingService.confirmSchedule(matchId, utcDatetime);
+      setSuccess(true);
+
+      setTimeout(async () => {
+        setSuccess(false);
+        // Reload schedule after confirming
+        await loadSchedule();
+        if (onSuccess) onSuccess();
+      }, 1500);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to confirm schedule');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isConfirmed = schedule?.scheduled_status === 'confirmed';
   const hasProposal = schedule?.scheduled_datetime && schedule?.scheduled_status !== 'pending';
   const isPending = schedule?.scheduled_status === 'pending';
+  
+  // Determine if current user is the one who proposed
+  const isUserTheProposer = schedule?.scheduled_by_player_id === user?.id;
+  // If user is NOT the proposer but there's a proposal, they need to confirm
+  const userNeedsToConfirm = hasProposal && !isUserTheProposer && !isConfirmed;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
@@ -192,9 +226,15 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
           </div>
         )}
 
-        {/* Proposal form - only show if no confirmed schedule */}
-        {!isConfirmed && (
+        {/* Proposal form - only show if no confirmed schedule and user needs to confirm or no proposal yet */}
+        {!isConfirmed && (userNeedsToConfirm || !hasProposal) && (
           <div className="mb-6 space-y-4">
+            {userNeedsToConfirm && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+                ⏳ Your opponent proposed a time. You can confirm it or propose a different time.
+              </div>
+            )}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
               <input
@@ -228,13 +268,13 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
 
         {/* Buttons */}
         <div className="flex gap-3">
-          {!isConfirmed && (
+          {!isConfirmed && (userNeedsToConfirm || !hasProposal) && (
             <button
-              onClick={handlePropose}
+              onClick={userNeedsToConfirm ? handleConfirm : handlePropose}
               disabled={loading || !selectedDate || !selectedTime}
               className="flex-1 px-4 py-2 bg-blue-500 text-white rounded font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? '...' : '📅 Propose'}
+              {loading ? '...' : userNeedsToConfirm ? '✅ Confirm' : '📅 Propose'}
             </button>
           )}
           <button

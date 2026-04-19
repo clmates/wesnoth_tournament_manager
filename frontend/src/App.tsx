@@ -80,6 +80,7 @@ const App: React.FC = () => {
     const loadNotifications = async () => {
       if (token && authChecked && !notificationsLoaded) {
         try {
+          // Load generic notifications
           const notifications = await getUnreadNotifications();
           
           // Show toast for each notification
@@ -92,6 +93,40 @@ const App: React.FC = () => {
             
             // Mark as read after showing
             await markAsRead(notification.id);
+          }
+          
+          // Load pending schedule confirmations
+          try {
+            const response = await fetch('/api/tournament-scheduling/pending-confirmations', {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.schedules && data.schedules.length > 0) {
+                // Show notification for each pending schedule
+                for (const schedule of data.schedules) {
+                  const scheduleDate = new Date(schedule.scheduledDatetime);
+                  const formattedDate = scheduleDate.toLocaleString('es-ES', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  
+                  showNotification({
+                    title: `⏰ Schedule Pending: ${schedule.tournamentName}`,
+                    message: `Match scheduled for ${formattedDate}. Please confirm.`,
+                    type: 'info',
+                  });
+                }
+              }
+            }
+          } catch (scheduleError) {
+            console.warn('Could not load pending schedules:', scheduleError);
           }
           
           setNotificationsLoaded(true);

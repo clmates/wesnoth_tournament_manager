@@ -33,12 +33,12 @@ export const tournamentSchedulingService = {
   },
 
   /**
-   * Confirm a proposed schedule
+   * Confirm a proposed schedule (can also counter-propose with a different time)
    */
-  confirmSchedule: async (tournamentRoundMatchId: string) => {
+  confirmSchedule: async (tournamentRoundMatchId: string, scheduledDatetime?: string) => {
     const response = await api.post(
       `/tournament-scheduling/${tournamentRoundMatchId}/confirm-schedule`,
-      {}
+      scheduledDatetime ? { scheduled_datetime: scheduledDatetime } : {}
     );
     return response.data;
   },

@@ -211,6 +211,86 @@ router.get('/:tournamentRoundMatchId/schedule', authMiddleware, async (req: Auth
 });
 
 /**
+ * GET /pending-confirmations
+ * Get all schedules pending confirmation for the current user
+ * Returns matches where a schedule was proposed and is waiting for user's confirmation
+ */
+router.get('/pending-confirmations', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId' });
+    }
+
+    // Get all schedules where a schedule was proposed and this user is the OTHER participant
+    // This means: scheduled_status is not 'pending' and not 'confirmed', and user is NOT the one who proposed
+    const result = await query(
+      `SELECT 
+        trm.id,
+        trm.scheduled_datetime,
+        trm.scheduled_status,
+        trm.scheduled_by_player_id,
+        trm.tournament_id,
+        t.name as tournament_name,
+        t.tournament_mode,
+        trm.player1_id,
+        trm.player2_id
+      FROM tournament_round_matches trm
+      JOIN tournaments t ON trm.tournament_id = t.id
+      WHERE trm.scheduled_status NOT IN ('pending', 'confirmed')
+      AND trm.scheduled_datetime IS NOT NULL`,
+      []
+    );
+
+    if (!result.rows) {
+      return res.json({ schedules: [] });
+    }
+
+    const schedules = [];
+    for (const match of result.rows) {
+      let isParticipant = false;
+      let isProposer = false;
+
+      if (match.tournament_mode === 'team') {
+        // Check if user is on one of the teams
+        const userTeamResult = await query(
+          `SELECT team_id FROM tournament_participants 
+          WHERE tournament_id = ? AND user_id = ? 
+          LIMIT 1`,
+          [match.tournament_id, userId]
+        );
+
+        if (userTeamResult.rows && userTeamResult.rows.length > 0) {
+          const userTeamId = userTeamResult.rows[0].team_id;
+          isParticipant = userTeamId === match.player1_id || userTeamId === match.player2_id;
+          isProposer = userTeamId === match.scheduled_by_player_id;
+        }
+      } else {
+        // 1v1 tournament
+        isParticipant = userId === match.player1_id || userId === match.player2_id;
+        isProposer = userId === match.scheduled_by_player_id;
+      }
+
+      // Only include if user is a participant but NOT the one who proposed
+      if (isParticipant && !isProposer) {
+        schedules.push({
+          matchId: match.id,
+          tournamentName: match.tournament_name,
+          scheduledDatetime: match.scheduled_datetime,
+          status: match.scheduled_status,
+        });
+      }
+    }
+
+    res.json({ schedules });
+  } catch (error) {
+    console.error('❌ [TOURNAMENT_SCHEDULING] Error fetching pending confirmations:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * POST /:tournamentRoundMatchId/propose-schedule
  * Propose a match schedule (can be counter-proposed by opponent)
  * Body: { scheduled_datetime: ISO string (UTC) }
