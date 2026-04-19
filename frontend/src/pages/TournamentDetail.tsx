@@ -868,7 +868,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     if (!teamParticipant) return '';
     
     if (teamParticipant.members_with_elo && Array.isArray(teamParticipant.members_with_elo) && teamParticipant.members_with_elo.length > 0) {
-      const members = teamParticipant.members_with_elo.filter((m: any) => m.nickname).map((m: any) => m.nickname).join(', ');
+      const members = teamParticipant.members_with_elo.filter((m: any) => m && m.nickname).map((m: any) => m.nickname).join(', ');
       return members || '';
     }
     return '';
@@ -2159,7 +2159,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   <span className="text-xs text-gray-500">({getTeamMembersString(match.player1_id)})</span>
                                 )}
                               </div>
-                              {(match as any).player1_wins !== undefined && match.is_team_mode && (
+                              {(match as any).player1_wins !== undefined && (
                                 <span className="text-gray-600 text-sm">
                                   {' '}({(match as any).player1_wins})
                                 </span>
@@ -2175,7 +2175,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   <span className="text-xs text-gray-500">({getTeamMembersString(match.player2_id)})</span>
                                 )}
                               </div>
-                              {(match as any).player2_wins !== undefined && match.is_team_mode && (
+                              {(match as any).player2_wins !== undefined && (
                                 <span className="text-gray-600 text-sm">
                                   {' '}({(match as any).player2_wins})
                                 </span>
@@ -2184,22 +2184,22 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                             <td className="px-4 py-3 text-gray-700">
                               <div className="flex flex-col gap-1">
                                 {match.winner_id === match.player1_id ? (
-                                  <>
-                                    <strong className="text-green-600">{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
-                                    {match.is_team_mode && getTeamMembersString(match.player1_id) && (
-                                      <span className="text-xs text-gray-500">({getTeamMembersString(match.player1_id)})</span>
-                                    )}
-                                  </>
-                                ) : match.winner_id === match.player2_id ? (
-                                  <>
-                                    <strong className="text-green-600">{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
-                                    {match.is_team_mode && getTeamMembersString(match.player2_id) && (
-                                      <span className="text-xs text-gray-500">({getTeamMembersString(match.player2_id)})</span>
-                                    )}
-                                  </>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
+                                   <>
+                                     <strong className="text-green-600">{match.is_team_mode ? match.player1_nickname : <PlayerLink nickname={match.player1_nickname} userId={match.player1_id} />}</strong>
+                                     {match.is_team_mode && (
+                                       <span className="text-xs text-gray-500">({getTeamMembersString(match.player1_id)})</span>
+                                     )}
+                                   </>
+                                 ) : match.winner_id === match.player2_id ? (
+                                   <>
+                                     <strong className="text-green-600">{match.is_team_mode ? match.player2_nickname : <PlayerLink nickname={match.player2_nickname} userId={match.player2_id} />}</strong>
+                                     {match.is_team_mode && (
+                                       <span className="text-xs text-gray-500">({getTeamMembersString(match.player2_id)})</span>
+                                     )}
+                                   </>
+                                 ) : (
+                                   <span className="text-gray-400">-</span>
+                                 )}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-gray-700">
