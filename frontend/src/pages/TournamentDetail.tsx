@@ -865,6 +865,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   // Get team members from participants array by team ID
   const getTeamMembersString = (teamId: string): string => {
     const teamParticipant = participants.find((p: any) => p.id === teamId);
+    console.log('DEBUG getTeamMembersString:', { teamId, teamParticipant, members_with_elo: teamParticipant?.members_with_elo });
     if (!teamParticipant) return '';
     
     // Only return members if this is actually a team (members_with_elo is an array)
