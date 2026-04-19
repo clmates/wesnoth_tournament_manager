@@ -110,7 +110,11 @@ const App: React.FC = () => {
             
             if (response.ok) {
               const data = await response.json();
+              console.log('✅ Pending schedules loaded:', data);
+              
               if (data.schedules && data.schedules.length > 0) {
+                console.log(`📅 Found ${data.schedules.length} pending schedules`);
+                
                 // Show notification for each pending schedule
                 for (const schedule of data.schedules) {
                   try {
@@ -129,6 +133,7 @@ const App: React.FC = () => {
                         message: `Match scheduled for ${formattedDate}. Please confirm.`,
                         type: 'info',
                       });
+                      console.log('📢 Shown notification for schedule:', schedule.matchId);
                     } else {
                       console.warn('⚠️ showNotification is not a function:', typeof showNotification);
                     }
@@ -136,7 +141,11 @@ const App: React.FC = () => {
                     console.error('Error showing schedule notification:', notificationError);
                   }
                 }
+              } else {
+                console.log('✅ No pending schedules');
               }
+            } else {
+              console.warn('⚠️ Failed to load pending schedules:', response.status, response.statusText);
             }
           } catch (scheduleError) {
             console.warn('Could not load pending schedules:', scheduleError);

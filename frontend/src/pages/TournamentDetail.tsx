@@ -249,7 +249,15 @@ const TournamentDetail: React.FC = () => {
   const [renameTeamModal, setRenameTeamModal] = useState<{ open: boolean; teamId: string; currentName: string }>({ open: false, teamId: '', currentName: '' });
   const [renameTeamValue, setRenameTeamValue] = useState('');
   const [renameTeamLoading, setRenameTeamLoading] = useState(false);
-  const [scheduleProposalModal, setScheduleProposalModal] = useState<{ isOpen: boolean; matchId: string | null; player1_nickname: string; player2_nickname: string }>({ isOpen: false, matchId: null, player1_nickname: '', player2_nickname: '' });
+  const [scheduleProposalModal, setScheduleProposalModal] = useState<{ 
+    isOpen: boolean; 
+    matchId: string | null; 
+    player1_nickname: string; 
+    player2_nickname: string;
+    scheduled_datetime?: string;
+    scheduled_status?: string;
+    scheduled_by_player_id?: string;
+  }>({ isOpen: false, matchId: null, player1_nickname: '', player2_nickname: '' });
 
     const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
   const [selectedTournamentReplay, setSelectedTournamentReplay] = useState<any>(null);
@@ -2287,7 +2295,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                                   isOpen: true, 
                                                   matchId: match.id,
                                                   player1_nickname: match.player1_nickname,
-                                                  player2_nickname: match.player2_nickname
+                                                  player2_nickname: match.player2_nickname,
+                                                  scheduled_datetime: match.scheduled_datetime,
+                                                  scheduled_status: match.scheduled_status,
+                                                  scheduled_by_player_id: match.scheduled_by_player_id
                                                 })}
                                                 title={schedStatus.isUserProposer ? 'View proposed schedule' : 'Confirm opponent proposal'}
                                               >
@@ -2316,7 +2327,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                               isOpen: true, 
                                               matchId: match.id,
                                               player1_nickname: match.player1_nickname,
-                                              player2_nickname: match.player2_nickname
+                                              player2_nickname: match.player2_nickname,
+                                              scheduled_datetime: match.scheduled_datetime,
+                                              scheduled_status: match.scheduled_status,
+                                              scheduled_by_player_id: match.scheduled_by_player_id
                                             })}
                                             title="Schedule or view match time"
                                           >
@@ -2726,6 +2740,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         matchId={scheduleProposalModal.matchId}
         player1_nickname={scheduleProposalModal.player1_nickname}
         player2_nickname={scheduleProposalModal.player2_nickname}
+        scheduled_datetime={scheduleProposalModal.scheduled_datetime}
+        scheduled_status={scheduleProposalModal.scheduled_status}
+        scheduled_by_player_id={scheduleProposalModal.scheduled_by_player_id}
         onSuccess={() => {
           fetchTournamentData();
         }}

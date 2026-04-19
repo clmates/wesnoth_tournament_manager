@@ -9,6 +9,9 @@ interface ScheduleProposalModalProps {
   matchId: string | null;
   player1_nickname: string;
   player2_nickname: string;
+  scheduled_datetime?: string;
+  scheduled_status?: string;
+  scheduled_by_player_id?: string;
   onSuccess?: () => void;
 }
 
@@ -26,6 +29,9 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
   matchId,
   player1_nickname,
   player2_nickname,
+  scheduled_datetime,
+  scheduled_status,
+  scheduled_by_player_id,
   onSuccess,
 }) => {
   const { t } = useTranslation();
@@ -51,10 +57,29 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
 
   // Load existing schedule when modal opens
   useEffect(() => {
-    if (isOpen && matchId) {
-      loadSchedule();
+    if (isOpen && matchId && scheduled_datetime) {
+      // Use schedule data passed from parent component
+      setSchedule({
+        id: matchId,
+        scheduled_datetime,
+        scheduled_status: scheduled_status || 'pending',
+        scheduled_by_player_id: scheduled_by_player_id || null,
+        scheduled_confirmed_at: null,
+      });
+      
+      // Parse datetime to populate form
+      const date = new Date(scheduled_datetime);
+      const dateStr = date.toISOString().split('T')[0];
+      const timeStr = date.toISOString().split('T')[1].substring(0, 5);
+      setSelectedDate(dateStr);
+      setSelectedTime(timeStr);
+    } else if (isOpen && matchId && !scheduled_datetime) {
+      // No existing schedule
+      setSchedule(null);
+      setSelectedDate('');
+      setSelectedTime('12:00');
     }
-  }, [isOpen, matchId]);
+  }, [isOpen, matchId, scheduled_datetime, scheduled_status, scheduled_by_player_id]);
 
   const loadSchedule = async () => {
     try {
