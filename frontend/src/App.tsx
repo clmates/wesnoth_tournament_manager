@@ -84,9 +84,9 @@ const App: React.FC = () => {
           const notifications = await getUnreadNotifications();
           console.log('📬 Loaded notifications:', notifications);
           
-                              // Show toast for each notification
+                              // Show toast for each notification (don't wait for markAsRead)
           if (Array.isArray(notifications)) {
-            for (const notification of notifications) {
+            notifications.forEach((notification) => {
               try {
                 if (typeof addToast === 'function') {
                   addToast({
@@ -94,16 +94,21 @@ const App: React.FC = () => {
                     message: notification.message,
                     type: notification.type === 'schedule_proposal' ? 'schedule_proposal' : 'success',
                   });
+                  console.log('📢 Shown notification:', notification.id);
                 } else {
                   console.warn('⚠️ addToast is not a function:', typeof addToast);
                 }
               } catch (toastError) {
                 console.error('Error adding toast for notification:', toastError);
               }
-              
-              // Mark as read after showing
-              await markAsRead(notification.id);
-            }
+            });
+            
+            // Mark all as read in background (don't block on this)
+            notifications.forEach(notification => {
+              markAsRead(notification.id).catch(err => 
+                console.error('Error marking notification as read:', err)
+              );
+            });
           } else {
             console.warn('⚠️ Notifications is not an array:', typeof notifications);
           }
