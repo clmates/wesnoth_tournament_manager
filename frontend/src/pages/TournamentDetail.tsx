@@ -886,6 +886,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   const canRenameTeam = (team: any) =>
     isCreator || isAdmin || isTournamentModerator || (userTeamId && team.id === userTeamId);
 
+  const canScheduleMatch = (match: any): boolean => {
+    // User must be one of the match participants
+    if (tournament?.is_team_mode === 1) {
+      // Team tournament: check if user's team is one of the participants
+      return userTeamId === match.player1_id || userTeamId === match.player2_id;
+    } else {
+      // 1v1 tournament: check if user is one of the players
+      return userId === match.player1_id || userId === match.player2_id;
+    }
+  };
+
   const handleRenameTeam = async () => {
     if (!renameTeamValue.trim() || !tournament) return;
     setRenameTeamLoading(true);
@@ -2215,7 +2226,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               </span>
                             </td>
                             <td className="px-4 py-3 text-gray-700">
-                              {(match as any).series_status !== 'completed' && (
+                              {(match as any).series_status !== 'completed' && canScheduleMatch(match) && (
                                 <button
                                   className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-semibold hover:bg-purple-600 transition-colors whitespace-nowrap"
                                   onClick={() => setScheduleProposalModal({ isOpen: true, match })}
