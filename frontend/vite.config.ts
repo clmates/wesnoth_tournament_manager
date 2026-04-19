@@ -12,6 +12,7 @@ export default defineConfig({
     postcss: './postcss.config.js',
   },
   build: {
+    sourcemap: true,
     rollupOptions: {
       output: {
         assetFileNames: 'assets/[name]-[hash:8].[ext]',
