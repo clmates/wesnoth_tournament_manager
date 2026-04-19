@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tournamentSchedulingService } from '../services/tournamentSchedulingService';
 
@@ -24,9 +24,17 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
   const [schedule, setSchedule] = useState<any>(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
 
+  // Store match ID safely - don't pass frozen object to useEffect
+  const matchId = useMemo(() => match?.id, [match?.id]);
+
   if (!isOpen || !match) {
     return null;
   }
+
+  // Debug logs
+  console.log('ScheduleProposalModal - match:', match);
+  console.log('ScheduleProposalModal - match is frozen:', Object.isFrozen(match));
+  console.log('ScheduleProposalModal - match is extensible:', Object.isExtensible(match));
 
   // Get user's timezone
   const getUserTimeZone = () => {
@@ -37,12 +45,12 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
     }
   };
 
-  // Load current schedule
+  // Load current schedule - dependency only on matchId string, not frozen object
   useEffect(() => {
-    if (match?.id) {
+    if (matchId) {
       setLoadingSchedule(true);
       tournamentSchedulingService
-        .getSchedule(match.id)
+        .getSchedule(matchId)
         .then((data) => {
           setSchedule(data.schedule);
         })
@@ -53,7 +61,7 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
           setLoadingSchedule(false);
         });
     }
-  }, [match?.id]);
+  }, [matchId]);
 
   // Format schedule datetime for display
   const formatScheduleDisplay = (dateTimeStr: string, timezone: string) => {
