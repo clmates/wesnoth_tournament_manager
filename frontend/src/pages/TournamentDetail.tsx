@@ -303,11 +303,9 @@ const TournamentDetail: React.FC = () => {
       setRoundMatches(roundMaturesRes.data || []);
       setRounds(roundsRes.data || []);
       
-      // Load schedule status for each match
-      if (matchesData && matchesData.length > 0) {
-        for (const match of matchesData) {
-          loadMatchSchedule(match.id);
-        }
+      // Load schedule status for all matches in parallel
+      if (matchesData && matchesData.length > 0 && token) {
+        loadAllMatchSchedules(matchesData.map((m: any) => m.id));
       }
       
       // DEBUG: Log roundMatches with replay info
@@ -927,25 +925,41 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
   };
 
   // Load schedule status for a specific match
-  const loadMatchSchedule = async (matchId: string) => {
+  const loadAllMatchSchedules = async (matchIds: string[]) => {
     try {
-      const response = await fetch(`/api/tournament-scheduling/${matchId}/schedule`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const schedules: { [matchId: string]: any } = {};
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.schedule) {
-          setMatchSchedules(prev => ({
-            ...prev,
-            [matchId]: data.schedule
-          }));
-        }
+      // Fetch all schedules in parallel
+      const promises = matchIds.map(matchId =>
+        fetch(`/api/tournament-scheduling/${matchId}/schedule`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data?.schedule) {
+              schedules[matchId] = data.schedule;
+            }
+          })
+          .catch(err => {
+            console.warn(`Could not load schedule for match ${matchId}:`, err);
+          })
+      );
+      
+      // Wait for all to complete
+      await Promise.all(promises);
+      
+      // Update state once with all schedules
+      if (Object.keys(schedules).length > 0) {
+        setMatchSchedules(prev => ({
+          ...prev,
+          ...schedules
+        }));
+        console.log('📅 Loaded schedules for matches:', Object.keys(schedules));
       }
     } catch (error) {
-      console.warn(`Could not load schedule for match ${matchId}:`, error);
+      console.warn('Error loading match schedules:', error);
     }
   };
 
