@@ -249,7 +249,7 @@ const TournamentDetail: React.FC = () => {
   const [renameTeamModal, setRenameTeamModal] = useState<{ open: boolean; teamId: string; currentName: string }>({ open: false, teamId: '', currentName: '' });
   const [renameTeamValue, setRenameTeamValue] = useState('');
   const [renameTeamLoading, setRenameTeamLoading] = useState(false);
-  const [scheduleProposalModal, setScheduleProposalModal] = useState<{ isOpen: boolean; match: any | null }>({ isOpen: false, match: null });
+  const [scheduleProposalModal, setScheduleProposalModal] = useState<{ isOpen: boolean; matchId: string | null; player1_nickname: string; player2_nickname: string }>({ isOpen: false, matchId: null, player1_nickname: '', player2_nickname: '' });
 
     const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
   const [selectedTournamentReplay, setSelectedTournamentReplay] = useState<any>(null);
@@ -2229,7 +2229,12 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               {(match as any).series_status !== 'completed' && canScheduleMatch(match) && (
                                 <button
                                   className="px-3 py-1 bg-purple-500 text-white rounded text-xs font-semibold hover:bg-purple-600 transition-colors whitespace-nowrap"
-                                  onClick={() => setScheduleProposalModal({ isOpen: true, match })}
+                                  onClick={() => setScheduleProposalModal({ 
+                                    isOpen: true, 
+                                    matchId: match.id,
+                                    player1_nickname: match.player1_nickname,
+                                    player2_nickname: match.player2_nickname
+                                  })}
                                   title="Schedule or view match time"
                                 >
                                   🗓️ Schedule
@@ -2623,8 +2628,10 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
       {/* Schedule Proposal Modal */}
       <ScheduleProposalModal
         isOpen={scheduleProposalModal.isOpen}
-        onClose={() => setScheduleProposalModal({ isOpen: false, match: null })}
-        match={scheduleProposalModal.match}
+        onClose={() => setScheduleProposalModal({ isOpen: false, matchId: null, player1_nickname: '', player2_nickname: '' })}
+        matchId={scheduleProposalModal.matchId || ''}
+        player1_nickname={scheduleProposalModal.player1_nickname}
+        player2_nickname={scheduleProposalModal.player2_nickname}
         onSuccess={() => {
           fetchTournamentData();
         }}

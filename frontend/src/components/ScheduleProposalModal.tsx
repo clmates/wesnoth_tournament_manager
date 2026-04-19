@@ -1,18 +1,22 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tournamentSchedulingService } from '../services/tournamentSchedulingService';
 
 interface ScheduleProposalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  match: any; // tournament_round_match
+  matchId: string;
+  player1_nickname: string;
+  player2_nickname: string;
   onSuccess?: () => void;
 }
 
 const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
   isOpen,
   onClose,
-  match,
+  matchId,
+  player1_nickname,
+  player2_nickname,
   onSuccess,
 }) => {
   const { t } = useTranslation();
@@ -24,17 +28,9 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
   const [schedule, setSchedule] = useState<any>(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
 
-  // Store match ID safely - don't pass frozen object to useEffect
-  const matchId = useMemo(() => match?.id, [match?.id]);
-
-  if (!isOpen || !match) {
+  if (!isOpen || !matchId) {
     return null;
   }
-
-  // Debug logs
-  console.log('ScheduleProposalModal - match:', match);
-  console.log('ScheduleProposalModal - match is frozen:', Object.isFrozen(match));
-  console.log('ScheduleProposalModal - match is extensible:', Object.isExtensible(match));
 
   // Get user's timezone
   const getUserTimeZone = () => {
@@ -45,7 +41,7 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
     }
   };
 
-  // Load current schedule - dependency only on matchId string, not frozen object
+  // Load current schedule
   useEffect(() => {
     if (matchId) {
       setLoadingSchedule(true);
@@ -121,7 +117,7 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
       // Convert to UTC
       const utcDatetime = localToUTC(selectedDate, selectedTime);
 
-      await tournamentSchedulingService.proposeSchedule(match.id, utcDatetime);
+      await tournamentSchedulingService.proposeSchedule(matchId, utcDatetime);
       setSuccess(true);
 
       setTimeout(() => {
@@ -141,7 +137,7 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
       setError(null);
       setLoading(true);
 
-      await tournamentSchedulingService.confirmSchedule(match.id);
+      await tournamentSchedulingService.confirmSchedule(matchId);
       setSuccess(true);
 
       setTimeout(() => {
@@ -161,7 +157,7 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
       setError(null);
       setLoading(true);
 
-      await tournamentSchedulingService.cancelSchedule(match.id);
+      await tournamentSchedulingService.cancelSchedule(matchId);
       setSuccess(true);
 
       setTimeout(() => {
@@ -196,8 +192,8 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
         {/* Match info */}
         <div className="mb-6 p-4 bg-gray-100 rounded">
           <p className="text-sm text-gray-600 mb-2">
-            <strong>{match.player1_nickname || match.player1_id}</strong> vs{' '}
-            <strong>{match.player2_nickname || match.player2_id}</strong>
+            <strong>{player1_nickname}</strong> vs{' '}
+            <strong>{player2_nickname}</strong>
           </p>
           <p className="text-xs text-gray-500">Your timezone: {timezone}</p>
         </div>
