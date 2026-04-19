@@ -9,6 +9,18 @@ const router = Router();
 
 console.log('🔧 Registering tournament scheduling routes');
 
+// Convert ISO string to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
+const isoToMySQLDatetime = (isoString: string): string => {
+  const date = new Date(isoString);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 /**
  * GET /:tournamentId/matches-pending-schedule
  * Get all pending/in_progress matches that can be scheduled for a tournament
@@ -274,6 +286,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     // Update schedule
     const newStatus = isPlayer1 ? 'player1_proposed' : 'player2_proposed';
     const now = new Date();
+    const mysqlDateTime = isoToMySQLDatetime(scheduled_datetime);
 
     await query(
       `UPDATE tournament_round_matches 
@@ -283,7 +296,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
         scheduled_by_player_id = ?,
         updated_at = ?
       WHERE id = ?`,
-      [scheduled_datetime, newStatus, userId, now, tournamentRoundMatchId]
+      [mysqlDateTime, newStatus, userId, now, tournamentRoundMatchId]
     );
 
     // Get opponent name/email for Discord notification
