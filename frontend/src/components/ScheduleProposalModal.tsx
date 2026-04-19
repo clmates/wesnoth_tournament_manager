@@ -251,12 +251,17 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
           </div>
         )}
 
-        {/* Proposal form - only show if no confirmed schedule and user needs to confirm or no proposal yet */}
-        {!isConfirmed && (userNeedsToConfirm || !hasProposal) && (
+        {/* Proposal form - show if no confirmed schedule, or if confirmed but user wants to reschedule */}
+        {(!isConfirmed || isConfirmed) && (userNeedsToConfirm || !hasProposal || isConfirmed) && (
           <div className="mb-6 space-y-4">
-            {userNeedsToConfirm && (
+            {userNeedsToConfirm && !isConfirmed && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
                 ⏳ Your opponent proposed a time. You can confirm it or propose a different time.
+              </div>
+            )}
+            {isConfirmed && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded text-blue-800 text-sm">
+                💬 Propose a new time to reschedule the match.
               </div>
             )}
             
@@ -293,13 +298,13 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
 
         {/* Buttons */}
         <div className="flex gap-3">
-          {!isConfirmed && (userNeedsToConfirm || !hasProposal) && (
+          {(userNeedsToConfirm || !hasProposal || isConfirmed) && (
             <button
-              onClick={userNeedsToConfirm ? handleConfirm : handlePropose}
+              onClick={userNeedsToConfirm && !isConfirmed ? handleConfirm : handlePropose}
               disabled={loading || !selectedDate || !selectedTime}
               className="flex-1 px-4 py-2 bg-blue-500 text-white rounded font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? '...' : userNeedsToConfirm ? '✅ Confirm' : '📅 Propose'}
+              {loading ? '...' : isConfirmed ? '📅 Reschedule' : userNeedsToConfirm ? '✅ Confirm' : '📅 Propose'}
             </button>
           )}
           <button
@@ -307,7 +312,7 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
             disabled={loading}
             className="flex-1 px-4 py-2 bg-gray-300 text-gray-800 rounded font-semibold hover:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
-            {isConfirmed ? 'Close' : 'Close'}
+            Close
           </button>
         </div>
       </div>
