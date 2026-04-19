@@ -25,7 +25,7 @@ router.get('/:tournamentId/matches-pending-schedule', authMiddleware, async (req
 
     // Get tournament info
     const tournamentResult = await query(
-      'SELECT id, tournament_name, is_team_mode FROM tournaments WHERE id = ?',
+      'SELECT id, name, tournament_mode FROM tournaments WHERE id = ?',
       [tournamentId]
     );
 
@@ -37,7 +37,7 @@ router.get('/:tournamentId/matches-pending-schedule', authMiddleware, async (req
 
     // For team tournaments, need to check team membership
     let userTeams: any[] = [];
-    if (tournament.is_team_mode === 1) {
+    if (tournament.tournament_mode === 'team') {
       const teamResult = await query(
         `SELECT t.id FROM tournament_teams t
          WHERE t.tournament_id = ? AND t.id IN (
@@ -50,7 +50,7 @@ router.get('/:tournamentId/matches-pending-schedule', authMiddleware, async (req
 
     // Get all pending/in_progress matches for this tournament
     let matches;
-    if (tournament.is_team_mode === 1) {
+    if (tournament.tournament_mode === 'team') {
       const teamIds = userTeams.map((t: any) => t.id);
       if (teamIds.length === 0) {
         return res.json({ matches: [] }); // User has no teams in this tournament
@@ -208,7 +208,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
         trm.series_status,
         trm.scheduled_datetime,
         trm.scheduled_status,
-        t.is_team_mode
+        t.tournament_mode
       FROM tournament_round_matches trm
       JOIN tournaments t ON trm.tournament_id = t.id
       WHERE trm.id = ?`,
@@ -231,7 +231,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     let isPlayer1 = false;
     let opponentId = null;
 
-    if (match.is_team_mode === 1) {
+    if (match.tournament_mode === 'team') {
       // Team tournament - check if user is on one of the teams
       const userTeamResult = await query(
         `SELECT team_id FROM tournament_participants 
@@ -293,7 +293,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     let opponentEmail = null;
     let opponentSocketRecipients: string[] = [];
 
-    if (match.is_team_mode === 1) {
+    if (match.tournament_mode === 'team') {
       // Team tournament - get all members of opponent team
       const teamResult = await query(
         'SELECT team_name FROM tournament_teams WHERE id = ?',
@@ -428,7 +428,7 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
         trm.scheduled_datetime,
         trm.scheduled_status,
         trm.scheduled_by_player_id,
-        t.is_team_mode
+        t.tournament_mode
       FROM tournament_round_matches trm
       JOIN tournaments t ON trm.tournament_id = t.id
       WHERE trm.id = ?`,
@@ -445,7 +445,7 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     let isParticipant = false;
     let opponentId = null;
 
-    if (match.is_team_mode === 1) {
+    if (match.tournament_mode === 'team') {
       const userTeamResult = await query(
         `SELECT team_id FROM tournament_participants 
         WHERE tournament_id = ? AND user_id = ? 
@@ -511,7 +511,7 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     const proposerTeamId = proposerId === match.player1_id ? match.player1_id : match.player2_id;
     const confirmerTeamId = confirmerId === match.player1_id ? match.player1_id : match.player2_id;
 
-    if (match.is_team_mode === 1) {
+    if (match.tournament_mode === 'team') {
       // Get proposer team name and members
       const proposerTeamResult = await query(
         'SELECT team_name FROM tournament_teams WHERE id = ?',
@@ -635,7 +635,7 @@ router.post('/:tournamentRoundMatchId/cancel-schedule', authMiddleware, async (r
         trm.player2_id,
         trm.scheduled_status,
         trm.scheduled_by_player_id,
-        t.is_team_mode
+        t.tournament_mode
       FROM tournament_round_matches trm
       JOIN tournaments t ON trm.tournament_id = t.id
       WHERE trm.id = ?`,
@@ -651,7 +651,7 @@ router.post('/:tournamentRoundMatchId/cancel-schedule', authMiddleware, async (r
     // Check if user is a participant
     let isParticipant = false;
 
-    if (match.is_team_mode === 1) {
+    if (match.tournament_mode === 'team') {
       const userTeamResult = await query(
         `SELECT team_id FROM tournament_participants 
         WHERE tournament_id = ? AND user_id = ? 
