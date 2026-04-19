@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tournamentSchedulingService } from '../services/tournamentSchedulingService';
 
@@ -32,6 +32,26 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
     return null;
   }
 
+  // Load current schedule on mount
+  const loadSchedule = useCallback(async () => {
+    setLoadingSchedule(true);
+    try {
+      const data = await tournamentSchedulingService.getSchedule(matchId);
+      setSchedule(data.schedule);
+    } catch (err) {
+      console.error('Error loading schedule:', err);
+    } finally {
+      setLoadingSchedule(false);
+    }
+  }, [matchId]);
+
+  // Load schedule when modal opens
+  React.useEffect(() => {
+    if (isOpen && matchId) {
+      loadSchedule();
+    }
+  }, [isOpen, matchId, loadSchedule]);
+
   // Get user's timezone
   const getUserTimeZone = () => {
     try {
@@ -40,23 +60,6 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
       return 'UTC';
     }
   };
-
-  // Load current schedule - only runs when component is actually rendered
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    setLoadingSchedule(true);
-    tournamentSchedulingService
-      .getSchedule(matchId)
-      .then((data) => {
-        setSchedule(data.schedule);
-      })
-      .catch((err) => {
-        console.error('Error loading schedule:', err);
-      })
-      .finally(() => {
-        setLoadingSchedule(false);
-      });
-  }, [matchId]);
 
   // Format schedule datetime for display
   const formatScheduleDisplay = (dateTimeStr: string, timezone: string) => {
