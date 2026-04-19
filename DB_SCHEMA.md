@@ -401,22 +401,26 @@ Rounds within a tournament.
 
 ### `tournament_round_matches`
 
-Best-of series pairing within a tournament round.
+Best-of series pairing within a tournament round. Supports match scheduling with proposals and confirmations.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | char(36) PK | UUID |
 | `tournament_id` | char(36) FK→tournaments | |
 | `round_id` | char(36) FK→tournament_rounds | |
-| `player1_id` | char(36) FK→users_extension | |
-| `player2_id` | char(36) FK→users_extension | |
+| `player1_id` | char(36) FK→users_extension or tournament_teams | Player UUID (1v1) or Team UUID (2v2) |
+| `player2_id` | char(36) FK→users_extension or tournament_teams | Player UUID (1v1) or Team UUID (2v2) |
 | `best_of` | int | Total games in the series (e.g., 3, 5) |
 | `wins_required` | int | Wins needed to claim the series |
 | `player1_wins` | int | Games won by player1 |
 | `player2_wins` | int | Games won by player2 |
 | `matches_scheduled` | int | Total individual games scheduled so far |
-| `series_status` | varchar(50) | `in_progress` / `completed` |
+| `series_status` | varchar(50) | `pending` / `in_progress` / `completed` |
 | `winner_id` | char(36) | Series winner (NULL while in progress) |
+| `scheduled_datetime` | datetime | Proposed/confirmed match time (UTC) |
+| `scheduled_status` | varchar(20) | `pending` / `player1_proposed` / `player2_proposed` / `confirmed` |
+| `scheduled_by_player_id` | char(36) | User who proposed the schedule |
+| `scheduled_confirmed_at` | datetime | When both players confirmed the schedule |
 | `created_at` | datetime | |
 | `updated_at` | datetime | |
 

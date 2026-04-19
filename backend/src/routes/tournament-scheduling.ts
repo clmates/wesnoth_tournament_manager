@@ -358,10 +358,10 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
 
     // Get tournament details for Discord
     const tournamentResult = await query(
-      'SELECT tournament_name FROM tournaments WHERE id = ?',
+      'SELECT name FROM tournaments WHERE id = ?',
       [match.tournament_id]
     );
-    const tournamentName = tournamentResult.rows && tournamentResult.rows.length > 0 ? tournamentResult.rows[0].tournament_name : 'Tournament';
+    const tournamentName = tournamentResult.rows && tournamentResult.rows.length > 0 ? tournamentResult.rows[0].name : 'Tournament';
 
     // Send Discord notification to tournament channel
     const scheduleTimeUTC = new Date(scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
@@ -565,10 +565,10 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
 
     // Get tournament details for Discord
     const tournamentResult = await query(
-      'SELECT tournament_name FROM tournaments WHERE id = ?',
+      'SELECT name FROM tournaments WHERE id = ?',
       [match.tournament_id]
     );
-    const tournamentName = tournamentResult.rows && tournamentResult.rows.length > 0 ? tournamentResult.rows[0].tournament_name : 'Tournament';
+    const tournamentName = tournamentResult.rows && tournamentResult.rows.length > 0 ? tournamentResult.rows[0].name : 'Tournament';
 
     const scheduleTimeUTC = new Date(match.scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
     const discordMessage = `✅ **Schedule Confirmed** - ${tournamentName}\nMatch scheduled for: **${scheduleTimeUTC} UTC**`;
