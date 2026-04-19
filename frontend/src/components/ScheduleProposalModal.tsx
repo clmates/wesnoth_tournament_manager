@@ -43,20 +43,20 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
 
   // Load current schedule
   useEffect(() => {
-    if (matchId) {
-      setLoadingSchedule(true);
-      tournamentSchedulingService
-        .getSchedule(matchId)
-        .then((data) => {
-          setSchedule(data.schedule);
-        })
-        .catch((err) => {
-          console.error('Error loading schedule:', err);
-        })
-        .finally(() => {
-          setLoadingSchedule(false);
-        });
-    }
+    if (!matchId) return;
+    
+    setLoadingSchedule(true);
+    tournamentSchedulingService
+      .getSchedule(matchId)
+      .then((data) => {
+        setSchedule(data.schedule);
+      })
+      .catch((err) => {
+        console.error('Error loading schedule:', err);
+      })
+      .finally(() => {
+        setLoadingSchedule(false);
+      });
   }, [matchId]);
 
   // Format schedule datetime for display
