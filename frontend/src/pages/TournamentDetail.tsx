@@ -2270,7 +2270,21 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                         if (schedStatus.status === 'confirmed') {
                                           return (
                                             <div className="flex flex-col gap-1">
-                                              <span className="text-xs text-green-600 font-semibold">✅ Confirmed</span>
+                                              <button
+                                                className="px-3 py-1 bg-green-500 text-white rounded text-xs font-semibold hover:bg-green-600 transition-colors whitespace-nowrap"
+                                                onClick={() => setScheduleProposalModal({ 
+                                                  isOpen: true, 
+                                                  matchId: match.id,
+                                                  player1_nickname: match.player1_nickname,
+                                                  player2_nickname: match.player2_nickname,
+                                                  scheduled_datetime: match.scheduled_datetime,
+                                                  scheduled_status: match.scheduled_status,
+                                                  scheduled_by_player_id: match.scheduled_by_player_id
+                                                })}
+                                                title="Click to reschedule the match"
+                                              >
+                                                ✅ Confirmed
+                                              </button>
                                               {schedStatus.datetime && (
                                                 <span className="text-xs text-gray-600">
                                                   {new Date(schedStatus.datetime).toLocaleString('es-ES', {
