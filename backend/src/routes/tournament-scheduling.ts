@@ -499,7 +499,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
 
     // Send Discord notification to tournament channel
     const scheduleTimeUTC = new Date(scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
-    const discordMessage = `🗓️ **Schedule Proposal** - ${tournamentName}\n@${opponentName}\n\n${opponentName}, please confirm or counter-propose:\n**Proposed time:** ${scheduleTimeUTC} UTC`;
+    const discordMessage = `🗓️ **Schedule Proposal** - ${tournamentName}\n\n**From:** ${proposerName}\n**To:** @${opponentName}\n\n${proposerName} proposes a match scheduled for:\n**${scheduleTimeUTC} UTC**`;
 
     // Send Discord notification to tournament channel
     await sendDiscordNotification(
@@ -742,8 +742,24 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     );
     const tournamentName = tournamentResult.rows && tournamentResult.rows.length > 0 ? tournamentResult.rows[0].name : 'Tournament';
 
+    // Get confirmer name (the one who just confirmed)
+    let confirmerName = 'Team';
+    if (match.tournament_mode === 'team') {
+      const confirmerTeamResult = await query(
+        'SELECT name FROM tournament_teams WHERE id = ?',
+        [confirmerTeamId]
+      );
+      confirmerName = confirmerTeamResult.rows && confirmerTeamResult.rows.length > 0 ? confirmerTeamResult.rows[0].name : 'Team';
+    } else {
+      const confirmerResult = await query(
+        'SELECT username FROM users_extension WHERE user_id = ?',
+        [confirmerId]
+      );
+      confirmerName = confirmerResult.rows && confirmerResult.rows.length > 0 ? confirmerResult.rows[0].username : 'Player';
+    }
+
     const scheduleTimeUTC = new Date(match.scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
-    const discordMessage = `✅ **Schedule Confirmed** - ${tournamentName}\nMatch scheduled for: **${scheduleTimeUTC} UTC**`;
+    const discordMessage = `✅ **Schedule Confirmed** - ${tournamentName}\n\n**${opponentName}** vs **${confirmerName}**\n\nConfirmed for: **${scheduleTimeUTC} UTC**`;
 
     // Send Discord notification to tournament channel
     await sendDiscordNotification(
