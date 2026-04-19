@@ -2744,6 +2744,9 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         scheduled_status={scheduleProposalModal.scheduled_status}
         scheduled_by_player_id={scheduleProposalModal.scheduled_by_player_id}
         onSuccess={() => {
+          // Close modal first
+          setScheduleProposalModal({ isOpen: false, matchId: null, player1_nickname: '', player2_nickname: '' });
+          // Then refresh data
           fetchTournamentData();
         }}
       />
