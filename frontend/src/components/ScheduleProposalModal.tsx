@@ -67,12 +67,16 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
         scheduled_confirmed_at: null,
       });
       
-      // Parse datetime to populate form
+      // Parse datetime to populate form in user's local timezone
       const date = new Date(scheduled_datetime);
-      const dateStr = date.toISOString().split('T')[0];
-      const timeStr = date.toISOString().split('T')[1].substring(0, 5);
-      setSelectedDate(dateStr);
-      setSelectedTime(timeStr);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      setSelectedDate(`${year}-${month}-${day}`);
+      setSelectedTime(`${hours}:${minutes}`);
     } else if (isOpen && matchId && !scheduled_datetime) {
       // No existing schedule
       setSchedule(null);
@@ -87,13 +91,17 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
       const response = await tournamentSchedulingService.getSchedule(matchId!);
       if (response.schedule) {
         setSchedule(response.schedule);
-        // If there's a scheduled datetime, parse it to populate the form
+        // If there's a scheduled datetime, parse it to populate the form in user's local timezone
         if (response.schedule.scheduled_datetime) {
           const date = new Date(response.schedule.scheduled_datetime);
-          const dateStr = date.toISOString().split('T')[0];
-          const timeStr = date.toISOString().split('T')[1].substring(0, 5);
-          setSelectedDate(dateStr);
-          setSelectedTime(timeStr);
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          
+          setSelectedDate(`${year}-${month}-${day}`);
+          setSelectedTime(`${hours}:${minutes}`);
         }
       }
     } catch (err) {
