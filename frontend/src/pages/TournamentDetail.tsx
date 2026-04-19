@@ -250,7 +250,6 @@ const TournamentDetail: React.FC = () => {
   const [renameTeamValue, setRenameTeamValue] = useState('');
   const [renameTeamLoading, setRenameTeamLoading] = useState(false);
   const [scheduleProposalModal, setScheduleProposalModal] = useState<{ isOpen: boolean; matchId: string | null; player1_nickname: string; player2_nickname: string }>({ isOpen: false, matchId: null, player1_nickname: '', player2_nickname: '' });
-  const [matchSchedules, setMatchSchedules] = useState<{ [matchId: string]: { scheduled_datetime?: string; scheduled_status?: string; scheduled_by_player_id?: string } }>({});
 
     const [showReplayConfirmModal, setShowReplayConfirmModal] = useState(false);
   const [selectedTournamentReplay, setSelectedTournamentReplay] = useState<any>(null);
@@ -302,11 +301,6 @@ const TournamentDetail: React.FC = () => {
       setMatches(matchesData);
       setRoundMatches(roundMaturesRes.data || []);
       setRounds(roundsRes.data || []);
-      
-      // Load schedule status for all matches in parallel
-      if (matchesData && matchesData.length > 0 && token) {
-        loadAllMatchSchedules(matchesData.map((m: any) => m.id));
-      }
       
       // DEBUG: Log roundMatches with replay info
       console.log('🎬 [ROUND-MATCHES] Received roundMatches:', roundMaturesRes.data);
@@ -904,63 +898,29 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
     }
   };
 
-  const getScheduleStatus = (matchId: string): { status: 'no_schedule' | 'awaiting_confirmation' | 'confirmed'; datetime?: string; isUserProposer?: boolean } => {
-    const schedule = matchSchedules[matchId];
-    
-    if (!schedule || !schedule.scheduled_status || schedule.scheduled_status === 'pending') {
+  const getScheduleStatus = (match: any): { status: 'no_schedule' | 'awaiting_confirmation' | 'confirmed'; datetime?: string; isUserProposer?: boolean } => {
+    // Use schedule data from roundMatches directly
+    if (!match || !match.scheduled_status || match.scheduled_status === 'pending') {
       return { status: 'no_schedule' };
     }
     
-    if (schedule.scheduled_status === 'confirmed') {
-      return { status: 'confirmed', datetime: schedule.scheduled_datetime };
+    if (match.scheduled_status === 'confirmed') {
+      return { status: 'confirmed', datetime: match.scheduled_datetime };
     }
     
     // Status is not pending and not confirmed, so it's awaiting confirmation
-    const isProposer = schedule.scheduled_by_player_id === userId;
+    const isProposer = match.scheduled_by_player_id === userId;
     return {
       status: 'awaiting_confirmation',
-      datetime: schedule.scheduled_datetime,
-      isUserProposer
+      datetime: match.scheduled_datetime,
+      isUserProposer: isProposer
     };
   };
 
-  // Load schedule status for a specific match
+  // No longer needed - schedule data comes from roundMatches endpoint
   const loadAllMatchSchedules = async (matchIds: string[]) => {
-    try {
-      const schedules: { [matchId: string]: any } = {};
-      
-      // Fetch all schedules in parallel
-      const promises = matchIds.map(matchId =>
-        fetch(`/api/tournament-scheduling/${matchId}/schedule`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-          .then(res => res.ok ? res.json() : null)
-          .then(data => {
-            if (data?.schedule) {
-              schedules[matchId] = data.schedule;
-            }
-          })
-          .catch(err => {
-            console.warn(`Could not load schedule for match ${matchId}:`, err);
-          })
-      );
-      
-      // Wait for all to complete
-      await Promise.all(promises);
-      
-      // Update state once with all schedules
-      if (Object.keys(schedules).length > 0) {
-        setMatchSchedules(prev => ({
-          ...prev,
-          ...schedules
-        }));
-        console.log('📅 Loaded schedules for matches:', Object.keys(schedules));
-      }
-    } catch (error) {
-      console.warn('Error loading match schedules:', error);
-    }
+    // This function is now deprecated - schedule data is included in roundMatches
+    console.log('📌 Schedule data now included in round-matches endpoint, no separate requests needed');
   };
 
   const handleRenameTeam = async () => {
@@ -2297,7 +2257,7 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                   {canScheduleMatch(match) && (
                                     <>
                                       {(() => {
-                                        const schedStatus = getScheduleStatus(match.id);
+                                       const schedStatus = getScheduleStatus(match);
                                         
                                         if (schedStatus.status === 'confirmed') {
                                           return (
