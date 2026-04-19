@@ -384,7 +384,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     )}
                   </div>
                   {match.winner_comments && (
-                    <div className="text-xs text-gray-500 italic max-w-xs truncate" title={match.winner_comments}>{match.winner_comments}</div>
+                    <div className="text-xs text-gray-500 italic whitespace-normal break-words">{match.winner_comments}</div>
                   )}
                 </div>
               </td>
@@ -420,7 +420,7 @@ const MatchesTable: React.FC<MatchesTableProps> = ({
                     )}
                   </div>
                   {match.loser_comments && (
-                    <div className="text-xs text-gray-500 italic max-w-xs truncate" title={match.loser_comments}>{match.loser_comments}</div>
+                    <div className="text-xs text-gray-500 italic whitespace-normal break-words">{match.loser_comments}</div>
                   )}
                 </div>
               </td>
