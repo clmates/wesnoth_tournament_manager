@@ -104,13 +104,33 @@ router.get('/pending-confirmations', authMiddleware, async (req: AuthRequest, re
 
 /**
  * GET /:tournamentRoundMatchId/schedule
- * Get current schedule status for a match (public - shows confirmed schedules)
+ * Get current schedule status for a match (PUBLIC ENDPOINT)
+ * Unauthenticated users: see only confirmed schedules
+ * Authenticated participants: see proposals and confirmed schedules
  * MUST be BEFORE /:tournamentId/matches-pending-schedule to avoid route collision
  */
-router.get('/:tournamentRoundMatchId/schedule', authMiddleware, async (req: AuthRequest, res: Response) => {
+router.get('/:tournamentRoundMatchId/schedule', async (req: AuthRequest, res: Response) => {
   try {
     const { tournamentRoundMatchId } = req.params;
-    const userId = req.userId;
+    
+    // Try to extract userId from token, but don't fail if missing (public endpoint)
+    let userId: string | undefined;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = await new Promise<any>((resolve, reject) => {
+          require('jsonwebtoken').verify(token, process.env.JWT_SECRET || 'your-secret-key', (err: any, decoded: any) => {
+            if (err) reject(err);
+            else resolve(decoded);
+          });
+        });
+        userId = decoded.userId;
+      } catch {
+        // Token invalid or missing - that's ok for this public endpoint
+        userId = undefined;
+      }
+    }
 
     const scheduleResult = await query(
       `SELECT 
