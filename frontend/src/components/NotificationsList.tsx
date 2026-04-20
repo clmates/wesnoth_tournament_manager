@@ -18,12 +18,14 @@ interface NotificationsListProps {
   filter?: 'all' | 'pending' | 'accepted';
   onNotificationDeleted?: () => void;
   onNotificationRead?: () => void;
+  onNotificationsLoaded?: () => void;
 }
 
 const NotificationsList: React.FC<NotificationsListProps> = ({
   filter = 'all',
   onNotificationDeleted,
   onNotificationRead,
+  onNotificationsLoaded,
 }) => {
   const { t } = useTranslation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -31,14 +33,21 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
   const [error, setError] = useState('');
   const [pageOffset, setPageOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const [currentFilter, setCurrentFilter] = useState<'all' | 'pending' | 'accepted'>(filter);
   const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
     loadNotifications();
-  }, [filter, pageOffset]);
+  }, [currentFilter, pageOffset]);
+
+  useEffect(() => {
+    if (onNotificationsLoaded && !loading) {
+      onNotificationsLoaded();
+    }
+  }, [notifications, loading]);
 
   const getEndpoint = () => {
-    switch (filter) {
+    switch (currentFilter) {
       case 'pending':
         return '/api/notifications/pending';
       case 'accepted':
@@ -53,7 +62,7 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
       setLoading(true);
       const token = localStorage.getItem('token');
       const endpoint = getEndpoint();
-      const url = filter === 'all'
+      const url = currentFilter === 'all'
         ? `${endpoint}?limit=${ITEMS_PER_PAGE}&offset=${pageOffset}`
         : `${endpoint}`;
 
@@ -169,20 +178,67 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
     );
   }
 
-  if (notifications.length === 0) {
+  if (notifications.length === 0 && !loading) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-md p-8 text-center">
-        <div className="text-gray-600">
-          {filter === 'pending' && 'No pending notifications'}
-          {filter === 'accepted' && 'No accepted notifications'}
-          {filter === 'all' && 'No notifications'}
+      <>
+        {/* Filter Tabs */}
+        <div className="mb-6 flex gap-2 border-b border-gray-200">
+          {['all', 'pending', 'accepted'].map((filterOption) => (
+            <button
+              key={filterOption}
+              onClick={() => {
+                setCurrentFilter(filterOption as 'all' | 'pending' | 'accepted');
+                setPageOffset(0);
+              }}
+              className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
+                currentFilter === filterOption
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              {filterOption === 'all' && t('all') || 'All'}
+              {filterOption === 'pending' && t('pending') || 'Pending'}
+              {filterOption === 'accepted' && t('accepted') || 'Accepted'}
+            </button>
+          ))}
         </div>
-      </div>
+
+        <div className="bg-gray-50 border border-gray-200 rounded-md p-8 text-center">
+          <div className="text-gray-600">
+            {currentFilter === 'pending' && 'No pending notifications'}
+            {currentFilter === 'accepted' && 'No accepted notifications'}
+            {currentFilter === 'all' && 'No notifications'}
+          </div>
+        </div>
+      </>
     );
   }
 
   return (
     <div className="space-y-4">
+      {/* Filter Tabs */}
+      <div className="mb-6 flex gap-2 border-b border-gray-200">
+        {['all', 'pending', 'accepted'].map((filterOption) => (
+          <button
+            key={filterOption}
+            onClick={() => {
+              setCurrentFilter(filterOption as 'all' | 'pending' | 'accepted');
+              setPageOffset(0);
+            }}
+            className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
+              currentFilter === filterOption
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            {filterOption === 'all' && t('all') || 'All'}
+            {filterOption === 'pending' && t('pending') || 'Pending'}
+            {filterOption === 'accepted' && t('accepted') || 'Accepted'}
+          </button>
+        ))}
+      </div>
+
+      {/* Notifications List */}
       {notifications.map((notification) => (
         <div
           key={notification.id}
@@ -239,7 +295,7 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
         </div>
       ))}
 
-      {filter === 'all' && total > ITEMS_PER_PAGE && (
+      {currentFilter === 'all' && total > ITEMS_PER_PAGE && (
         <div className="flex gap-2 justify-center mt-6">
           <button
             onClick={() => setPageOffset(Math.max(0, pageOffset - ITEMS_PER_PAGE))}
