@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { sendDiscordNotification, storeNotificationForUsers } from '../services/discordNotificationService.js';
-import { getNotificationService } from '../services/notificationSocketService.js';
 
 const router = Router();
 
@@ -316,12 +315,12 @@ router.get('/:tournamentId/matches-pending-schedule', authMiddleware, async (req
 /**
  * POST /:tournamentRoundMatchId/propose-schedule
  * Propose a match schedule (can be counter-proposed by opponent)
- * Body: { scheduled_datetime: ISO string (UTC) }
+ * Body: { scheduled_datetime: ISO string (UTC), scheduleMessage?: string (max 500 chars) }
  */
 router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const { tournamentRoundMatchId } = req.params;
-    const { scheduled_datetime } = req.body;
+    const { scheduled_datetime, scheduleMessage } = req.body;
     const userId = req.userId;
 
     if (!userId || !tournamentRoundMatchId || !scheduled_datetime) {
@@ -332,6 +331,18 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     const dateObj = new Date(scheduled_datetime);
     if (isNaN(dateObj.getTime())) {
       return res.status(400).json({ error: 'Invalid datetime format' });
+    }
+
+    // Validate and sanitize scheduleMessage if provided
+    let sanitizedMessage: string | null = null;
+    if (scheduleMessage) {
+      if (typeof scheduleMessage !== 'string') {
+        return res.status(400).json({ error: 'Schedule message must be a string' });
+      }
+      if (scheduleMessage.length > 500) {
+        return res.status(400).json({ error: 'Schedule message cannot exceed 500 characters' });
+      }
+      sanitizedMessage = scheduleMessage.trim();
     }
 
     // Get match details
@@ -497,15 +508,21 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     );
     const tournamentName = tournamentResult.rows && tournamentResult.rows.length > 0 ? tournamentResult.rows[0].name : 'Tournament';
 
-    // Send Discord notification to tournament channel
+    // Send Discord notification to tournament channel with enhanced format
     const scheduleTimeUTC = new Date(scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
-    const discordMessage = `🗓️ **Schedule Proposal** - ${tournamentName}\n\n**From:** ${proposerName}\n**To:** @${opponentName}\n\n${proposerName} proposes a match scheduled for:\n**${scheduleTimeUTC} UTC**`;
-
-    // Send Discord notification to tournament channel
+    
     await sendDiscordNotification(
-      discordMessage,
       match.tournament_id,
-      'schedule_proposal'
+      'schedule_proposal',
+      {
+        tournamentName,
+        fromTeamName: match.tournament_mode === 'team' ? proposerName : undefined,
+        fromUserName: match.tournament_mode === '1v1' ? proposerName : undefined,
+        toTeamName: match.tournament_mode === 'team' ? opponentName : undefined,
+        toUserName: match.tournament_mode === '1v1' ? opponentName : undefined,
+        proposedDateTime: scheduleTimeUTC,
+        messageExtra: sanitizedMessage || undefined,
+      }
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
 
     // Store notification in database (fallback for offline users)
@@ -518,23 +535,9 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
       tournamentRoundMatchId,
       'schedule_proposal',
       notificationTitle,
-      notificationMessage
+      notificationMessage,
+      sanitizedMessage
     ).catch(err => console.error('⚠️ Error storing notifications:', err));
-
-    // Send Socket.IO real-time notification to opponent(s) if they're online
-    const notificationService = getNotificationService();
-    if (notificationService) {
-      opponentSocketRecipients.forEach((userId) => {
-        notificationService.notifyUser(userId, {
-          type: 'schedule_proposal',
-          title: notificationTitle,
-          message: notificationMessage,
-          matchId: tournamentRoundMatchId,
-          action: 'confirm',
-          timestamp: new Date().toISOString(),
-        });
-      });
-    }
 
     res.json({
       success: true,
@@ -759,13 +762,19 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     }
 
     const scheduleTimeUTC = new Date(match.scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
-    const discordMessage = `✅ **Schedule Confirmed** - ${tournamentName}\n\n**${opponentName}** vs **${confirmerName}**\n\nConfirmed for: **${scheduleTimeUTC} UTC**`;
 
-    // Send Discord notification to tournament channel
+    // Send Discord notification to tournament channel with enhanced format
     await sendDiscordNotification(
-      discordMessage,
       match.tournament_id,
-      'schedule_confirmed'
+      'schedule_confirmed',
+      {
+        tournamentName,
+        fromUserName: match.tournament_mode === '1v1' ? opponentName : undefined,
+        fromTeamName: match.tournament_mode === 'team' ? opponentName : undefined,
+        toUserName: match.tournament_mode === '1v1' ? confirmerName : undefined,
+        toTeamName: match.tournament_mode === 'team' ? confirmerName : undefined,
+        proposedDateTime: scheduleTimeUTC,
+      }
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
 
     // Store notification in database (fallback for offline users)
@@ -781,23 +790,9 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
       tournamentRoundMatchId,
       'schedule_confirmed',
       notificationTitle,
-      notificationMessage
+      notificationMessage,
+      undefined
     ).catch(err => console.error('⚠️ Error storing notifications:', err));
-
-    // Send Socket.IO real-time notification to all participants if they're online
-    const notificationService = getNotificationService();
-    if (notificationService) {
-      allRecipients.forEach((userId) => {
-        notificationService.notifyUser(userId, {
-          type: 'schedule_confirmed',
-          title: notificationTitle,
-          message: notificationMessage,
-          matchId: tournamentRoundMatchId,
-          action: 'view',
-          timestamp: new Date().toISOString(),
-        });
-      });
-    }
 
     res.json({
       success: true,

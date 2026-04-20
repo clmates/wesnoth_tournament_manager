@@ -10,30 +10,89 @@ import discordService from './discordService.js';
 
 const DISCORD_ENABLED = process.env.DISCORD_ENABLED === 'true';
 
-interface DiscordEmbed {
-  title?: string;
-  description?: string;
-  color?: number;
-  fields?: Array<{
-    name: string;
-    value: string;
-    inline?: boolean;
-  }>;
-  footer?: {
-    text: string;
-  };
-  timestamp?: string;
+interface DiscordScheduleNotificationData {
+  tournamentName: string;
+  fromUserName?: string;
+  fromTeamName?: string;
+  toUserName?: string;
+  toTeamName?: string;
+  proposedDateTime?: string;
+  messageExtra?: string;
 }
 
 /**
- * Send a Discord notification to the tournament thread
- * Gets the thread ID from the tournaments table
- * Database notifications are stored separately and shown when users access the app
+ * Build Discord message for schedule proposal with clear structure
+ */
+function buildScheduleProposalEmbed(
+  tournamentName: string,
+  data: DiscordScheduleNotificationData
+): any {
+  const fromName = data.fromTeamName || data.fromUserName || 'Unknown';
+  const toName = data.toTeamName || data.toUserName || 'Unknown';
+  
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    { name: '📋 Tournament', value: tournamentName, inline: false },
+    { name: '📤 From', value: fromName, inline: true },
+    { name: '📥 To', value: toName, inline: true },
+  ];
+
+  if (data.proposedDateTime) {
+    fields.push({ name: '📅 Proposed Date/Time', value: data.proposedDateTime, inline: false });
+  }
+
+  if (data.messageExtra) {
+    fields.push({ name: '💬 Message', value: data.messageExtra, inline: false });
+  }
+
+  fields.push({ name: '⚠️ Action', value: 'Please confirm or counter propose', inline: false });
+
+  return {
+    title: '🗓️ Schedule Proposal',
+    description: '',
+    color: 0xffa500,
+    fields,
+    footer: { text: 'Schedule Proposal' },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Build Discord message for schedule confirmation with clear structure
+ */
+function buildScheduleConfirmationEmbed(
+  tournamentName: string,
+  data: DiscordScheduleNotificationData
+): any {
+  const confirmedByName = data.fromTeamName || data.fromUserName || 'Unknown';
+  const againstName = data.toTeamName || data.toUserName || 'Unknown';
+
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    { name: '📋 Tournament', value: tournamentName, inline: false },
+    { name: '✅ Confirmed by', value: confirmedByName, inline: true },
+    { name: '🆚 Against', value: againstName, inline: true },
+  ];
+
+  if (data.proposedDateTime) {
+    fields.push({ name: '📅 Confirmed Date/Time', value: data.proposedDateTime, inline: false });
+  }
+
+  return {
+    title: '✅ Schedule Confirmed',
+    description: '',
+    color: 0x00ff00,
+    fields,
+    footer: { text: 'Schedule Confirmed' },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Send an enhanced Discord notification to the tournament thread
  */
 export async function sendDiscordNotification(
-  message: string,
   tournamentId: string,
-  notificationType: 'schedule_proposal' | 'schedule_confirmed'
+  notificationType: 'schedule_proposal' | 'schedule_confirmed',
+  notificationData: DiscordScheduleNotificationData
 ): Promise<boolean> {
   if (!DISCORD_ENABLED) {
     console.log('⏭️  Discord disabled, skipping Discord notification');
@@ -41,9 +100,9 @@ export async function sendDiscordNotification(
   }
 
   try {
-    // Get tournament thread ID from database
+    // Get tournament info including name and thread ID
     const tournamentResult = await query(
-      'SELECT discord_thread_id FROM tournaments WHERE id = ?',
+      'SELECT name, discord_thread_id FROM tournaments WHERE id = ?',
       [tournamentId]
     );
 
@@ -52,27 +111,19 @@ export async function sendDiscordNotification(
       return false;
     }
 
-    const threadId = tournamentResult.rows[0].discord_thread_id;
+    const { name: tournamentName, discord_thread_id: threadId } = tournamentResult.rows[0];
+    
     if (!threadId) {
       console.log('⚠️  No Discord thread ID for this tournament');
       return false;
     }
 
-    // Format message as Discord embed
-    const color = notificationType === 'schedule_proposal' ? 0xffa500 : 0x00ff00; // Orange for proposal, green for confirmed
-    const title = notificationType === 'schedule_proposal' ? '🗓️ Schedule Proposal' : '✅ Schedule Confirmed';
-    
-    const discordMessage = {
-      embeds: [{
-        title: title,
-        description: message,
-        color,
-        footer: {
-          text: notificationType === 'schedule_proposal' ? 'Schedule Proposal' : 'Schedule Confirmed',
-        },
-        timestamp: new Date().toISOString(),
-      }],
-    };
+    // Build appropriate embed
+    const embed = notificationType === 'schedule_proposal'
+      ? buildScheduleProposalEmbed(tournamentName, notificationData)
+      : buildScheduleConfirmationEmbed(tournamentName, notificationData);
+
+    const discordMessage = { embeds: [embed] };
 
     // Send to Discord thread
     const success = await discordService.publishTournamentMessage(threadId, discordMessage);
@@ -91,7 +142,7 @@ export async function sendDiscordNotification(
 }
 
 /**
- * Store a notification in the database to be shown as a toast when users access the app
+ * Store a notification in the database to be shown when users access the app
  */
 export async function storeNotificationForUsers(
   userIds: string[],
@@ -99,15 +150,16 @@ export async function storeNotificationForUsers(
   matchId: string,
   type: 'schedule_proposal' | 'schedule_confirmed',
   title: string,
-  message: string
+  message: string,
+  messageExtra?: string | null
 ): Promise<boolean> {
   try {
     for (const userId of userIds) {
       const notificationId = uuidv4();
       await query(
-        `INSERT INTO user_notifications (id, user_id, tournament_id, match_id, type, title, message, is_read)
-         VALUES (?, ?, ?, ?, ?, ?, ?, false)`,
-        [notificationId, userId, tournamentId, matchId, type, title, message]
+        `INSERT INTO user_notifications (id, user_id, tournament_id, match_id, type, title, message, message_extra, is_read)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, false)`,
+        [notificationId, userId, tournamentId, matchId, type, title, message, messageExtra || null]
       );
     }
     console.log(`✅ Stored ${userIds.length} notification(s) in database`);
