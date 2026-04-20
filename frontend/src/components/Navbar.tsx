@@ -271,7 +271,17 @@ const Navbar: React.FC = () => {
                       recentNotifications.map((notif) => (
                         <div
                           key={notif.id}
-                          className="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                          onClick={() => {
+                            if (notif.tournament_id && notif.match_id) {
+                              navigate(`/tournament/${notif.tournament_id}?tab=roundMatches&matchId=${notif.match_id}`);
+                            }
+                            setNotificationsDropdownOpen(false);
+                          }}
+                          className={`px-4 py-3 border-b border-gray-100 transition-colors cursor-pointer ${
+                            notif.tournament_id && notif.match_id
+                              ? 'hover:bg-green-50 hover:border-green-200'
+                              : 'hover:bg-gray-50'
+                          }`}
                         >
                           <div className="flex justify-between items-start gap-2">
                             <div className="flex-1 min-w-0">
@@ -289,6 +299,11 @@ const Navbar: React.FC = () => {
                               <p className="text-xs text-gray-400 mt-1">
                                 {new Date(notif.created_at).toLocaleDateString()}
                               </p>
+                              {notif.tournament_id && notif.match_id && (
+                                <p className="text-xs text-green-600 font-semibold mt-1">
+                                  → {t('label_go_tournament') || 'Go to Tournament'}
+                                </p>
+                              )}
                             </div>
                             {!notif.is_read && (
                               <span className="bg-blue-500 rounded-full w-2 h-2 flex-shrink-0 mt-1"></span>
