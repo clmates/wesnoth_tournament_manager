@@ -82,16 +82,21 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
         })
       );
 
-      await Promise.all(promises);
+      const responses = await Promise.all(promises);
+      const allSuccess = responses.every(r => r.ok);
       
-      setNotifications(
-        notifications.map(n =>
-          selectedIds.has(n.id) ? { ...n, is_read: true } : n
-        )
-      );
-      setSelectedIds(new Set());
-      if (onNotificationRead) {
-        onNotificationRead();
+      if (allSuccess) {
+        setNotifications(
+          notifications.map(n =>
+            selectedIds.has(n.id) ? { ...n, is_read: true } : n
+          )
+        );
+        setSelectedIds(new Set());
+        if (onNotificationRead) {
+          onNotificationRead();
+        }
+      } else {
+        console.error('Some notifications failed to mark as read:', responses.map(r => r.status));
       }
     } catch (err) {
       console.error('Error marking notifications as read:', err);
@@ -195,6 +200,9 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
         if (onNotificationRead) {
           onNotificationRead();
         }
+      } else {
+        const errorData = await response.json();
+        console.error(`Error marking notification as read: ${response.status}`, errorData);
       }
     } catch (err) {
       console.error('Error marking notification as read:', err);
@@ -282,9 +290,9 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
                   : 'border-transparent text-gray-600 hover:text-gray-800'
               }`}
             >
-              {filterOption === 'all' && t('all') || 'All'}
-              {filterOption === 'pending' && t('pending') || 'Pending'}
-              {filterOption === 'accepted' && t('accepted') || 'Accepted'}
+              {filterOption === 'all' && (t('all') || 'All')}
+              {filterOption === 'pending' && (t('pending') || 'Pending')}
+              {filterOption === 'accepted' && (t('accepted') || 'Accepted')}
             </button>
           ))}
         </div>
@@ -318,9 +326,9 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
                 : 'border-transparent text-gray-600 hover:text-gray-800'
             }`}
           >
-            {filterOption === 'all' && t('all') || 'All'}
-            {filterOption === 'pending' && t('pending') || 'Pending'}
-            {filterOption === 'accepted' && t('accepted') || 'Accepted'}
+            {filterOption === 'all' && (t('all') || 'All')}
+            {filterOption === 'pending' && (t('pending') || 'Pending')}
+            {filterOption === 'accepted' && (t('accepted') || 'Accepted')}
           </button>
         ))}
       </div>

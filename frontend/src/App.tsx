@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import User from './pages/User';
 import Profile from './pages/Profile';
+import Notifications from './pages/Notifications';
 import PlayerProfile from './pages/PlayerProfile';
 import Matches from './pages/Matches';
 import MyMatches from './pages/MyMatches';
@@ -199,6 +200,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/user" element={<User />} />
+            <Route path="/notifications" element={<Notifications />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/player/:id" element={<PlayerProfile />} />
             <Route path="/player/:playerId/stats" element={<PlayerStatsPage />} />
