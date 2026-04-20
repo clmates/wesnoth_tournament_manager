@@ -240,6 +240,51 @@ router.post('/:notificationId/mark-read', authMiddleware, async (req: AuthReques
 });
 
 /**
+ * POST /:notificationId/mark-unread
+ * Mark a specific notification as unread
+ */
+router.post('/:notificationId/mark-unread', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const { notificationId } = req.params;
+    const userId = req.userId;
+
+    if (!userId || !notificationId) {
+      return res.status(400).json({ error: 'Missing parameters' });
+    }
+
+    // Verify ownership of notification
+    const notificationResult = await query(
+      'SELECT user_id FROM user_notifications WHERE id = ?',
+      [notificationId]
+    );
+
+    if (!notificationResult.rows || notificationResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    if (notificationResult.rows[0].user_id !== userId) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Mark as unread
+    await query(
+      'UPDATE user_notifications SET is_read = false WHERE id = ?',
+      [notificationId]
+    );
+
+    console.log(`✅ Marked notification ${notificationId} as unread`);
+
+    res.json({
+      success: true,
+      message: 'Notification marked as unread',
+    });
+  } catch (error) {
+    console.error('❌ Error marking notification as unread:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * POST /:notificationId/delete
  * Soft delete a specific notification
  */

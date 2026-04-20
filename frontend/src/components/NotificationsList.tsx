@@ -105,6 +105,41 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
     }
   };
 
+  const handleBulkMarkAsUnread = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkMarking(true);
+    try {
+      const token = localStorage.getItem('token');
+      const promises = Array.from(selectedIds).map(id =>
+        fetch(`/api/notifications/${id}/mark-unread`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      const responses = await Promise.all(promises);
+      const allSuccess = responses.every(r => r.ok);
+      
+      if (allSuccess) {
+        setNotifications(
+          notifications.map(n =>
+            selectedIds.has(n.id) ? { ...n, is_read: false } : n
+          )
+        );
+        setSelectedIds(new Set());
+      } else {
+        console.error('Some notifications failed to mark as unread:', responses.map(r => r.status));
+      }
+    } catch (err) {
+      console.error('Error marking notifications as unread:', err);
+    } finally {
+      setBulkMarking(false);
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
@@ -206,6 +241,32 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
       }
     } catch (err) {
       console.error('Error marking notification as read:', err);
+    }
+  };
+
+  const handleMarkAsUnread = async (notificationId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/notifications/${notificationId}/mark-unread`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setNotifications(
+          notifications.map(n =>
+            n.id === notificationId ? { ...n, is_read: false } : n
+          )
+        );
+      } else {
+        const errorData = await response.json();
+        console.error(`Error marking notification as unread: ${response.status}`, errorData);
+      }
+    } catch (err) {
+      console.error('Error marking notification as unread:', err);
     }
   };
 
@@ -348,6 +409,13 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
               {bulkMarking ? 'Marking...' : '✓ Mark as Read'}
             </button>
             <button
+              onClick={handleBulkMarkAsUnread}
+              disabled={bulkMarking || bulkDeleting}
+              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {bulkMarking ? 'Marking...' : '↩️ Mark as Unread'}
+            </button>
+            <button
               onClick={handleBulkDelete}
               disabled={bulkDeleting || bulkMarking}
               className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -424,6 +492,15 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
                   title="Mark as read"
                 >
                   ✓
+                </button>
+              )}
+              {notification.is_read && (
+                <button
+                  onClick={() => handleMarkAsUnread(notification.id)}
+                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                  title="Mark as unread"
+                >
+                  ↩️
                 </button>
               )}
               <button
