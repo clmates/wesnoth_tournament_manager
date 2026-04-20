@@ -63,11 +63,11 @@ const Navbar: React.FC = () => {
         }
       };
 
-      // Load recent notifications for dropdown
+      // Load recent notifications for dropdown (unread only)
       const loadRecentNotifications = async () => {
         try {
           const token = localStorage.getItem('token');
-          const response = await fetch('/api/notifications?limit=5', {
+          const response = await fetch('/api/notifications/pending?limit=5', {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -307,7 +307,7 @@ const Navbar: React.FC = () => {
                   {recentNotifications.length > 0 && (
                     <button
                       onClick={() => {
-                        navigate('/user?tab=notifications');
+                        navigate('/notifications');
                         setNotificationsDropdownOpen(false);
                       }}
                       className="w-full px-4 py-2 text-center text-blue-600 hover:bg-blue-50 border-t border-gray-200 text-sm font-semibold transition-colors"
