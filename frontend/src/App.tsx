@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n/config';
 import { useAuthStore } from './store/authStore';
-import { useNotificationStore } from './stores/notificationStore';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import MaintenanceBanner from './components/MaintenanceBanner';
@@ -36,12 +35,10 @@ import FAQ from './pages/FAQ';
 import Tournaments from './pages/Tournaments';
 import TournamentDetail from './pages/TournamentDetail';
 import { adminService } from './services/api';
-import { getUnreadNotifications, markAsRead } from './services/notificationService';
 import './App.css';
 
 const App: React.FC = () => {
   const { isAdmin, token, validateToken, isValidating } = useAuthStore();
-  const { addToast } = useNotificationStore();
   const [authChecked, setAuthChecked] = React.useState(false);
   const [maintenanceMode, setMaintenanceMode] = React.useState(false);
   const [notificationsLoaded, setNotificationsLoaded] = React.useState(false);
@@ -59,103 +56,11 @@ const App: React.FC = () => {
   }, [token, validateToken]);
 
   useEffect(() => {
-    // Load unread notifications when user accesses the app
-    const loadNotifications = async () => {
-      if (token && authChecked && !notificationsLoaded) {
-        try {
-          // Load generic notifications
-          const notifications = await getUnreadNotifications();
-          console.log('📬 Loaded notifications:', notifications);
-          
-                              // Show toast for each notification (don't wait for markAsRead)
-          if (Array.isArray(notifications)) {
-            notifications.forEach((notification) => {
-              try {
-                if (typeof addToast === 'function') {
-                  addToast({
-                    title: notification.title,
-                    message: notification.message,
-                    type: notification.type === 'schedule_proposal' ? 'schedule_proposal' : 'success',
-                  });
-                  console.log('📢 Shown notification:', notification.id);
-                } else {
-                  console.warn('⚠️ addToast is not a function:', typeof addToast);
-                }
-              } catch (toastError) {
-                console.error('Error adding toast for notification:', toastError);
-              }
-            });
-            
-            // Mark all as read in background (don't block on this)
-            notifications.forEach(notification => {
-              markAsRead(notification.id).catch(err => 
-                console.error('Error marking notification as read:', err)
-              );
-            });
-          } else {
-            console.warn('⚠️ Notifications is not an array:', typeof notifications);
-          }
-          
-          // Load pending schedule confirmations
-          try {
-            const response = await fetch('/api/tournament-scheduling/pending-confirmations', {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              console.log('✅ Pending schedules loaded:', data);
-              
-              if (data.schedules && data.schedules.length > 0) {
-                console.log(`📅 Found ${data.schedules.length} pending schedules`);
-                
-                // Show notification for each pending schedule
-                for (const schedule of data.schedules) {
-                  try {
-                    const scheduleDate = new Date(schedule.scheduledDatetime);
-                    const formattedDate = scheduleDate.toLocaleString('es-ES', {
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    });
-                    
-                    // Show toast notification
-                    if (typeof addToast === 'function') {
-                      addToast({
-                        title: `⏰ Schedule Pending: ${schedule.tournamentName}`,
-                        message: `Match scheduled for ${formattedDate}. Please confirm.`,
-                        type: 'schedule_proposal',
-                      });
-                      console.log('📢 Shown notification for schedule:', schedule.matchId);
-                    } else {
-                      console.warn('⚠️ addToast is not a function in pending schedules:', typeof addToast);
-                    }
-                  } catch (notificationError) {
-                    console.error('Error showing schedule notification:', notificationError);
-                  }
-                }
-              } else {
-                console.log('✅ No pending schedules');
-              }
-            } else {
-              console.warn('⚠️ Failed to load pending schedules:', response.status, response.statusText);
-            }
-          } catch (scheduleError) {
-            console.warn('Could not load pending schedules:', scheduleError);
-          }
-          
-          setNotificationsLoaded(true);
-        } catch (error) {
-          console.error('❌ Error loading notifications:', error);
-        }
-      }
-    };
-
-    loadNotifications();
+    // Mark as loaded when token and auth is checked
+    // Popups removed - users can see notifications via navbar bell icon
+    if (token && authChecked && !notificationsLoaded) {
+      setNotificationsLoaded(true);
+    }
   }, [token, authChecked, notificationsLoaded]);
 
   useEffect(() => {
