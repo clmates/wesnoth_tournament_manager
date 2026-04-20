@@ -475,16 +475,46 @@ const TournamentDetail: React.FC = () => {
 
   // Handle scrolling to highlighted match when roundMatches tab is active
   useEffect(() => {
-    if (activeTab === 'roundMatches' && highlightedMatchId) {
-      const matchElement = document.getElementById(`match-${highlightedMatchId}`);
-      if (matchElement) {
-        // Small delay to ensure rendering is complete
-        setTimeout(() => {
+    if (activeTab === 'roundMatches' && highlightedMatchId && roundMatches.length > 0) {
+      console.log('🔍 Looking for match:', highlightedMatchId, 'with roundMatches:', roundMatches.length);
+      
+      // Increased delay to ensure rendering is complete and DOM is ready
+      const timer = setTimeout(() => {
+        const matchElement = document.getElementById(`match-${highlightedMatchId}`);
+        if (matchElement) {
+          console.log('✅ Found match element, scrolling...');
+          
+          // Try to scroll to element with smooth behavior
           matchElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 100);
-      }
+          
+          // Also try to find and scroll any parent overflow containers
+          let scrollParent = matchElement.parentElement;
+          while (scrollParent) {
+            const hasOverflow = window.getComputedStyle(scrollParent).overflow;
+            if (hasOverflow && (hasOverflow === 'auto' || hasOverflow === 'scroll' || hasOverflow === 'overlay')) {
+              console.log('📍 Found scrollable parent, adjusting scroll');
+              const rect = matchElement.getBoundingClientRect();
+              const parentRect = scrollParent.getBoundingClientRect();
+              
+              // Calculate scroll position
+              const scrollTop = scrollParent.scrollTop + (rect.top - parentRect.top) - (parentRect.height / 2) + (rect.height / 2);
+              scrollParent.scrollTop = scrollTop;
+              break;
+            }
+            scrollParent = scrollParent.parentElement;
+          }
+          
+          console.log('🎯 Scrolled to match:', highlightedMatchId);
+        } else {
+          // Try alternative: check if it exists in DOM
+          const allMatches = document.querySelectorAll('[id^="match-"]');
+          console.warn('⚠️ Match element not found. Total match elements in DOM:', allMatches.length);
+          allMatches.forEach(m => console.log('  - Found:', m.id));
+        }
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [activeTab, highlightedMatchId]);
+  }, [activeTab, highlightedMatchId, roundMatches.length]);
 
   const handleTeamJoinSubmit = async (teamName: string, teammateName: string) => {
     try {
