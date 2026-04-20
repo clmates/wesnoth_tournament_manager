@@ -154,6 +154,7 @@
   "cancel_btn": "Cancel",
   "delete_btn": "Delete",
   "label_back": "Back",
+  "label_go_tournament": "Go to Tournament",
   "confirm_delete_tournament": "Are you sure you want to delete this tournament? Associated matches will be desvinculated but not deleted.",
   "report": "Report",
   "determine_winner": "Determine Winner",

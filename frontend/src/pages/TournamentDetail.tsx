@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { publicService, tournamentService, api } from '../services/api';
 import TournamentForm from '../components/TournamentForm';
@@ -210,6 +210,7 @@ const TournamentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const { userId, user, enableRanked, isAdmin, isTournamentModerator, token } = useAuthStore();
 
@@ -231,7 +232,14 @@ const TournamentDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [activeTab, setActiveTab] = useState<'participants' | 'matches' | 'rounds' | 'roundMatches' | 'ranking' | 'teams'>('participants');
+  const [activeTab, setActiveTab] = useState<'participants' | 'matches' | 'rounds' | 'roundMatches' | 'ranking' | 'teams'>(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'roundMatches' || tabParam === 'matches' || tabParam === 'rounds' || tabParam === 'ranking' || tabParam === 'teams') {
+      return tabParam;
+    }
+    return 'participants';
+  });
+  const [highlightedMatchId, setHighlightedMatchId] = useState<string | null>(searchParams.get('matchId'));
   const [myMatchesOnly, setMyMatchesOnly] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'scheduled' | 'completed'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -464,6 +472,19 @@ const TournamentDetail: React.FC = () => {
       fetchAllAssets();
     }
   }, [editMode, tournament?.id, tournament?.tournament_mode]);
+
+  // Handle scrolling to highlighted match when roundMatches tab is active
+  useEffect(() => {
+    if (activeTab === 'roundMatches' && highlightedMatchId) {
+      const matchElement = document.getElementById(`match-${highlightedMatchId}`);
+      if (matchElement) {
+        // Small delay to ensure rendering is complete
+        setTimeout(() => {
+          matchElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+  }, [activeTab, highlightedMatchId]);
 
   const handleTeamJoinSubmit = async (teamName: string, teammateName: string) => {
     try {
@@ -2200,8 +2221,18 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                         </tr>
                       </thead>
                       <tbody>
-                        {matchesInRound.map((match) => (
-                          <tr key={match.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                        {matchesInRound.map((match) => {
+                          const isHighlighted = highlightedMatchId === match.id;
+                          return (
+                            <tr 
+                              key={match.id} 
+                              id={`match-${match.id}`}
+                              className={`border-b transition-all ${
+                                isHighlighted 
+                                  ? 'bg-yellow-200 border-yellow-500 font-semibold' 
+                                  : 'border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
                             <td className="px-4 py-3 text-gray-700">
                               <div className="flex flex-col gap-1">
                                 <div>
@@ -2385,7 +2416,8 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                               </td>
                             )}
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                     </div>

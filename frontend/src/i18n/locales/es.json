@@ -154,6 +154,7 @@
   "cancel_btn": "Cancelar",
   "delete_btn": "Eliminar",
   "label_back": "Atrás",
+  "label_go_tournament": "Ir al Torneo",
   "confirm_delete_tournament": "¿Estás seguro de que quieres eliminar este torneo? Los matches asociados se desvincularcán pero no se eliminarán.",
   "recent_games": "Partidas Recientes",
   "recent_games_no_data": "No hay partidas recientes",
