@@ -38,11 +38,13 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
   const { user } = useAuthStore();
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('12:00');
+  const [scheduleMessage, setScheduleMessage] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const MAX_MESSAGE_LENGTH = 500;
 
   // Get user's timezone
   const getUserTimeZone = () => {
@@ -147,11 +149,12 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
       }
 
       const utcDatetime = localToUTC(selectedDate, selectedTime);
-      await tournamentSchedulingService.proposeSchedule(matchId, utcDatetime);
+      await tournamentSchedulingService.proposeSchedule(matchId, utcDatetime, scheduleMessage);
       setSuccess(true);
 
       setTimeout(async () => {
         setSuccess(false);
+        setScheduleMessage(''); // Clear message after successful proposal
         // Reload schedule after proposing
         await loadSchedule();
         if (onSuccess) onSuccess();
@@ -174,11 +177,12 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
       }
 
       const utcDatetime = localToUTC(selectedDate, selectedTime);
-      await tournamentSchedulingService.confirmSchedule(matchId, utcDatetime);
+      await tournamentSchedulingService.confirmSchedule(matchId, utcDatetime, scheduleMessage);
       setSuccess(true);
 
       setTimeout(async () => {
         setSuccess(false);
+        setScheduleMessage(''); // Clear message after successful confirmation
         // Reload schedule after confirming
         await loadSchedule();
         if (onSuccess) onSuccess();
@@ -301,6 +305,31 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
             <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
               Time will be converted to UTC for storage. Opponent will see this in their timezone.
             </p>
+
+            {/* Message/Comment field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Optional message for opponent
+              </label>
+              <textarea
+                value={scheduleMessage}
+                onChange={(e) => {
+                  if (e.target.value.length <= MAX_MESSAGE_LENGTH) {
+                    setScheduleMessage(e.target.value);
+                  }
+                }}
+                placeholder="e.g., Alternative times available, timezone concerns, etc."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                rows={3}
+                disabled={loading}
+                maxLength={MAX_MESSAGE_LENGTH}
+              />
+              <div className="flex justify-between items-center mt-1">
+                <p className="text-xs text-gray-500">
+                  {scheduleMessage.length}/{MAX_MESSAGE_LENGTH} characters
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

@@ -24,10 +24,13 @@ export const tournamentSchedulingService = {
   /**
    * Propose a match schedule
    */
-  proposeSchedule: async (tournamentRoundMatchId: string, scheduledDatetime: string) => {
+  proposeSchedule: async (tournamentRoundMatchId: string, scheduledDatetime: string, scheduleMessage?: string) => {
     const response = await api.post(
       `/tournament-scheduling/${tournamentRoundMatchId}/propose-schedule`,
-      { scheduled_datetime: scheduledDatetime }
+      { 
+        scheduled_datetime: scheduledDatetime,
+        ...(scheduleMessage && { scheduleMessage })
+      }
     );
     return response.data;
   },
@@ -35,10 +38,13 @@ export const tournamentSchedulingService = {
   /**
    * Confirm a proposed schedule (can also counter-propose with a different time)
    */
-  confirmSchedule: async (tournamentRoundMatchId: string, scheduledDatetime?: string) => {
+  confirmSchedule: async (tournamentRoundMatchId: string, scheduledDatetime?: string, scheduleMessage?: string) => {
     const response = await api.post(
       `/tournament-scheduling/${tournamentRoundMatchId}/confirm-schedule`,
-      scheduledDatetime ? { scheduled_datetime: scheduledDatetime } : {}
+      {
+        ...(scheduledDatetime && { scheduled_datetime: scheduledDatetime }),
+        ...(scheduleMessage && { scheduleMessage })
+      }
     );
     return response.data;
   },
