@@ -34,6 +34,9 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
   const [pageOffset, setPageOffset] = useState(0);
   const [total, setTotal] = useState(0);
   const [currentFilter, setCurrentFilter] = useState<'all' | 'pending' | 'accepted'>(filter);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkMarking, setBulkMarking] = useState(false);
   const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
@@ -45,6 +48,88 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
       onNotificationsLoaded();
     }
   }, [notifications, loading]);
+
+  const toggleSelectNotification = (notificationId: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(notificationId)) {
+      newSelected.delete(notificationId);
+    } else {
+      newSelected.add(notificationId);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === notifications.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(notifications.map(n => n.id)));
+    }
+  };
+
+  const handleBulkMarkAsRead = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkMarking(true);
+    try {
+      const token = localStorage.getItem('token');
+      const promises = Array.from(selectedIds).map(id =>
+        fetch(`/api/notifications/${id}/mark-read`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      await Promise.all(promises);
+      
+      setNotifications(
+        notifications.map(n =>
+          selectedIds.has(n.id) ? { ...n, is_read: true } : n
+        )
+      );
+      setSelectedIds(new Set());
+      if (onNotificationRead) {
+        onNotificationRead();
+      }
+    } catch (err) {
+      console.error('Error marking notifications as read:', err);
+    } finally {
+      setBulkMarking(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const promises = Array.from(selectedIds).map(id =>
+        fetch(`/api/notifications/${id}/delete`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      );
+
+      await Promise.all(promises);
+      
+      setNotifications(
+        notifications.filter(n => !selectedIds.has(n.id))
+      );
+      setSelectedIds(new Set());
+      if (onNotificationDeleted) {
+        onNotificationDeleted();
+      }
+    } catch (err) {
+      console.error('Error deleting notifications:', err);
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const getEndpoint = () => {
     switch (currentFilter) {
@@ -189,6 +274,7 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
               onClick={() => {
                 setCurrentFilter(filterOption as 'all' | 'pending' | 'accepted');
                 setPageOffset(0);
+                setSelectedIds(new Set());
               }}
               className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
                 currentFilter === filterOption
@@ -224,6 +310,7 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
             onClick={() => {
               setCurrentFilter(filterOption as 'all' | 'pending' | 'accepted');
               setPageOffset(0);
+              setSelectedIds(new Set());
             }}
             className={`px-4 py-2 font-semibold border-b-2 transition-colors ${
               currentFilter === filterOption
@@ -238,17 +325,65 @@ const NotificationsList: React.FC<NotificationsListProps> = ({
         ))}
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-4 items-center justify-between">
+          <div className="text-sm text-gray-700">
+            {selectedIds.size} selected
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleBulkMarkAsRead}
+              disabled={bulkMarking || bulkDeleting}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {bulkMarking ? 'Marking...' : '✓ Mark as Read'}
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting || bulkMarking}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {bulkDeleting ? 'Deleting...' : '🗑️ Delete'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Select All Checkbox (only if we have notifications) */}
+      {notifications.length > 0 && (
+        <div className="flex items-center gap-2 mb-2">
+          <input
+            type="checkbox"
+            checked={selectedIds.size === notifications.length && notifications.length > 0}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 cursor-pointer"
+            title="Select all notifications"
+          />
+          <label className="text-sm text-gray-600 cursor-pointer">
+            Select All ({notifications.length})
+          </label>
+        </div>
+      )}
+
       {/* Notifications List */}
       {notifications.map((notification) => (
         <div
           key={notification.id}
-          className={`border rounded-lg p-4 transition-colors ${
+          className={`border rounded-lg p-4 transition-colors flex gap-3 ${
             notification.is_read
               ? 'bg-white border-gray-200'
               : 'bg-blue-50 border-blue-200'
-          }`}
+          } ${selectedIds.has(notification.id) ? 'ring-2 ring-blue-500' : ''}`}
         >
-          <div className="flex items-start justify-between gap-4">
+          <input
+            type="checkbox"
+            checked={selectedIds.has(notification.id)}
+            onChange={() => toggleSelectNotification(notification.id)}
+            className="w-4 h-4 mt-1 cursor-pointer flex-shrink-0"
+          />
+
+          <div className="flex-1 flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-2xl">{getNotificationIcon(notification.type)}</span>
