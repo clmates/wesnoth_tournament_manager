@@ -67,3 +67,5 @@ tmp/
 
 # Scripts / export files
 scripts/
+playwright-report/
+test-results/
