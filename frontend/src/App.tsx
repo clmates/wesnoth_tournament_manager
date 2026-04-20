@@ -4,7 +4,6 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n/config';
 import { useAuthStore } from './store/authStore';
 import { useNotificationStore } from './stores/notificationStore';
-import { connectToNotifications, disconnectFromNotifications } from './services/socketService';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import MaintenanceBanner from './components/MaintenanceBanner';
@@ -57,23 +56,6 @@ const App: React.FC = () => {
     
     checkAuth();
   }, [token, validateToken]);
-
-  useEffect(() => {
-    // Connect to Socket.IO when user is authenticated and WebSockets are enabled
-    const enableWebSockets = import.meta.env.VITE_ENABLE_WEBSOCKETS === 'true';
-    
-    if (token && authChecked && enableWebSockets) {
-      console.log('🔌 Initializing Socket.IO connection...');
-      connectToNotifications();
-
-      return () => {
-        // Cleanup: disconnect on unmount or when token changes
-        disconnectFromNotifications();
-      };
-    } else if (token && authChecked && !enableWebSockets) {
-      console.log('⚠️ WebSocket notifications disabled - using database fallback only');
-    }
-  }, [token, authChecked]);
 
   useEffect(() => {
     // Load unread notifications when user accesses the app
