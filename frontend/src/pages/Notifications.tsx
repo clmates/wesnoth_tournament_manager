@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import MainLayout from '../components/MainLayout';
-import UserProfileNav from '../components/UserProfileNav';
 import NotificationsList from '../components/NotificationsList';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +22,6 @@ const Notifications: React.FC = () => {
 
   return (
     <MainLayout>
-      <UserProfileNav />
       <div className="bg-gradient-to-br from-gray-100 to-gray-300 min-h-screen py-8 px-4">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">
