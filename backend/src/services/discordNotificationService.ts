@@ -23,8 +23,9 @@ interface DiscordScheduleNotificationData {
 }
 
 /**
- * Build a mention string for Discord users
- * Format: <@userid> for single mention, or comma-separated for multiple
+ * Build a mention string for Discord users in embeds
+ * Format: <@userid> - Discord renders this as a clickable mention
+ * Requires bot to have "Mention @everyone, @here, and All Roles" permission
  */
 function buildDiscordMentions(discordIds?: string[]): string {
   if (!discordIds || discordIds.length === 0) {
