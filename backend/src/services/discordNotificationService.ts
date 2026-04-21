@@ -14,10 +14,23 @@ interface DiscordScheduleNotificationData {
   tournamentName: string;
   fromUserName?: string;
   fromTeamName?: string;
+  fromDiscordId?: string;
   toUserName?: string;
   toTeamName?: string;
+  toDiscordIds?: string[];
   proposedDateTime?: string;
   messageExtra?: string;
+}
+
+/**
+ * Build a mention string for Discord users
+ * Format: <@userid> for single mention, or comma-separated for multiple
+ */
+function buildDiscordMentions(discordIds?: string[]): string {
+  if (!discordIds || discordIds.length === 0) {
+    return '';
+  }
+  return discordIds.map(id => `<@${id}>`).join(' ');
 }
 
 /**
@@ -28,7 +41,13 @@ function buildScheduleProposalEmbed(
   data: DiscordScheduleNotificationData
 ): any {
   const fromName = data.fromTeamName || data.fromUserName || 'Unknown';
-  const toName = data.toTeamName || data.toUserName || 'Unknown';
+  let toName = data.toTeamName || data.toUserName || 'Unknown';
+  
+  // Add Discord mentions to the "To" field if available
+  const toMentions = buildDiscordMentions(data.toDiscordIds);
+  if (toMentions) {
+    toName = `${toName} ${toMentions}`;
+  }
   
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     { name: '📋 Tournament', value: tournamentName, inline: false },
@@ -64,7 +83,13 @@ function buildScheduleConfirmationEmbed(
   data: DiscordScheduleNotificationData
 ): any {
   const confirmedByName = data.fromTeamName || data.fromUserName || 'Unknown';
-  const againstName = data.toTeamName || data.toUserName || 'Unknown';
+  let againstName = data.toTeamName || data.toUserName || 'Unknown';
+  
+  // Add Discord mentions to the "Against" field if available
+  const againstMentions = buildDiscordMentions(data.toDiscordIds);
+  if (againstMentions) {
+    againstName = `${againstName} ${againstMentions}`;
+  }
 
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     { name: '📋 Tournament', value: tournamentName, inline: false },

@@ -466,20 +466,29 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
       );
       proposerName = proposerTeamResult.rows && proposerTeamResult.rows.length > 0 ? proposerTeamResult.rows[0].name : 'Team';
 
-      // Get all users in the opponent team
+      // Get all users in the opponent team with their Discord IDs
       const teamMembersResult = await query(
-        `SELECT user_id FROM tournament_participants 
-        WHERE tournament_id = ? AND team_id = ?`,
+        `SELECT tp.user_id, ue.discord_id FROM tournament_participants tp
+         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         WHERE tp.tournament_id = ? AND tp.team_id = ?`,
         [match.tournament_id, opponentId]
       );
 
       if (teamMembersResult.rows) {
         opponentSocketRecipients = teamMembersResult.rows.map((row: any) => row.user_id);
+        // Collect Discord IDs for mentions (filter out null values)
+        const opponentDiscordIds = teamMembersResult.rows
+          .map((row: any) => row.discord_id)
+          .filter((id: string | null) => id !== null && id !== undefined);
+        
+        if (opponentDiscordIds.length > 0) {
+          opponentEmail = opponentDiscordIds; // Store Discord IDs for later use
+        }
       }
     } else {
       // 1v1 tournament
       const opponentResult = await query(
-        'SELECT username FROM users_extension WHERE user_id = ?',
+        'SELECT username, discord_id FROM users_extension WHERE user_id = ?',
         [opponentId]
       );
       opponentName = opponentResult.rows && opponentResult.rows.length > 0 ? opponentResult.rows[0].username : 'Opponent';
@@ -490,12 +499,10 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
       );
       proposerName = proposerResult.rows && proposerResult.rows.length > 0 ? proposerResult.rows[0].username : 'Player';
       
-      // Get email for Discord ping
-      const userResult = await query(
-        'SELECT user_email FROM phpbb3_users WHERE user_id = ?',
-        [opponentId]
-      );
-      opponentEmail = userResult.rows && userResult.rows.length > 0 ? userResult.rows[0].user_email : null;
+      // Get Discord ID for mention
+      if (opponentResult.rows && opponentResult.rows.length > 0 && opponentResult.rows[0].discord_id) {
+        opponentEmail = [opponentResult.rows[0].discord_id]; // Store as array for consistency
+      }
       
       // For 1v1, send notification to the opponent user only
       opponentSocketRecipients = [opponentId];
@@ -520,6 +527,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
         fromUserName: match.tournament_mode === '1v1' ? proposerName : undefined,
         toTeamName: match.tournament_mode === 'team' ? opponentName : undefined,
         toUserName: match.tournament_mode === '1v1' ? opponentName : undefined,
+        toDiscordIds: Array.isArray(opponentEmail) ? opponentEmail : undefined,
         proposedDateTime: scheduleTimeUTC,
         messageExtra: sanitizedMessage || undefined,
       }
@@ -700,27 +708,29 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     }
 
     if (match.tournament_mode === 'team') {
-      // Get proposer team name and members
+      // Get proposer team name and members with Discord IDs
       const proposerTeamResult = await query(
         'SELECT name FROM tournament_teams WHERE id = ?',
         [proposerTeamId]
       );
       opponentName = proposerTeamResult.rows && proposerTeamResult.rows.length > 0 ? proposerTeamResult.rows[0].name : 'Opponent Team';
 
-      // Get proposer team members
+      // Get proposer team members with Discord IDs
       const proposerMembersResult = await query(
-        `SELECT user_id FROM tournament_participants 
-        WHERE tournament_id = ? AND team_id = ?`,
+        `SELECT tp.user_id, ue.discord_id FROM tournament_participants tp
+         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         WHERE tp.tournament_id = ? AND tp.team_id = ?`,
         [match.tournament_id, proposerTeamId]
       );
       if (proposerMembersResult.rows) {
         proposerSocketRecipients = proposerMembersResult.rows.map((row: any) => row.user_id);
       }
 
-      // Get confirmer team members
+      // Get confirmer team members with Discord IDs
       const confirmerMembersResult = await query(
-        `SELECT user_id FROM tournament_participants 
-        WHERE tournament_id = ? AND team_id = ?`,
+        `SELECT tp.user_id, ue.discord_id FROM tournament_participants tp
+         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         WHERE tp.tournament_id = ? AND tp.team_id = ?`,
         [match.tournament_id, confirmerTeamId]
       );
       if (confirmerMembersResult.rows) {
@@ -729,7 +739,7 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
     } else {
       // 1v1 tournament
       const proposerResult = await query(
-        'SELECT username FROM users_extension WHERE user_id = ?',
+        'SELECT username, discord_id FROM users_extension WHERE user_id = ?',
         [proposerId]
       );
       opponentName = proposerResult.rows && proposerResult.rows.length > 0 ? proposerResult.rows[0].username : 'Opponent';
@@ -747,18 +757,58 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
 
     // Get confirmer name (the one who just confirmed)
     let confirmerName = 'Team';
+    let proposerDiscordIds: string[] = [];
+    let confirmerDiscordIds: string[] = [];
+    
     if (match.tournament_mode === 'team') {
       const confirmerTeamResult = await query(
         'SELECT name FROM tournament_teams WHERE id = ?',
         [confirmerTeamId]
       );
       confirmerName = confirmerTeamResult.rows && confirmerTeamResult.rows.length > 0 ? confirmerTeamResult.rows[0].name : 'Team';
+      
+      // Get proposer team Discord IDs
+      const proposerDiscordResult = await query(
+        `SELECT ue.discord_id FROM tournament_participants tp
+         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         WHERE tp.tournament_id = ? AND tp.team_id = ?
+         AND ue.discord_id IS NOT NULL`,
+        [match.tournament_id, proposerTeamId]
+      );
+      if (proposerDiscordResult.rows) {
+        proposerDiscordIds = proposerDiscordResult.rows.map((row: any) => row.discord_id);
+      }
+      
+      // Get confirmer team Discord IDs
+      const confirmerDiscordResult = await query(
+        `SELECT ue.discord_id FROM tournament_participants tp
+         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         WHERE tp.tournament_id = ? AND tp.team_id = ?
+         AND ue.discord_id IS NOT NULL`,
+        [match.tournament_id, confirmerTeamId]
+      );
+      if (confirmerDiscordResult.rows) {
+        confirmerDiscordIds = confirmerDiscordResult.rows.map((row: any) => row.discord_id);
+      }
     } else {
       const confirmerResult = await query(
-        'SELECT username FROM users_extension WHERE user_id = ?',
+        'SELECT username, discord_id FROM users_extension WHERE user_id = ?',
         [confirmerId]
       );
       confirmerName = confirmerResult.rows && confirmerResult.rows.length > 0 ? confirmerResult.rows[0].username : 'Player';
+      
+      if (confirmerResult.rows && confirmerResult.rows.length > 0 && confirmerResult.rows[0].discord_id) {
+        confirmerDiscordIds = [confirmerResult.rows[0].discord_id];
+      }
+      
+      // Get proposer Discord ID from earlier query
+      const proposerResult = await query(
+        'SELECT discord_id FROM users_extension WHERE user_id = ?',
+        [proposerId]
+      );
+      if (proposerResult.rows && proposerResult.rows.length > 0 && proposerResult.rows[0].discord_id) {
+        proposerDiscordIds = [proposerResult.rows[0].discord_id];
+      }
     }
 
     const scheduleTimeUTC = new Date(match.scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
@@ -771,8 +821,10 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
         tournamentName,
         fromUserName: match.tournament_mode === '1v1' ? opponentName : undefined,
         fromTeamName: match.tournament_mode === 'team' ? opponentName : undefined,
+        fromDiscordId: proposerDiscordIds.length > 0 ? proposerDiscordIds[0] : undefined,
         toUserName: match.tournament_mode === '1v1' ? confirmerName : undefined,
         toTeamName: match.tournament_mode === 'team' ? confirmerName : undefined,
+        toDiscordIds: confirmerDiscordIds.length > 0 ? confirmerDiscordIds : undefined,
         proposedDateTime: scheduleTimeUTC,
       }
     ).catch(err => console.error('⚠️ Discord notification failed:', err));
