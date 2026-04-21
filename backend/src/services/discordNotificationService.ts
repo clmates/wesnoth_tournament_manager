@@ -24,14 +24,13 @@ interface DiscordScheduleNotificationData {
 
 /**
  * Build a mention string for Discord users in embeds
- * Format: <@userid> - Discord renders this as a clickable mention
- * Requires bot to have "Mention @everyone, @here, and All Roles" permission
+ * Format: @username - Display username(s) as text mentions
  */
 function buildDiscordMentions(discordIds?: string[]): string {
   if (!discordIds || discordIds.length === 0) {
     return '';
   }
-  return discordIds.map(id => `<@${id}>`).join(' ');
+  return discordIds.map(id => `@${id}`).join(' ');
 }
 
 /**
