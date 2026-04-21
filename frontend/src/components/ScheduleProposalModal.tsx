@@ -202,6 +202,9 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
   const isUserTheProposer = schedule?.scheduled_by_player_id === user?.id;
   // If user is NOT the proposer but there's a proposal, they need to confirm
   const userNeedsToConfirm = hasProposal && !isUserTheProposer && !isConfirmed;
+  // If user IS the proposer and proposal is awaiting confirmation, they can reschedule/modify
+  const userCanReschedule = hasProposal && isUserTheProposer && !isConfirmed;
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
@@ -264,11 +267,16 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
         )}
 
         {/* Proposal form - show if no confirmed schedule, or if confirmed but user wants to reschedule */}
-        {(!isConfirmed || isConfirmed) && (userNeedsToConfirm || !hasProposal || isConfirmed) && (
+        {(!isConfirmed || isConfirmed) && (userNeedsToConfirm || !hasProposal || isConfirmed || userCanReschedule) && (
           <div className="mb-6 space-y-4">
             {userNeedsToConfirm && !isConfirmed && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
                 ⏳ Your opponent proposed a time. You can confirm it or propose a different time.
+              </div>
+            )}
+            {userCanReschedule && !isConfirmed && (
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded text-orange-800 text-sm">
+                ⏳ Awaiting opponent confirmation. You can modify or reschedule the proposal.
               </div>
             )}
             {isConfirmed && (
@@ -335,13 +343,13 @@ const ScheduleProposalModal: React.FC<ScheduleProposalModalProps> = ({
 
         {/* Buttons */}
         <div className="flex gap-3">
-          {(userNeedsToConfirm || !hasProposal || isConfirmed) && (
+          {(userNeedsToConfirm || !hasProposal || isConfirmed || userCanReschedule) && (
             <button
               onClick={userNeedsToConfirm && !isConfirmed ? handleConfirm : handlePropose}
               disabled={loading || !selectedDate || !selectedTime}
               className="flex-1 px-4 py-2 bg-blue-500 text-white rounded font-semibold hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? '...' : isConfirmed ? '📅 Reschedule' : userNeedsToConfirm ? '✅ Confirm' : '📅 Propose'}
+              {loading ? '...' : isConfirmed ? '📅 Reschedule' : userNeedsToConfirm ? '✅ Confirm' : userCanReschedule ? '📅 Reschedule' : '📅 Propose'}
             </button>
           )}
           <button
