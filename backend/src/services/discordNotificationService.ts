@@ -125,10 +125,10 @@ export async function sendDiscordNotification(
       ? buildScheduleProposalEmbed(tournamentName, notificationData)
       : buildScheduleConfirmationEmbed(tournamentName, notificationData);
 
-    // Build message content with mentions for Discord to recognize them
+    // Build message content with mentions
     let messageContent = '';
     if (notificationData.toDiscordIds && notificationData.toDiscordIds.length > 0) {
-      messageContent = notificationData.toDiscordIds.map(id => `<@${id}>`).join(' ');
+      messageContent = notificationData.toDiscordIds.map(id => `@${id}`).join(' ');
     }
 
     const discordMessage = { 
