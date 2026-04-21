@@ -129,26 +129,39 @@ export async function sendDiscordNotification(
     // Build message content with mentions
     let messageContent = '';
     if (notificationData.toDiscordIds && notificationData.toDiscordIds.length > 0) {
+      console.log(`🔍 [DISCORD-MENTION] Starting to resolve ${notificationData.toDiscordIds.length} Discord usernames:`, notificationData.toDiscordIds);
+      
       // Resolve usernames to numeric Discord IDs for proper mentions
       const resolvedIds: string[] = [];
       for (const discordUsername of notificationData.toDiscordIds) {
+        console.log(`🔄 [DISCORD-MENTION] Attempting to resolve username: ${discordUsername}`);
         const numericId = await resolveDiscordIdFromUsername(discordUsername);
         if (numericId) {
+          console.log(`✅ [DISCORD-MENTION] Successfully resolved ${discordUsername} → ${numericId}`);
           resolvedIds.push(numericId);
         } else {
-          console.warn(`⚠️  Could not resolve Discord ID for username: ${discordUsername}`);
+          console.warn(`❌ [DISCORD-MENTION] Failed to resolve Discord ID for username: ${discordUsername}`);
         }
       }
       
+      console.log(`📊 [DISCORD-MENTION] Resolution summary: ${resolvedIds.length}/${notificationData.toDiscordIds.length} resolved`);
+      
       if (resolvedIds.length > 0) {
         messageContent = resolvedIds.map(id => `<@${id}>`).join(' ');
+        console.log(`📝 [DISCORD-MENTION] Final message content: ${messageContent}`);
+      } else {
+        console.warn(`⚠️  [DISCORD-MENTION] No Discord IDs resolved, message will have no mentions`);
       }
+    } else {
+      console.log(`ℹ️  [DISCORD-MENTION] No Discord IDs provided in notification data`);
     }
 
     const discordMessage = { 
       content: messageContent || undefined,
       embeds: [embed] 
     };
+
+    console.log(`📤 [DISCORD-MENTION] Sending Discord message with content: "${messageContent || '(empty)'}"`);
 
     // Send to Discord thread
     const success = await discordService.publishTournamentMessage(threadId, discordMessage);
