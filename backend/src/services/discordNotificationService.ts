@@ -7,6 +7,7 @@
 import { query } from '../config/database.js';
 import { v4 as uuidv4 } from 'uuid';
 import discordService from './discordService.js';
+import { resolveDiscordIdFromUsername } from './discord.js';
 
 const DISCORD_ENABLED = process.env.DISCORD_ENABLED === 'true';
 
@@ -128,7 +129,20 @@ export async function sendDiscordNotification(
     // Build message content with mentions
     let messageContent = '';
     if (notificationData.toDiscordIds && notificationData.toDiscordIds.length > 0) {
-      messageContent = notificationData.toDiscordIds.map(id => `@${id}`).join(' ');
+      // Resolve usernames to numeric Discord IDs for proper mentions
+      const resolvedIds: string[] = [];
+      for (const discordUsername of notificationData.toDiscordIds) {
+        const numericId = await resolveDiscordIdFromUsername(discordUsername);
+        if (numericId) {
+          resolvedIds.push(numericId);
+        } else {
+          console.warn(`⚠️  Could not resolve Discord ID for username: ${discordUsername}`);
+        }
+      }
+      
+      if (resolvedIds.length > 0) {
+        messageContent = resolvedIds.map(id => `<@${id}>`).join(' ');
+      }
     }
 
     const discordMessage = { 
