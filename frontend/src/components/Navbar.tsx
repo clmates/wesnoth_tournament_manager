@@ -23,6 +23,17 @@ const Navbar: React.FC = () => {
   const [languageDropdownPosition, setLanguageDropdownPosition] = useState<{ top: number; right: number } | null>(null);
   const [notificationsDropdownPosition, setNotificationsDropdownPosition] = useState<{ top: number; right: number } | null>(null);
 
+  // Helper function to get translation safely
+  const getTranslation = (key: string, fallback: string): string => {
+    const result = t(key);
+    // If t() returns the key itself (untranslated), use fallback
+    if (result === key) {
+      console.warn(`Translation key not found: ${key}, using fallback: ${fallback}`);
+      return fallback;
+    }
+    return result || fallback;
+  };
+
   const languages = [
     { code: 'en', name: 'English', countryCode: 'gb' },
     { code: 'es', name: 'Español', countryCode: 'es' },
@@ -262,7 +273,7 @@ const Navbar: React.FC = () => {
                   }}
                 >
                   <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 font-semibold text-gray-800">
-                    {t('notifications_title') || 'Notifications'}
+                    {getTranslation('notifications_title', 'Notifications')}
                   </div>
 
                   {/* Recent Notifications List */}
@@ -313,7 +324,7 @@ const Navbar: React.FC = () => {
                       ))
                     ) : (
                       <div className="px-4 py-6 text-center text-gray-500 text-sm">
-                        {t('notifications_empty') || 'No notifications'}
+                        {getTranslation('notifications_empty', 'No notifications')}
                       </div>
                     )}
                   </div>
@@ -327,7 +338,7 @@ const Navbar: React.FC = () => {
                       }}
                       className="w-full px-4 py-2 text-center text-blue-600 hover:bg-blue-50 border-t border-gray-200 text-sm font-semibold transition-colors"
                     >
-                      {t('notifications_view_all') || 'View All'}
+                      {getTranslation('notifications_view_all', 'View All')}
                     </button>
                   )}
                 </div>,
