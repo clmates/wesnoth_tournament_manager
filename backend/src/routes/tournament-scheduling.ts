@@ -518,6 +518,11 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
     // Send Discord notification to tournament channel with enhanced format
     const scheduleTimeUTC = new Date(scheduled_datetime).toLocaleString('es-ES', { timeZone: 'UTC' });
     
+    console.log(`📋 [SCHEDULE_PROPOSAL] About to send Discord notification with:`, {
+      opponentEmail,
+      toDiscordIds: Array.isArray(opponentEmail) ? opponentEmail : 'NOT ARRAY'
+    });
+    
     await sendDiscordNotification(
       match.tournament_id,
       'schedule_proposal',
