@@ -469,7 +469,7 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
       // Get all users in the opponent team with their Discord IDs
       const teamMembersResult = await query(
         `SELECT tp.user_id, ue.discord_id FROM tournament_participants tp
-         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         LEFT JOIN users_extension ue ON tp.user_id = ue.id
          WHERE tp.tournament_id = ? AND tp.team_id = ?`,
         [match.tournament_id, opponentId]
       );
@@ -718,7 +718,7 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
       // Get proposer team members with Discord IDs
       const proposerMembersResult = await query(
         `SELECT tp.user_id, ue.discord_id FROM tournament_participants tp
-         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         LEFT JOIN users_extension ue ON tp.user_id = ue.id
          WHERE tp.tournament_id = ? AND tp.team_id = ?`,
         [match.tournament_id, proposerTeamId]
       );
@@ -729,7 +729,7 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
       // Get confirmer team members with Discord IDs
       const confirmerMembersResult = await query(
         `SELECT tp.user_id, ue.discord_id FROM tournament_participants tp
-         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         LEFT JOIN users_extension ue ON tp.user_id = ue.id
          WHERE tp.tournament_id = ? AND tp.team_id = ?`,
         [match.tournament_id, confirmerTeamId]
       );
@@ -770,7 +770,7 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
       // Get proposer team Discord IDs
       const proposerDiscordResult = await query(
         `SELECT ue.discord_id FROM tournament_participants tp
-         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         LEFT JOIN users_extension ue ON tp.user_id = ue.id
          WHERE tp.tournament_id = ? AND tp.team_id = ?
          AND ue.discord_id IS NOT NULL`,
         [match.tournament_id, proposerTeamId]
@@ -782,7 +782,7 @@ router.post('/:tournamentRoundMatchId/confirm-schedule', authMiddleware, async (
       // Get confirmer team Discord IDs
       const confirmerDiscordResult = await query(
         `SELECT ue.discord_id FROM tournament_participants tp
-         LEFT JOIN users_extension ue ON tp.user_id = ue.user_id
+         LEFT JOIN users_extension ue ON tp.user_id = ue.id
          WHERE tp.tournament_id = ? AND tp.team_id = ?
          AND ue.discord_id IS NOT NULL`,
         [match.tournament_id, confirmerTeamId]
