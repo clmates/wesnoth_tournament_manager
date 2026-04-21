@@ -23,17 +23,6 @@ interface DiscordScheduleNotificationData {
 }
 
 /**
- * Build a mention string for Discord users in embeds
- * Format: @username - Display username(s) as text mentions
- */
-function buildDiscordMentions(discordIds?: string[]): string {
-  if (!discordIds || discordIds.length === 0) {
-    return '';
-  }
-  return discordIds.map(id => `@${id}`).join(' ');
-}
-
-/**
  * Build Discord message for schedule proposal with clear structure
  */
 function buildScheduleProposalEmbed(
@@ -41,13 +30,7 @@ function buildScheduleProposalEmbed(
   data: DiscordScheduleNotificationData
 ): any {
   const fromName = data.fromTeamName || data.fromUserName || 'Unknown';
-  let toName = data.toTeamName || data.toUserName || 'Unknown';
-  
-  // Add Discord mentions to the "To" field if available
-  const toMentions = buildDiscordMentions(data.toDiscordIds);
-  if (toMentions) {
-    toName = `${toName} ${toMentions}`;
-  }
+  const toName = data.toTeamName || data.toUserName || 'Unknown';
   
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     { name: '📋 Tournament', value: tournamentName, inline: false },
@@ -83,13 +66,7 @@ function buildScheduleConfirmationEmbed(
   data: DiscordScheduleNotificationData
 ): any {
   const confirmedByName = data.fromTeamName || data.fromUserName || 'Unknown';
-  let againstName = data.toTeamName || data.toUserName || 'Unknown';
-  
-  // Add Discord mentions to the "Against" field if available
-  const againstMentions = buildDiscordMentions(data.toDiscordIds);
-  if (againstMentions) {
-    againstName = `${againstName} ${againstMentions}`;
-  }
+  const againstName = data.toTeamName || data.toUserName || 'Unknown';
 
   const fields: Array<{ name: string; value: string; inline?: boolean }> = [
     { name: '📋 Tournament', value: tournamentName, inline: false },
@@ -148,7 +125,16 @@ export async function sendDiscordNotification(
       ? buildScheduleProposalEmbed(tournamentName, notificationData)
       : buildScheduleConfirmationEmbed(tournamentName, notificationData);
 
-    const discordMessage = { embeds: [embed] };
+    // Build message content with mentions for Discord to recognize them
+    let messageContent = '';
+    if (notificationData.toDiscordIds && notificationData.toDiscordIds.length > 0) {
+      messageContent = notificationData.toDiscordIds.map(id => `<@${id}>`).join(' ');
+    }
+
+    const discordMessage = { 
+      content: messageContent || undefined,
+      embeds: [embed] 
+    };
 
     // Send to Discord thread
     const success = await discordService.publishTournamentMessage(threadId, discordMessage);
