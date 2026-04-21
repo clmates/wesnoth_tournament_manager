@@ -434,8 +434,8 @@ router.post('/:tournamentRoundMatchId/propose-schedule', authMiddleware, async (
       [mysqlDateTime, newStatus, userId, now, tournamentRoundMatchId]
     );
 
-    // If this is a reschedule (previous status was confirmed), mark old notifications as read
-    if (match.scheduled_status === 'confirmed') {
+    // If this is a reschedule (previous status was anything but pending), mark old notifications as read
+    if (match.scheduled_status && match.scheduled_status !== 'pending') {
       await query(
         `UPDATE user_notifications 
         SET is_read = true 

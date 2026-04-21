@@ -16,8 +16,14 @@ i18n.use(initReactI18next).init({
   },
   lng: localStorage.getItem('language') || 'en',
   fallbackLng: 'en',
+  ns: ['translation'],
+  defaultNS: 'translation',
   interpolation: {
     escapeValue: false,
+  },
+  missingKeyHandler: (lngs, ns, key) => {
+    console.warn(`Missing translation key: ${key} for languages: ${lngs}`);
+    return key;
   },
 });
 
