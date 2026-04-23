@@ -19,6 +19,7 @@
 | `game_maps` | Valid maps | `id` | `name`, `is_ranked` |
 | `factions` | Valid factions | `id` | `name`, `is_ranked` |
 | `balance_events` | Balance patches | `id` | `event_name`, `affected_factions`, `affected_maps` |
+| `global_statistics` | Aggregated site statistics cache | `id` | `statistic_key`, `statistic_value`, `last_updated` |
 | `system_settings` | Config key-value | `id` | `setting_key`, `setting_value` |
 | `migrations` | Migration tracking | `id` | `name`, `executed_at` |
 
@@ -760,6 +761,28 @@ System audit trail for sensitive operations.
 | `user_agent` | text | Client user-agent string |
 | `details` | JSON | Additional structured context |
 | `created_at` | datetime | |
+
+---
+
+### `global_statistics`
+
+Cached aggregated site-wide statistics for fast retrieval. Updated every 30 minutes by the scheduler.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | char(36) PK | UUID |
+| `statistic_key` | varchar(100) UNIQUE | Metric identifier (e.g., `users_total`, `matches_month`) |
+| `statistic_value` | bigint | Numeric value of the statistic |
+| `last_updated` | datetime | When this row was last updated |
+| `calculated_at` | datetime | When the calculation was performed |
+
+**Keys stored:**
+- `users_total`, `users_active`, `users_ranked`, `users_new_month`, `users_new_year`
+- `matches_today`, `matches_week`, `matches_month`, `matches_year`, `matches_total`
+- `tournament_matches_month`, `tournament_matches_year`, `tournament_matches_total`
+- `tournaments_month`, `tournaments_year`, `tournaments_total`
+
+> **Purpose**: Frontend dashboard displays these statistics on the home page. Caching here allows for efficient retrieval without expensive aggregation queries on each page load. Updated by `GlobalStatisticsCalculatorJob` every 30 minutes.
 
 ---
 

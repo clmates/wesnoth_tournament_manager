@@ -46,6 +46,7 @@ A comprehensive tournament management system for **Wesnoth**, featuring automate
 - ✅ **Rate Limiting**: Protection against abuse and DDoS
 - ✅ **Maintenance Mode**: Graceful service maintenance
 - ✅ **Player of the Month**: Automatic selection based on performance metrics
+- ✅ **Global Statistics Dashboard**: Real-time aggregated site metrics (users, matches, tournaments)
 
 ---
 
@@ -440,6 +441,38 @@ curl -X GET http://localhost:3000/api/public/tournaments/:id/pending-replays \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # Returns: List of confidence=1 replays queued for confirmation
+```
+
+#### 6. Get Global Site Statistics (Public)
+
+Retrieve aggregated site-wide statistics (no authentication required):
+
+```bash
+curl -X GET http://localhost:3000/api/statistics/global
+
+# Returns:
+# {
+#   "users_total": 150,
+#   "users_active": 85,
+#   "users_ranked": 42,
+#   "users_new_month": 12,
+#   "users_new_year": 45,
+#   "matches_today": 3,
+#   "matches_week": 18,
+#   "matches_month": 72,
+#   "matches_year": 280,
+#   "matches_total": 2156,
+#   "tournament_matches_month": 24,
+#   "tournament_matches_year": 95,
+#   "tournament_matches_total": 512,
+#   "tournaments_month": 2,
+#   "tournaments_year": 8,
+#   "tournaments_total": 42,
+#   "last_updated": "2026-04-23T21:18:47.653Z"
+# }
+
+# Force immediate recalculation:
+curl -X GET "http://localhost:3000/api/statistics/global?force=true"
 ```
 
 ---
