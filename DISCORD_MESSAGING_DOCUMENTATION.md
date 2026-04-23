@@ -1253,71 +1253,6 @@ export async function resolveDiscordIdFromUsername(usernameInput: string): Promi
 
 ---
 
-## User Unlock Notifications
-
-### File: `backend/src/services/discord.ts`
-
----
-
-### Function: `notifyUserUnlocked()`
-
-**Location:** `backend/src/services/discord.ts` (lines 132-174)
-
-**Purpose:** Sends a Discord webhook notification to the users channel when an account is unlocked/approved by an administrator. Uses direct @mention if the user has a Discord ID, otherwise mentions by nickname.
-
-**Parameters:**
-- `user`: User object with nickname and optional discord_id
-
-**Returns:** void (async)
-
-**Implementation:**
-
-```typescript
-export async function notifyUserUnlocked(user: {
-  nickname: string;
-  discord_id?: string;
-}) {
-  console.log('🔔 notifyUserUnlocked called for:', user.nickname);
-  console.log('📍 DISCORD_ENABLED:', DISCORD_ENABLED);
-  console.log('📍 DISCORD_WEBHOOK_URL_USERS configured:', !!DISCORD_WEBHOOK_URL_USERS);
-  if (!DISCORD_ENABLED || !DISCORD_WEBHOOK_URL_USERS) {
-    console.warn('[DISCORD] Discord not enabled or webhook not configured - skipping user unlock notification');
-    return;
-  }
-
-  const hasDiscordId = !!user.discord_id;
-  const userMention = hasDiscordId ? `<@${user.discord_id}>` : `**${user.nickname}**`;
-
-  const message = {
-    content: `${userMention}`,
-    embeds: [{
-      title: '🔓 Account Unlocked!',
-      description: `**${user.nickname}** unlocked! You can now login to the site.`,
-      color: 0x2ecc71, // Green
-      timestamp: new Date().toISOString(),
-      footer: { text: 'Wesnoth Tournament Manager' }
-    }]
-  };
-
-  try {
-    console.log('📤 Sending Discord UNLOCK to users channel', {
-      webhook: DISCORD_WEBHOOK_URL_USERS?.slice(0, 60) + '...',
-      discord_id: user.discord_id,
-      nickname: user.nickname,
-    });
-    const response = await axios.post(DISCORD_WEBHOOK_URL_USERS, message);
-    console.log('✅ Discord unlock notification sent successfully. Status:', response.status);
-  } catch (error: any) {
-    console.error('❌ Error sending Discord unlock notification:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message
-    });
-  }
-}
-```
-
 ---
 
 ## Usage Examples
@@ -1418,9 +1353,13 @@ DISCORD_ENABLED=true
 DISCORD_BOT_TOKEN=your_bot_token_here
 DISCORD_GUILD_ID=your_guild_id_here
 DISCORD_FORUM_CHANNEL_ID=your_forum_channel_id_here
-DISCORD_WEBHOOK_URL_ADMIN=your_admin_webhook_url  => Not in use anymore it was used when user management was not linked to wesnoth users
-DISCORD_WEBHOOK_URL_USERS=your_users_webhook_url  => Not in use anymore it was used when user management was not linked to wesnoth users
 ```
+
+**Deprecated webhook URLs** (no longer in use):
+- `DISCORD_WEBHOOK_URL_ADMIN` - Previously used for admin notifications
+- `DISCORD_WEBHOOK_URL_USERS` - Previously used for user unlock notifications
+
+User management is now fully handled through Wesnoth forum sync. Manual unlock/lock operations are no longer performed through the app admin interface.
 
 ---
 
@@ -1430,9 +1369,10 @@ DISCORD_WEBHOOK_URL_USERS=your_users_webhook_url  => Not in use anymore it was u
 - **Authentication:** Bot token via Authorization header
 - **Endpoints Used:**
   - `POST /channels/{id}/threads` - Create forum thread
-  - `POST /channels/{id}/messages` - Post message
-  - `GET /guilds/{id}/members/search` - Search guild members
-- **Webhook Integration:** Incoming webhooks for admin/user notifications => Not in use anymore it was used when user management was not linked to wesnoth users
+  - `POST /channels/{id}/messages` - Post message to thread
+  - `GET /guilds/{id}/members/search` - Search guild members for username resolution
+
+Note: Webhook-based notifications (previously used for user lock/unlock events) have been removed. All user management is now handled through the Wesnoth forum database sync.
 
 ---
 
