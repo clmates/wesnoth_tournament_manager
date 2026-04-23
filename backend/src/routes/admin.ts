@@ -6,7 +6,6 @@ import { authMiddleware, moderatorOrAdminMiddleware, AuthRequest } from '../midd
 import { calculateNewRating, calculateTrend } from '../utils/elo.js';
 import { unlockAccount } from '../services/accountLockout.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
-import { notifyUserUnlocked } from '../services/discord.js';
 import { performGlobalStatsRecalculation } from './matches.js';
 
 const router = Router();
@@ -86,13 +85,6 @@ router.post('/users/:id/unlock', moderatorOrAdminMiddleware, async (req: AuthReq
 
     if (process.env.BACKEND_DEBUG_LOGS === 'true') {
       console.log('✅ User unlocked and unblocked:', user.nickname);
-    }
-
-    // Send Discord notification if enabled
-    try {
-      await notifyUserUnlocked({ nickname: user.nickname, discord_id: user.discord_id });
-    } catch (discordError) {
-      console.error('Discord notification error (unlock):', discordError);
     }
 
     await logAuditEvent({

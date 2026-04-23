@@ -1,12 +1,9 @@
 import axios from 'axios';
 
-const DISCORD_WEBHOOK_URL_ADMIN = process.env.DISCORD_WEBHOOK_URL_ADMIN || 'https://discord.com/api/webhooks/1451903758408614021/YZsof0mktnEB_C7GcpFcIyD7Tc6v2g63dR_bqFQJYqrZRrlzNw6LPYBFfCAOHOurHZRt';
-const DISCORD_WEBHOOK_URL_USERS = process.env.DISCORD_WEBHOOK_URL_USERS || 'https://discord.com/api/webhooks/1451906911900274791/HLp96wiBX5AkZe4A86dSAz5rbJMddDDNM1SVzHGN0h8ekoWdZJ7_Sg0d4x_di54gaMyw';
+const DISCORD_API_URL = 'https://discord.com/api/v10';
 
-// Check if Discord is explicitly enabled via environment variable AND at least one webhook URL is configured
-export const DISCORD_ENABLED = 
-  process.env.DISCORD_ENABLED === 'true' && 
-  !!(process.env.DISCORD_WEBHOOK_URL_ADMIN || process.env.DISCORD_WEBHOOK_URL_USERS);
+// Check if Discord is explicitly enabled via environment variable
+export const DISCORD_ENABLED = process.env.DISCORD_ENABLED === 'true';
 
 /**
  * Resolve Discord username (username#discriminator) to numeric Discord ID
@@ -126,49 +123,5 @@ export async function resolveDiscordIdFromUsername(usernameInput: string): Promi
       errorMessage: error.message
     });
     return null;
-  }
-}
-
-export async function notifyUserUnlocked(user: {
-  nickname: string;
-  discord_id?: string;
-}) {
-  console.log('🔔 notifyUserUnlocked called for:', user.nickname);
-  console.log('📍 DISCORD_ENABLED:', DISCORD_ENABLED);
-  console.log('📍 DISCORD_WEBHOOK_URL_USERS configured:', !!DISCORD_WEBHOOK_URL_USERS);
-  if (!DISCORD_ENABLED || !DISCORD_WEBHOOK_URL_USERS) {
-    console.warn('[DISCORD] Discord not enabled or webhook not configured - skipping user unlock notification');
-    return;
-  }
-
-  const hasDiscordId = !!user.discord_id;
-  const userMention = hasDiscordId ? `<@${user.discord_id}>` : `**${user.nickname}**`;
-
-  const message = {
-    content: `${userMention}`,
-    embeds: [{
-      title: '🔓 Account Unlocked!',
-      description: `**${user.nickname}** unlocked! You can now login to the site.`,
-      color: 0x2ecc71, // Green
-      timestamp: new Date().toISOString(),
-      footer: { text: 'Wesnoth Tournament Manager' }
-    }]
-  };
-
-  try {
-    console.log('📤 Sending Discord UNLOCK to users channel', {
-      webhook: DISCORD_WEBHOOK_URL_USERS?.slice(0, 60) + '...',
-      discord_id: user.discord_id,
-      nickname: user.nickname,
-    });
-    const response = await axios.post(DISCORD_WEBHOOK_URL_USERS, message);
-    console.log('✅ Discord unlock notification sent successfully. Status:', response.status);
-  } catch (error: any) {
-    console.error('❌ Error sending Discord unlock notification:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message
-    });
   }
 }
