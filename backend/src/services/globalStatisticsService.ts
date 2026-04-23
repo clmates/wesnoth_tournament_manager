@@ -65,7 +65,7 @@ export async function calculateGlobalStatistics(): Promise<GlobalStatistics> {
       stats.users_new_year = row.new_year || 0;
     }
 
-    // Ranked matches statistics (from matches table, status='confirmed')
+    // Ranked matches statistics (from matches table, excluding cancelled)
     // today: only today, week: last 7 days (including today), month: last 30 days, year: last 365 days, total: all
     const matchesResult = await query(
       `SELECT 
@@ -75,7 +75,7 @@ export async function calculateGlobalStatistics(): Promise<GlobalStatistics> {
         SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 364 DAY) THEN 1 ELSE 0 END) as year,
         COUNT(*) as total
        FROM matches
-       WHERE status = 'confirmed'`
+       WHERE status != 'cancelled'`
     );
 
     if (matchesResult.rows.length > 0) {
@@ -87,14 +87,14 @@ export async function calculateGlobalStatistics(): Promise<GlobalStatistics> {
       stats.matches_total = row.total || 0;
     }
 
-    // Tournament matches statistics (from tournament_matches)
+    // Tournament matches statistics (from tournament_matches, excluding pending)
     const tournamentMatchesResult = await query(
       `SELECT 
         SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) THEN 1 ELSE 0 END) as month,
         SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 364 DAY) THEN 1 ELSE 0 END) as year,
         COUNT(*) as total
        FROM tournament_matches
-       WHERE status IN ('completed', 'played')`
+       WHERE match_status != 'pending'`
     );
 
     if (tournamentMatchesResult.rows.length > 0) {
