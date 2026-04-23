@@ -6,8 +6,38 @@ import {
   getBalanceEventForwardImpact,
   createFactionMapStatisticsSnapshot,
 } from '../services/statisticsCalculator.js';
+import {
+  getGlobalStatisticsFromCache,
+  calculateGlobalStatistics,
+  updateGlobalStatisticsCache,
+} from '../services/globalStatisticsService.js';
 
 const router = Router();
+
+/**
+ * Get global site statistics (public endpoint)
+ * Returns cached statistics from global_statistics table
+ * Accepts ?force=true query parameter to recalculate immediately
+ */
+router.get('/global', async (req, res) => {
+  try {
+    const forceRecalculate = req.query.force === 'true';
+
+    if (forceRecalculate) {
+      // Recalculate statistics
+      const stats = await calculateGlobalStatistics();
+      await updateGlobalStatisticsCache(stats);
+      return res.json(stats);
+    }
+
+    // Get from cache
+    const stats = await getGlobalStatisticsFromCache();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching global statistics:', error);
+    res.status(500).json({ error: 'Failed to fetch global statistics' });
+  }
+});
 
 /**
  * Get statistics configuration

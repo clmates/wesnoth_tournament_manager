@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { query } from '../config/database.js';
 import { calculatePlayerOfMonth } from './playerOfMonthJob.js';
+import { calculateGlobalStatisticsJob } from './globalStatisticsJob.js';
 import { SyncGamesFromForumJob } from './syncGamesFromForum.js';
 import ParseNewReplaysRefactored from './parseNewReplaysRefactored.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -75,6 +76,7 @@ export async function autoDiscardUnconfirmedReplays(): Promise<void> {
  * - 01:00 UTC: Check and mark inactive players
  * - 01:30 UTC on 1st: Calculate player of the month
  * - 02:00 UTC: Auto-discard old unconfirmed replays
+ * - Every 30 minutes: Calculate global site statistics
  * - Every 60s: Sync new games from forum database
  * - Every 30s: Parse unparsed replays and create matches
  */
@@ -180,6 +182,15 @@ export const initializeScheduledJobs = (): void => {
         console.error('❌ [CRON] Auto-discard failed:', error);
       }
     });
+
+    // Schedule global statistics calculation every 30 minutes
+    cron.schedule('*/30 * * * *', async () => {
+      try {
+        await calculateGlobalStatisticsJob();
+      } catch (error) {
+        console.error('❌ [CRON] Global statistics calculation failed:', error);
+      }
+    });
     
     console.log('✅ Scheduled jobs initialized:');
     console.log('   - Balance snapshot: Daily at 00:30 UTC');
@@ -187,6 +198,7 @@ export const initializeScheduledJobs = (): void => {
     console.log('   - Inactive players check: Daily at 01:00 UTC');
     console.log('   - Player of month: 1st of month at 01:30 UTC');
     console.log('   - Auto-discard unconfirmed replays: Daily at 02:00 UTC');
+    console.log('   - Global statistics calculation: Every 30 minutes');
     console.log('   - Forum database sync: Every 60 seconds');
     console.log('   - Replay parsing & match creation: Every 30 seconds');
   } catch (error) {

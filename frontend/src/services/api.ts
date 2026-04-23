@@ -298,6 +298,7 @@ export const publicService = {
   getMatch: (id: string) => api.get(`/matches/${id}`),
   getDebug: () => api.get('/public/debug'),
   getPlayerOfMonth: () => api.get('/public/player-of-month'),
+  getGlobalStatistics: () => api.get('/statistics/global'),
 };
 
 export const reportConfidence1Replay = (

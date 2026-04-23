@@ -4,6 +4,7 @@ import { userService, matchService, publicService } from '../services/api';
 import { processMultiLanguageItems } from '../utils/languageFallback';
 import { getLevelTranslationKey } from '../utils/levelTranslation';
 import PlayerLink from '../components/PlayerLink';
+import GlobalStats from '../components/GlobalStats';
 
 // Get API URL for direct backend calls
 // Determine API URL based on frontend hostname and Vite environment variables
@@ -533,10 +534,6 @@ const Home: React.FC = () => {
               <p>{t('no_data')}</p>
             )}
           </section>
-        </div>
-      </div>
-    </div>
-  );
-};
 
-export default Home;
+          {/* Global Statistics */}
+          <GlobalStats />
