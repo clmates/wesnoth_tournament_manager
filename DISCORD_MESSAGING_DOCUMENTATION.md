@@ -1359,7 +1359,6 @@ DISCORD_FORUM_CHANNEL_ID=your_forum_channel_id_here
 - `DISCORD_WEBHOOK_URL_ADMIN` - Previously used for admin notifications
 - `DISCORD_WEBHOOK_URL_USERS` - Previously used for user unlock notifications
 
-User management is now fully handled through Wesnoth forum sync. Manual unlock/lock operations are no longer performed through the app admin interface.
 
 ---
 
@@ -1372,7 +1371,7 @@ User management is now fully handled through Wesnoth forum sync. Manual unlock/l
   - `POST /channels/{id}/messages` - Post message to thread
   - `GET /guilds/{id}/members/search` - Search guild members for username resolution
 
-Note: Webhook-based notifications (previously used for user lock/unlock events) have been removed. All user management is now handled through the Wesnoth forum database sync.
+Note: Webhook-based notifications (previously used for user lock/unlock events) have been removed. 
 
 ---
 
