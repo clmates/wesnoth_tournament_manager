@@ -537,3 +537,10 @@ const Home: React.FC = () => {
 
           {/* Global Statistics */}
           <GlobalStats />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Home;
