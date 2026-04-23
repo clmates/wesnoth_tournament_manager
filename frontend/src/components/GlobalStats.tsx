@@ -22,34 +22,17 @@ interface GlobalStatistics {
   last_updated: string;
 }
 
-interface StatCardProps {
+interface StatRowProps {
   label: string;
   value: number;
-  icon?: string;
-  color?: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ label, value, icon = '📊', color = 'blue' }) => {
-  const colorMap: Record<string, string> = {
-    blue: 'bg-blue-50 border-blue-200 text-blue-900',
-    green: 'bg-green-50 border-green-200 text-green-900',
-    purple: 'bg-purple-50 border-purple-200 text-purple-900',
-    orange: 'bg-orange-50 border-orange-200 text-orange-900',
-    red: 'bg-red-50 border-red-200 text-red-900',
-  };
-
-  return (
-    <div className={`${colorMap[color]} border rounded-lg p-4`}>
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">{icon}</span>
-        <div className="flex-1">
-          <div className="text-sm font-medium text-gray-600 truncate">{label}</div>
-          <div className="text-2xl font-bold">{value.toLocaleString()}</div>
-        </div>
-      </div>
-    </div>
-  );
-};
+const StatRow: React.FC<StatRowProps> = ({ label, value }) => (
+  <div className="flex justify-between items-center py-2 border-b border-gray-200">
+    <span className="text-gray-600 text-sm">{label}</span>
+    <span className="text-gray-900 font-semibold">{value.toLocaleString()}</span>
+  </div>
+);
 
 const GlobalStats: React.FC = () => {
   const { t } = useTranslation();
@@ -82,8 +65,8 @@ const GlobalStats: React.FC = () => {
   if (loading) {
     return (
       <section className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">{t('global_statistics') || 'Site Statistics'}</h3>
-        <div className="text-center text-gray-600">{t('loading')}</div>
+        <h3 className="text-sm font-semibold mb-4">{t('global_statistics') || 'Site Statistics'}</h3>
+        <div className="text-center text-gray-600 text-sm">{t('loading')}</div>
       </section>
     );
   }
@@ -91,66 +74,48 @@ const GlobalStats: React.FC = () => {
   if (error || !stats) {
     return (
       <section className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">{t('global_statistics') || 'Site Statistics'}</h3>
-        <div className="text-center text-red-600 text-sm">{error}</div>
+        <h3 className="text-sm font-semibold mb-4">{t('global_statistics') || 'Site Statistics'}</h3>
+        <div className="text-center text-red-600 text-xs">{error}</div>
       </section>
     );
   }
 
   return (
     <section className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-xl font-bold text-gray-800 mb-4">{t('global_statistics') || 'Site Statistics'}</h3>
+      <h3 className="text-sm font-semibold mb-4">{t('global_statistics') || 'Site Statistics'}</h3>
 
-      {/* Users Section */}
-      <div className="mb-6">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3 uppercase">{t('users') || 'Users'}</h4>
-        <div className="grid grid-cols-2 gap-2">
-          <StatCard label={t('total') || 'Total'} value={stats.users_total} icon="👥" color="blue" />
-          <StatCard label={t('active') || 'Active'} value={stats.users_active} icon="✅" color="green" />
-          <StatCard label={t('ranked') || 'Ranked'} value={stats.users_ranked} icon="⭐" color="purple" />
-          <StatCard label={`${t('new') || 'New'} (${t('month')})`} value={stats.users_new_month} icon="🆕" color="orange" />
-          <StatCard label={`${t('new') || 'New'} (${t('year')})`} value={stats.users_new_year} icon="📅" color="orange" />
-        </div>
-      </div>
+      <div className="space-y-1 text-xs">
+        {/* Users */}
+        <div className="font-semibold text-gray-700 text-xs uppercase mb-2 mt-3">Users</div>
+        <StatRow label={t('total') || 'Total'} value={stats.users_total} />
+        <StatRow label={t('active') || 'Active'} value={stats.users_active} />
+        <StatRow label={t('ranked') || 'Ranked'} value={stats.users_ranked} />
+        <StatRow label={`${t('new') || 'New'} (${t('month')})`} value={stats.users_new_month} />
+        <StatRow label={`${t('new') || 'New'} (${t('year')})`} value={stats.users_new_year} />
 
-      {/* Ranked Matches Section */}
-      <div className="mb-6">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3 uppercase">{t('ranked_matches') || 'Ranked Matches'}</h4>
-        <div className="grid grid-cols-2 gap-2">
-          <StatCard label={t('today') || 'Today'} value={stats.matches_today} icon="🎮" color="blue" />
-          <StatCard label={t('week') || 'Week'} value={stats.matches_week} icon="📊" color="green" />
-          <StatCard label={t('month') || 'Month'} value={stats.matches_month} icon="📅" color="purple" />
-          <StatCard label={t('year') || 'Year'} value={stats.matches_year} icon="📈" color="orange" />
-          <StatCard label={t('total') || 'Total'} value={stats.matches_total} icon="🏆" color="red" />
-        </div>
-      </div>
+        {/* Ranked Matches */}
+        <div className="font-semibold text-gray-700 text-xs uppercase mb-2 mt-3">Ranked Matches</div>
+        <StatRow label={t('today') || 'Today'} value={stats.matches_today} />
+        <StatRow label={t('week') || 'Week'} value={stats.matches_week} />
+        <StatRow label={t('month') || 'Month'} value={stats.matches_month} />
+        <StatRow label={t('year') || 'Year'} value={stats.matches_year} />
+        <StatRow label={t('total') || 'Total'} value={stats.matches_total} />
 
-      {/* Tournament Matches Section */}
-      <div className="mb-6">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3 uppercase">{t('tournament_matches') || 'Tournament Matches'}</h4>
-        <div className="grid grid-cols-2 gap-2">
-          <StatCard label={`${t('month') || 'Month'}`} value={stats.tournament_matches_month} icon="🎯" color="blue" />
-          <StatCard label={`${t('year') || 'Year'}`} value={stats.tournament_matches_year} icon="📅" color="green" />
-          <StatCard label={t('total') || 'Total'} value={stats.tournament_matches_total} icon="🏅" color="purple" />
-        </div>
-      </div>
+        {/* Tournament Matches */}
+        <div className="font-semibold text-gray-700 text-xs uppercase mb-2 mt-3">Tournament Matches</div>
+        <StatRow label={`${t('month') || 'Month'}`} value={stats.tournament_matches_month} />
+        <StatRow label={`${t('year') || 'Year'}`} value={stats.tournament_matches_year} />
+        <StatRow label={t('total') || 'Total'} value={stats.tournament_matches_total} />
 
-      {/* Tournaments Section */}
-      <div className="mb-4">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3 uppercase">{t('tournaments') || 'Tournaments'}</h4>
-        <div className="grid grid-cols-2 gap-2">
-          <StatCard label={`${t('month') || 'Month'}`} value={stats.tournaments_month} icon="🎪" color="blue" />
-          <StatCard label={`${t('year') || 'Year'}`} value={stats.tournaments_year} icon="📅" color="green" />
-          <StatCard label={t('total') || 'Total'} value={stats.tournaments_total} icon="👑" color="purple" />
-        </div>
-      </div>
-
-      {/* Last Updated */}
-      <div className="text-xs text-gray-500 text-right mt-4">
-        {t('last_updated') || 'Last updated'}: {new Date(stats.last_updated).toLocaleTimeString()}
+        {/* Tournaments */}
+        <div className="font-semibold text-gray-700 text-xs uppercase mb-2 mt-3">Tournaments</div>
+        <StatRow label={`${t('month') || 'Month'}`} value={stats.tournaments_month} />
+        <StatRow label={`${t('year') || 'Year'}`} value={stats.tournaments_year} />
+        <StatRow label={t('total') || 'Total'} value={stats.tournaments_total} />
       </div>
     </section>
   );
 };
 
 export default GlobalStats;
+
