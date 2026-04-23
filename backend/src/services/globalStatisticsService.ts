@@ -51,8 +51,8 @@ export async function calculateGlobalStatistics(): Promise<GlobalStatistics> {
         COUNT(*) as total,
         SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active,
         SUM(CASE WHEN enable_ranked = 1 THEN 1 ELSE 0 END) as ranked,
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN 1 ELSE 0 END) as new_month,
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR) THEN 1 ELSE 0 END) as new_year
+        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) THEN 1 ELSE 0 END) as new_month,
+        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 364 DAY) THEN 1 ELSE 0 END) as new_year
        FROM users_extension`
     );
 
@@ -66,12 +66,13 @@ export async function calculateGlobalStatistics(): Promise<GlobalStatistics> {
     }
 
     // Ranked matches statistics (from matches table, status='confirmed')
+    // today: only today, week: last 7 days (including today), month: last 30 days, year: last 365 days, total: all
     const matchesResult = await query(
       `SELECT 
         SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as today,
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as week,
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN 1 ELSE 0 END) as month,
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR) THEN 1 ELSE 0 END) as year,
+        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) THEN 1 ELSE 0 END) as week,
+        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) THEN 1 ELSE 0 END) as month,
+        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 364 DAY) THEN 1 ELSE 0 END) as year,
         COUNT(*) as total
        FROM matches
        WHERE status = 'confirmed'`
@@ -89,8 +90,8 @@ export async function calculateGlobalStatistics(): Promise<GlobalStatistics> {
     // Tournament matches statistics (from tournament_matches)
     const tournamentMatchesResult = await query(
       `SELECT 
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN 1 ELSE 0 END) as month,
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR) THEN 1 ELSE 0 END) as year,
+        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) THEN 1 ELSE 0 END) as month,
+        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 364 DAY) THEN 1 ELSE 0 END) as year,
         COUNT(*) as total
        FROM tournament_matches
        WHERE status IN ('completed', 'played')`
@@ -106,8 +107,8 @@ export async function calculateGlobalStatistics(): Promise<GlobalStatistics> {
     // Tournaments statistics
     const tournamentsResult = await query(
       `SELECT 
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN 1 ELSE 0 END) as month,
-        SUM(CASE WHEN created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR) THEN 1 ELSE 0 END) as year,
+        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) THEN 1 ELSE 0 END) as month,
+        SUM(CASE WHEN created_at >= DATE_SUB(CURDATE(), INTERVAL 364 DAY) THEN 1 ELSE 0 END) as year,
         COUNT(*) as total
        FROM tournaments`
     );
