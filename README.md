@@ -901,4 +901,5 @@ If you need to use this software without AGPL requirements (for example, for a p
 
 ## Contact
 
-For questions or suggestions, contact: support@wesnoth-tournament.com
+For questions or suggestions, use github issue tracker
+
