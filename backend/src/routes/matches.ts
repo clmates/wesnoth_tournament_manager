@@ -1795,8 +1795,12 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
 
     // Get map and factions from parse_summary (use resolved values - same as displayed in frontend)
     const map = parseSummary?.resolvedMap || parseSummary?.finalMap || 'Unknown Map';
-    let winner_faction = parseSummary?.resolvedFactions?.side1 || parseSummary?.finalFactions?.side1 || 'Unknown';
-    let loser_faction = parseSummary?.resolvedFactions?.side2 || parseSummary?.finalFactions?.side2 || 'Unknown';
+    
+    // Map factions based on winner's side
+    const winnerFactionKey = winnerSide === 2 ? 'side2' : 'side1';
+    const loserFactionKey = winnerSide === 2 ? 'side1' : 'side2';
+    let winner_faction = parseSummary?.resolvedFactions?.[winnerFactionKey] || parseSummary?.finalFactions?.[winnerFactionKey] || 'Unknown';
+    let loser_faction = parseSummary?.resolvedFactions?.[loserFactionKey] || parseSummary?.finalFactions?.[loserFactionKey] || 'Unknown';
 
     // Note: tournamentMode was already determined earlier (line 1588)
     // If we have a tournament_round_match_id and tournamentMode wasn't set from parseSummary,
