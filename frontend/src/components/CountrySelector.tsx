@@ -18,14 +18,25 @@ interface CountrySelectorProps {
 /**
  * Convert country code to flag emoji using Unicode regional indicators
  * Example: 'US' → '🇺🇸'
- * Returns a larger emoji by rendering it at 2xl size in Tailwind
+ * Handles both lowercase and uppercase input
  */
 function countryCodeToFlagEmoji(code: string): string {
-  if (!code || code.length !== 2) return '🌍';
-  const upperCode = code.toUpperCase();
-  const char1 = String.fromCodePoint(127397 + upperCode.charCodeAt(0));
-  const char2 = String.fromCodePoint(127397 + upperCode.charCodeAt(1));
-  return char1 + char2;
+  if (!code || code.length !== 2) return '🌍'; // Globe fallback
+  
+  try {
+    const upperCode = code.toUpperCase();
+    // Each country code letter becomes a regional indicator symbol
+    // Regional Indicator Symbols: U+1F1E6 (A) to U+1F1FF (Z)
+    const codePointOffset = 127397; // 0x1F1A5, start of regional indicators
+    const char1 = String.fromCodePoint(codePointOffset + upperCode.charCodeAt(0));
+    const char2 = String.fromCodePoint(codePointOffset + upperCode.charCodeAt(1));
+    const flagEmoji = char1 + char2;
+    
+    // Fallback to globe if the emoji wasn't generated properly
+    return flagEmoji && flagEmoji.length === 2 ? flagEmoji : '🌍';
+  } catch (e) {
+    return '🌍';
+  }
 }
 
 export const CountrySelector: React.FC<CountrySelectorProps> = ({
@@ -109,7 +120,14 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
           aria-expanded={isOpen}
         >
           <span className="flex items-center gap-3">
-            <span className="text-3xl leading-none" title={value || 'No country selected'}>
+            <span 
+              className="text-4xl leading-none flex-shrink-0 inline-block" 
+              title={value || 'No country selected'}
+              style={{ 
+                fontVariantEmoji: 'normal',
+                minWidth: '2rem'
+              }}
+            >
               {countryCodeToFlagEmoji(value || '')}
             </span>
             <span className="text-gray-700">
@@ -158,7 +176,14 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
                       }`}
                       onClick={() => handleSelect(country.code)}
                     >
-                      <span className="text-3xl leading-none flex-shrink-0" title={country.code}>
+                      <span 
+                        className="text-4xl leading-none flex-shrink-0 inline-block" 
+                        title={country.code}
+                        style={{ 
+                          fontVariantEmoji: 'normal',
+                          minWidth: '2rem'
+                        }}
+                      >
                         {countryCodeToFlagEmoji(country.code)}
                       </span>
                       <span className="text-gray-800 flex-1 min-w-0">
