@@ -48,15 +48,16 @@ export const AvatarSelector: React.FC<AvatarSelectorProps> = ({
   const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     console.warn(`Failed to load avatar image: ${img.src}`);
-    // Don't hide, just show broken image indicator
-    img.classList.add('image-error');
+    img.classList.add('opacity-50');
   }, []);
 
   if (isLoading) {
     return (
-      <div className="avatar-selector">
-        <label>{t('profile.avatar') || 'Avatar'}</label>
-        <div className="avatar-loading">
+      <div className="w-full">
+        <label className="block text-sm font-medium text-gray-700 mb-3">
+          {t('profile.avatar') || 'Avatar'}
+        </label>
+        <div className="flex items-center justify-center py-8 bg-gray-50 rounded-lg border border-gray-200">
           {t('common.loading') || 'Loading...'}
         </div>
       </div>
@@ -64,45 +65,58 @@ export const AvatarSelector: React.FC<AvatarSelectorProps> = ({
   }
 
   return (
-    <div className="avatar-selector">
-      <label>{t('profile.avatar') || 'Avatar'}</label>
+    <div className="w-full">
+      <label className="block text-sm font-medium text-gray-700 mb-3">
+        {t('profile.avatar') || 'Avatar'}
+      </label>
 
-      <div className="avatar-preview">
-        {previewUrl && (
-          <img
-            src={previewUrl}
-            alt="Selected Avatar"
-            className="avatar-preview-image"
-            onError={handleImageError}
-          />
-        )}
-        {!previewUrl && <div className="avatar-preview-empty">No Avatar</div>}
+      <div className="mb-4 flex items-center justify-center">
+        <div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-gray-300 flex items-center justify-center overflow-hidden">
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt="Selected Avatar"
+              className="w-full h-full object-cover"
+              onError={handleImageError}
+            />
+          ) : (
+            <span className="text-sm text-gray-500">{t('profile.noAvatarSelected') || 'No Avatar'}</span>
+          )}
+        </div>
       </div>
 
-      <div className="avatar-grid">
+      <div className="bg-white border border-gray-300 rounded-lg p-4">
         {avatars.length === 0 ? (
-          <div className="avatar-empty">
+          <div className="text-center py-8 text-gray-500">
             {t('common.noResults') || 'No avatars available'}
           </div>
         ) : (
-          avatars.map((avatar) => (
-            <button
-              key={avatar.id}
-              type="button"
-              className={`avatar-option ${value === avatar.id ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
-              onClick={() => !disabled && handleSelect(avatar.id)}
-              disabled={disabled}
-              title={avatar.name}
-            >
-              <img
-                src={avatar.path}
-                alt={avatar.name}
-                className="avatar-option-image"
-                onError={handleImageError}
-              />
-              <span className="avatar-option-name">{avatar.name}</span>
-            </button>
-          ))
+          <div className="grid grid-cols-4 gap-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8">
+            {avatars.map((avatar) => (
+              <button
+                key={avatar.id}
+                type="button"
+                className={`flex flex-col items-center gap-2 p-2 rounded-lg transition-all ${
+                  value === avatar.id
+                    ? 'bg-blue-100 border-2 border-blue-500 shadow-md'
+                    : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                onClick={() => !disabled && handleSelect(avatar.id)}
+                disabled={disabled}
+                title={avatar.name}
+              >
+                <img
+                  src={avatar.path}
+                  alt={avatar.name}
+                  className="w-12 h-12 object-cover rounded"
+                  onError={handleImageError}
+                />
+                <span className="text-xs text-gray-700 text-center line-clamp-2 leading-tight">
+                  {avatar.name}
+                </span>
+              </button>
+            ))}
+          </div>
         )}
       </div>
     </div>
