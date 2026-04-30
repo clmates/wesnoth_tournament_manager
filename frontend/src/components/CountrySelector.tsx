@@ -22,8 +22,9 @@ interface CountrySelectorProps {
  */
 function countryCodeToFlagEmoji(code: string): string {
   if (!code || code.length !== 2) return '🌍';
-  const char1 = String.fromCodePoint(127397 + code.charCodeAt(0));
-  const char2 = String.fromCodePoint(127397 + code.charCodeAt(1));
+  const upperCode = code.toUpperCase();
+  const char1 = String.fromCodePoint(127397 + upperCode.charCodeAt(0));
+  const char2 = String.fromCodePoint(127397 + upperCode.charCodeAt(1));
   return char1 + char2;
 }
 
@@ -108,7 +109,9 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
           aria-expanded={isOpen}
         >
           <span className="flex items-center gap-3">
-            <span className="text-2xl">{countryCodeToFlagEmoji(value || '')}</span>
+            <span className="text-3xl leading-none" title={value || 'No country selected'}>
+              {countryCodeToFlagEmoji(value || '')}
+            </span>
             <span className="text-gray-700">
               {getSelectedCountryName()}
             </span>
@@ -155,7 +158,7 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
                       }`}
                       onClick={() => handleSelect(country.code)}
                     >
-                      <span className="text-2xl flex-shrink-0">
+                      <span className="text-3xl leading-none flex-shrink-0" title={country.code}>
                         {countryCodeToFlagEmoji(country.code)}
                       </span>
                       <span className="text-gray-800 flex-1 min-w-0">
