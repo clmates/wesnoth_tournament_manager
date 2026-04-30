@@ -18,14 +18,13 @@ interface CountrySelectorProps {
 /**
  * Convert country code to flag emoji using Unicode regional indicators
  * Example: 'US' → '🇺🇸'
+ * Returns a larger emoji by rendering it at 2xl size in Tailwind
  */
 function countryCodeToFlagEmoji(code: string): string {
   if (!code || code.length !== 2) return '🌍';
-  return code
-    .toUpperCase()
-    .split('')
-    .map(char => String.fromCodePoint(127397 + char.charCodeAt(0)))
-    .join('');
+  const char1 = String.fromCodePoint(127397 + code.charCodeAt(0));
+  const char2 = String.fromCodePoint(127397 + code.charCodeAt(1));
+  return char1 + char2;
 }
 
 export const CountrySelector: React.FC<CountrySelectorProps> = ({
@@ -100,7 +99,7 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
         <button
           id="country-select"
           type="button"
-          className={`w-full px-4 py-2 text-left bg-white border-2 border-gray-300 rounded-lg transition-colors ${
+          className={`w-full px-4 py-3 text-left bg-white border-2 border-gray-300 rounded-lg transition-colors ${
             isOpen ? 'border-blue-500 ring-2 ring-blue-100' : 'hover:border-gray-400'
           } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} flex items-center justify-between`}
           onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -108,10 +107,8 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
           aria-haspopup="listbox"
           aria-expanded={isOpen}
         >
-          <span className="flex items-center gap-2">
-            {showFlag && (
-              <span className="text-lg">{countryCodeToFlagEmoji(value || '')}</span>
-            )}
+          <span className="flex items-center gap-3">
+            <span className="text-2xl">{countryCodeToFlagEmoji(value || '')}</span>
             <span className="text-gray-700">
               {getSelectedCountryName()}
             </span>
@@ -158,9 +155,9 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
                       }`}
                       onClick={() => handleSelect(country.code)}
                     >
-                      {showFlag && (
-                        <span className="text-lg">{countryCodeToFlagEmoji(country.code)}</span>
-                      )}
+                      <span className="text-2xl flex-shrink-0">
+                        {countryCodeToFlagEmoji(country.code)}
+                      </span>
                       <div className="flex-1 min-w-0">
                         <span className="text-gray-800 block">{country.name}</span>
                       </div>
