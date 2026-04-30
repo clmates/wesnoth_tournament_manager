@@ -100,7 +100,7 @@ router.post('/login', async (req, res) => {
       await queryTournament(
         `INSERT INTO users_extension (id, nickname, is_active, is_blocked, locked_until)
          VALUES (?, ?, 1, 0, NULL)`,
-        [tournamentUserId, normalizedUsername]
+        [tournamentUserId, authResult.username]
       );
       
       console.log(`✅ [LOGIN] User created in users_extension: ${tournamentUserId}`);

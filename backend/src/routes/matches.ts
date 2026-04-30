@@ -1654,7 +1654,7 @@ router.post('/report-confidence-1-replay', authMiddleware, async (req: AuthReque
         return res.status(400).json({ error: 'Could not identify opponent player from replay data' });
       }
 
-      const primaryOpponentNickname = opponentPlayers[0]?.user_name?.toLowerCase() || '';
+      const primaryOpponentNickname = opponentPlayers[0]?.user_name || '';
       
       console.log(`📥 [CONFIDENCE-1] Looking up opponent player: "${primaryOpponentNickname}"...`);
       const otherPlayerResult = await query(

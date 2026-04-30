@@ -245,7 +245,7 @@ export async function authenticatePhpbbUser(
       return {
         valid: true,
         user_id: phpbbUser.user_id,
-        username: phpbbUser.username.toLowerCase(),
+        username: phpbbUser.username,
         email: phpbbUser.user_email,
       };
     }
@@ -263,7 +263,7 @@ export async function authenticatePhpbbUser(
     return {
       valid: true,
       user_id: phpbbUser.user_id,
-      username: phpbbUser.username.toLowerCase(),
+      username: phpbbUser.username,
       email: phpbbUser.user_email,
     };
   } catch (error) {
