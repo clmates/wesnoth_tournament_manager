@@ -148,7 +148,7 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
                     <li
                       key={country.code}
                       role="option"
-                      className={`px-4 py-3 cursor-pointer transition-colors flex items-center gap-3 ${
+                      className={`px-4 py-3 cursor-pointer transition-colors flex items-center gap-4 ${
                         value === country.code
                           ? 'bg-blue-50 border-l-4 border-blue-500'
                           : 'hover:bg-gray-50'
@@ -158,10 +158,10 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
                       <span className="text-2xl flex-shrink-0">
                         {countryCodeToFlagEmoji(country.code)}
                       </span>
-                      <div className="flex-1 min-w-0">
-                        <span className="text-gray-800 block">{country.name}</span>
-                      </div>
-                      <span className="text-sm font-mono text-gray-500 ml-2 flex-shrink-0">
+                      <span className="text-gray-800 flex-1 min-w-0">
+                        {country.name}
+                      </span>
+                      <span className="text-sm font-mono text-gray-500 flex-shrink-0 ml-auto">
                         {country.code}
                       </span>
                     </li>
