@@ -16,27 +16,28 @@ interface CountrySelectorProps {
 }
 
 /**
- * Convert country code to flag emoji using Unicode regional indicators
- * Example: 'US' → '🇺🇸'
- * Handles both lowercase and uppercase input
+ * Get flag image URL from flagcdn.com
+ * Maps country codes to correct flag codes
  */
-function countryCodeToFlagEmoji(code: string): string {
-  if (!code || code.length !== 2) return '🌍'; // Globe fallback
-  
-  try {
-    const upperCode = code.toUpperCase();
-    // Each country code letter becomes a regional indicator symbol
-    // Regional Indicator Symbols: U+1F1E6 (A) to U+1F1FF (Z)
-    const codePointOffset = 127397; // 0x1F1A5, start of regional indicators
-    const char1 = String.fromCodePoint(codePointOffset + upperCode.charCodeAt(0));
-    const char2 = String.fromCodePoint(codePointOffset + upperCode.charCodeAt(1));
-    const flagEmoji = char1 + char2;
-    
-    // Fallback to globe if the emoji wasn't generated properly
-    return flagEmoji && flagEmoji.length === 2 ? flagEmoji : '🌍';
-  } catch (e) {
-    return '🌍';
-  }
+function getCountryFlagUrl(countryCode: string): string {
+  const codeMap: Record<string, string> = {
+    'US': 'us', 'GB': 'gb', 'DE': 'de', 'FR': 'fr', 'ES': 'es',
+    'IT': 'it', 'JP': 'jp', 'CN': 'cn', 'IN': 'in', 'BR': 'br',
+    'CA': 'ca', 'AU': 'au', 'MX': 'mx', 'RU': 'ru', 'KR': 'kr',
+    'AR': 'ar', 'CL': 'cl', 'CO': 'co', 'PE': 'pe', 'VE': 've',
+    'ZA': 'za', 'NG': 'ng', 'EG': 'eg', 'KE': 'ke', 'ET': 'et',
+    'NZ': 'nz', 'SG': 'sg', 'TH': 'th', 'MY': 'my', 'ID': 'id',
+    'PH': 'ph', 'VN': 'vn', 'TR': 'tr', 'SA': 'sa', 'AE': 'ae',
+    'IL': 'il', 'PK': 'pk', 'BD': 'bd', 'IR': 'ir', 'IQ': 'iq',
+    'SE': 'se', 'NO': 'no', 'DK': 'dk', 'FI': 'fi', 'PL': 'pl',
+    'CZ': 'cz', 'HU': 'hu', 'RO': 'ro', 'GR': 'gr', 'PT': 'pt',
+    'BE': 'be', 'NL': 'nl', 'AT': 'at', 'CH': 'ch', 'IE': 'ie',
+    'UA': 'ua', 'BY': 'by', 'MD': 'md', 'HR': 'hr', 'RS': 'rs',
+    'BG': 'bg', 'SK': 'sk', 'SI': 'si', 'LT': 'lt', 'LV': 'lv',
+    'EE': 'ee', 'IS': 'is', 'LU': 'lu', 'MT': 'mt', 'CY': 'cy',
+  };
+  const flagCode = codeMap[countryCode.toUpperCase()] || countryCode.toLowerCase();
+  return `https://flagcdn.com/w40/${flagCode}.png`;
 }
 
 export const CountrySelector: React.FC<CountrySelectorProps> = ({
@@ -120,16 +121,19 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
           aria-expanded={isOpen}
         >
           <span className="flex items-center gap-3">
-            <span 
-              className="text-4xl leading-none flex-shrink-0 inline-block" 
-              title={value || 'No country selected'}
-              style={{ 
-                fontVariantEmoji: 'normal',
-                minWidth: '2rem'
-              }}
-            >
-              {countryCodeToFlagEmoji(value || '')}
-            </span>
+            {value && (
+              <img 
+                src={getCountryFlagUrl(value)}
+                alt={value}
+                className="w-8 h-6 rounded border border-gray-300 object-cover"
+                title={value}
+              />
+            )}
+            {!value && (
+              <div className="w-8 h-6 rounded border border-gray-300 bg-gray-100 flex items-center justify-center text-gray-400">
+                —
+              </div>
+            )}
             <span className="text-gray-700">
               {getSelectedCountryName()}
             </span>
@@ -169,23 +173,19 @@ export const CountrySelector: React.FC<CountrySelectorProps> = ({
                     <li
                       key={country.code}
                       role="option"
-                      className={`px-4 py-3 cursor-pointer transition-colors flex items-center gap-4 ${
+                      className={`px-4 py-3 cursor-pointer transition-colors flex items-center gap-3 ${
                         value === country.code
                           ? 'bg-blue-50 border-l-4 border-blue-500'
                           : 'hover:bg-gray-50'
                       }`}
                       onClick={() => handleSelect(country.code)}
                     >
-                      <span 
-                        className="text-4xl leading-none flex-shrink-0 inline-block" 
+                      <img 
+                        src={getCountryFlagUrl(country.code)}
+                        alt={country.code}
+                        className="w-8 h-6 rounded border border-gray-300 object-cover flex-shrink-0"
                         title={country.code}
-                        style={{ 
-                          fontVariantEmoji: 'normal',
-                          minWidth: '2rem'
-                        }}
-                      >
-                        {countryCodeToFlagEmoji(country.code)}
-                      </span>
+                      />
                       <span className="text-gray-800 flex-1 min-w-0">
                         {country.name}
                       </span>
