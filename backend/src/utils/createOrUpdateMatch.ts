@@ -247,10 +247,10 @@ export async function createOrUpdateMatch(
  */
 async function ensurePlayerExists(playerName: string): Promise<string> {
   try {
-    // Check if player exists
+    // Check if player exists (case-insensitive lookup)
     const existingResult = await query(
       `SELECT id FROM users_extension 
-       WHERE nickname = ?`,
+       WHERE LOWER(nickname) = LOWER(?)`,
       [playerName]
     );
 
