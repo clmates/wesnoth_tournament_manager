@@ -112,13 +112,27 @@ class AvatarsService {
     }
 
     try {
+      // Try to get from backend API first (always fresh)
+      try {
+        console.log('🔄 Fetching avatar manifest from backend API...');
+        const response = await api.get('/users/data/avatar-manifest');
+        this.manifestCache = response.data;
+        this.cacheTimestamp = now;
+        console.log('✅ Avatar manifest loaded from backend API');
+        return this.manifestCache;
+      } catch (backendError) {
+        console.warn('⚠️ Backend API failed, falling back to static file:', backendError);
+      }
+
+      // Fallback to static file
       const response = await fetch('/wesnoth-avatars/manifest.json');
       const data = await response.json();
       this.manifestCache = data;
       this.cacheTimestamp = now;
+      console.log('✅ Avatar manifest loaded from static file');
       return this.manifestCache;
     } catch (error) {
-      console.error('Error loading manifest:', error);
+      console.error('❌ Error loading manifest:', error);
       return [];
     }
   }

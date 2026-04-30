@@ -3,6 +3,7 @@ import { query } from '../config/database.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.js';
 import { searchLimiter } from '../middleware/rateLimiter.js';
 import { logAuditEvent, getUserIP, getUserAgent } from '../middleware/audit.js';
+import { avatarManifestService } from '../services/avatarManifestService.js';
 
 const router = Router();
 
@@ -764,6 +765,17 @@ router.get('/data/avatars', async (req, res) => {
   } catch (error) {
     console.error('Avatars error:', error);
     res.status(500).json({ error: 'Failed to fetch avatars', details: (error as any).message });
+  }
+});
+
+// Get avatar manifest (dynamically generated from PNG files)
+router.get('/data/avatar-manifest', async (req, res) => {
+  try {
+    const manifest = await avatarManifestService.generateAvatarManifest();
+    res.json(manifest);
+  } catch (error) {
+    console.error('Avatar manifest error:', error);
+    res.status(500).json({ error: 'Failed to fetch avatar manifest', details: (error as any).message });
   }
 });
 
