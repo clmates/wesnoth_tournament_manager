@@ -62,7 +62,7 @@ export async function queryForum(sql: string, values?: any[]): Promise<any[]> {
 export async function getNewGamesFromForum(
   lastCheckTimestamp: Date,
   limit: number = 1000,
-  wesnothVersion?: string
+  wesnothVersions?: string | string[]
 ): Promise<any[]> {
   try {
     let query_str = `SELECT 
@@ -82,10 +82,29 @@ export async function getNewGamesFromForum(
 
     const params: any[] = [lastCheckTimestamp];
 
-    // Filter by version if provided
-    if (wesnothVersion) {
-      query_str += ` AND INSTANCE_VERSION = ?`;
-      params.push(wesnothVersion);
+    // Filter by version(s) if provided
+    // Supports both single version string and array of versions
+    // Uses LIKE to match base version (e.g., "1.18" matches "1.18.0", "1.18.1", etc)
+    if (wesnothVersions) {
+      const versions = Array.isArray(wesnothVersions)
+        ? wesnothVersions
+        : [wesnothVersions];
+
+      if (versions.length > 0) {
+        // Build OR condition: INSTANCE_VERSION LIKE '1.18.%' OR INSTANCE_VERSION LIKE '1.19.%'
+        // Also handle versions without patch part (e.g., "1.18" matches "1.18" exactly)
+        const conditions = versions.map(
+          version =>
+            `(INSTANCE_VERSION = ? OR INSTANCE_VERSION LIKE ?)`
+        );
+        query_str += ` AND (${conditions.join(' OR ')})`;
+
+        // Add both exact match and LIKE pattern for each version
+        for (const version of versions) {
+          params.push(version);
+          params.push(`${version}.%`);
+        }
+      }
     }
 
     query_str += ` ORDER BY END_TIME ASC LIMIT ?`;

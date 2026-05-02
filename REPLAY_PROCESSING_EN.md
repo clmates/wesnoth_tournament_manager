@@ -30,6 +30,33 @@ into the tournament database. Two background jobs run in parallel:
 
 ---
 
+## Configuration
+
+### WESNOTH_VERSION Environment Variable
+
+The `WESNOTH_VERSION` environment variable controls which Wesnoth version branch(es) to monitor for replays. The system queries `wesnothd_game_info` for games matching the configured version(s).
+
+**Syntax:**
+- Single version: `WESNOTH_VERSION="1.18"` — Process games from the 1.18.x branch
+- Multiple versions: `WESNOTH_VERSION="1.18|1.19"` — Process games from both 1.18.x and 1.19.x branches
+
+**Examples:**
+```env
+# Monitor only Wesnoth 1.18 series (1.18.0, 1.18.1, 1.18.2, etc)
+WESNOTH_VERSION="1.18"
+
+# Monitor both 1.18 and 1.19 series
+WESNOTH_VERSION="1.18|1.19"
+
+# Monitor 1.18, 1.19, and 1.20 series
+WESNOTH_VERSION="1.18|1.19|1.20"
+```
+
+**Storage:**
+The base version (e.g., `"1.18"`) is extracted from the detailed INSTANCE_VERSION (e.g., `"1.18.0"`) and stored in `replays.wesnoth_version`. This allows filtering and grouping matches by version branch in the application.
+
+---
+
 ## Step 1 — Ranked Addon Detection
 
 **File:** `backend/src/jobs/syncGamesFromForum.ts`, lines 96–221  

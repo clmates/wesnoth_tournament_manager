@@ -24,6 +24,7 @@ import {
   hasGameTournamentAddon,
   getTournamentAddonVersion
 } from '../config/forumDatabase.js';
+import { parseWesnothVersions, getBaseVersion } from '../utils/versionParser.js';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ForumGame {
@@ -84,14 +85,24 @@ export class SyncGamesFromForumJob {
       console.log(`🌐 [FORUM SYNC] Last check timestamp: ${lastCheckTimestamp.toISOString()}`);
       console.log(`🌐 [FORUM SYNC] Starting to process games from: ${lastCheckTimestamp.toISOString()}`);
 
-      // Get wesnoth version from environment
-      const wesnothVersion = process.env.WESNOTH_VERSION || '1.18';
+      // Parse wesnoth versions from environment (supports "1.18" or "1.18|1.19")
+      const wesnothVersionStr = process.env.WESNOTH_VERSION || '1.18';
+      let wesnothVersions: string[];
+      
+      try {
+        wesnothVersions = parseWesnothVersions(wesnothVersionStr);
+      } catch (error) {
+        console.error(`❌ [FORUM SYNC] Invalid WESNOTH_VERSION format: "${wesnothVersionStr}". Using default "1.18"`);
+        wesnothVersions = ['1.18'];
+      }
+
       const syncBatchSize = parseInt(process.env.REPLAY_SYNC_BATCH_SIZE || '1000', 10);
 
-      console.log(`🌐 [FORUM SYNC] Fetching games since ${lastCheckTimestamp.toISOString()} (version: ${wesnothVersion})`);
+      console.log(`🌐 [FORUM SYNC] Configured versions: ${wesnothVersions.join(', ')}`);
+      console.log(`🌐 [FORUM SYNC] Fetching games since ${lastCheckTimestamp.toISOString()}`);
 
-      // Fetch new games from forum database, filtered by wesnoth version
-      const gamesResult = await getNewGamesFromForum(lastCheckTimestamp, syncBatchSize, wesnothVersion);
+      // Fetch new games from forum database, filtered by wesnoth versions
+      const gamesResult = await getNewGamesFromForum(lastCheckTimestamp, syncBatchSize, wesnothVersions);
       
       if (!gamesResult || gamesResult.length === 0) {
         console.log('ℹ️  [FORUM SYNC] No new games found');
@@ -162,7 +173,7 @@ export class SyncGamesFromForumJob {
 
           // Create replay record
           const replayId = uuidv4();
-          const replayUrl = `https://replays.wesnoth.org/${game.wesnoth_version}/${this.formatDate(new Date(game.end_time))}/${game.replay_filename}`;
+          const replayUrl = `https://replays.wesnoth.org/${getBaseVersion(game.wesnoth_version)}/${this.formatDate(new Date(game.end_time))}/${game.replay_filename}`;
 
           await query(
             `INSERT INTO replays (
@@ -193,7 +204,7 @@ export class SyncGamesFromForumJob {
               gameId,
               game.replay_filename,
               '', // Empty path - not using filesystem for this implementation
-              game.wesnoth_version,
+              getBaseVersion(game.wesnoth_version),
               game.game_name,
               game.start_time,
               game.end_time,
