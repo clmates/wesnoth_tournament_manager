@@ -252,34 +252,47 @@ const mapResult = await query(
 );
 
 if ((mapResult as any).rows?.length > 0) {
-  parseSummary.forumMap = (mapResult as any).rows[0].name;
-  console.log(`   Map: ${parseSummary.forumMap}`);
+  const forumMapFromDb = (mapResult as any).rows[0].name;
+  const mapId = (mapResult as any).rows[0].id;
+  const mapIdWithoutPrefix = mapId.startsWith('multiplayer_') ? mapId.substring(12) : mapId;
   
-  // NEW: If map name appears corrupted, extract from scenario_id
-  const isCorrupted = !parseSummary.forumMap || 
-                     parseSummary.forumMap.includes('?') ||
-                     parseSummary.forumMap.includes('\ufffd') ||
-                     parseSummary.forumMap.length < 3;
-  
-  if (isCorrupted && scenarioId && (eraAddonId === 'ladder_era' || eraAddonId === 'ranked_era')) {
+  // PRIORITY 1: For ladder_era/ranked_era, extract from scenario_id FIRST (most reliable)
+  // The scenario_id (e.g., "multiplayer_Swamp_of_Dread_Ladder_Random") is more reliable
+  // than the map name from the forum DB, which can suffer from encoding issues.
+  if (scenarioId && (eraAddonId?.toLowerCase() === 'ladder_era' || eraAddonId?.toLowerCase() === 'ranked_era')) {
     const extractedName = extractMapNameFromScenarioId(scenarioId, eraAddonId);
     if (extractedName) {
-      console.log(`   🔧 Corrupted map name detected. Extracted from scenario_id: "${parseSummary.forumMap}" → "${extractedName}"`);
       parseSummary.forumMap = extractedName;
+      console.log(`   ✅ Extracted from scenario_id (ladder/ranked): "${extractedName}"`);
+      console.log(`      (forum DB had: "${forumMapFromDb}")`);
+    } else {
+      parseSummary.forumMap = forumMapFromDb;
+      console.log(`   ⚠️  Extraction from scenario_id failed, using forum name: "${forumMapFromDb}"`);
     }
+  } else {
+    // Not ladder/ranked era, use forum name directly
+    parseSummary.forumMap = forumMapFromDb;
+    console.log(`   ✅ Map: ${forumMapFromDb}`);
   }
+  parseSummary.forumMapId = mapIdWithoutPrefix;
 } else {
   // Fallback: use game_name when no scenario row exists in the forum
   parseSummary.forumMap = replay.game_name;
-  console.log(`   No map in forum, using game_name: ${parseSummary.forumMap}`);
+  console.log(`   ⚠️  No map in forum, using game_name: ${parseSummary.forumMap}`);
 }
 ```
 
-### 3.1 — Map Name Extraction from Scenario ID
+### 3.1 — Map Name Extraction from Scenario ID (Priority Strategy)
 
-**File:** `backend/src/jobs/parseNewReplaysRefactored.ts`, lines 1484–1517
+**File:** `backend/src/jobs/parseNewReplaysRefactored.ts`, lines 444–468
 
-When the forum map name is corrupted (contains `?`, `\ufffd` replacement char, or is suspiciously short), the system attempts to extract a clean map name from the scenario ID using addon-specific rules:
+For replays using `ladder_era` or `ranked_era` addons, the map name is extracted directly from the scenario_id **as the primary strategy**, before using the map name from the forum DB. This is because:
+
+1. **Structural reliability**: scenario_id is generated from WML structure and is not subject to encoding corruption
+2. **Encoding issues**: Forum DB map names can suffer from Unicode/encoding corruption (e.g., Chinese characters, garbled text)
+3. **Extraction reliability**: The scenario_id follows a predictable pattern that can be reliably parsed
+
+**Extraction Rules:**
 
 ```typescript
 // parseNewReplaysRefactored.ts:1484–1517

@@ -442,25 +442,27 @@ export class ParseNewReplaysRefactorized {
     }
 
     if ((mapResult as any).rows?.length > 0) {
-      parseSummary.forumMap = (mapResult as any).rows[0].name;
+      const forumMapFromDb = (mapResult as any).rows[0].name;
       const mapId = (mapResult as any).rows[0].id;
       const mapIdWithoutPrefix = mapId.startsWith('multiplayer_') ? mapId.substring(12) : mapId;
       parseSummary.forumMapId = mapIdWithoutPrefix;
-      console.log(`   ✅ Map: ${parseSummary.forumMap} (ID: ${mapIdWithoutPrefix})`);
 
-      // NEW: If map name appears corrupted (contains replacement char or is very short),
-      // try to extract clean name from scenario_id using era addon rules
-      const isCorrupted = !parseSummary.forumMap || 
-                         parseSummary.forumMap.includes('?') ||
-                         parseSummary.forumMap.includes('\ufffd') ||
-                         parseSummary.forumMap.length < 3;
-      
-      if (isCorrupted && scenarioId && (eraAddonId === 'ladder_era' || eraAddonId === 'ranked_era')) {
+      // PRIORITY 1: For ladder_era/ranked_era, extract from scenario_id FIRST (most reliable)
+      if (scenarioId && (eraAddonId?.toLowerCase() === 'ladder_era' || eraAddonId?.toLowerCase() === 'ranked_era')) {
         const extractedName = this.extractMapNameFromScenarioId(scenarioId, eraAddonId);
         if (extractedName) {
-          console.log(`   🔧 Corrupted map name detected. Extracted from scenario_id: "${parseSummary.forumMap}" → "${extractedName}"`);
           parseSummary.forumMap = extractedName;
+          console.log(`   ✅ Extracted from scenario_id (ladder/ranked): "${extractedName}"`);
+          console.log(`      (forum DB had: "${forumMapFromDb}")`);
+        } else {
+          // Extraction failed, fall back to forum name
+          parseSummary.forumMap = forumMapFromDb;
+          console.log(`   ⚠️  Extraction from scenario_id failed, using forum name: "${forumMapFromDb}"`);
         }
+      } else {
+        // Not ladder/ranked era, use forum name directly
+        parseSummary.forumMap = forumMapFromDb;
+        console.log(`   ✅ Map: ${forumMapFromDb} (ID: ${mapIdWithoutPrefix})`);
       }
     } else {
       parseSummary.forumMap = replay.game_name;
