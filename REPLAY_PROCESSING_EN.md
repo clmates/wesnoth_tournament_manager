@@ -254,12 +254,66 @@ const mapResult = await query(
 if ((mapResult as any).rows?.length > 0) {
   parseSummary.forumMap = (mapResult as any).rows[0].name;
   console.log(`   Map: ${parseSummary.forumMap}`);
+  
+  // NEW: If map name appears corrupted, extract from scenario_id
+  const isCorrupted = !parseSummary.forumMap || 
+                     parseSummary.forumMap.includes('?') ||
+                     parseSummary.forumMap.includes('\ufffd') ||
+                     parseSummary.forumMap.length < 3;
+  
+  if (isCorrupted && scenarioId && (eraAddonId === 'ladder_era' || eraAddonId === 'ranked_era')) {
+    const extractedName = extractMapNameFromScenarioId(scenarioId, eraAddonId);
+    if (extractedName) {
+      console.log(`   🔧 Corrupted map name detected. Extracted from scenario_id: "${parseSummary.forumMap}" → "${extractedName}"`);
+      parseSummary.forumMap = extractedName;
+    }
+  }
 } else {
   // Fallback: use game_name when no scenario row exists in the forum
   parseSummary.forumMap = replay.game_name;
   console.log(`   No map in forum, using game_name: ${parseSummary.forumMap}`);
 }
 ```
+
+### 3.1 — Map Name Extraction from Scenario ID
+
+**File:** `backend/src/jobs/parseNewReplaysRefactored.ts`, lines 1484–1517
+
+When the forum map name is corrupted (contains `?`, `\ufffd` replacement char, or is suspiciously short), the system attempts to extract a clean map name from the scenario ID using addon-specific rules:
+
+```typescript
+// parseNewReplaysRefactored.ts:1484–1517
+
+private extractMapNameFromScenarioId(scenarioId: string, addonId: string): string | null {
+  if (!scenarioId) return null;
+  
+  let name = scenarioId;
+  
+  // Remove "multiplayer_" prefix
+  name = name.replace(/^multiplayer_/i, '');
+  
+  // Remove suffix based on addon
+  if (addonId?.toLowerCase() === 'ladder_era') {
+    name = name.replace(/_Ladder_Random$/i, '');
+  } else if (addonId?.toLowerCase() === 'ranked_era') {
+    name = name.replace(/_Ranked_Random$/i, '');
+  }
+  
+  // Replace underscores with spaces
+  name = name.replace(/_/g, ' ');
+  
+  // Clean up multiple spaces
+  name = name.replace(/\s+/g, ' ').trim();
+  
+  return name && name.length > 2 ? name : null;
+}
+```
+
+**Example transformation:**
+- `ladder_era` + `multiplayer_Swamp_of_Dread_Ladder_Random` → `Swamp of Dread`
+- `ranked_era` + `multiplayer_4p_Isar_s_Cross_Ranked_Random` → `4p Isar's Cross`
+
+This strategy recovers map names when forum DB entries are corrupted (e.g., due to Unicode/encoding issues).
 
 ---
 

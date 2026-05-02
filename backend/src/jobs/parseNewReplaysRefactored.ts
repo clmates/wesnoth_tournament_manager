@@ -409,15 +409,20 @@ export class ParseNewReplaysRefactorized {
       [replay.instance_uuid, replay.game_id]
     );
 
-    // Detect ranked_era and ranked_map_picker addons
+    // Detect ranked_era and ranked_map_picker addons, fetch scenario ID and addon_id
     const addonCheckResult = await query(
-      `SELECT addon_id FROM forum.wesnothd_game_content_info 
-       WHERE instance_uuid = ? AND game_id = ? AND type = 'scenario' AND addon_id IN ('ranked_era', 'ranked_map_picker') LIMIT 2`,
+      `SELECT addon_id, id FROM forum.wesnothd_game_content_info 
+       WHERE instance_uuid = ? AND game_id = ? AND type = 'scenario' LIMIT 2`,
       [replay.instance_uuid, replay.game_id]
     );
     
+    let scenarioId: string | null = null;
+    let eraAddonId: string | null = null;
+
     if ((addonCheckResult as any).rows?.length > 0) {
       for (const addon of (addonCheckResult as any).rows) {
+        scenarioId = addon.id;
+        eraAddonId = addon.addon_id;
         if (addon.addon_id === 'ranked_era') {
           parseSummary.hasRankedEra = true;
           console.log(`   ✅ Detected ranked_era addon (factions will be from forum)`);
@@ -442,6 +447,21 @@ export class ParseNewReplaysRefactorized {
       const mapIdWithoutPrefix = mapId.startsWith('multiplayer_') ? mapId.substring(12) : mapId;
       parseSummary.forumMapId = mapIdWithoutPrefix;
       console.log(`   ✅ Map: ${parseSummary.forumMap} (ID: ${mapIdWithoutPrefix})`);
+
+      // NEW: If map name appears corrupted (contains replacement char or is very short),
+      // try to extract clean name from scenario_id using era addon rules
+      const isCorrupted = !parseSummary.forumMap || 
+                         parseSummary.forumMap.includes('?') ||
+                         parseSummary.forumMap.includes('\ufffd') ||
+                         parseSummary.forumMap.length < 3;
+      
+      if (isCorrupted && scenarioId && (eraAddonId === 'ladder_era' || eraAddonId === 'ranked_era')) {
+        const extractedName = this.extractMapNameFromScenarioId(scenarioId, eraAddonId);
+        if (extractedName) {
+          console.log(`   🔧 Corrupted map name detected. Extracted from scenario_id: "${parseSummary.forumMap}" → "${extractedName}"`);
+          parseSummary.forumMap = extractedName;
+        }
+      }
     } else {
       parseSummary.forumMap = replay.game_name;
       console.log(`   ⚠️  No map in forum, using game_name: ${parseSummary.forumMap}`);
@@ -1458,6 +1478,40 @@ export class ParseNewReplaysRefactorized {
     } catch (err) {
       console.warn(`⚠️  Could not resolve map "${mapName}":`, err);
       return { name: mapName, isRanked: false };
+    }
+  }
+
+  /**
+   * Extract map name from scenario_id when forum name is corrupted.
+   * For ladder_era: "multiplayer_Swamp_of_Dread_Ladder_Random" → "Swamp of Dread"
+   * For ranked_era: "multiplayer_Map_Name_Ranked_Random" → "Map Name"
+   */
+  private extractMapNameFromScenarioId(scenarioId: string, addonId: string): string | null {
+    if (!scenarioId) return null;
+    
+    try {
+      let name = scenarioId;
+      
+      // Remove "multiplayer_" prefix
+      name = name.replace(/^multiplayer_/i, '');
+      
+      // Remove suffix based on addon
+      if (addonId?.toLowerCase() === 'ladder_era') {
+        name = name.replace(/_Ladder_Random$/i, '');
+      } else if (addonId?.toLowerCase() === 'ranked_era') {
+        name = name.replace(/_Ranked_Random$/i, '');
+      }
+      
+      // Replace underscores with spaces
+      name = name.replace(/_/g, ' ');
+      
+      // Clean up multiple spaces
+      name = name.replace(/\s+/g, ' ').trim();
+      
+      return name && name.length > 2 ? name : null;
+    } catch (err) {
+      console.warn(`⚠️  Could not extract map name from scenario_id "${scenarioId}":`, err);
+      return null;
     }
   }
 
