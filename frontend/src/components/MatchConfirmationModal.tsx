@@ -141,9 +141,9 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
 
               <div className={`flex-1 bg-gray-50 rounded-lg p-4 text-center border border-gray-200 border-l-4 ${isWinner ? 'border-l-green-500 bg-gradient-to-br from-green-50 to-gray-50' : 'border-l-red-500 bg-gradient-to-br from-red-50 to-gray-50'}`}>
                 <h3 className="text-gray-800 m-0 mb-2 text-xs font-semibold uppercase tracking-wide">You {isWinner ? '(Winner)' : '(Loser)'}</h3>
-                <p className="text-gray-900 font-semibold text-base m-0 mb-1">{isWinner ? match.winner_nickname : match.loser_nickname}</p>
-                <p className="text-yellow-600 font-semibold text-sm m-0 mb-1">ELO: {isWinner ? winnerElo : loserElo}</p>
-                <p className="text-gray-600 m-0 text-xs">Faction: {isWinner ? match.winner_faction : match.loser_faction || 'N/A'}</p>
+                <p className="text-gray-900 font-semibold text-base m-0 mb-1">{isWinner ? match.loser_nickname : match.winner_nickname}</p>
+                <p className="text-yellow-600 font-semibold text-sm m-0 mb-1">ELO: {isWinner ? loserElo : winnerElo}</p>
+                <p className="text-gray-600 m-0 text-xs">Faction: {isWinner ? match.loser_faction : match.winner_faction || 'N/A'}</p>
               </div>
             </div>
 
