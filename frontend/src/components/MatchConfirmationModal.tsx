@@ -128,8 +128,8 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
         <div className="px-6 py-6">
           <div className="mb-4">
             <div className="flex items-center justify-between gap-4">
-              <div className="flex-1 bg-gray-50 rounded-lg p-4 text-center border border-gray-200 border-l-4 border-l-green-500 bg-gradient-to-br from-green-50 to-gray-50">
-                <h3 className="text-gray-800 m-0 mb-2 text-xs font-semibold uppercase tracking-wide">Winner</h3>
+              <div className={`flex-1 bg-gray-50 rounded-lg p-4 text-center border border-gray-200 border-l-4 ${isWinner ? 'border-l-green-500 bg-gradient-to-br from-green-50 to-gray-50' : 'border-l-gray-300'}`}>
+                <h3 className="text-gray-800 m-0 mb-2 text-xs font-semibold uppercase tracking-wide">{isWinner ? 'You (Winner)' : 'Winner'}</h3>
                 <p className="text-gray-900 font-semibold text-base m-0 mb-1">{match.winner_nickname}</p>
                 <p className="text-yellow-600 font-semibold text-sm m-0 mb-1">ELO: {winnerElo}</p>
                 <p className="text-gray-600 m-0 text-xs">Faction: {match.winner_faction || 'N/A'}</p>
@@ -139,11 +139,11 @@ const MatchConfirmationModal: React.FC<MatchConfirmationModalProps> = ({
                 <span className="text-gray-700 font-bold">vs</span>
               </div>
 
-              <div className={`flex-1 bg-gray-50 rounded-lg p-4 text-center border border-gray-200 border-l-4 ${isWinner ? 'border-l-green-500 bg-gradient-to-br from-green-50 to-gray-50' : 'border-l-red-500 bg-gradient-to-br from-red-50 to-gray-50'}`}>
-                <h3 className="text-gray-800 m-0 mb-2 text-xs font-semibold uppercase tracking-wide">You {isWinner ? '(Winner)' : '(Loser)'}</h3>
-                <p className="text-gray-900 font-semibold text-base m-0 mb-1">{isWinner ? match.loser_nickname : match.winner_nickname}</p>
-                <p className="text-yellow-600 font-semibold text-sm m-0 mb-1">ELO: {isWinner ? loserElo : winnerElo}</p>
-                <p className="text-gray-600 m-0 text-xs">Faction: {isWinner ? match.loser_faction : match.winner_faction || 'N/A'}</p>
+              <div className={`flex-1 bg-gray-50 rounded-lg p-4 text-center border border-gray-200 border-l-4 ${isLoser ? 'border-l-red-500 bg-gradient-to-br from-red-50 to-gray-50' : 'border-l-gray-300'}`}>
+                <h3 className="text-gray-800 m-0 mb-2 text-xs font-semibold uppercase tracking-wide">{isLoser ? 'You (Loser)' : 'Loser'}</h3>
+                <p className="text-gray-900 font-semibold text-base m-0 mb-1">{match.loser_nickname}</p>
+                <p className="text-yellow-600 font-semibold text-sm m-0 mb-1">ELO: {loserElo}</p>
+                <p className="text-gray-600 m-0 text-xs">Faction: {match.loser_faction || 'N/A'}</p>
               </div>
             </div>
 
