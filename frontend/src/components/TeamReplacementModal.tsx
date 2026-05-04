@@ -2,24 +2,33 @@ import React, { useState } from 'react';
 import { api } from '../services/api';
 import { useTranslation } from 'react-i18next';
 
+interface TeamMember {
+  participant_id: string;
+  user_id: string;
+  nickname: string;
+  team_position?: number;
+  participation_status?: string;
+}
+
 interface TeamReplacementModalProps {
   tournamentId: string;
   teamId: string;
-  playerToReplaceId: string;
-  playerToReplaceName: string;
+  isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  teamMembers?: TeamMember[];
 }
 
 export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
   tournamentId,
   teamId,
-  playerToReplaceId,
-  playerToReplaceName,
+  isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  teamMembers = []
 }) => {
   const { t } = useTranslation();
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
   const [newPlayerNickname, setNewPlayerNickname] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +40,7 @@ export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
     setValidationError(null);
 
     // Validation
-    if (!playerToReplaceId) {
+    if (!selectedMemberId) {
       setValidationError(t('Please select a team member to replace'));
       return;
     }
@@ -45,7 +54,7 @@ export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
       setLoading(true);
       const url = `/admin/tournaments/${tournamentId}/teams/${teamId}/replace-member`;
       const payload = {
-        player_to_replace_id: playerToReplaceId,
+        player_to_replace_id: selectedMemberId, // This is participant_id
         new_player_nickname: newPlayerNickname.trim()
       };
       
@@ -53,7 +62,7 @@ export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
       console.log('   URL:', url);
       console.log('   tournamentId:', tournamentId);
       console.log('   teamId:', teamId);
-      console.log('   playerToReplaceId:', playerToReplaceId);
+      console.log('   participant_id:', selectedMemberId);
       console.log('   newPlayerNickname:', newPlayerNickname);
       console.log('   payload:', payload);
 
@@ -63,6 +72,7 @@ export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
 
       if (response.data.success) {
         // Reset form
+        setSelectedMemberId('');
         setNewPlayerNickname('');
         
         // Call success callback
@@ -87,6 +97,10 @@ export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
     }
   };
 
+  const selectedMember = teamMembers.find(m => m.participant_id === selectedMemberId);
+
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
@@ -107,14 +121,26 @@ export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
         )}
 
         <div className="space-y-4">
-          {/* Member to replace - display only */}
+          {/* Select member to replace */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t('Member to replace')} *
             </label>
-            <div className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-700">
-              {playerToReplaceName}
-            </div>
+            <select
+              value={selectedMemberId}
+              onChange={(e) => setSelectedMemberId(e.target.value)}
+              disabled={loading}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-gray-100 disabled:text-gray-600"
+            >
+              <option value="">-- {t('Select team member')} --</option>
+              {teamMembers
+                .filter(m => m.participation_status === 'accepted')
+                .map((member) => (
+                  <option key={member.participant_id} value={member.participant_id}>
+                    {member.nickname} (Pos: {member.team_position})
+                  </option>
+                ))}
+            </select>
           </div>
 
           {/* Enter substitute nickname */}
@@ -147,7 +173,7 @@ export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={loading || !newPlayerNickname.trim()}
+            disabled={loading || !selectedMemberId || !newPlayerNickname.trim()}
             className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
           >
             {loading ? t('Processing...') : t('Confirm Replacement')}
