@@ -259,6 +259,7 @@ const TournamentDetail: React.FC = () => {
   const [renameTeamValue, setRenameTeamValue] = useState('');
   const [renameTeamLoading, setRenameTeamLoading] = useState(false);
   const [showReplacementModal, setShowReplacementModal] = useState(false);
+  const [replacementTeamMembers, setReplacementTeamMembers] = useState<any[]>([]);
   const [replacementData, setReplacementData] = useState<{ teamId: string; memberId: string; memberNickname: string } | null>(null);
   const [scheduleProposalModal, setScheduleProposalModal] = useState<{ 
     isOpen: boolean; 
@@ -1514,12 +1515,13 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                       onClick={() => {
                                         console.log('Substitute button clicked', {
                                           teamId: team.id,
-                                          memberId: member.user_id,
+                                          participantId: member.participant_id,
                                           memberNickname: member.nickname
                                         });
+                                        setReplacementTeamMembers(team.members_with_elo || []);
                                         setReplacementData({
                                           teamId: team.id,
-                                          memberId: member.user_id,
+                                          memberId: member.participant_id,
                                           memberNickname: member.nickname
                                         });
                                         setShowReplacementModal(true);
@@ -2630,15 +2632,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
         <TeamReplacementModal
           tournamentId={id!}
           teamId={replacementData.teamId}
-          playerToReplaceId={replacementData.memberId}
-          playerToReplaceName={replacementData.memberNickname}
+          isOpen={showReplacementModal}
+          teamMembers={replacementTeamMembers}
           onClose={() => {
             setShowReplacementModal(false);
             setReplacementData(null);
+            setReplacementTeamMembers([]);
           }}
           onSuccess={() => {
             setShowReplacementModal(false);
             setReplacementData(null);
+            setReplacementTeamMembers([]);
             fetchTournamentData();
           }}
         />
