@@ -2439,7 +2439,7 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
       return res.status(400).json({ success: false, error: 'Player is already participating in tournament' });
     }
 
-    // Create new tournament_participants record with pending_confirmation status
+    // Create new tournament_participants record with pending status
     // and link it to the player being replaced via requested_replacement_of_id
     const newParticipantId = uuidv4();
     const playerToReplaceParticipantId = playerToReplaceResult.rows[0].id;
@@ -2447,7 +2447,7 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
     await query(
       `INSERT INTO tournament_participants 
        (id, tournament_id, user_id, team_id, team_position, participation_status, requested_replacement_of_id, created_at)
-       VALUES (?, ?, ?, ?, NULL, 'pending_confirmation', ?, NOW())`,
+       VALUES (?, ?, ?, ?, NULL, 'pending', ?, NOW())`,
       [newParticipantId, id, new_player_id, teamId, playerToReplaceParticipantId]
     );
 
@@ -2488,7 +2488,7 @@ router.post('/user/tournaments/:id/confirm-replacement/:participantId', authMidd
     // Get the pending confirmation participant (the substitute)
     const pendingResult = await query(
       `SELECT p.* FROM tournament_participants p
-       WHERE p.id = ? AND p.tournament_id = ? AND p.participation_status = 'pending_confirmation'`,
+       WHERE p.id = ? AND p.tournament_id = ? AND p.participation_status = 'pending'`,
       [participantId, id]
     );
 
