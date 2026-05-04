@@ -2353,7 +2353,13 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
     const { id, teamId } = req.params;
     const { player_to_replace_id, new_player_nickname } = req.body;
 
+    console.log('🚀 [BACKEND] POST /tournaments/:id/teams/:teamId/replace-member');
+    console.log('   Params:', { id, teamId });
+    console.log('   Body:', { player_to_replace_id, new_player_nickname });
+    console.log('   User ID:', req.userId);
+
     if (!player_to_replace_id || !new_player_nickname) {
+      console.error('❌ [BACKEND] Missing required fields');
       return res.status(400).json({ success: false, error: 'player_to_replace_id and new_player_nickname are required' });
     }
 
@@ -2363,13 +2369,19 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
       [id]
     );
 
+    console.log('   Tournament query result:', tournResult.rows.length > 0 ? '✓ Found' : '✗ Not found');
+
     if (tournResult.rows.length === 0) {
+      console.error('❌ [BACKEND] Tournament not found:', id);
       return res.status(404).json({ success: false, error: 'Tournament not found' });
     }
 
     if (tournResult.rows[0].creator_id !== req.userId) {
+      console.error('❌ [BACKEND] User is not organizer:', { creator_id: tournResult.rows[0].creator_id, req_userId: req.userId });
       return res.status(403).json({ success: false, error: 'Only organizer can replace team members' });
     }
+
+    console.log('   ✓ User is organizer');
 
     // Verify team belongs to tournament
     const teamResult = await query(
@@ -2377,7 +2389,10 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
       [teamId, id]
     );
 
+    console.log('   Team query result:', teamResult.rows.length > 0 ? '✓ Found' : '✗ Not found');
+
     if (teamResult.rows.length === 0) {
+      console.error('❌ [BACKEND] Team not found:', { teamId, tournamentId: id });
       return res.status(404).json({ success: false, error: 'Team not found' });
     }
 
@@ -2388,7 +2403,10 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
       [player_to_replace_id, teamId]
     );
 
+    console.log('   Player to replace query result:', playerToReplaceResult.rows.length > 0 ? '✓ Found' : '✗ Not found');
+
     if (playerToReplaceResult.rows.length === 0) {
+      console.error('❌ [BACKEND] Active team member not found:', player_to_replace_id);
       return res.status(404).json({ success: false, error: 'Active team member not found' });
     }
 
@@ -2398,7 +2416,10 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
       [new_player_nickname]
     );
 
+    console.log('   New player query result:', newPlayerResult.rows.length > 0 ? '✓ Found' : '✗ Not found');
+
     if (newPlayerResult.rows.length === 0) {
+      console.error('❌ [BACKEND] Player not found:', new_player_nickname);
       return res.status(404).json({ success: false, error: 'Player not found' });
     }
 
@@ -2411,7 +2432,10 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
       [id, new_player_id]
     );
 
+    console.log('   Duplicate check result:', duplicateCheckResult.rows.length > 0 ? '✗ Already in tournament' : '✓ Not duplicated');
+
     if (duplicateCheckResult.rows.length > 0) {
+      console.error('❌ [BACKEND] Player already in tournament:', new_player_id);
       return res.status(400).json({ success: false, error: 'Player is already participating in tournament' });
     }
 
@@ -2424,6 +2448,11 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
       [newParticipantId, id, new_player_id, teamId]
     );
 
+    console.log('✅ [BACKEND] Member replacement initiated successfully');
+    console.log('   New participant ID:', newParticipantId);
+    console.log('   Substitute:', new_player_nickname);
+    console.log('   Replacing:', player_to_replace_id);
+
     // TODO: Send Discord notification that substitute is pending confirmation
     console.log(`⏳ Member replacement initiated: ${new_player_nickname} pending to replace member ${player_to_replace_id}`);
 
@@ -2433,7 +2462,7 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
       participantId: newParticipantId
     });
   } catch (error) {
-    console.error('Error initiating member replacement:', error);
+    console.error('❌ [BACKEND] Error initiating member replacement:', error);
     res.status(500).json({ success: false, error: 'Failed to initiate replacement' });
   }
 });

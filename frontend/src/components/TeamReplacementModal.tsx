@@ -43,22 +43,23 @@ export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
 
     try {
       setLoading(true);
-      console.log('Calling replace-member endpoint', {
-        tournamentId,
-        teamId,
-        playerToReplaceId,
-        newPlayerNickname
-      });
+      const url = `/admin/tournaments/${tournamentId}/teams/${teamId}/replace-member`;
+      const payload = {
+        player_to_replace_id: playerToReplaceId,
+        new_player_nickname: newPlayerNickname.trim()
+      };
+      
+      console.log('🚀 [TeamReplacementModal] Calling replace-member endpoint');
+      console.log('   URL:', url);
+      console.log('   tournamentId:', tournamentId);
+      console.log('   teamId:', teamId);
+      console.log('   playerToReplaceId:', playerToReplaceId);
+      console.log('   newPlayerNickname:', newPlayerNickname);
+      console.log('   payload:', payload);
 
-      const response = await api.post(
-        `/admin/tournaments/${tournamentId}/teams/${teamId}/replace-member`,
-        {
-          player_to_replace_id: playerToReplaceId,
-          new_player_nickname: newPlayerNickname.trim()
-        }
-      );
+      const response = await api.post(url, payload);
 
-      console.log('Replace member response:', response.data);
+      console.log('✅ [TeamReplacementModal] Replace member response:', response.data);
 
       if (response.data.success) {
         // Reset form
@@ -71,7 +72,12 @@ export const TeamReplacementModal: React.FC<TeamReplacementModalProps> = ({
         setError(response.data.error || t('Failed to initiate replacement'));
       }
     } catch (err: any) {
-      console.error('Replace member error:', err);
+      console.error('❌ [TeamReplacementModal] Replace member error:', err);
+      console.error('   Status:', err.response?.status);
+      console.error('   Status Text:', err.response?.statusText);
+      console.error('   Data:', err.response?.data);
+      console.error('   URL:', err.config?.url);
+      console.error('   Method:', err.config?.method);
       const errorMessage = err.response?.data?.error || 
                            err.response?.data?.message || 
                            (err instanceof Error ? err.message : t('Failed to initiate replacement'));
