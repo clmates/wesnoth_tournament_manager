@@ -11,6 +11,7 @@ import PlayerLink from '../components/PlayerLink';
 import StarDisplay from '../components/StarDisplay';
 import { ReplayConfirmationModal } from '../components/ReplayConfirmationModal';
 import ScheduleProposalModal from '../components/ScheduleProposalModal';
+import { TeamReplacementModal } from '../components/TeamReplacementModal';
 
 // Helper function to extract parsed replay data from JSON summary
 function parseReplaySummary(summaryJson: string | null): {
@@ -257,6 +258,8 @@ const TournamentDetail: React.FC = () => {
   const [renameTeamModal, setRenameTeamModal] = useState<{ open: boolean; teamId: string; currentName: string }>({ open: false, teamId: '', currentName: '' });
   const [renameTeamValue, setRenameTeamValue] = useState('');
   const [renameTeamLoading, setRenameTeamLoading] = useState(false);
+  const [showReplacementModal, setShowReplacementModal] = useState(false);
+  const [replacementData, setReplacementData] = useState<{ teamId: string; memberId: string; memberNickname: string } | null>(null);
   const [scheduleProposalModal, setScheduleProposalModal] = useState<{ 
     isOpen: boolean; 
     matchId: string | null; 
@@ -1503,6 +1506,23 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                       Awaiting confirmation
                                     </span>
                                   )}
+                                  {/* Substitute Player — organizer only, after tournament starts, for accepted members */}
+                                  {isCreator && tournament?.status !== 'registration_open' && member.participation_status === 'accepted' && (
+                                    <button
+                                      className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
+                                      title="Replace this player with a substitute"
+                                      onClick={() => {
+                                        setReplacementData({
+                                          teamId: team.id,
+                                          memberId: member.user_id,
+                                          memberNickname: member.nickname
+                                        });
+                                        setShowReplacementModal(true);
+                                      }}
+                                    >
+                                      Substitute
+                                    </button>
+                                  )}
                                   {/* Remove participant — self, organizer, admin, moderator; only before tournament starts */}
                                   {(member.user_id === userId || canManageParticipants) &&
                                    tournament?.status === 'registration_open' && (
@@ -2597,6 +2617,25 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           currentUserId={userId || undefined}
           currentUserNickname={user?.nickname || undefined}
           externalError={error}
+        />
+      )}
+
+      {/* Team Member Replacement Modal */}
+      {showReplacementModal && replacementData && tournament && (
+        <TeamReplacementModal
+          tournamentId={id!}
+          teamId={replacementData.teamId}
+          playerToReplaceId={replacementData.memberId}
+          playerToReplaceName={replacementData.memberNickname}
+          onClose={() => {
+            setShowReplacementModal(false);
+            setReplacementData(null);
+          }}
+          onSuccess={() => {
+            setShowReplacementModal(false);
+            setReplacementData(null);
+            fetchTournamentData();
+          }}
         />
       )}
 
