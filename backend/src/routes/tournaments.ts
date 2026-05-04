@@ -3425,14 +3425,14 @@ router.get('/:id/standings', async (req, res) => {
             )
           ) as members_with_elo
          FROM tournament_teams tt
-         LEFT JOIN tournament_participants tp ON tp.team_id = tt.id AND tp.participation_status = 'accepted'
+         LEFT JOIN tournament_participants tp ON tp.team_id = tt.id AND tp.team_id != ?
          LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tt.tournament_id = ? AND tt.id != ?
          GROUP BY tt.id
          ORDER BY 
            CASE WHEN tt.id = ? THEN 1 ELSE 0 END ASC,
            ${orderBy}`,
-        [id, REJECTED_TEAM_ID, REJECTED_TEAM_ID]
+        [REJECTED_TEAM_ID, id, REJECTED_TEAM_ID, REJECTED_TEAM_ID]
       );
 
       // Parse members_with_elo JSON and ensure it's an array
