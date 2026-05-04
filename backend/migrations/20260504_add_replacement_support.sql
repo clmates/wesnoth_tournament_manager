@@ -12,7 +12,8 @@
 
 ALTER TABLE tournament_participants
 MODIFY COLUMN participation_status VARCHAR(30) DEFAULT 'pending' 
-CHECK (participation_status IN ('pending', 'accepted', 'pending_replacement', 'replaced'));
+COMMENT 'Participant status: pending (join request), accepted (active), pending_replacement (substitute waiting confirmation), replaced (was replaced mid-tournament)'
+CHECK (participation_status IN ('pending', 'accepted', 'pending_replacement', 'replaced', 'rejected'));
 
 -- ============================================================================
 -- 2. Add replacement tracking columns to tournament_participants
@@ -47,16 +48,8 @@ CREATE INDEX IF NOT EXISTS idx_tournament_participants_replacement_requested_at
 ON tournament_participants(replacement_requested_at);
 
 -- ============================================================================
--- 4. Documentation/Comments
+-- 4. Add comments to other columns
 -- ============================================================================
-
-ALTER TABLE tournament_participants 
-COMMENT = 'Tournament participants (individual or team members). Tracks participation_status through tournament lifecycle including replacements.';
-
--- Update column comments
-ALTER TABLE tournament_participants 
-MODIFY COLUMN participation_status VARCHAR(30) 
-COMMENT 'Participant status: pending (join request), accepted (active), pending_replacement (substitute waiting confirmation), replaced (was replaced mid-tournament)';
 
 ALTER TABLE tournament_participants 
 MODIFY COLUMN replacement_requested_at DATETIME 
