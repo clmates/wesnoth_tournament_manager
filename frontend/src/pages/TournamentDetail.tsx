@@ -7,6 +7,7 @@ import TournamentForm from '../components/TournamentForm';
 import MatchConfirmationModal from '../components/MatchConfirmationModal';
 import MatchDetailsModal from '../components/MatchDetailsModal';
 import { TeamJoinModal } from '../components/TeamJoinModal';
+import { TeamSubstituteList } from '../components/TeamSubstituteList';
 import PlayerLink from '../components/PlayerLink';
 import StarDisplay from '../components/StarDisplay';
 import { ReplayConfirmationModal } from '../components/ReplayConfirmationModal';
@@ -1286,6 +1287,14 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
           >
             {t('tabs.ranking')}
           </button>
+          {tournament?.tournament_mode === 'team' && (
+            <button 
+              className={`px-4 py-2 rounded font-semibold cursor-pointer transition-all ${activeTab === 'teams' ? 'bg-blue-500 text-white shadow-md' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+              onClick={() => setActiveTab('teams')}
+            >
+              {t('tabs.teams', { defaultValue: 'Teams' })}
+            </button>
+          )}
           
           {/* Refresh button */}
           <button
@@ -2584,6 +2593,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
               <p className="text-gray-600">{t('no_participants_in_tournament')}</p>
             )
           )}
+        </div>
+      )}
+
+      {/* Teams Tab - Only for team tournaments */}
+      {activeTab === 'teams' && tournament?.tournament_mode === 'team' && (
+        <div className="bg-white rounded-lg shadow-lg p-8 mb-8 mt-6">
+          <TeamSubstituteList
+            tournamentId={id!}
+            isOrganizerView={tournament?.creator_id === userId}
+            teamMembers={teams}
+          />
         </div>
       )}
 
