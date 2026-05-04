@@ -3011,7 +3011,7 @@ router.get('/:tournamentId/matches', async (req, res) => {
         LEFT JOIN tournament_rounds tr ON trm.round_id = tr.id
         LEFT JOIN tournament_teams tt1 ON trm.player1_id = tt1.id
         LEFT JOIN tournament_teams tt2 ON trm.player2_id = tt2.id
-        LEFT JOIN tournament_participants tp ON (tp.team_id = trm.player1_id OR tp.team_id = trm.player2_id)
+        LEFT JOIN tournament_participants tp ON (tp.team_id = trm.player1_id OR tp.team_id = trm.player2_id) AND tp.participation_status = 'accepted'
         LEFT JOIN users_extension ue ON tp.user_id = ue.id
         WHERE pr.tournament_id = ?
           AND pr.parse_status = 'parsed'
@@ -3425,7 +3425,7 @@ router.get('/:id/standings', async (req, res) => {
             )
           ) as members_with_elo
          FROM tournament_teams tt
-         LEFT JOIN tournament_participants tp ON tp.team_id = tt.id
+         LEFT JOIN tournament_participants tp ON tp.team_id = tt.id AND tp.participation_status = 'accepted'
          LEFT JOIN users_extension u ON tp.user_id = u.id
          WHERE tt.tournament_id = ? AND tt.id != ?
          GROUP BY tt.id

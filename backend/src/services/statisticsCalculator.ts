@@ -114,7 +114,8 @@ export async function calculateLeagueTiebreakers(
              AND tm.series_status = 'completed'
          ) opponents
          LEFT JOIN tournament_participants tp ON tp.tournament_id = ? 
-           AND tp.user_id = opponents.opponent_id`,
+           AND tp.user_id = opponents.opponent_id
+           AND tp.participation_status = 'accepted'`,
         [userId, tournamentId]
       );
       const omp = parseFloat(ompResult.rows[0]?.omp || 0);
