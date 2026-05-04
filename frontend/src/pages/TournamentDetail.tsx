@@ -1506,12 +1506,17 @@ const handleDownloadReplay = async (matchId: string | null, replayFilePath: stri
                                       Awaiting confirmation
                                     </span>
                                   )}
-                                  {/* Substitute Player — organizer only, after tournament starts, for accepted members */}
-                                  {isCreator && tournament?.status !== 'registration_open' && member.participation_status === 'accepted' && (
+                                  {/* Substitute Player — organizer only, after tournament starts, team active, for accepted members */}
+                                  {isCreator && tournament?.status !== 'registration_open' && team.status === 'active' && member.participation_status === 'accepted' && (
                                     <button
                                       className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
                                       title="Replace this player with a substitute"
                                       onClick={() => {
+                                        console.log('Substitute button clicked', {
+                                          teamId: team.id,
+                                          memberId: member.user_id,
+                                          memberNickname: member.nickname
+                                        });
                                         setReplacementData({
                                           teamId: team.id,
                                           memberId: member.user_id,
