@@ -2439,13 +2439,24 @@ router.post('/tournaments/:id/teams/:teamId/replace-member', authMiddleware, asy
       return res.status(400).json({ success: false, error: 'Player is already participating in tournament' });
     }
 
-    // Create new tournament_participants record with pending_replacement status
+    // Create new tournament_participants record with pending_confirmation status
+    // and link it to the player being replaced via requested_replacement_of_id
     const newParticipantId = uuidv4();
+    const playerToReplaceParticipantId = playerToReplaceResult.rows[0].id;
+    
     await query(
       `INSERT INTO tournament_participants 
-       (id, tournament_id, user_id, team_id, team_position, participation_status, created_at)
-       VALUES (?, ?, ?, ?, NULL, 'pending_replacement', NOW())`,
-      [newParticipantId, id, new_player_id, teamId]
+       (id, tournament_id, user_id, team_id, team_position, participation_status, requested_replacement_of_id, created_at)
+       VALUES (?, ?, ?, ?, NULL, 'pending_confirmation', ?, NOW())`,
+      [newParticipantId, id, new_player_id, teamId, playerToReplaceParticipantId]
+    );
+
+    // Update the player being replaced to pending_replacement status
+    await query(
+      `UPDATE tournament_participants 
+       SET participation_status = 'pending_replacement' 
+       WHERE id = ?`,
+      [playerToReplaceParticipantId]
     );
 
     console.log('✅ [BACKEND] Member replacement initiated successfully');
@@ -2474,11 +2485,10 @@ router.post('/user/tournaments/:id/confirm-replacement/:participantId', authMidd
     const { id, participantId } = req.params;
     const { confirmed } = req.body; // true to confirm, false to reject
 
-    // Get the pending replacement participant
+    // Get the pending confirmation participant (the substitute)
     const pendingResult = await query(
-      `SELECT p.*, t.tournament_id FROM tournament_participants p
-       JOIN tournament_teams t ON p.team_id = t.id
-       WHERE p.id = ? AND p.tournament_id = ? AND p.participation_status = 'pending_replacement'`,
+      `SELECT p.* FROM tournament_participants p
+       WHERE p.id = ? AND p.tournament_id = ? AND p.participation_status = 'pending_confirmation'`,
       [participantId, id]
     );
 
@@ -2502,47 +2512,56 @@ router.post('/user/tournaments/:id/confirm-replacement/:participantId', authMidd
         [REPLACED_PLAYERS_TEAM_ID, participantId]
       );
 
+      // Restore the player being replaced back to accepted status
+      if (pending.requested_replacement_of_id) {
+        await query(
+          `UPDATE tournament_participants 
+           SET participation_status = 'accepted' 
+           WHERE id = ?`,
+          [pending.requested_replacement_of_id]
+        );
+      }
+
       return res.json({ success: true, message: 'Replacement rejected' });
     }
 
-    // Confirmed - find the player to replace and get their team_position
-    const tournResult = await query(
-      'SELECT tournament_id FROM tournaments WHERE id = ?',
-      [id]
-    );
-
-    if (tournResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Tournament not found' });
-    }
-
-    // Find current active member in same team to get position
-    const activeMembers = await query(
+    // Confirmed - find the player being replaced to get their team_position
+    const playerToReplaceResult = await query(
       `SELECT id, team_position, user_id FROM tournament_participants 
-       WHERE team_id = ? AND participation_status = 'accepted' AND team_position IS NOT NULL 
-       ORDER BY team_position LIMIT 1`,
-      [pending.team_id]
+       WHERE id = ? AND participation_status = 'pending_replacement'`,
+      [pending.requested_replacement_of_id]
     );
 
-    if (activeMembers.rows.length === 0) {
-      return res.status(400).json({ success: false, error: 'No active team position found' });
+    if (playerToReplaceResult.rows.length === 0) {
+      return res.status(400).json({ success: false, error: 'Original team member not found' });
     }
 
-    const memberToReplace = activeMembers.rows[0];
+    const playerToReplace = playerToReplaceResult.rows[0];
+    const teamPosition = playerToReplace.team_position;
+    const playerToReplaceId = playerToReplace.id;
 
     // Update: new player becomes accepted with the team_position
     await query(
       `UPDATE tournament_participants 
        SET participation_status = 'accepted', team_position = ? 
        WHERE id = ?`,
-      [memberToReplace.team_position, participantId]
+      [teamPosition, participantId]
+    );
+
+    // Update: old player gets marked as replaced with reference to the new player
+    await query(
+      `UPDATE tournament_participants 
+       SET participation_status = 'replaced', replaced_by_participant_id = ?, team_position = NULL
+       WHERE id = ?`,
+      [participantId, playerToReplaceId]
     );
 
     // Move old member to replaced players team
     await query(
       `UPDATE tournament_participants 
-       SET participation_status = 'replaced', team_id = ?, team_position = NULL
+       SET team_id = ?
        WHERE id = ?`,
-      [REPLACED_PLAYERS_TEAM_ID, memberToReplace.id]
+      [REPLACED_PLAYERS_TEAM_ID, playerToReplaceId]
     );
 
     // UPDATE ALL PENDING MATCHES: Replace old player_id with new player_id
@@ -2551,14 +2570,14 @@ router.post('/user/tournaments/:id/confirm-replacement/:participantId', authMidd
       `UPDATE tournament_round_matches 
        SET player1_id = ? 
        WHERE player1_id = ? AND tournament_id = ?`,
-      [pending.user_id, memberToReplace.user_id, id]
+      [pending.user_id, playerToReplace.user_id, id]
     );
 
     await query(
       `UPDATE tournament_round_matches 
        SET player2_id = ? 
        WHERE player2_id = ? AND tournament_id = ?`,
-      [pending.user_id, memberToReplace.user_id, id]
+      [pending.user_id, playerToReplace.user_id, id]
     );
 
     // Update tournament_matches
@@ -2566,17 +2585,17 @@ router.post('/user/tournaments/:id/confirm-replacement/:participantId', authMidd
       `UPDATE tournament_matches 
        SET player1_id = ? 
        WHERE player1_id = ? AND tournament_id = ?`,
-      [pending.user_id, memberToReplace.user_id, id]
+      [pending.user_id, playerToReplace.user_id, id]
     );
 
     await query(
       `UPDATE tournament_matches 
        SET player2_id = ? 
        WHERE player2_id = ? AND tournament_id = ?`,
-      [pending.user_id, memberToReplace.user_id, id]
+      [pending.user_id, playerToReplace.user_id, id]
     );
 
-    console.log(`✅ Member replacement confirmed: New player ${pending.user_id} replaced ${memberToReplace.user_id}`);
+    console.log(`✅ Member replacement confirmed: New player ${pending.user_id} replaced ${playerToReplace.user_id}`);
 
     res.json({ 
       success: true, 
