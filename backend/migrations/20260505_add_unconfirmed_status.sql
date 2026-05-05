@@ -1,18 +1,7 @@
--- Migration: Add 'unconfirmed' to participation_status valid values
--- Date: 2026-05-05
--- Description: Adds 'unconfirmed' as a valid participation_status for:
---   - Player 2 in request-to-join (2v2 teams) awaiting confirmation
---   - Substitute players awaiting confirmation before replacement takes effect
+-- Add 'unconfirmed' status to participation_status CHECK constraint
+-- This status is used for:
+-- 1. Team members awaiting confirmation (team_position join requests)
+-- 2. Substitutes awaiting confirmation (team member replacements)
 
--- ============================================================================
--- Drop and recreate the CHECK constraint to include 'unconfirmed'
--- ============================================================================
-
--- First, drop the old constraint
 ALTER TABLE tournament_participants 
-DROP CONSTRAINT tournament_participants_chk_1;
-
--- Add the new constraint with 'unconfirmed' included
-ALTER TABLE tournament_participants 
-ADD CONSTRAINT participation_status_check 
-CHECK (`participation_status` IN ('pending','accepted','pending_replacement','replaced','rejected','unconfirmed'));
+MODIFY COLUMN `participation_status` varchar(30) DEFAULT 'pending' COMMENT 'Participant status: pending (join request), accepted (active), pending_replacement (substitute waiting confirmation), replaced (was replaced mid-tournament), unconfirmed (awaiting confirmation), rejected' CHECK (`participation_status` IN ('pending','accepted','pending_replacement','replaced','rejected','unconfirmed'));
