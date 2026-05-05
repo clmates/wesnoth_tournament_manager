@@ -936,6 +936,88 @@ router.post('/:tournamentId/participants/:participantId/confirm', authMiddleware
       return res.status(400).json({ error: 'Can only confirm unconfirmed participants. Current status: ' + participant.participation_status });
     }
 
+    // Check if this is a substitute (has requested_replacement_of_id)
+    if (participant.requested_replacement_of_id) {
+      // This is a substitute confirmation - apply full replacement workflow
+      // Get the player being replaced
+      const playerToReplaceResult = await query(
+        `SELECT id, team_position, user_id FROM tournament_participants 
+         WHERE id = ? AND participation_status = 'pending_replacement'`,
+        [participant.requested_replacement_of_id]
+      );
+
+      if (playerToReplaceResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Original team member not found' });
+      }
+
+      const playerToReplace = playerToReplaceResult.rows[0];
+      const teamPosition = playerToReplace.team_position;
+      const playerToReplaceId = playerToReplace.id;
+
+      // Update: substitute becomes accepted with the team_position
+      await query(
+        `UPDATE tournament_participants 
+         SET participation_status = 'accepted', team_position = ? 
+         WHERE id = ?`,
+        [teamPosition, participantId]
+      );
+
+      // Update: original player gets marked as replaced
+      await query(
+        `UPDATE tournament_participants 
+         SET participation_status = 'replaced', replaced_by_participant_id = ?, team_position = NULL
+         WHERE id = ?`,
+        [participantId, playerToReplaceId]
+      );
+
+      // Move original member to replaced players team
+      await query(
+        `UPDATE tournament_participants 
+         SET team_id = ?
+         WHERE id = ?`,
+        [REJECTED_TEAM_ID, playerToReplaceId]
+      );
+
+      // UPDATE ALL PENDING MATCHES: Replace old player_id with new player_id
+      // Update tournament_round_matches
+      await query(
+        `UPDATE tournament_round_matches 
+         SET player1_id = ? 
+         WHERE player1_id = ? AND tournament_id = ?`,
+        [participant.user_id, playerToReplace.user_id, tournamentId]
+      );
+
+      await query(
+        `UPDATE tournament_round_matches 
+         SET player2_id = ? 
+         WHERE player2_id = ? AND tournament_id = ?`,
+        [participant.user_id, playerToReplace.user_id, tournamentId]
+      );
+
+      // Update tournament_matches
+      await query(
+        `UPDATE tournament_matches 
+         SET player1_id = ? 
+         WHERE player1_id = ? AND tournament_id = ?`,
+        [participant.user_id, playerToReplace.user_id, tournamentId]
+      );
+
+      await query(
+        `UPDATE tournament_matches 
+         SET player2_id = ? 
+         WHERE player2_id = ? AND tournament_id = ?`,
+        [participant.user_id, playerToReplace.user_id, tournamentId]
+      );
+
+      console.log(`✅ Member replacement confirmed: New player ${participant.user_id} replaced ${playerToReplace.user_id}`);
+
+      return res.json({ 
+        id: participantId,
+        message: 'Replacement confirmed! You are now an active team member.'
+      });
+    }
+
+    // Regular participant confirmation (not a substitute)
     // Update participant status from unconfirmed to pending
     await query(
       `UPDATE tournament_participants 
