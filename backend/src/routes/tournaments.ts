@@ -978,37 +978,6 @@ router.post('/:tournamentId/participants/:participantId/confirm', authMiddleware
         [REJECTED_TEAM_ID, playerToReplaceId]
       );
 
-      // UPDATE ALL PENDING MATCHES: Replace old player_id with new player_id
-      // Update tournament_round_matches
-      await query(
-        `UPDATE tournament_round_matches 
-         SET player1_id = ? 
-         WHERE player1_id = ? AND tournament_id = ?`,
-        [participant.user_id, playerToReplace.user_id, tournamentId]
-      );
-
-      await query(
-        `UPDATE tournament_round_matches 
-         SET player2_id = ? 
-         WHERE player2_id = ? AND tournament_id = ?`,
-        [participant.user_id, playerToReplace.user_id, tournamentId]
-      );
-
-      // Update tournament_matches
-      await query(
-        `UPDATE tournament_matches 
-         SET player1_id = ? 
-         WHERE player1_id = ? AND tournament_id = ?`,
-        [participant.user_id, playerToReplace.user_id, tournamentId]
-      );
-
-      await query(
-        `UPDATE tournament_matches 
-         SET player2_id = ? 
-         WHERE player2_id = ? AND tournament_id = ?`,
-        [participant.user_id, playerToReplace.user_id, tournamentId]
-      );
-
       console.log(`✅ Member replacement confirmed: New player ${participant.user_id} replaced ${playerToReplace.user_id}`);
 
       return res.json({ 
