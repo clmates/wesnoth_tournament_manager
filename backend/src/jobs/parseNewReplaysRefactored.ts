@@ -1386,7 +1386,7 @@ export class ParseNewReplaysRefactorized {
     const removeApostrophes = (s: string) => s.replace(/'/g, '');
 
     const mapNameNorm = normalizeQuotes(mapName);
-    const mapNameNoApos = removeApostrophes(mapNameNorm);
+    const mapNameNoApos = removeApostrophes(mapName);  // Apply to ORIGINAL, not to normalized
 
     // Helper: run a query and return ranked result (is_ranked = 1)
     // IMPORTANT: Only search for ranked maps - do NOT fallback to unranked maps.
@@ -1437,7 +1437,7 @@ export class ParseNewReplaysRefactorized {
       // 1c. Exact match ignoring apostrophes (handles "Sullas Ruins" vs "Sulla's Ruins")
       if (mapNameNoApos !== mapNameNorm) {
         hit = await tryQuery(
-          `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), '''', '') = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+          `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
           [mapNameNoApos]
         );
         if (hit) {
@@ -1449,7 +1449,7 @@ export class ParseNewReplaysRefactorized {
       // 2. Strip "Np —" / "Np \ufffd" prefix, then exact match
       const cleaned = mapName.replace(/^\d+[a-z]?\s*[—\-–\ufffd]\s*/i, '').trim();
       const cleanedNorm = normalizeQuotes(cleaned);
-      const cleanedNoApos = removeApostrophes(cleanedNorm);
+      const cleanedNoApos = removeApostrophes(cleaned);  // Apply to ORIGINAL cleaned, not normalized
       if (cleaned !== mapName) {
         // 2a. Exact match on normalized stripped name
         hit = await tryQuery(
@@ -1470,7 +1470,7 @@ export class ParseNewReplaysRefactorized {
         // 2c. Exact match ignoring apostrophes on stripped name
         if (cleanedNoApos !== cleanedNorm) {
           hit = await tryQuery(
-            `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), '''', '') = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+            `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
             [cleanedNoApos]
           );
           if (hit) return hit;
