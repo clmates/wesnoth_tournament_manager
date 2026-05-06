@@ -1430,7 +1430,7 @@ export class ParseNewReplaysRefactorized {
         const mapIdWithoutPrefix = mapId.replace(/^multiplayer_/, '').replace(/_/g, ' ');
         console.log(`   [MAP DEBUG] Step 0: Trying by map ID: "${mapId}" → "${mapIdWithoutPrefix}"`);
         let hit = await tryQuery(
-          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+          `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") = REPLACE(LOWER(?), "'", "") ORDER BY is_ranked DESC LIMIT 1`,
           [mapIdWithoutPrefix],
           `Map ID exact match`
         );
@@ -1443,7 +1443,7 @@ export class ParseNewReplaysRefactorized {
       // 1. Exact match on original name (ORDER BY is_ranked DESC so ranked rows come first)
       console.log(`   [MAP DEBUG] Step 1: Trying exact match on original`);
       let hit = await tryQuery(
-        `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+        `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") = REPLACE(LOWER(?), "'", "") ORDER BY is_ranked DESC LIMIT 1`,
         [mapName],
         `Exact match on original "${mapName}"`
       );
@@ -1453,7 +1453,7 @@ export class ParseNewReplaysRefactorized {
       console.log(`   [MAP DEBUG] Step 1b: mapNameNorm !== mapName? ${mapNameNorm !== mapName}`);
       if (mapNameNorm !== mapName) {
         hit = await tryQuery(
-          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+          `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") = REPLACE(LOWER(?), "'", "") ORDER BY is_ranked DESC LIMIT 1`,
           [mapNameNorm],
           `Exact match on normalized "${mapNameNorm}"`
         );
@@ -1485,7 +1485,7 @@ export class ParseNewReplaysRefactorized {
         console.log(`   [MAP DEBUG] Step 2: Prefix stripping: "${mapName}" → "${cleaned}"`);
         // 2a. Exact match on normalized stripped name
         hit = await tryQuery(
-          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+          `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") = REPLACE(LOWER(?), "'", "") ORDER BY is_ranked DESC LIMIT 1`,
           [cleanedNorm],
           `Exact match on cleaned normalized "${cleanedNorm}"`
         );
@@ -1494,7 +1494,7 @@ export class ParseNewReplaysRefactorized {
         // 2b. Exact match on raw stripped name (if different from normalized)
         if (cleanedNorm !== cleaned) {
           hit = await tryQuery(
-            `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+            `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") = REPLACE(LOWER(?), "'", "") ORDER BY is_ranked DESC LIMIT 1`,
             [cleaned],
             `Exact match on cleaned raw "${cleaned}"`
           );
@@ -1515,7 +1515,7 @@ export class ParseNewReplaysRefactorized {
       // 3. LIKE on normalized map name
       console.log(`   [MAP DEBUG] Step 3: LIKE match`);
       hit = await tryQuery(
-        `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+        `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") LIKE REPLACE(LOWER(?), "'", "") ORDER BY is_ranked DESC LIMIT 1`,
         [`%${mapNameNorm}%`],
         `LIKE match on normalized "${mapNameNorm}"`
       );
@@ -1525,7 +1525,7 @@ export class ParseNewReplaysRefactorized {
       const fuzzyClean = cleanedNorm.replace(/\s*\ufffd\s*/g, '%').replace(/%+/g, '%');
       if (fuzzyClean !== cleanedNorm && cleaned !== mapName) {
         hit = await tryQuery(
-          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+          `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") LIKE REPLACE(LOWER(?), "'", "") ORDER BY is_ranked DESC LIMIT 1`,
           [fuzzyClean],
           `LIKE fuzzy on cleaned "${fuzzyClean}"`
         );
@@ -1536,7 +1536,7 @@ export class ParseNewReplaysRefactorized {
       const fuzzyRaw = mapNameNorm.replace(/\s*\ufffd\s*/g, '%').replace(/%+/g, '%');
       if (fuzzyRaw !== mapNameNorm) {
         hit = await tryQuery(
-          `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+          `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") LIKE REPLACE(LOWER(?), "'", "") ORDER BY is_ranked DESC LIMIT 1`,
           [fuzzyRaw],
           `LIKE fuzzy on raw "${fuzzyRaw}"`
         );
