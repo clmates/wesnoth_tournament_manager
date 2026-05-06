@@ -1,10 +1,10 @@
 -- Migration: Add Team Member Replacement Support
 -- Date: 2026-05-06
 -- Description: Adds support for team member replacement/substitution workflow
--- Includes: replacement tracking fields, constraints, indices, and CHECK constraint for participation_status
+-- Includes: replacement tracking fields, foreign keys, and indices
 
 -- ============================================================================
--- 1. Add replacement tracking columns to tournament_participants
+-- 1. Add replacement tracking columns to tournament_participants (if missing)
 -- ============================================================================
 
 ALTER TABLE tournament_participants 
@@ -17,30 +17,7 @@ ALTER TABLE tournament_participants
 ADD COLUMN IF NOT EXISTS requested_replacement_of_id CHAR(36) NULL DEFAULT NULL;
 
 -- ============================================================================
--- 2. Update participation_status CHECK constraint to include new values
--- ============================================================================
-
--- Drop existing CHECK constraint if it exists, then recreate with full list
-ALTER TABLE tournament_participants
-MODIFY COLUMN participation_status VARCHAR(30) DEFAULT 'pending' 
-CHECK (participation_status IN ('pending', 'accepted', 'pending_replacement', 'replaced', 'rejected', 'unconfirmed'));
-
--- ============================================================================
--- 3. Add foreign keys for replacement tracking
--- ============================================================================
-
--- Add foreign keys only if they don't already exist
--- Use error-suppressing approach for AlterTable
-ALTER TABLE tournament_participants 
-ADD CONSTRAINT fk_replaced_by_participant 
-FOREIGN KEY (replaced_by_participant_id) REFERENCES tournament_participants(id) ON DELETE SET NULL;
-
-ALTER TABLE tournament_participants 
-ADD CONSTRAINT fk_requested_replacement_of_participant 
-FOREIGN KEY (requested_replacement_of_id) REFERENCES tournament_participants(id) ON DELETE SET NULL;
-
--- ============================================================================
--- 4. Create indices for replacement queries
+-- 2. Create indices for replacement queries (if missing)
 -- ============================================================================
 
 CREATE INDEX IF NOT EXISTS idx_tournament_participants_replacement_requested_at 
