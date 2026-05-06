@@ -1382,18 +1382,25 @@ export class ParseNewReplaysRefactorized {
       s.replace(/[\u2018\u2019\u201a\u201b\u2032\u2035]/g, "'")
        .replace(/[\u201c\u201d]/g, '"');
 
-    const mapNameNorm = normalizeQuotes(mapName);
+    // Remove all apostrophes for comparison (handles "Sullas Ruins" vs "Sulla's Ruins")
+    const removeApostrophes = (s: string) => s.replace(/'/g, '');
 
-    // Helper: run a query and return ranked result immediately, or save as fallback
-    let unrankedFallback: { name: string; isRanked: boolean } | null = null;
+    const mapNameNorm = normalizeQuotes(mapName);
+    const mapNameNoApos = removeApostrophes(mapNameNorm);
+
+    // Helper: run a query and return ranked result (is_ranked = 1)
+    // IMPORTANT: Only search for ranked maps - do NOT fallback to unranked maps.
+    // A map must be explicitly marked as ranked to be eligible for ranked matches.
     const tryQuery = async (sql: string, params: any[]): Promise<{ name: string; isRanked: boolean } | null> => {
       const result = await query(sql, params);
       const rows = (result as any).rows || [];
       if (rows.length === 0) return null;
       const map = rows[0];
-      const entry = { name: map.name as string, isRanked: map.is_ranked === 1 };
-      if (entry.isRanked) return entry;           // ranked → use immediately
-      if (!unrankedFallback) unrankedFallback = entry; // save first unranked hit
+      // Return only if this is a ranked map (is_ranked = 1)
+      if (map.is_ranked === 1) {
+        return { name: map.name as string, isRanked: true };
+      }
+      // Unranked maps are not eligible for ranked match validation
       return null;
     };
 
@@ -1427,9 +1434,22 @@ export class ParseNewReplaysRefactorized {
         if (hit) return hit;
       }
 
+      // 1c. Exact match ignoring apostrophes (handles "Sullas Ruins" vs "Sulla's Ruins")
+      if (mapNameNoApos !== mapNameNorm) {
+        hit = await tryQuery(
+          `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), '''', '') = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+          [mapNameNoApos]
+        );
+        if (hit) {
+          console.log(`   📌 Matched ignoring apostrophes: "${mapName}" → "${hit.name}"`);
+          return hit;
+        }
+      }
+
       // 2. Strip "Np —" / "Np \ufffd" prefix, then exact match
       const cleaned = mapName.replace(/^\d+[a-z]?\s*[—\-–\ufffd]\s*/i, '').trim();
       const cleanedNorm = normalizeQuotes(cleaned);
+      const cleanedNoApos = removeApostrophes(cleanedNorm);
       if (cleaned !== mapName) {
         // 2a. Exact match on normalized stripped name
         hit = await tryQuery(
@@ -1443,6 +1463,15 @@ export class ParseNewReplaysRefactorized {
           hit = await tryQuery(
             `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
             [cleaned]
+          );
+          if (hit) return hit;
+        }
+
+        // 2c. Exact match ignoring apostrophes on stripped name
+        if (cleanedNoApos !== cleanedNorm) {
+          hit = await tryQuery(
+            `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), '''', '') = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
+            [cleanedNoApos]
           );
           if (hit) return hit;
         }
@@ -1475,8 +1504,8 @@ export class ParseNewReplaysRefactorized {
         if (hit) return hit;
       }
 
-      // No ranked result found — return best unranked match or the raw input
-      return unrankedFallback || { name: mapName, isRanked: false };
+      // No ranked map found — return false (map not eligible for ranked matches)
+      return { name: mapName, isRanked: false };
     } catch (err) {
       console.warn(`⚠️  Could not resolve map "${mapName}":`, err);
       return { name: mapName, isRanked: false };
