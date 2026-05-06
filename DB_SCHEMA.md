@@ -353,26 +353,43 @@ Tournament definitions.
 
 ### `tournament_participants`
 
-Links users to tournaments.
+Links users to tournaments. Tracks participant status throughout tournament lifecycle including replacements.
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | char(36) PK | UUID |
-| `tournament_id` | char(36) FK→tournaments | |
-| `user_id` | char(36) FK→users_extension | |
-| `participation_status` | varchar(20) | `pending` / `approved` / `active` / `eliminated` / `withdrawn` |
-| `status` | varchar(20) | Legacy status field |
-| `current_round` | int | Round the participant is currently in |
-| `tournament_ranking` | int | Final or current ranking in the tournament |
-| `tournament_wins` | int | Wins in this tournament |
-| `tournament_losses` | int | Losses in this tournament |
-| `tournament_points` | int | Points accumulated |
-| `omp` | decimal(8,2) | Opponent Match-Win Percentage (tiebreaker) |
-| `gwp` | decimal(5,2) | Game-Win Percentage (tiebreaker) |
-| `ogp` | decimal(5,2) | Opponent Game-Win Percentage (tiebreaker) |
-| `team_id` | char(36) FK→tournament_teams | For 2v2 tournaments |
-| `team_position` | smallint | Player slot within team (1 or 2) |
-| `created_at` | datetime | |
+**Constraints:**
+- PRIMARY KEY: `id`
+- FOREIGN KEY: `replaced_by_participant_id` → `tournament_participants(id)` ON DELETE SET NULL
+- FOREIGN KEY: `requested_replacement_of_id` → `tournament_participants(id)` ON DELETE SET NULL
+- CHECK: `participation_status` IN ('pending', 'accepted', 'pending_replacement', 'replaced', 'rejected', 'unconfirmed')
+
+| Column | Type | Null | Key | Notes |
+|---|---|---|---|---|
+| `id` | char(36) | NO | PRI | UUID |
+| `tournament_id` | char(36) | NO | MUL | FK→tournaments(id) |
+| `user_id` | char(36) | NO | MUL | FK→users_extension(id) |
+| `current_round` | int(11) | YES | | Round participant is in (default: 1) |
+| `status` | varchar(20) | YES | | Legacy status field (default: 'active') |
+| `created_at` | datetime | YES | | Timestamp (default: CURRENT_TIMESTAMP) |
+| `participation_status` | varchar(30) | YES | | Status: `pending` (join request), `accepted` (active), `unconfirmed` (awaiting confirmation), `pending_replacement` (substitute waiting confirmation), `replaced` (was replaced mid-tournament), `rejected` (default: 'pending') |
+| `replacement_requested_at` | datetime | YES | MUL | When replacement was initiated by organizer (default: NULL) |
+| `replaced_by_participant_id` | char(36) | YES | MUL | FK→tournament_participants(id), points to substitute if this participant was replaced (default: NULL) |
+| `requested_replacement_of_id` | char(36) | YES | MUL | FK→tournament_participants(id), if this is substitute, points to original participant being replaced (default: NULL) |
+| `tournament_ranking` | int(11) | YES | | Final or current ranking (default: NULL) |
+| `tournament_wins` | int(11) | YES | | Wins in tournament (default: 0) |
+| `tournament_losses` | int(11) | YES | | Losses in tournament (default: 0) |
+| `tournament_points` | int(11) | YES | | Points accumulated (default: 0) |
+| `omp` | decimal(8,2) | YES | | Opponent Match-Win Percentage tiebreaker (default: 0.00) |
+| `gwp` | decimal(5,2) | YES | | Game-Win Percentage tiebreaker (default: 0.00) |
+| `ogp` | decimal(5,2) | YES | | Opponent Game-Win Percentage tiebreaker (default: 0.00) |
+| `team_id` | char(36) | YES | MUL | FK→tournament_teams(id), for 2v2 tournaments (default: NULL) |
+| `team_position` | smallint(6) | YES | | Player slot within team: 1 or 2 (default: NULL) |
+
+**Indices:**
+- `idx_tournament_id` on `tournament_id`
+- `idx_user_id` on `user_id`
+- `idx_team_id` on `team_id`
+- `idx_tournament_participants_replacement_requested_at` on `replacement_requested_at`
+- `idx_tournament_participants_replaced_by` on `replaced_by_participant_id`
+- `idx_tournament_participants_replacement_of` on `requested_replacement_of_id`
 
 ---
 
