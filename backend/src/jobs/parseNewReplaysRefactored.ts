@@ -1388,19 +1388,39 @@ export class ParseNewReplaysRefactorized {
     const mapNameNorm = normalizeQuotes(mapName);
     const mapNameNoApos = removeApostrophes(mapName);  // Apply to ORIGINAL, not to normalized
 
+    console.log(`   [MAP DEBUG] Input mapName: "${mapName}"`);
+    console.log(`   [MAP DEBUG] After normalizeQuotes: "${mapNameNorm}"`);
+    console.log(`   [MAP DEBUG] After removeApostrophes: "${mapNameNoApos}"`);
+    console.log(`   [MAP DEBUG] mapNameNorm === mapName? ${mapNameNorm === mapName}`);
+    console.log(`   [MAP DEBUG] mapNameNoApos === mapNameNorm? ${mapNameNoApos === mapNameNorm}`);
+
     // Helper: run a query and return ranked result (is_ranked = 1)
     // IMPORTANT: Only search for ranked maps - do NOT fallback to unranked maps.
     // A map must be explicitly marked as ranked to be eligible for ranked matches.
-    const tryQuery = async (sql: string, params: any[]): Promise<{ name: string; isRanked: boolean } | null> => {
+    const tryQuery = async (sql: string, params: any[], description: string): Promise<{ name: string; isRanked: boolean } | null> => {
+      console.log(`   [MAP DEBUG] Trying: ${description}`);
+      console.log(`   [MAP DEBUG]   SQL: ${sql}`);
+      console.log(`   [MAP DEBUG]   Params: [${params.map(p => `"${p}"`).join(', ')}]`);
+      
       const result = await query(sql, params);
       const rows = (result as any).rows || [];
+      
+      console.log(`   [MAP DEBUG]   Result rows: ${rows.length}`);
+      if (rows.length > 0) {
+        rows.forEach((row: any, idx: number) => {
+          console.log(`   [MAP DEBUG]     Row ${idx}: name="${row.name}", is_ranked=${row.is_ranked}`);
+        });
+      }
+      
       if (rows.length === 0) return null;
       const map = rows[0];
       // Return only if this is a ranked map (is_ranked = 1)
       if (map.is_ranked === 1) {
+        console.log(`   [MAP DEBUG]   ✅ MATCH FOUND (ranked)`);
         return { name: map.name as string, isRanked: true };
       }
       // Unranked maps are not eligible for ranked match validation
+      console.log(`   [MAP DEBUG]   ❌ Found but not ranked (is_ranked=${map.is_ranked})`);
       return null;
     };
 
@@ -1408,9 +1428,11 @@ export class ParseNewReplaysRefactorized {
       // 0. Try exact match by map ID (from forum wesnothd_game_content_info) - highest priority
       if (mapId) {
         const mapIdWithoutPrefix = mapId.replace(/^multiplayer_/, '').replace(/_/g, ' ');
+        console.log(`   [MAP DEBUG] Step 0: Trying by map ID: "${mapId}" → "${mapIdWithoutPrefix}"`);
         let hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-          [mapIdWithoutPrefix]
+          [mapIdWithoutPrefix],
+          `Map ID exact match`
         );
         if (hit) {
           console.log(`   📌 Matched by map ID: ${mapId} → ${hit.name}`);
@@ -1419,31 +1441,40 @@ export class ParseNewReplaysRefactorized {
       }
 
       // 1. Exact match on original name (ORDER BY is_ranked DESC so ranked rows come first)
+      console.log(`   [MAP DEBUG] Step 1: Trying exact match on original`);
       let hit = await tryQuery(
         `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-        [mapName]
+        [mapName],
+        `Exact match on original "${mapName}"`
       );
       if (hit) return hit;
 
       // 1b. Exact match with normalized quotes (handles forum U+2019 vs DB U+0027)
+      console.log(`   [MAP DEBUG] Step 1b: mapNameNorm !== mapName? ${mapNameNorm !== mapName}`);
       if (mapNameNorm !== mapName) {
         hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-          [mapNameNorm]
+          [mapNameNorm],
+          `Exact match on normalized "${mapNameNorm}"`
         );
         if (hit) return hit;
       }
 
       // 1c. Exact match ignoring apostrophes (handles "Sullas Ruins" vs "Sulla's Ruins")
+      console.log(`   [MAP DEBUG] Step 1c: mapNameNoApos !== mapNameNorm? ${mapNameNoApos !== mapNameNorm}`);
       if (mapNameNoApos !== mapNameNorm) {
+        console.log(`   [MAP DEBUG]   Will try REPLACE query with: "${mapNameNoApos}"`);
         hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-          [mapNameNoApos]
+          [mapNameNoApos],
+          `Exact match ignoring apostrophes (REPLACE) for "${mapNameNoApos}"`
         );
         if (hit) {
           console.log(`   📌 Matched ignoring apostrophes: "${mapName}" → "${hit.name}"`);
           return hit;
         }
+      } else {
+        console.log(`   [MAP DEBUG]   SKIPPING 1c: mapNameNoApos === mapNameNorm`);
       }
 
       // 2. Strip "Np —" / "Np \ufffd" prefix, then exact match
@@ -1451,10 +1482,12 @@ export class ParseNewReplaysRefactorized {
       const cleanedNorm = normalizeQuotes(cleaned);
       const cleanedNoApos = removeApostrophes(cleaned);  // Apply to ORIGINAL cleaned, not normalized
       if (cleaned !== mapName) {
+        console.log(`   [MAP DEBUG] Step 2: Prefix stripping: "${mapName}" → "${cleaned}"`);
         // 2a. Exact match on normalized stripped name
         hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-          [cleanedNorm]
+          [cleanedNorm],
+          `Exact match on cleaned normalized "${cleanedNorm}"`
         );
         if (hit) return hit;
 
@@ -1462,7 +1495,8 @@ export class ParseNewReplaysRefactorized {
         if (cleanedNorm !== cleaned) {
           hit = await tryQuery(
             `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-            [cleaned]
+            [cleaned],
+            `Exact match on cleaned raw "${cleaned}"`
           );
           if (hit) return hit;
         }
@@ -1471,16 +1505,19 @@ export class ParseNewReplaysRefactorized {
         if (cleanedNoApos !== cleanedNorm) {
           hit = await tryQuery(
             `SELECT name, is_ranked FROM game_maps WHERE REPLACE(LOWER(name), "'", "") = LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-            [cleanedNoApos]
+            [cleanedNoApos],
+            `Exact match ignoring apostrophes (REPLACE) on cleaned "${cleanedNoApos}"`
           );
           if (hit) return hit;
         }
       }
 
       // 3. LIKE on normalized map name
+      console.log(`   [MAP DEBUG] Step 3: LIKE match`);
       hit = await tryQuery(
         `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-        [`%${mapNameNorm}%`]
+        [`%${mapNameNorm}%`],
+        `LIKE match on normalized "${mapNameNorm}"`
       );
       if (hit) return hit;
 
@@ -1489,7 +1526,8 @@ export class ParseNewReplaysRefactorized {
       if (fuzzyClean !== cleanedNorm && cleaned !== mapName) {
         hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-          [fuzzyClean]
+          [fuzzyClean],
+          `LIKE fuzzy on cleaned "${fuzzyClean}"`
         );
         if (hit) return hit;
       }
@@ -1499,12 +1537,14 @@ export class ParseNewReplaysRefactorized {
       if (fuzzyRaw !== mapNameNorm) {
         hit = await tryQuery(
           `SELECT name, is_ranked FROM game_maps WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_ranked DESC LIMIT 1`,
-          [fuzzyRaw]
+          [fuzzyRaw],
+          `LIKE fuzzy on raw "${fuzzyRaw}"`
         );
         if (hit) return hit;
       }
 
       // No ranked map found — return false (map not eligible for ranked matches)
+      console.log(`   [MAP DEBUG] ❌ NO RANKED MAP FOUND - returning isRanked: false`);
       return { name: mapName, isRanked: false };
     } catch (err) {
       console.warn(`⚠️  Could not resolve map "${mapName}":`, err);
