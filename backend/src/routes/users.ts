@@ -443,6 +443,7 @@ router.put('/profile/update', authMiddleware, async (req: AuthRequest, res) => {
 });
 
 // Toggle enable_ranked for the authenticated user
+// Once enabled, cannot be disabled (permanent)
 router.put('/profile/ranked', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { enable_ranked } = req.body;
@@ -451,22 +452,31 @@ router.put('/profile/ranked', authMiddleware, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'enable_ranked must be a boolean' });
     }
 
-    const userResult = await query(`SELECT nickname FROM users_extension WHERE id = ?`, [req.userId]);
+    const userResult = await query(`SELECT nickname, enable_ranked FROM users_extension WHERE id = ?`, [req.userId]);
     const nickname = userResult.rows[0]?.nickname || null;
+    const currentEnableRanked = userResult.rows[0]?.enable_ranked;
 
-    await query(
-      `UPDATE users_extension SET enable_ranked = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      [enable_ranked ? 1 : 0, req.userId]
-    );
+    // If trying to disable while already enabled, reject
+    if (!enable_ranked && currentEnableRanked) {
+      return res.status(400).json({ error: 'Ranked matches cannot be disabled once enabled' });
+    }
 
-    await logAuditEvent({
-      event_type: 'PROFILE_UPDATE',
-      user_id: req.userId,
-      username: nickname,
-      ip_address: getUserIP(req),
-      user_agent: getUserAgent(req),
-      details: { field: 'enable_ranked', value: enable_ranked }
-    });
+    // Only update if there's an actual change
+    if (enable_ranked !== currentEnableRanked) {
+      await query(
+        `UPDATE users_extension SET enable_ranked = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [enable_ranked ? 1 : 0, req.userId]
+      );
+
+      await logAuditEvent({
+        event_type: 'PROFILE_UPDATE',
+        user_id: req.userId,
+        username: nickname,
+        ip_address: getUserIP(req),
+        user_agent: getUserAgent(req),
+        details: { field: 'enable_ranked', value: enable_ranked }
+      });
+    }
 
     res.json({ enable_ranked });
   } catch (error) {
